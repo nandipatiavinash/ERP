@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import type { AppUser, RoleName } from "@/lib/database.types";
-import type { NavItem } from "@/lib/navigation";
+import { navItems, type NavItem } from "@/lib/navigation";
 
 function Brand() {
   return (
@@ -51,13 +51,13 @@ function NavLinks({ items }: { items: NavItem[] }) {
 
 export function AppShell({
   user,
-  items,
   children,
 }: {
   user: AppUser & { roles: { name: RoleName } };
-  items: NavItem[];
   children: React.ReactNode;
 }) {
+  const items = navItems.filter((item) => item.roles.includes(user.roles.name));
+
   return (
     <div className="min-h-screen bg-muted/30">
       <aside className="fixed inset-y-0 left-0 z-20 hidden w-64 border-r bg-background lg:block">
