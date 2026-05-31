@@ -1,33 +1,133 @@
+import { createRole, deactivateRole, saveRoleDetails, saveRolePermissions } from "@/app/(app)/_actions";
 import { PageHeader } from "@/components/app/page-header";
 import { StatusBadge } from "@/components/app/status-badge";
-import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { requireRole } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
+function titleCase(value: string) {
+  return value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
 export default async function RolesPage() {
-  await requireRole(["admin"]);
+  await requirePermission("roles.view");
   const supabase = await createClient();
-  const { data } = await supabase.from("roles").select("*").is("deleted_at", null).order("name");
+  const [{ data: roles }, { data: permissions }, { data: assigned }] = await Promise.all([
+    supabase.from("roles").select("*").is("deleted_at", null).order("name"),
+    supabase.from("permissions").select("*").order("module").order("action"),
+    supabase.from("role_permissions").select("role_id, permission_id"),
+  ]);
+
+  const roleRows = (roles ?? []) as any[];
+  const permissionRows = (permissions ?? []) as any[];
+  const assignedSet = new Set(((assigned ?? []) as any[]).map((row) => `${row.role_id}:${row.permission_id}`));
+  const groupedPermissions = permissionRows.reduce<Record<string, any[]>>((acc, permission) => {
+    acc[permission.module] ??= [];
+    acc[permission.module].push(permission);
+    return acc;
+  }, {});
+
   return (
     <>
-      <PageHeader title="Roles" description="Built-in roles for a simple factory permission model." />
-      <Card>
-        <CardContent className="pt-5">
-          <Table>
-            <TableHeader><TableRow><TableHead>Role</TableHead><TableHead>Description</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
-            <TableBody>
-              {((data ?? []) as any[]).map((role) => (
-                <TableRow key={role.id}>
-                  <TableCell className="font-medium capitalize">{role.name}</TableCell>
-                  <TableCell>{role.description}</TableCell>
-                  <TableCell><StatusBadge value={role.is_active ? "active" : "inactive"} /></TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+      <PageHeader title="Roles" description="Create custom roles and assign module permissions for dynamic access control." />
+      <Card className="mb-5">
+        <CardHeader><CardTitle>Create Role</CardTitle></CardHeader>
+        <CardContent>
+          <form action={createRole} className="grid gap-4 md:grid-cols-[1fr_2fr_auto] md:items-end">
+            <div className="space-y-2">
+              <Label htmlFor="name">Role Name</Label>
+              <Input id="name" name="name" placeholder="Production Manager" required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="description">Description</Label>
+              <Input id="description" name="description" placeholder="Optional role description" />
+            </div>
+            <Button type="submit">Create Role</Button>
+          </form>
         </CardContent>
       </Card>
+
+      {roleRows.length === 0 ? <EmptyState title="No roles found" description="Create a role before assigning permissions." /> : (
+        <div className="space-y-5">
+          {roleRows.map((role) => (
+            <Card key={role.id}>
+              <CardHeader>
+                <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                  <div>
+                    <CardTitle className="capitalize">{role.name}</CardTitle>
+                    <p className="mt-1 text-sm text-muted-foreground">{role.description || "No description"}</p>
+                  </div>
+                  <StatusBadge value={role.is_active ? "active" : "inactive"} />
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-5">
+                <form action={saveRoleDetails} className="grid gap-4 md:grid-cols-[1fr_2fr_auto] md:items-end">
+                  <input type="hidden" name="role_id" value={role.id} />
+                  <div className="space-y-2">
+                    <Label htmlFor={`name-${role.id}`}>Role Name</Label>
+                    <Input id={`name-${role.id}`} name="name" defaultValue={role.name} required />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor={`description-${role.id}`}>Description</Label>
+                    <Input id={`description-${role.id}`} name="description" defaultValue={role.description ?? ""} />
+                  </div>
+                  <Button type="submit" variant="outline">Save Role</Button>
+                </form>
+
+                <form action={saveRolePermissions} className="space-y-4">
+                  <input type="hidden" name="role_id" value={role.id} />
+                  <div className="overflow-x-auto rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="min-w-40">Module</TableHead>
+                          <TableHead>Permissions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {Object.entries(groupedPermissions).map(([module, modulePermissions]) => (
+                          <TableRow key={module}>
+                            <TableCell className="font-medium">{titleCase(module)}</TableCell>
+                            <TableCell>
+                              <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                                {modulePermissions.map((permission) => (
+                                  <label key={permission.id} className="flex min-h-10 items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm">
+                                    <input
+                                      type="checkbox"
+                                      name="permission_ids"
+                                      value={permission.id}
+                                      defaultChecked={assignedSet.has(`${role.id}:${permission.id}`)}
+                                      className="h-4 w-4 accent-primary"
+                                    />
+                                    <span>
+                                      <span className="font-medium">{permission.action}</span>
+                                      <span className="ml-1 text-muted-foreground">{permission.description}</span>
+                                    </span>
+                                  </label>
+                                ))}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  <Button type="submit">Save Permissions</Button>
+                </form>
+                <form action={deactivateRole}>
+                  <input type="hidden" name="role_id" value={role.id} />
+                  <Button type="submit" variant="outline">Deactivate Role</Button>
+                </form>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
     </>
   );
 }

@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { requireRole } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 import { modules } from "@/lib/modules";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, formatNumber } from "@/lib/utils";
@@ -16,7 +16,7 @@ import { formatDate, formatNumber } from "@/lib/utils";
 type Params = { search?: string; page?: string; sort?: string; direction?: "asc" | "desc" };
 
 export default async function RawMaterialsPage({ searchParams }: { searchParams: Promise<Params> }) {
-  await requireRole(["admin"]);
+  await requirePermission("raw_materials.view");
   const supabase = await createClient();
   const [{ data }, { data: purchases }] = await Promise.all([
     supabase.from("raw_materials").select("*").is("deleted_at", null).order("created_at", { ascending: false }),

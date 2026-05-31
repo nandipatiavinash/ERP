@@ -1,12 +1,12 @@
 import { PageHeader } from "@/components/app/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { requireRole } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate } from "@/lib/utils";
 
 export default async function AuditLogsPage() {
-  await requireRole(["admin"]);
+  await requirePermission("audit_logs.view");
   const supabase = await createClient();
   const { data } = await supabase.from("audit_logs").select("*, users(full_name)").order("created_at", { ascending: false }).limit(200);
   return (

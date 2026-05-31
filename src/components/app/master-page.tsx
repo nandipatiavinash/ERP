@@ -16,7 +16,7 @@ import { formatDate } from "@/lib/utils";
 type Row = Record<string, unknown> & { id: string };
 
 function Field({ field, value }: { field: ModuleConfig["fields"][number]; value?: unknown }) {
-  const defaultValue = String(value ?? (field.name === "status" ? "active" : ""));
+  const defaultValue = String(value ?? (field.name === "status" ? "active" : field.name === "shift_start" ? "09:00" : field.name === "shift_end" ? "18:00" : ""));
   return (
     <div className="space-y-2">
       <Label htmlFor={field.name}>{field.label}</Label>
@@ -132,7 +132,7 @@ export function MasterPage({
                     <TableRow key={row.id}>
                       {config.columns.map((column) => (
                         <TableCell key={column.key}>
-                          {column.key === "status" ? <StatusBadge value={String(row[column.key])} /> : column.key.endsWith("_at") ? formatDate(String(row[column.key])) : String(row[column.key] ?? "-")}
+                          {column.key === "status" ? <StatusBadge value={String(row[column.key])} /> : column.key.endsWith("_at") || column.key.endsWith("_date") ? formatDate(String(row[column.key])) : String(row[column.key] ?? "-")}
                         </TableCell>
                       ))}
                       <TableCell className="min-w-80">

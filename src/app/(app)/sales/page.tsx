@@ -4,12 +4,12 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { PageHeader } from "@/components/app/page-header";
 import { SalesForm } from "@/components/app/sales-form";
 import { StatusBadge } from "@/components/app/status-badge";
-import { requireRole } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, formatNumber } from "@/lib/utils";
 
 export default async function SalesPage() {
-  await requireRole(["admin"]);
+  await requirePermission("sales.view");
   const supabase = await createClient();
   const [{ data: customers }, { data: fabrics }, { data: rolls }, { data: orders }] = await Promise.all([
     supabase.from("customers").select("id, customer_name").eq("status", "active").is("deleted_at", null).order("customer_name"),

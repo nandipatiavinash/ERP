@@ -1,12 +1,12 @@
 import { MasterPage } from "@/components/app/master-page";
-import { requireRole } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 import { modules } from "@/lib/modules";
 import { createClient } from "@/lib/supabase/server";
 
 type Params = { search?: string; page?: string; sort?: string; direction?: "asc" | "desc" };
 
 export default async function CustomersPage({ searchParams }: { searchParams: Promise<Params> }) {
-  await requireRole(["admin"]);
+  await requirePermission("customers.view");
   const supabase = await createClient();
   const { data } = await supabase.from("customers").select("*").is("deleted_at", null).order("created_at", { ascending: false });
   const params = await searchParams;

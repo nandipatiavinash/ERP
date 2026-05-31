@@ -6,12 +6,12 @@ import { PageHeader } from "@/components/app/page-header";
 import { ProductionForm } from "@/components/app/production-form";
 import { StatusBadge } from "@/components/app/status-badge";
 import { softDeleteProduction } from "@/app/(app)/_actions";
-import { isAdmin, requireUser } from "@/lib/auth";
+import { isAdmin, requirePermission } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, formatNumber } from "@/lib/utils";
 
 export default async function ProductionPage() {
-  const user = await requireUser();
+  const user = await requirePermission("production.view");
   const admin = isAdmin(user);
   const supabase = await createClient();
   const [{ data: fabrics }, { data: looms }, { data: rows }] = await Promise.all([

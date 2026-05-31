@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { navItems } from "@/lib/navigation";
 import type { AppUser, RoleName } from "@/lib/database.types";
 
 export async function getSessionUser() {
@@ -36,6 +37,47 @@ export async function requireRole(roles: RoleName[]) {
   const user = await requireUser();
   const role = user.roles?.name;
   if (!role || !roles.includes(role)) redirect("/dashboard");
+  return user;
+}
+
+export function fallbackPermissions(role: RoleName | undefined) {
+  if (role === "admin") return navItems.map((item) => item.permission).concat([
+    "users.create", "users.edit", "users.delete",
+    "roles.create", "roles.edit", "roles.delete",
+    "employees.create", "employees.edit", "employees.delete",
+    "attendance.create", "attendance.edit",
+    "looms.create", "looms.edit", "looms.delete",
+    "fabric_types.create", "fabric_types.edit", "fabric_types.delete",
+    "raw_materials.create", "raw_materials.edit", "raw_materials.delete",
+    "customers.create", "customers.edit", "customers.delete",
+    "production.create", "production.edit",
+    "sales.create", "sales.edit",
+    "reports.export",
+  ]);
+  if (role === "operator") return ["dashboard.view", "production.view", "production.create", "production.edit", "rolls.view", "reports.view"];
+  return [];
+}
+
+export async function getSessionPermissions(user?: AppUser) {
+  const activeUser = user ?? await getSessionUser();
+  if (!activeUser) return [];
+  const supabase = await createClient();
+  const { data, error } = await (supabase
+    .from("role_permissions")
+    .select("permissions(module, action)")
+    .eq("role_id", activeUser.role_id) as any);
+
+  if (error || !data?.length) return fallbackPermissions(activeUser.roles?.name);
+
+  return data
+    .map((row: any) => row.permissions ? `${row.permissions.module}.${row.permissions.action}` : null)
+    .filter(Boolean) as string[];
+}
+
+export async function requirePermission(permission: string) {
+  const user = await requireUser();
+  const permissions = await getSessionPermissions(user);
+  if (!permissions.includes(permission)) redirect("/403");
   return user;
 }
 

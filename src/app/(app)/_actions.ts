@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { requireUser } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 import { modules } from "@/lib/modules";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -35,10 +35,6 @@ function readPayload(formData: FormData, fieldNames: string[]) {
 const statusSchema = z.enum(["active", "inactive"]);
 const attendanceSchema = z.object({
   employee_id: z.string().uuid(),
-  attendance_date: z.string().min(1),
-  check_in: z.string().optional(),
-  check_out: z.string().optional(),
-  status: z.enum(["present", "absent", "half_day", "leave"]),
 });
 const productionSchema = z.object({
   fabric_type_id: z.string().uuid(),
@@ -76,6 +72,14 @@ const createUserSchema = z.object({
   role_id: z.string().uuid("Select a valid role."),
   status: statusSchema,
 });
+const roleSchema = z.object({
+  name: z.string().trim().min(2, "Role name is required."),
+  description: z.string().trim().optional(),
+});
+
+function modulePermissionKey(moduleKey: string) {
+  return moduleKey.replaceAll("-", "_");
+}
 
 function assertValid<T>(schema: z.ZodType<T>, value: unknown) {
   const parsed = schema.safeParse(value);
@@ -101,12 +105,11 @@ function validateMasterPayload(moduleKey: string, payload: Record<string, unknow
 }
 
 export async function saveMaster(moduleKey: string, formData: FormData) {
-  const user = await requireUser();
-  if (user.roles?.name !== "admin") throw new Error("Only admins can manage master data.");
+  const id = String(formData.get("id") ?? "");
+  const user = await requirePermission(`${modulePermissionKey(moduleKey)}.${id ? "edit" : "create"}`);
 
   const config = modules[moduleKey];
   const supabase = await createClient();
-  const id = String(formData.get("id") ?? "");
   const payload = validateMasterPayload(moduleKey, readPayload(formData, config.fields.map((field) => field.name))) as Record<string, unknown>;
   payload.updated_by = user.id;
   const table = config.table as any;
@@ -121,8 +124,7 @@ export async function saveMaster(moduleKey: string, formData: FormData) {
 }
 
 export async function deactivateMaster(moduleKey: string, formData: FormData) {
-  const user = await requireUser();
-  if (user.roles?.name !== "admin") throw new Error("Only admins can deactivate records.");
+  const user = await requirePermission(`${modulePermissionKey(moduleKey)}.delete`);
 
   const config = modules[moduleKey];
   const id = String(formData.get("id") ?? "");
@@ -137,8 +139,7 @@ export async function deactivateMaster(moduleKey: string, formData: FormData) {
 }
 
 export async function saveAttendance(formData: FormData) {
-  const user = await requireUser();
-  if (user.roles?.name !== "admin") throw new Error("Only admins can manage attendance.");
+  const user = await requirePermission("attendance.edit");
   const supabase = await createClient();
   const id = String(formData.get("id") ?? "");
   const payload = {
@@ -153,8 +154,58 @@ export async function saveAttendance(formData: FormData) {
   revalidatePath("/attendance");
 }
 
+export async function checkInAttendance(formData: FormData) {
+  const user = await requirePermission("attendance.create");
+
+  const payload = assertValid(attendanceSchema, readPayload(formData, ["employee_id"]));
+  const supabase = await createClient();
+  const now = new Date();
+  const today = now.toISOString().slice(0, 10);
+
+  const { error } = await (supabase.from("attendance") as any).upsert({
+    employee_id: payload.employee_id,
+    attendance_date: today,
+    check_in_at: now.toISOString(),
+    status: "present",
+    created_by: user.id,
+    updated_by: user.id,
+  }, { onConflict: "employee_id,attendance_date" });
+
+  if (error) throw new Error(error.message);
+  revalidatePath("/attendance");
+  revalidatePath("/dashboard");
+}
+
+export async function checkOutAttendance(formData: FormData) {
+  const user = await requirePermission("attendance.edit");
+
+  const payload = assertValid(attendanceSchema, readPayload(formData, ["employee_id"]));
+  const supabase = await createClient();
+  const now = new Date();
+  const today = now.toISOString().slice(0, 10);
+
+  const { data: existing, error: readError } = await (supabase.from("attendance") as any)
+    .select("id, check_in_at")
+    .eq("employee_id", payload.employee_id)
+    .eq("attendance_date", today)
+    .is("deleted_at", null)
+    .maybeSingle();
+
+  if (readError) throw new Error(readError.message);
+  if (!existing?.id) throw new Error("Check in before checking out.");
+
+  const { error } = await (supabase.from("attendance") as any)
+    .update({ check_out_at: now.toISOString(), updated_by: user.id })
+    .eq("id", existing.id);
+
+  if (error) throw new Error(error.message);
+  revalidatePath("/attendance");
+  revalidatePath("/dashboard");
+}
+
 export async function saveProduction(formData: FormData) {
-  const user = await requireUser();
+  const id = String(formData.get("id") ?? "");
+  const user = await requirePermission(`production.${id ? "edit" : "create"}`);
   const supabase = await createClient();
   const fields = ["fabric_type_id", "loom_id", "gross_weight", "core_weight", "end_meters", "remarks"];
   if (user.roles?.name === "admin") fields.push("initial_meters");
@@ -163,7 +214,6 @@ export async function saveProduction(formData: FormData) {
     updated_by: user.id,
   };
 
-  const id = String(formData.get("id") ?? "");
   const query = id
     ? (supabase.from("loom_production_entries") as any).update(payload as any).eq("id", id)
     : (supabase.from("loom_production_entries") as any).insert({ ...payload, created_by: user.id, updated_by: user.id } as any);
@@ -176,7 +226,7 @@ export async function saveProduction(formData: FormData) {
 }
 
 export async function softDeleteProduction(formData: FormData) {
-  const user = await requireUser();
+  const user = await requirePermission("production.edit");
   const id = String(formData.get("id") ?? "");
   const supabase = await createClient();
   const { error } = await (supabase
@@ -189,8 +239,8 @@ export async function softDeleteProduction(formData: FormData) {
 }
 
 export async function saveSale(formData: FormData) {
-  const user = await requireUser();
-  if (user.roles?.name !== "admin") throw new Error("Only admins can manage sales.");
+  const id = String(formData.get("id") ?? "");
+  const user = await requirePermission(`sales.${id ? "edit" : "create"}`);
   const supabase = await createClient();
   const selectedRollIds = formData.getAll("selected_roll_ids").map(String);
   const payload = {
@@ -201,7 +251,6 @@ export async function saveSale(formData: FormData) {
     updated_by: user.id,
   };
 
-  const id = String(formData.get("id") ?? "");
   const query = id
     ? (supabase.from("sales_orders") as any).update(payload as any).eq("id", id)
     : (supabase.from("sales_orders") as any).insert({ ...payload, created_by: user.id, updated_by: user.id } as any);
@@ -213,8 +262,7 @@ export async function saveSale(formData: FormData) {
 }
 
 export async function saveRawMaterialPurchase(formData: FormData) {
-  const user = await requireUser();
-  if (user.roles?.name !== "admin") throw new Error("Only admins can record raw material purchases.");
+  const user = await requirePermission("raw_materials.edit");
   const payload = assertValid(rawPurchaseSchema, readPayload(formData, [
     "raw_material_id",
     "purchase_date",
@@ -237,8 +285,7 @@ export async function saveRawMaterialPurchase(formData: FormData) {
 }
 
 export async function createErpUser(_: unknown, formData: FormData) {
-  const user = await requireUser();
-  if (user.roles?.name !== "admin") return { error: "Only admins can create users." };
+  await requirePermission("users.create");
 
   const parsed = createUserSchema.safeParse({
     full_name: formData.get("full_name"),
@@ -282,4 +329,69 @@ export async function createErpUser(_: unknown, formData: FormData) {
 
   revalidatePath("/users");
   return { success: "Supabase Auth user created. Share the password securely with the user." };
+}
+
+export async function createRole(formData: FormData) {
+  await requirePermission("roles.create");
+  const payload = assertValid(roleSchema, {
+    name: formData.get("name"),
+    description: formData.get("description") || undefined,
+  });
+  const supabase = await createClient();
+  const { error } = await (supabase.from("roles") as any).insert({
+    name: payload.name,
+    description: payload.description ?? null,
+    is_active: true,
+  } as any);
+  if (error) throw new Error(error.message);
+  revalidatePath("/roles");
+}
+
+export async function saveRoleDetails(formData: FormData) {
+  await requirePermission("roles.edit");
+  const roleId = String(formData.get("role_id") ?? "");
+  assertValid(z.string().uuid("Select a valid role."), roleId);
+  const payload = assertValid(roleSchema, {
+    name: formData.get("name"),
+    description: formData.get("description") || undefined,
+  });
+  const supabase = await createClient();
+  const { error } = await (supabase
+    .from("roles") as any)
+    .update({
+      name: payload.name,
+      description: payload.description ?? null,
+    } as any)
+    .eq("id", roleId);
+  if (error) throw new Error(error.message);
+  revalidatePath("/roles");
+}
+
+export async function deactivateRole(formData: FormData) {
+  await requirePermission("roles.delete");
+  const roleId = String(formData.get("role_id") ?? "");
+  assertValid(z.string().uuid("Select a valid role."), roleId);
+  const supabase = await createClient();
+  const { error } = await (supabase
+    .from("roles") as any)
+    .update({ is_active: false, deleted_at: new Date().toISOString() } as any)
+    .eq("id", roleId);
+  if (error) throw new Error(error.message);
+  revalidatePath("/roles");
+}
+
+export async function saveRolePermissions(formData: FormData) {
+  await requirePermission("roles.edit");
+  const roleId = String(formData.get("role_id") ?? "");
+  const permissionIds = formData.getAll("permission_ids").map(String);
+  assertValid(z.string().uuid("Select a valid role."), roleId);
+  const supabase = await createClient();
+  const { error: deleteError } = await (supabase.from("role_permissions") as any).delete().eq("role_id", roleId);
+  if (deleteError) throw new Error(deleteError.message);
+  if (permissionIds.length > 0) {
+    const rows = permissionIds.map((permissionId) => ({ role_id: roleId, permission_id: permissionId }));
+    const { error: insertError } = await (supabase.from("role_permissions") as any).insert(rows as any);
+    if (insertError) throw new Error(insertError.message);
+  }
+  revalidatePath("/roles");
 }

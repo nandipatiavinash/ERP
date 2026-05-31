@@ -55,14 +55,19 @@ function NavLinks({ items, onNavigate }: { items: NavItem[]; onNavigate?: () => 
 
 export function AppShell({
   user,
+  permissions,
   children,
 }: {
   user: AppUser & { roles: { name: RoleName } };
+  permissions: string[];
   children: React.ReactNode;
 }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const router = useRouter();
-  const items = useMemo(() => navItems.filter((item) => item.roles.includes(user.roles.name)), [user.roles.name]);
+  const items = useMemo(
+    () => navItems.filter((item) => permissions.includes(item.permission) || item.roles.includes(user.roles.name)),
+    [permissions, user.roles.name],
+  );
 
   useEffect(() => {
     const timer = window.setTimeout(() => {

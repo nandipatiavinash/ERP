@@ -3,7 +3,7 @@ import { ExportButtons } from "@/components/app/export-buttons";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { requireUser } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, formatNumber } from "@/lib/utils";
 import type { Database } from "@/lib/database.types";
@@ -44,7 +44,7 @@ function inText(row: Record<string, unknown>, search: string) {
 }
 
 export default async function ReportsPage({ searchParams }: { searchParams: Promise<Params> }) {
-  await requireUser();
+  await requirePermission("reports.view");
   const params = await searchParams;
   const from = params.from || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10);
   const to = params.to || new Date().toISOString().slice(0, 10);
@@ -118,7 +118,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
         <ReportTable title="Raw Material Stock" filename="raw-material-stock" rows={(rawResult.data ?? []) as unknown as ReportRow[]} columns={["material_name", "unit", "opening_stock", "current_stock", "status"]} />
         <ReportTable title="Raw Material Purchases" filename="raw-material-purchases" rows={rawPurchases} columns={["date", "material", "supplier", "bill", "quantity", "rate", "amount"]} />
         <ReportTable title="Customer Wise Sales" filename="sales" rows={sales} columns={["date", "order", "customer", "fabric", "quantity", "amount", "status"]} />
-        <ReportTable title="Attendance Report" filename="attendance" rows={((attendanceResult.data ?? []) as AttendanceRow[]).map((row) => ({ date: row.attendance_date, employee: `${row.employees?.employee_code ?? ""} ${row.employees?.name ?? ""}`.trim(), check_in: row.check_in, check_out: row.check_out, status: row.status })).filter((row) => inText(row, search))} columns={["date", "employee", "check_in", "check_out", "status"]} />
+        <ReportTable title="Attendance Report" filename="attendance" rows={((attendanceResult.data ?? []) as AttendanceRow[]).map((row) => ({ date: row.attendance_date, employee: `${row.employees?.employee_code ?? ""} ${row.employees?.name ?? ""}`.trim(), check_in: row.check_in, check_out: row.check_out, working_hours: Number(row.working_hours ?? 0), overtime_hours: Number(row.overtime_hours ?? 0), status: row.status })).filter((row) => inText(row, search))} columns={["date", "employee", "check_in", "check_out", "working_hours", "overtime_hours", "status"]} />
         <ReportTable title="Employee Report" filename="employees" rows={(employeeResult.data ?? []) as unknown as ReportRow[]} columns={["employee_code", "name", "department", "designation", "salary", "status"]} />
       </div>
     </>

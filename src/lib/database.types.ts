@@ -1,6 +1,6 @@
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
 
-export type RoleName = "admin" | "operator";
+export type RoleName = string;
 export type Status = "active" | "inactive";
 export type RollStatus = "available" | "reserved" | "sold" | "voided";
 export type RollStage = "loom" | "roto_printing" | "lamination" | "finishing" | "offset_printing";
@@ -28,7 +28,7 @@ export type Database = {
     Tables: {
       roles: Table<{
         id: string;
-        name: RoleName;
+        name: string;
         description: string | null;
         is_active: boolean;
         created_at: string;
@@ -116,6 +116,9 @@ export type Database = {
         department: string;
         designation: string;
         salary: string;
+        joining_date: string | null;
+        shift_start: string;
+        shift_end: string;
         status: Status;
         created_by: string | null;
         updated_by: string | null;
@@ -129,6 +132,10 @@ export type Database = {
         attendance_date: string;
         check_in: string | null;
         check_out: string | null;
+        check_in_at: string | null;
+        check_out_at: string | null;
+        working_hours: string;
+        overtime_hours: string;
         status: AttendanceStatus;
         created_by: string | null;
         updated_by: string | null;
@@ -212,6 +219,21 @@ export type Database = {
         record_id: string | null;
         old_data: Json | null;
         new_data: Json | null;
+        created_at: string;
+      }>;
+      permissions: Table<{
+        id: string;
+        module: string;
+        action: string;
+        description: string | null;
+        created_at: string;
+        updated_at: string;
+        deleted_at: string | null;
+      }>;
+      role_permissions: Table<{
+        role_id: string;
+        permission_id: string;
+        created_by: string | null;
         created_at: string;
       }>;
     };

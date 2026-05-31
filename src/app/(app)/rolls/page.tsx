@@ -4,12 +4,12 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { PageHeader } from "@/components/app/page-header";
 import { StatusBadge } from "@/components/app/status-badge";
-import { requireUser } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, formatNumber } from "@/lib/utils";
 
 export default async function RollsPage({ searchParams }: { searchParams: Promise<{ fabric_type?: string }> }) {
-  await requireUser();
+  await requirePermission("rolls.view");
   const params = await searchParams;
   const supabase = await createClient();
   let query = supabase

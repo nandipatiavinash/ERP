@@ -2,7 +2,7 @@ import { Boxes, CalendarCheck, Factory, Package, Scale, ScrollText } from "lucid
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { DashboardChart } from "@/components/app/dashboard-chart";
 import { PageHeader } from "@/components/app/page-header";
-import { requireUser } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { formatNumber } from "@/lib/utils";
 
@@ -21,7 +21,7 @@ function StatCard({ title, value, icon: Icon }: { title: string; value: string; 
 }
 
 export default async function DashboardPage() {
-  await requireUser();
+  await requirePermission("dashboard.view");
   const supabase = await createClient();
   const today = new Date().toISOString().slice(0, 10);
 

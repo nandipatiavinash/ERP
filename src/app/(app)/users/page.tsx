@@ -4,11 +4,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { UserForm } from "@/components/app/user-form";
-import { requireRole } from "@/lib/auth";
+import { requirePermission } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function UsersPage() {
-  await requireRole(["admin"]);
+  await requirePermission("users.view");
   const supabase = await createClient();
   const [{ data }, { data: roles }] = await Promise.all([
     supabase.from("users").select("*, roles(name)").is("deleted_at", null).order("created_at", { ascending: false }),
