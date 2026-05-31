@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
@@ -41,12 +42,14 @@ export async function signOut() {
 
 export async function resetPassword(_: unknown, formData: FormData) {
   const supabase = await createClient();
-  const email = String(formData.get("email") ?? "");
-  const origin = String(formData.get("origin") ?? "");
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const requestOrigin = (await headers()).get("origin") ?? "";
+  const origin = process.env.NEXT_PUBLIC_SITE_URL || requestOrigin;
+  if (!origin) return { error: "Password reset is not configured for this deployment." };
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
     redirectTo: `${origin}/reset-password`,
   });
-  if (error) return { error: error.message };
+  if (error) return { error: "Unable to send password reset email." };
   return { success: "Password reset email sent." };
 }
 

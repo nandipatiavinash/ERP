@@ -5,18 +5,32 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { requirePermission } from "@/lib/auth";
+import { getSessionPermissions, requirePermission } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, formatNumber } from "@/lib/utils";
 
 export default async function AttendancePage() {
-  await requirePermission("attendance.view");
+  const user = await requirePermission("attendance.view");
+  const permissions = await getSessionPermissions(user);
+  const canManageAllAttendance = permissions.includes("employees.view") || permissions.includes("users.view");
   const supabase = await createClient();
   const today = new Date().toISOString().slice(0, 10);
-  const [{ data: employees }, { data: rows }] = await Promise.all([
-    supabase.from("employees").select("id, name, employee_code, shift_start, shift_end").eq("status", "active").is("deleted_at", null).order("name"),
-    supabase.from("attendance").select("*, employees(name, employee_code, shift_start, shift_end)").is("deleted_at", null).order("attendance_date", { ascending: false }).limit(100),
-  ]);
+  const employeeQuery = supabase
+    .from("employees")
+    .select("id, user_id, name, employee_code, shift_start, shift_end")
+    .eq("status", "active")
+    .is("deleted_at", null)
+    .order("name");
+  const { data: employees } = await (canManageAllAttendance ? employeeQuery : employeeQuery.eq("user_id", user.id));
+  const employeeIds = ((employees ?? []) as any[]).map((employee) => employee.id);
+  let attendanceQuery = supabase
+    .from("attendance")
+    .select("*, employees(name, employee_code, shift_start, shift_end)")
+    .is("deleted_at", null)
+    .order("attendance_date", { ascending: false })
+    .limit(100);
+  if (!canManageAllAttendance) attendanceQuery = attendanceQuery.in("employee_id", employeeIds.length ? employeeIds : ["00000000-0000-0000-0000-000000000000"]);
+  const { data: rows } = await attendanceQuery;
   const attendanceRows = (rows ?? []) as any[];
   const todayByEmployee = new Map(attendanceRows.filter((row) => row.attendance_date === today).map((row) => [row.employee_id, row]));
 
@@ -26,7 +40,7 @@ export default async function AttendancePage() {
       <Card className="mb-5">
         <CardHeader><CardTitle>Today</CardTitle></CardHeader>
         <CardContent>
-          {(employees ?? []).length === 0 ? <EmptyState title="No active employees" description="Add active employees before recording attendance." /> : (
+          {(employees ?? []).length === 0 ? <EmptyState title="No linked employee" description={canManageAllAttendance ? "Add active employees before recording attendance." : "Ask an admin to link your ERP user to an employee record."} /> : (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>

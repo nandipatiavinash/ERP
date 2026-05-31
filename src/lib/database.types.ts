@@ -111,6 +111,7 @@ export type Database = {
       }>;
       employees: Table<{
         id: string;
+        user_id: string | null;
         employee_code: string;
         name: string;
         department: string;

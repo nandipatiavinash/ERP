@@ -51,13 +51,13 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   const search = params.search ?? "";
   const supabase = await createClient();
   const [productionResult, rollsResult, rawResult, rawPurchaseResult, salesResult, attendanceResult, employeeResult] = await Promise.all([
-    supabase.from("loom_production_entries").select("*, fabric_types(fabric_name), looms(loom_number)").gte("entry_date", from).lte("entry_date", to).is("deleted_at", null).order("entry_date", { ascending: false }),
-    supabase.from("fabric_rolls").select("*, fabric_types(fabric_name)").is("deleted_at", null),
+    supabase.from("loom_production_entries").select("*, fabric_types(fabric_name), looms(loom_number)").gte("entry_date", from).lte("entry_date", to).is("deleted_at", null).order("entry_date", { ascending: false }).limit(500),
+    supabase.from("fabric_rolls").select("*, fabric_types(fabric_name)").is("deleted_at", null).limit(1000),
     supabase.from("raw_materials").select("*").is("deleted_at", null).order("material_name"),
-    supabase.from("raw_material_purchases").select("*, raw_materials(material_name, unit)").gte("purchase_date", from).lte("purchase_date", to).is("deleted_at", null).order("purchase_date", { ascending: false }),
-    supabase.from("sales_orders").select("*, customers(customer_name), fabric_types(fabric_name)").gte("order_date", from).lte("order_date", to).is("deleted_at", null).order("order_date", { ascending: false }),
-    supabase.from("attendance").select("*, employees(name, employee_code)").gte("attendance_date", from).lte("attendance_date", to).is("deleted_at", null).order("attendance_date", { ascending: false }),
-    supabase.from("employees").select("*").is("deleted_at", null).order("name"),
+    supabase.from("raw_material_purchases").select("*, raw_materials(material_name, unit)").gte("purchase_date", from).lte("purchase_date", to).is("deleted_at", null).order("purchase_date", { ascending: false }).limit(500),
+    supabase.from("sales_orders").select("*, customers(customer_name), fabric_types(fabric_name)").gte("order_date", from).lte("order_date", to).is("deleted_at", null).order("order_date", { ascending: false }).limit(500),
+    supabase.from("attendance").select("*, employees(name, employee_code)").gte("attendance_date", from).lte("attendance_date", to).is("deleted_at", null).order("attendance_date", { ascending: false }).limit(500),
+    supabase.from("employees").select("*").is("deleted_at", null).order("name").limit(500),
   ]);
 
   const production = ((productionResult.data ?? []) as DailyProductionRow[]).map((row) => ({
