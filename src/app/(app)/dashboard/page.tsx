@@ -6,6 +6,15 @@ import { requirePermission } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { formatNumber } from "@/lib/utils";
 
+function todayInIndia() {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
+
 function StatCard({ title, value, icon: Icon }: { title: string; value: string; icon: typeof Factory }) {
   return (
     <Card>
@@ -23,7 +32,7 @@ function StatCard({ title, value, icon: Icon }: { title: string; value: string; 
 export default async function DashboardPage() {
   await requirePermission("dashboard.view");
   const supabase = await createClient();
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayInIndia();
 
   const [{ data: production }, { data: rolls }, { data: materials }, { data: attendance }] = await Promise.all([
     supabase.from("loom_production_entries").select("net_weight, net_meters, fabric_types(fabric_name)").eq("entry_date", today).is("deleted_at", null),

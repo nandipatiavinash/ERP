@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { usePathname } from "next/navigation";
+import { useMemo, useState } from "react";
 import { Menu } from "lucide-react";
 import { signOut } from "@/app/actions";
 import { BrandLogo } from "@/components/app/brand-logo";
@@ -27,7 +27,6 @@ function Brand() {
 
 function NavLinks({ items, onNavigate }: { items: NavItem[]; onNavigate?: () => void }) {
   const pathname = usePathname();
-  const router = useRouter();
   return (
     <nav className="space-y-1 p-3">
       {items.map((item) => {
@@ -36,9 +35,7 @@ function NavLinks({ items, onNavigate }: { items: NavItem[]; onNavigate?: () => 
           <Link
             key={item.href}
             href={item.href as any}
-            prefetch
-            onMouseEnter={() => router.prefetch(item.href as any)}
-            onFocus={() => router.prefetch(item.href as any)}
+            prefetch={false}
             onClick={onNavigate}
             className={cn(
               "flex min-h-10 items-center rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
@@ -63,18 +60,10 @@ export function AppShell({
   children: React.ReactNode;
 }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const router = useRouter();
   const items = useMemo(
     () => navItems.filter((item) => permissions.includes(item.permission) || item.roles.includes(user.roles.name)),
     [permissions, user.roles.name],
   );
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      for (const item of items) router.prefetch(item.href as any);
-    }, 300);
-    return () => window.clearTimeout(timer);
-  }, [items, router]);
 
   return (
     <div className="min-h-screen bg-muted/30">

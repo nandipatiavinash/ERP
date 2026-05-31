@@ -18,6 +18,34 @@ function todayInIndia() {
   }).format(new Date());
 }
 
+function formatTimeInIndia(value: string | null | undefined) {
+  if (!value) return "-";
+  return new Intl.DateTimeFormat("en-IN", {
+    timeZone: "Asia/Kolkata",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).format(new Date(value));
+}
+
+function hoursBetween(start: string | null | undefined, end: string | null | undefined) {
+  if (!start || !end) return 0;
+  return Math.max((new Date(end).getTime() - new Date(start).getTime()) / 36e5, 0);
+}
+
+function attendanceStatus(row: any) {
+  if (!row?.check_in_at && !row?.check_in) return row?.status;
+  if (row.check_in_at && !row.check_out_at) return "present";
+  if (row.check_in_at && row.check_out_at) {
+    const hours = hoursBetween(row.check_in_at, row.check_out_at);
+    if (hours === 0) return "absent";
+    if (hours < 4) return "half_day";
+    return "present";
+  }
+  return row.status;
+}
+
 export default async function AttendancePage() {
   const user = await requirePermission("attendance.view");
   const permissions = await getSessionPermissions(user);
@@ -67,6 +95,7 @@ export default async function AttendancePage() {
                     const attendance = todayByEmployee.get(employee.id) as any;
                     const hasCheckedIn = Boolean(attendance?.check_in_at || attendance?.check_in);
                     const hasCheckedOut = Boolean(attendance?.check_out_at || attendance?.check_out);
+                    const status = attendanceStatus(attendance);
                     return (
                       <TableRow key={employee.id}>
                         <TableCell>
@@ -74,9 +103,9 @@ export default async function AttendancePage() {
                           <div className="text-sm text-muted-foreground">{employee.name}</div>
                         </TableCell>
                         <TableCell>{employee.shift_start} - {employee.shift_end}</TableCell>
-                        <TableCell>{attendance?.check_in ?? "-"}</TableCell>
-                        <TableCell>{attendance?.check_out ?? "-"}</TableCell>
-                        <TableCell>{attendance?.status ? <StatusBadge value={attendance.status} /> : "-"}</TableCell>
+                        <TableCell>{attendance?.check_in_at ? formatTimeInIndia(attendance.check_in_at) : attendance?.check_in ?? "-"}</TableCell>
+                        <TableCell>{attendance?.check_out_at ? formatTimeInIndia(attendance.check_out_at) : attendance?.check_out ?? "-"}</TableCell>
+                        <TableCell>{status ? <StatusBadge value={status} /> : "-"}</TableCell>
                         <TableCell>
                           <div className="flex flex-wrap gap-2">
                             <form action={checkInAttendance}>
@@ -121,11 +150,11 @@ export default async function AttendancePage() {
                     <TableRow key={row.id}>
                       <TableCell>{formatDate(row.attendance_date)}</TableCell>
                       <TableCell>{row.employees?.employee_code} - {row.employees?.name}</TableCell>
-                      <TableCell>{row.check_in ?? "-"}</TableCell>
-                      <TableCell>{row.check_out ?? "-"}</TableCell>
-                      <TableCell>{formatNumber(row.working_hours, 2)}</TableCell>
+                      <TableCell>{row.check_in_at ? formatTimeInIndia(row.check_in_at) : row.check_in ?? "-"}</TableCell>
+                      <TableCell>{row.check_out_at ? formatTimeInIndia(row.check_out_at) : row.check_out ?? "-"}</TableCell>
+                      <TableCell>{formatNumber(row.check_in_at && row.check_out_at ? hoursBetween(row.check_in_at, row.check_out_at) : row.working_hours, 2)}</TableCell>
                       <TableCell>{formatNumber(row.overtime_hours, 2)}</TableCell>
-                      <TableCell><StatusBadge value={row.status} /></TableCell>
+                      <TableCell><StatusBadge value={attendanceStatus(row)} /></TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
