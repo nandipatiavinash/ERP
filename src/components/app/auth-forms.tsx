@@ -14,7 +14,7 @@ export function LoginForm() {
     <Card className="w-full max-w-md">
       <CardHeader>
         <BrandLogo className="mb-2 h-16 w-16 rounded-full" />
-        <CardTitle>RK Global PVT Limited</CardTitle>
+        <CardTitle>RK Global</CardTitle>
         <CardDescription>Sign in to the fabric ERP.</CardDescription>
       </CardHeader>
       <CardContent>

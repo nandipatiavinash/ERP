@@ -9,12 +9,21 @@ import { getSessionPermissions, requirePermission } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, formatNumber } from "@/lib/utils";
 
+function todayInIndia() {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
+
 export default async function AttendancePage() {
   const user = await requirePermission("attendance.view");
   const permissions = await getSessionPermissions(user);
   const canManageAllAttendance = permissions.includes("employees.view") || permissions.includes("users.view");
   const supabase = await createClient();
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayInIndia();
   const employeeQuery = supabase
     .from("employees")
     .select("id, user_id, name, employee_code, shift_start, shift_end")
@@ -56,6 +65,8 @@ export default async function AttendancePage() {
                 <TableBody>
                   {((employees ?? []) as any[]).map((employee) => {
                     const attendance = todayByEmployee.get(employee.id) as any;
+                    const hasCheckedIn = Boolean(attendance?.check_in_at || attendance?.check_in);
+                    const hasCheckedOut = Boolean(attendance?.check_out_at || attendance?.check_out);
                     return (
                       <TableRow key={employee.id}>
                         <TableCell>
@@ -70,11 +81,11 @@ export default async function AttendancePage() {
                           <div className="flex flex-wrap gap-2">
                             <form action={checkInAttendance}>
                               <input type="hidden" name="employee_id" value={employee.id} />
-                              <Button type="submit" size="sm" disabled={Boolean(attendance?.check_in_at)}>Check In</Button>
+                              <Button type="submit" size="sm" disabled={hasCheckedIn}>Check In</Button>
                             </form>
                             <form action={checkOutAttendance}>
                               <input type="hidden" name="employee_id" value={employee.id} />
-                              <Button type="submit" size="sm" variant="outline" disabled={!attendance?.check_in_at || Boolean(attendance?.check_out_at)}>Check Out</Button>
+                              <Button type="submit" size="sm" variant="outline" disabled={!hasCheckedIn || hasCheckedOut}>Check Out</Button>
                             </form>
                           </div>
                         </TableCell>

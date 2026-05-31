@@ -27,6 +27,15 @@ function sanitizeText(value: FormDataEntryValue) {
   return String(value).trim().replace(/\s+/g, " ");
 }
 
+function todayInIndia() {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+}
+
 function readPayload(formData: FormData, fieldNames: string[]) {
   const payload: Record<string, unknown> = {};
   for (const name of fieldNames) {
@@ -170,7 +179,7 @@ export async function checkInAttendance(formData: FormData) {
   const supabase = await createClient();
   await assertAttendanceAccess(supabase, user, payload.employee_id);
   const now = new Date();
-  const today = now.toISOString().slice(0, 10);
+  const today = todayInIndia();
 
   const { data: existing, error: readError } = await (supabase.from("attendance") as any)
     .select("id, check_in_at")
@@ -210,7 +219,7 @@ export async function checkOutAttendance(formData: FormData) {
   const supabase = await createClient();
   await assertAttendanceAccess(supabase, user, payload.employee_id);
   const now = new Date();
-  const today = now.toISOString().slice(0, 10);
+  const today = todayInIndia();
 
   const { data: existing, error: readError } = await (supabase.from("attendance") as any)
     .select("id, check_in_at, check_out_at")

@@ -18,7 +18,7 @@ function Brand() {
     <div className="flex h-16 items-center gap-3 border-b px-4">
       <BrandLogo className="h-10 w-10 shrink-0 rounded-full" />
       <div className="min-w-0">
-        <div className="truncate text-sm font-semibold">RK Global PVT Limited</div>
+        <div className="truncate text-sm font-semibold">RK Global</div>
         <div className="truncate text-xs text-muted-foreground">Fabric ERP</div>
       </div>
     </div>
