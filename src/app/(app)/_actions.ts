@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { requireUser } from "@/lib/auth";
 import { modules } from "@/lib/modules";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 const numericFields = new Set([
@@ -66,6 +67,14 @@ const rawPurchaseSchema = z.object({
   quantity: z.coerce.number().positive(),
   rate: z.coerce.number().min(0),
   remarks: z.string().optional(),
+});
+const createUserSchema = z.object({
+  full_name: z.string().trim().min(2, "Full name is required."),
+  email: z.string().trim().email("Enter a valid email address."),
+  password: z.string().min(8, "Password must be at least 8 characters."),
+  phone: z.string().trim().optional(),
+  role_id: z.string().uuid("Select a valid role."),
+  status: statusSchema,
 });
 
 function assertValid<T>(schema: z.ZodType<T>, value: unknown) {
@@ -225,4 +234,53 @@ export async function saveRawMaterialPurchase(formData: FormData) {
   revalidatePath("/raw-materials");
   revalidatePath("/dashboard");
   revalidatePath("/reports");
+}
+
+export async function createErpUser(_: unknown, formData: FormData) {
+  const user = await requireUser();
+  if (user.roles?.name !== "admin") return { error: "Only admins can create users." };
+
+  const parsed = createUserSchema.safeParse({
+    full_name: formData.get("full_name"),
+    email: formData.get("email"),
+    password: formData.get("password"),
+    phone: formData.get("phone") || undefined,
+    role_id: formData.get("role_id"),
+    status: formData.get("status") || "active",
+  });
+
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid user details." };
+
+  const admin = createAdminClient();
+  const { data: authData, error: authError } = await admin.auth.admin.createUser({
+    email: parsed.data.email,
+    password: parsed.data.password,
+    email_confirm: true,
+    user_metadata: {
+      full_name: parsed.data.full_name,
+      phone: parsed.data.phone ?? null,
+    },
+  });
+
+  if (authError) return { error: authError.message };
+  const authUserId = authData.user?.id;
+  if (!authUserId) return { error: "Supabase did not return a user id." };
+
+  const { error: profileError } = await admin.from("users").upsert({
+    id: authUserId,
+    role_id: parsed.data.role_id,
+    full_name: parsed.data.full_name,
+    email: parsed.data.email,
+    phone: parsed.data.phone ?? null,
+    status: parsed.data.status,
+    updated_by: user.id,
+  } as any);
+
+  if (profileError) {
+    await admin.auth.admin.deleteUser(authUserId);
+    return { error: profileError.message };
+  }
+
+  revalidatePath("/users");
+  return { success: "Supabase Auth user created. Share the password securely with the user." };
 }

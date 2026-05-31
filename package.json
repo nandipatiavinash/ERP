@@ -5,8 +5,10 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "create-user": "node scripts/create-user.mjs",
     "start": "next start",
     "lint": "next lint",
+    "supabase": "supabase",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -37,6 +39,7 @@
     "eslint": "^9.39.1",
     "eslint-config-next": "15.5.6",
     "postcss": "^8.5.6",
+    "supabase": "^2.102.0",
     "tailwindcss": "^3.4.18",
     "tailwindcss-animate": "^1.0.7",
     "typescript": "^5.9.3"

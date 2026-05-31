@@ -25,4 +25,21 @@ npm run dev
 
 ## First Admin
 
-Create a user in Supabase Auth, then insert/update their profile row in `public.users` with the `admin` role. The migration creates the default `admin` and `operator` roles.
+Create the first Supabase Auth user from this project after `.env.local` is filled and the migration has been run:
+
+```bash
+npm run create-user -- --email admin@example.com --password StrongPass123 --name "Admin User" --role admin
+```
+
+After the first admin can log in, use the in-app Users page to create more Supabase Auth users and link them to ERP roles.
+
+## Supabase CLI
+
+The Supabase CLI is installed as a dev dependency.
+
+```bash
+npm run supabase -- --version
+npm run supabase -- login
+npm run supabase -- link --project-ref your-project-ref
+npm run supabase -- db push
+```
