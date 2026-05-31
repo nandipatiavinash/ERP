@@ -6,10 +6,30 @@ import { createClient } from "@/lib/supabase/server";
 
 export async function signIn(_: unknown, formData: FormData) {
   const supabase = await createClient();
-  const email = String(formData.get("email") ?? "");
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
-  if (error) return { error: error.message };
+  const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+  if (error) return { error: "Invalid email or password." };
+
+  const userId = data.user?.id;
+  if (!userId) {
+    await supabase.auth.signOut();
+    return { error: "Supabase did not return a user session." };
+  }
+
+  const { data: profile, error: profileError } = await (supabase
+    .from("users")
+    .select("id, status, deleted_at, roles(name, is_active, deleted_at)")
+    .eq("id", userId)
+    .single() as any);
+
+  const role = profile?.roles as { name?: string; is_active?: boolean; deleted_at?: string | null } | null | undefined;
+  if (profileError || !profile || profile.status !== "active" || profile.deleted_at || !role?.name || role.is_active === false || role.deleted_at) {
+    await supabase.auth.signOut();
+    return { error: "Your login exists in Supabase Auth, but no active ERP profile/role is assigned. Ask an admin to activate your ERP user." };
+  }
+
+  await logLogin(userId);
   redirect("/dashboard");
 }
 

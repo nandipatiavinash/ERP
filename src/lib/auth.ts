@@ -10,13 +10,20 @@ export async function getSessionUser() {
 
   if (!user) return null;
 
-  const { data: profile } = await supabase
+  const { data: profile, error } = await supabase
     .from("users")
-    .select("id, full_name, email, phone, status, role_id, roles(name)")
+    .select("id, full_name, email, phone, status, role_id, roles(name, is_active, deleted_at)")
     .eq("id", user.id)
+    .eq("status", "active")
+    .is("deleted_at", null)
     .single();
 
-  return profile as AppUser | null;
+  if (error || !profile) return null;
+
+  const appUser = profile as AppUser;
+  if (!appUser.roles?.name || appUser.roles.is_active === false || appUser.roles.deleted_at) return null;
+
+  return appUser;
 }
 
 export async function requireUser() {
