@@ -31,6 +31,14 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  button,
+  a,
+  input,
+  select,
+  textarea {
+    touch-action: manipulation;
+  }
 }
 
 @media print {

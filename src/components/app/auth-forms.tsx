@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { signIn, resetPassword } from "@/app/actions";
+import { BrandLogo } from "@/components/app/brand-logo";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -12,6 +13,7 @@ export function LoginForm() {
   return (
     <Card className="w-full max-w-md">
       <CardHeader>
+        <BrandLogo className="mb-2 h-16 w-16 rounded-full" />
         <CardTitle>RK Global PVT Limited</CardTitle>
         <CardDescription>Sign in to the fabric ERP.</CardDescription>
       </CardHeader>
@@ -38,6 +40,7 @@ export function ResetPasswordForm() {
   return (
     <Card className="w-full max-w-md">
       <CardHeader>
+        <BrandLogo className="mb-2 h-16 w-16 rounded-full" />
         <CardTitle>Password Reset</CardTitle>
         <CardDescription>Supabase will send a secure reset link.</CardDescription>
       </CardHeader>

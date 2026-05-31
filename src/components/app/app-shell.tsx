@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 import { Menu } from "lucide-react";
 import { signOut } from "@/app/actions";
+import { BrandLogo } from "@/components/app/brand-logo";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -14,9 +16,7 @@ import { navItems, type NavItem } from "@/lib/navigation";
 function Brand() {
   return (
     <div className="flex h-16 items-center gap-3 border-b px-4">
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary text-xs font-semibold text-primary-foreground">
-        RK
-      </div>
+      <BrandLogo className="h-10 w-10 shrink-0 rounded-full" />
       <div className="min-w-0">
         <div className="truncate text-sm font-semibold">RK Global PVT Limited</div>
         <div className="truncate text-xs text-muted-foreground">Fabric ERP</div>
@@ -25,8 +25,9 @@ function Brand() {
   );
 }
 
-function NavLinks({ items }: { items: NavItem[] }) {
+function NavLinks({ items, onNavigate }: { items: NavItem[]; onNavigate?: () => void }) {
   const pathname = usePathname();
+  const router = useRouter();
   return (
     <nav className="space-y-1 p-3">
       {items.map((item) => {
@@ -35,8 +36,12 @@ function NavLinks({ items }: { items: NavItem[] }) {
           <Link
             key={item.href}
             href={item.href as any}
+            prefetch
+            onMouseEnter={() => router.prefetch(item.href as any)}
+            onFocus={() => router.prefetch(item.href as any)}
+            onClick={onNavigate}
             className={cn(
-              "flex items-center rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground",
+              "flex min-h-10 items-center rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
               active && "bg-muted font-medium text-foreground",
             )}
           >
@@ -55,7 +60,16 @@ export function AppShell({
   user: AppUser & { roles: { name: RoleName } };
   children: React.ReactNode;
 }) {
-  const items = navItems.filter((item) => item.roles.includes(user.roles.name));
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const router = useRouter();
+  const items = useMemo(() => navItems.filter((item) => item.roles.includes(user.roles.name)), [user.roles.name]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      for (const item of items) router.prefetch(item.href as any);
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [items, router]);
 
   return (
     <div className="min-h-screen bg-muted/30">
@@ -67,7 +81,7 @@ export function AppShell({
       <div className="lg:pl-64">
         <header className="sticky top-0 z-10 flex h-16 items-center justify-between gap-3 border-b bg-background px-4 lg:px-6">
           <div className="flex min-w-0 items-center gap-3">
-            <Dialog>
+            <Dialog open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
               <DialogTrigger asChild>
                 <Button size="icon" variant="outline" className="lg:hidden" aria-label="Open navigation">
                   <Menu className="h-4 w-4" />
@@ -76,7 +90,7 @@ export function AppShell({
               <DialogContent className="left-0 top-0 h-full w-[min(20rem,88vw)] translate-x-0 translate-y-0 overflow-y-auto rounded-none p-0">
                 <DialogTitle className="sr-only">Navigation</DialogTitle>
                 <Brand />
-                <NavLinks items={items} />
+                <NavLinks items={items} onNavigate={() => setMobileNavOpen(false)} />
               </DialogContent>
             </Dialog>
             <div className="min-w-0">
