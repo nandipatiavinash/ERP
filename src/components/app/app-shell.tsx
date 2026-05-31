@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Factory, LogOut, Menu } from "lucide-react";
+import { Menu } from "lucide-react";
 import { signOut } from "@/app/actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,13 +13,13 @@ import { navItems, type NavItem } from "@/lib/navigation";
 
 function Brand() {
   return (
-    <div className="flex h-16 items-center gap-2 border-b px-5">
-      <div className="flex h-9 w-9 items-center justify-center rounded-md bg-primary text-primary-foreground">
-        <Factory className="h-5 w-5" />
+    <div className="flex h-16 items-center gap-3 border-b px-4">
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-primary text-xs font-semibold text-primary-foreground">
+        RK
       </div>
-      <div>
-        <div className="text-sm font-semibold">Polymer ERP</div>
-        <div className="text-xs text-muted-foreground">Fabric manufacturing</div>
+      <div className="min-w-0">
+        <div className="truncate text-sm font-semibold">RK Global PVT Limited</div>
+        <div className="truncate text-xs text-muted-foreground">Fabric ERP</div>
       </div>
     </div>
   );
@@ -36,11 +36,10 @@ function NavLinks({ items }: { items: NavItem[] }) {
             key={item.href}
             href={item.href as any}
             className={cn(
-              "flex items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground",
+              "flex items-center rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground",
               active && "bg-muted font-medium text-foreground",
             )}
           >
-            <item.icon className="h-4 w-4" />
             {item.label}
           </Link>
         );
@@ -74,7 +73,7 @@ export function AppShell({
                   <Menu className="h-4 w-4" />
                 </Button>
               </DialogTrigger>
-              <DialogContent className="left-0 top-0 h-full w-80 max-w-[85vw] translate-x-0 translate-y-0 rounded-none p-0">
+              <DialogContent className="left-0 top-0 h-full w-[min(20rem,88vw)] translate-x-0 translate-y-0 overflow-y-auto rounded-none p-0">
                 <DialogTitle className="sr-only">Navigation</DialogTitle>
                 <Brand />
                 <NavLinks items={items} />
@@ -89,8 +88,7 @@ export function AppShell({
             <Badge>{user.roles.name}</Badge>
             <form action={signOut}>
               <Button variant="outline" size="sm">
-                <LogOut className="h-4 w-4" />
-                <span className="hidden sm:inline">Logout</span>
+                Logout
               </Button>
             </form>
           </div>

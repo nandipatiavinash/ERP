@@ -12,8 +12,8 @@ export function LoginForm() {
   return (
     <Card className="w-full max-w-md">
       <CardHeader>
-        <CardTitle>Login</CardTitle>
-        <CardDescription>Sign in to the polymer fabric ERP.</CardDescription>
+        <CardTitle>RK Global PVT Limited</CardTitle>
+        <CardDescription>Sign in to the fabric ERP.</CardDescription>
       </CardHeader>
       <CardContent>
         <form action={action} className="space-y-4">

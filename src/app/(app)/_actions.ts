@@ -273,7 +273,6 @@ export async function createErpUser(_: unknown, formData: FormData) {
     email: parsed.data.email,
     phone: parsed.data.phone ?? null,
     status: parsed.data.status,
-    updated_by: user.id,
   } as any);
 
   if (profileError) {
