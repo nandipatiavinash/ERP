@@ -15,7 +15,9 @@ export function formatNumber(value: number | string | null | undefined, fraction
 
 export function formatDate(value: string | null | undefined) {
   if (!value) return "-";
-  return new Intl.DateTimeFormat("en-IN", { dateStyle: "medium" }).format(new Date(value));
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return new Intl.DateTimeFormat("en-IN", { dateStyle: "medium" }).format(date);
 }
 
 export function csvEscape(value: unknown) {

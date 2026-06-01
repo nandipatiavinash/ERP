@@ -1,4 +1,4 @@
-import { Button } from "@/components/ui/button";
+import { ConfirmSubmitButton } from "@/components/app/confirm-submit-button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -59,9 +59,9 @@ export default async function ProductionPage() {
                     <TableHead>Date</TableHead>
                     <TableHead>Fabric</TableHead>
                     <TableHead>Loom</TableHead>
-                    <TableHead>Net Wt</TableHead>
-                    <TableHead>Net Mtrs</TableHead>
-                    <TableHead>Avg</TableHead>
+                    <TableHead>Net Weight (kg)</TableHead>
+                    <TableHead>Net Meters (m)</TableHead>
+                    <TableHead>Avg (g/m)</TableHead>
                     <TableHead>Roll</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
@@ -73,9 +73,9 @@ export default async function ProductionPage() {
                       <TableCell>{formatDate(row.entry_date)}</TableCell>
                       <TableCell>{row.fabric_types?.fabric_name}</TableCell>
                       <TableCell>{row.looms?.loom_number}</TableCell>
-                      <TableCell>{formatNumber(row.net_weight, 3)}</TableCell>
-                      <TableCell>{formatNumber(row.net_meters)}</TableCell>
-                      <TableCell>{formatNumber(row.average_meter_weight, 3)}</TableCell>
+                      <TableCell>{formatNumber(row.net_weight, 2)} kg</TableCell>
+                      <TableCell>{formatNumber(row.net_meters, 2)} m</TableCell>
+                      <TableCell>{formatNumber(row.average_meter_weight, 2)} g/m</TableCell>
                       <TableCell>
                         <div>{row.fabric_rolls?.roll_number ?? "-"}</div>
                         {row.fabric_rolls?.status ? <StatusBadge value={row.fabric_rolls.status} /> : null}
@@ -95,7 +95,7 @@ export default async function ProductionPage() {
                         </details>
                         <form action={softDeleteProduction} className="mt-3">
                           <input type="hidden" name="id" value={row.id} />
-                          <Button type="submit" variant="outline" size="sm">Void</Button>
+                          <ConfirmSubmitButton variant="outline" size="sm" confirmTitle="Void production entry?" confirmDescription="This will mark the production entry inactive and update related views.">Void</ConfirmSubmitButton>
                         </form>
                       </TableCell>
                     </TableRow>

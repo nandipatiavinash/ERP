@@ -7,11 +7,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ConfirmSubmitButton } from "@/components/app/confirm-submit-button";
 import { PageHeader } from "@/components/app/page-header";
 import { StatusBadge } from "@/components/app/status-badge";
 import { saveMaster, deactivateMaster } from "@/app/(app)/_actions";
 import type { ModuleConfig } from "@/lib/modules";
-import { formatDate } from "@/lib/utils";
+import { formatDate, formatNumber } from "@/lib/utils";
 
 type Row = Record<string, unknown> & { id: string };
 
@@ -42,10 +43,29 @@ function RecordForm({ config, row }: { config: ModuleConfig; row?: Row }) {
       {row ? <input type="hidden" name="id" value={row.id} /> : null}
       {config.fields.map((field) => <Field key={field.name} field={field} value={row?.[field.name]} />)}
       <div className="flex items-end md:col-span-2">
-        <Button type="submit">{row ? "Save Changes" : "Add Record"}</Button>
+        <ConfirmSubmitButton confirmTitle={row ? "Save record changes?" : "Create new record?"} confirmDescription="Review the details before confirming this record change.">
+          {row ? "Save Changes" : "Add Record"}
+        </ConfirmSubmitButton>
       </div>
     </form>
   );
+}
+
+function formatRecordValue(row: Row, columnKey: string) {
+  const value = row[columnKey];
+  if (columnKey === "status") return <StatusBadge value={String(value)} />;
+  if (columnKey.endsWith("_at") || columnKey.endsWith("_date")) return formatDate(value == null ? null : String(value));
+
+  const number = Number(value);
+  if (!Number.isNaN(number) && value !== null && value !== undefined && value !== "") {
+    if (columnKey.includes("stock")) return `${formatNumber(number, 2)} ${row.unit ?? ""}`.trim();
+    if (columnKey === "salary" || columnKey.includes("price")) return `₹${formatNumber(number, 2)}`;
+    if (columnKey === "width") return `${formatNumber(number, 2)} in`;
+    if (columnKey === "gsm") return `${formatNumber(number, 2)} GSM`;
+    return formatNumber(number, 2);
+  }
+
+  return String(value ?? "-");
 }
 
 function matchesSearch(row: Row, columns: string[], search: string) {
@@ -132,7 +152,7 @@ export function MasterPage({
                     <TableRow key={row.id}>
                       {config.columns.map((column) => (
                         <TableCell key={column.key}>
-                          {column.key === "status" ? <StatusBadge value={String(row[column.key])} /> : column.key.endsWith("_at") || column.key.endsWith("_date") ? formatDate(String(row[column.key])) : String(row[column.key] ?? "-")}
+                          {formatRecordValue(row, column.key)}
                         </TableCell>
                       ))}
                       <TableCell className="min-w-80">
@@ -142,7 +162,7 @@ export function MasterPage({
                         </details>
                         <form action={deactivateMaster.bind(null, config.key)} className="mt-3">
                           <input type="hidden" name="id" value={row.id} />
-                          <Button size="sm" variant="outline" type="submit">Deactivate</Button>
+                          <ConfirmSubmitButton size="sm" variant="outline" confirmTitle="Deactivate this record?" confirmDescription="This record will be marked inactive and hidden from active workflows.">Deactivate</ConfirmSubmitButton>
                         </form>
                       </TableCell>
                     </TableRow>

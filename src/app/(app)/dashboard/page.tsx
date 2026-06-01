@@ -60,10 +60,10 @@ export default async function DashboardPage() {
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <StatCard title="Today's Production" value={`${todayRows.length} entries`} icon={Factory} />
         <StatCard title="Total Rolls Today" value={String(todayRows.length)} icon={Package} />
-        <StatCard title="Weight Today" value={`${formatNumber(todayWeight, 3)} kg`} icon={Scale} />
+        <StatCard title="Weight Today" value={`${formatNumber(todayWeight, 2)} kg`} icon={Scale} />
         <StatCard title="Meters Today" value={`${formatNumber(todayMeters, 2)} m`} icon={ScrollText} />
         <StatCard title="Available Fabric Stock" value={`${availableRolls.length} rolls`} icon={Package} />
-        <StatCard title="Raw Material Stock" value={formatNumber(materialStock, 3)} icon={Boxes} />
+        <StatCard title="Raw Material Stock" value={formatNumber(materialStock, 2)} icon={Boxes} />
         <StatCard title="Employees Present" value={String((attendance ?? []).length)} icon={CalendarCheck} />
       </div>
       <Card className="mt-5">

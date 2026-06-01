@@ -1,7 +1,7 @@
 import { linkEmployeeUser } from "@/app/(app)/_actions";
+import { ConfirmSubmitButton } from "@/components/app/confirm-submit-button";
 import { PageHeader } from "@/components/app/page-header";
 import { StatusBadge } from "@/components/app/status-badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -52,7 +52,7 @@ export default async function UsersPage() {
                               </option>
                             ))}
                           </select>
-                          <Button type="submit" size="sm" variant="outline">Link</Button>
+                          <ConfirmSubmitButton size="sm" variant="outline" confirmTitle="Update employee link?" confirmDescription="Confirm this user-to-employee attendance link before saving.">Link</ConfirmSubmitButton>
                         </form>
                       </TableCell>
                       <TableCell><StatusBadge value={user.status} /></TableCell>

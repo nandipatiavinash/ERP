@@ -42,8 +42,8 @@ export default async function RollsPage({ searchParams }: { searchParams: Promis
               <CardHeader><CardTitle>{row.fabric_name}</CardTitle></CardHeader>
               <CardContent className="grid grid-cols-3 gap-3 text-sm">
                 <div><div className="text-muted-foreground">Rolls</div><div className="font-semibold">{row.rolls}</div></div>
-                <div><div className="text-muted-foreground">Weight</div><div className="font-semibold">{formatNumber(row.weight, 3)}</div></div>
-                <div><div className="text-muted-foreground">Meters</div><div className="font-semibold">{formatNumber(row.meters)}</div></div>
+                <div><div className="text-muted-foreground">Weight</div><div className="font-semibold">{formatNumber(row.weight, 2)} kg</div></div>
+                <div><div className="text-muted-foreground">Meters</div><div className="font-semibold">{formatNumber(row.meters, 2)} m</div></div>
               </CardContent>
             </Card>
           </Link>
@@ -60,8 +60,8 @@ export default async function RollsPage({ searchParams }: { searchParams: Promis
                     <TableHead>Roll</TableHead>
                     <TableHead>Fabric</TableHead>
                     <TableHead>Loom</TableHead>
-                    <TableHead>Weight</TableHead>
-                    <TableHead>Meters</TableHead>
+                    <TableHead>Weight (kg)</TableHead>
+                    <TableHead>Meters (m)</TableHead>
                     <TableHead>Date</TableHead>
                     <TableHead>Stage</TableHead>
                     <TableHead>Status</TableHead>
@@ -73,8 +73,8 @@ export default async function RollsPage({ searchParams }: { searchParams: Promis
                       <TableCell>{roll.roll_number}</TableCell>
                       <TableCell>{roll.fabric_types?.fabric_name}</TableCell>
                       <TableCell>{roll.looms?.loom_number}</TableCell>
-                      <TableCell>{formatNumber(roll.weight, 3)}</TableCell>
-                      <TableCell>{formatNumber(roll.meters)}</TableCell>
+                      <TableCell>{formatNumber(roll.weight, 2)} kg</TableCell>
+                      <TableCell>{formatNumber(roll.meters, 2)} m</TableCell>
                       <TableCell>{formatDate(roll.production_date)}</TableCell>
                       <TableCell>{String(roll.current_stage).replaceAll("_", " ")}</TableCell>
                       <TableCell><StatusBadge value={roll.status} /></TableCell>

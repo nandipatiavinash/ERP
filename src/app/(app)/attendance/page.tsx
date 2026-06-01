@@ -1,7 +1,7 @@
 import { checkInAttendance, checkOutAttendance } from "@/app/(app)/_actions";
+import { ConfirmSubmitButton } from "@/components/app/confirm-submit-button";
 import { PageHeader } from "@/components/app/page-header";
 import { StatusBadge } from "@/components/app/status-badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -110,11 +110,11 @@ export default async function AttendancePage() {
                           <div className="flex flex-wrap gap-2">
                             <form action={checkInAttendance}>
                               <input type="hidden" name="employee_id" value={employee.id} />
-                              <Button type="submit" size="sm" disabled={hasCheckedIn}>Check In</Button>
+                              <ConfirmSubmitButton size="sm" disabled={hasCheckedIn} confirmTitle="Check in employee?" confirmDescription="This will record the current server time as the check-in time.">Check In</ConfirmSubmitButton>
                             </form>
                             <form action={checkOutAttendance}>
                               <input type="hidden" name="employee_id" value={employee.id} />
-                              <Button type="submit" size="sm" variant="outline" disabled={!hasCheckedIn || hasCheckedOut}>Check Out</Button>
+                              <ConfirmSubmitButton size="sm" variant="outline" disabled={!hasCheckedIn || hasCheckedOut} confirmTitle="Check out employee?" confirmDescription="This will record the current server time as the check-out time.">Check Out</ConfirmSubmitButton>
                             </form>
                           </div>
                         </TableCell>

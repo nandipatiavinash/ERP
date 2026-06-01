@@ -43,6 +43,38 @@ function inText(row: Record<string, unknown>, search: string) {
   return Object.values(row).join(" ").toLowerCase().includes(search.toLowerCase());
 }
 
+function reportColumnLabel(column: string) {
+  const labels: Record<string, string> = {
+    weight: "Weight (kg)",
+    meters: "Meters (m)",
+    quantity: "Quantity",
+    rate: "Rate (₹)",
+    amount: "Amount (₹)",
+    salary: "Salary (₹)",
+    working_hours: "Working Hours",
+    overtime_hours: "Overtime Hours",
+    current_stock: "Current Stock",
+    opening_stock: "Opening Stock",
+  };
+  return labels[column] ?? column.replaceAll("_", " ");
+}
+
+function reportCell(column: string, value: unknown, row: Record<string, unknown>) {
+  if (column.includes("date")) return formatDate(String(value));
+  if (typeof value === "number") {
+    if (column === "weight") return `${formatNumber(value, 2)} kg`;
+    if (column === "meters" || column === "quantity") {
+      const unit = String(row.unit ?? (column === "meters" ? "m" : ""));
+      return `${formatNumber(value, 2)} ${unit}`.trim();
+    }
+    if (column === "rate" || column === "amount" || column === "salary") return `₹${formatNumber(value, 2)}`;
+    if (column.includes("hours")) return `${formatNumber(value, 2)} hrs`;
+    return formatNumber(value, 2);
+  }
+  if ((column === "opening_stock" || column === "current_stock") && value != null) return `${formatNumber(String(value), 2)} ${row.unit ?? ""}`.trim();
+  return String(value ?? "-");
+}
+
 export default async function ReportsPage({ searchParams }: { searchParams: Promise<Params> }) {
   await requirePermission("reports.view");
   const params = await searchParams;
@@ -86,6 +118,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   const rawPurchases = ((rawPurchaseResult.data ?? []) as RawMaterialPurchaseRow[]).map((row) => ({
     date: row.purchase_date,
     material: row.raw_materials?.material_name ?? "",
+    unit: row.raw_materials?.unit ?? "",
     supplier: row.supplier_name ?? "",
     bill: row.bill_number ?? "",
     quantity: Number(row.quantity),
@@ -135,14 +168,13 @@ function ReportTable({ title, filename, rows, columns }: { title: string; filena
       <CardContent>
         <div className="overflow-x-auto">
           <Table>
-            <TableHeader><TableRow>{columns.map((column) => <TableHead key={column}>{column.replaceAll("_", " ")}</TableHead>)}</TableRow></TableHeader>
+            <TableHeader><TableRow>{columns.map((column) => <TableHead key={column}>{reportColumnLabel(column)}</TableHead>)}</TableRow></TableHeader>
             <TableBody>
               {rows.map((row, index) => (
                 <TableRow key={index}>
                   {columns.map((column) => {
                     const value = row[column];
-                    const display = column.includes("date") ? formatDate(String(value)) : typeof value === "number" ? formatNumber(value, column.includes("weight") ? 3 : 2) : String(value ?? "-");
-                    return <TableCell key={column}>{display}</TableCell>;
+                    return <TableCell key={column}>{reportCell(column, value, row)}</TableCell>;
                   })}
                 </TableRow>
               ))}

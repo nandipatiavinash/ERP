@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 import { createErpUser } from "@/app/(app)/_actions";
-import { Button } from "@/components/ui/button";
+import { ConfirmSubmitButton } from "@/components/app/confirm-submit-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { statusOptions } from "@/lib/modules";
@@ -50,7 +50,9 @@ export function UserForm({ roles }: { roles: RoleOption[] }) {
       {"error" in (state ?? {}) ? <p className="text-sm text-destructive md:col-span-2">{state?.error}</p> : null}
       {"success" in (state ?? {}) ? <p className="text-sm text-emerald-700 md:col-span-2">{state?.success}</p> : null}
       <div className="md:col-span-2">
-        <Button type="submit" disabled={pending}>{pending ? "Creating..." : "Create Supabase User"}</Button>
+        <ConfirmSubmitButton disabled={pending} confirmTitle="Create Supabase user?" confirmDescription="Confirm the user details and role before creating the authentication account.">
+          {pending ? "Creating..." : "Create Supabase User"}
+        </ConfirmSubmitButton>
       </div>
     </form>
   );

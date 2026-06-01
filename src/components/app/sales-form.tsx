@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { saveSale } from "@/app/(app)/_actions";
-import { Button } from "@/components/ui/button";
+import { ConfirmSubmitButton } from "@/components/app/confirm-submit-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { salesStatuses } from "@/lib/modules";
@@ -41,16 +41,16 @@ export function SalesForm({ customers, fabrics, rolls, row }: { customers: Optio
         </select>
       </div>
       <div className="space-y-2">
-        <Label>Quantity Meters</Label>
+        <Label>Quantity (m)</Label>
         <Input name="quantity_meters" type="number" step="0.01" defaultValue={row?.quantity_meters ?? ""} required onChange={(event) => setQuantity(Number(event.target.value))} />
       </div>
       <div className="space-y-2">
-        <Label>Rate</Label>
+        <Label>Rate (₹/m)</Label>
         <Input name="rate" type="number" step="0.01" defaultValue={row?.rate ?? ""} required onChange={(event) => setRate(Number(event.target.value))} />
       </div>
       <div className="rounded-md border bg-muted/40 p-3 text-sm">
         <div className="text-muted-foreground">Total Amount</div>
-        <div className="font-semibold">{(quantity * rate).toFixed(2)}</div>
+        <div className="font-semibold">₹{(quantity * rate).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
       </div>
       <div className="space-y-2 md:col-span-3">
         <Label>Available Rolls</Label>
@@ -58,13 +58,15 @@ export function SalesForm({ customers, fabrics, rolls, row }: { customers: Optio
           {filteredRolls.length === 0 ? <p className="text-sm text-muted-foreground">Select a fabric with available rolls.</p> : filteredRolls.map((roll) => (
             <label key={roll.id} className="flex items-center gap-2 text-sm">
               <input type="checkbox" name="selected_roll_ids" value={roll.id} defaultChecked={selected.has(roll.id)} />
-              {roll.roll_number} - {roll.meters}m - {roll.status}
+              {roll.roll_number} - {Number(roll.meters).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} m - {roll.status}
             </label>
           ))}
         </div>
       </div>
       <div className="md:col-span-3">
-        <Button type="submit">{row?.id ? "Save Order" : "Create Sales Order"}</Button>
+        <ConfirmSubmitButton confirmTitle={row?.id ? "Save sales order?" : "Create sales order?"} confirmDescription="Confirm customer, fabric, quantity, rate, and selected rolls before saving.">
+          {row?.id ? "Save Order" : "Create Sales Order"}
+        </ConfirmSubmitButton>
       </div>
     </form>
   );

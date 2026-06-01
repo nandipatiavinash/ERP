@@ -1,8 +1,8 @@
 import { saveRawMaterialPurchase } from "@/app/(app)/_actions";
+import { ConfirmSubmitButton } from "@/components/app/confirm-submit-button";
 import { MasterPage } from "@/components/app/master-page";
 import { PageHeader } from "@/components/app/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -52,9 +52,11 @@ export default async function RawMaterialsPage({ searchParams }: { searchParams:
             <div className="space-y-2"><Label>Supplier</Label><Input name="supplier_name" /></div>
             <div className="space-y-2"><Label>Bill Number</Label><Input name="bill_number" /></div>
             <div className="space-y-2"><Label>Quantity</Label><Input name="quantity" type="number" step="0.001" required /></div>
-            <div className="space-y-2"><Label>Rate</Label><Input name="rate" type="number" step="0.01" required /></div>
+            <div className="space-y-2"><Label>Rate (₹/unit)</Label><Input name="rate" type="number" step="0.01" required /></div>
             <div className="space-y-2 md:col-span-3"><Label>Remarks</Label><Textarea name="remarks" /></div>
-            <div className="md:col-span-3"><Button type="submit">Save Purchase</Button></div>
+            <div className="md:col-span-3">
+              <ConfirmSubmitButton confirmTitle="Save raw material purchase?" confirmDescription="Confirm material, quantity, rate, and supplier details before saving.">Save Purchase</ConfirmSubmitButton>
+            </div>
           </form>
         </CardContent>
       </Card>
@@ -67,7 +69,7 @@ export default async function RawMaterialsPage({ searchParams }: { searchParams:
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Date</TableHead><TableHead>Material</TableHead><TableHead>Supplier</TableHead><TableHead>Bill</TableHead><TableHead>Qty</TableHead><TableHead>Rate</TableHead><TableHead>Total</TableHead>
+                    <TableHead>Date</TableHead><TableHead>Material</TableHead><TableHead>Supplier</TableHead><TableHead>Bill</TableHead><TableHead>Qty</TableHead><TableHead>Rate (₹)</TableHead><TableHead>Total (₹)</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -77,9 +79,9 @@ export default async function RawMaterialsPage({ searchParams }: { searchParams:
                       <TableCell>{purchase.raw_materials?.material_name ?? "-"}</TableCell>
                       <TableCell>{purchase.supplier_name ?? "-"}</TableCell>
                       <TableCell>{purchase.bill_number ?? "-"}</TableCell>
-                      <TableCell>{formatNumber(purchase.quantity, 3)} {purchase.raw_materials?.unit ?? ""}</TableCell>
-                      <TableCell>{formatNumber(purchase.rate, 2)}</TableCell>
-                      <TableCell>{formatNumber(purchase.total_amount, 2)}</TableCell>
+                      <TableCell>{formatNumber(purchase.quantity, 2)} {purchase.raw_materials?.unit ?? ""}</TableCell>
+                      <TableCell>₹{formatNumber(purchase.rate, 2)}</TableCell>
+                      <TableCell>₹{formatNumber(purchase.total_amount, 2)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

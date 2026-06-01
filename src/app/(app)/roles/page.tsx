@@ -1,7 +1,7 @@
 import { createRole, deactivateRole, saveRoleDetails, saveRolePermissions } from "@/app/(app)/_actions";
+import { ConfirmSubmitButton } from "@/components/app/confirm-submit-button";
 import { PageHeader } from "@/components/app/page-header";
 import { StatusBadge } from "@/components/app/status-badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
@@ -47,7 +47,7 @@ export default async function RolesPage() {
               <Label htmlFor="description">Description</Label>
               <Input id="description" name="description" placeholder="Optional role description" />
             </div>
-            <Button type="submit">Create Role</Button>
+            <ConfirmSubmitButton confirmTitle="Create role?" confirmDescription="Confirm the role name before creating it.">Create Role</ConfirmSubmitButton>
           </form>
         </CardContent>
       </Card>
@@ -76,7 +76,7 @@ export default async function RolesPage() {
                     <Label htmlFor={`description-${role.id}`}>Description</Label>
                     <Input id={`description-${role.id}`} name="description" defaultValue={role.description ?? ""} />
                   </div>
-                  <Button type="submit" variant="outline">Save Role</Button>
+                  <ConfirmSubmitButton variant="outline" confirmTitle="Save role changes?" confirmDescription="Confirm the role name and description before saving.">Save Role</ConfirmSubmitButton>
                 </form>
 
                 <form action={saveRolePermissions} className="space-y-4">
@@ -117,11 +117,11 @@ export default async function RolesPage() {
                       </TableBody>
                     </Table>
                   </div>
-                  <Button type="submit">Save Permissions</Button>
+                  <ConfirmSubmitButton confirmTitle="Save permission matrix?" confirmDescription="This will replace the role's current permission assignments.">Save Permissions</ConfirmSubmitButton>
                 </form>
                 <form action={deactivateRole}>
                   <input type="hidden" name="role_id" value={role.id} />
-                  <Button type="submit" variant="outline">Deactivate Role</Button>
+                  <ConfirmSubmitButton variant="outline" confirmTitle="Deactivate role?" confirmDescription="This role will be marked inactive and hidden from active role selections.">Deactivate Role</ConfirmSubmitButton>
                 </form>
               </CardContent>
             </Card>

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { saveProduction } from "@/app/(app)/_actions";
-import { Button } from "@/components/ui/button";
+import { ConfirmSubmitButton } from "@/components/app/confirm-submit-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -52,39 +52,41 @@ export function ProductionForm({
         </select>
       </div>
       <div className="space-y-2">
-        <Label>Initial Meters</Label>
+        <Label>Initial Meters (m)</Label>
         <Input name="initial_meters" value={initialMeters} readOnly={!isAdmin} onChange={() => undefined} />
       </div>
       <div className="space-y-2">
-        <Label>Gross Weight</Label>
+        <Label>Gross Weight (kg)</Label>
         <Input name="gross_weight" type="number" step="0.001" defaultValue={row?.gross_weight ?? ""} required onChange={(event) => setGross(Number(event.target.value))} />
       </div>
       <div className="space-y-2">
-        <Label>Core Weight</Label>
+        <Label>Core Weight (kg)</Label>
         <Input name="core_weight" type="number" step="0.001" defaultValue={row?.core_weight ?? ""} required onChange={(event) => setCore(Number(event.target.value))} />
       </div>
       <div className="space-y-2">
-        <Label>End Meters</Label>
+        <Label>End Meters (m)</Label>
         <Input name="end_meters" type="number" step="0.01" defaultValue={row?.end_meters ?? ""} required onChange={(event) => setEndMeters(Number(event.target.value))} />
       </div>
       <div className="rounded-md border bg-muted/40 p-3 text-sm">
         <div className="text-muted-foreground">Net Weight</div>
-        <div className="font-semibold">{summary.netWeight.toFixed(3)} kg</div>
+        <div className="font-semibold">{summary.netWeight.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg</div>
       </div>
       <div className="rounded-md border bg-muted/40 p-3 text-sm">
         <div className="text-muted-foreground">Net Meters</div>
-        <div className="font-semibold">{summary.netMeters.toFixed(2)} m</div>
+        <div className="font-semibold">{summary.netMeters.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} m</div>
       </div>
       <div className="rounded-md border bg-muted/40 p-3 text-sm">
         <div className="text-muted-foreground">Average Meter Weight</div>
-        <div className="font-semibold">{summary.avg.toFixed(3)}</div>
+        <div className="font-semibold">{summary.avg.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} g/m</div>
       </div>
       <div className="space-y-2 md:col-span-3">
         <Label>Remarks</Label>
         <Textarea name="remarks" defaultValue={row?.remarks ?? ""} />
       </div>
       <div className="md:col-span-3">
-        <Button type="submit">{row?.id ? "Save Entry" : "Create Production Entry"}</Button>
+        <ConfirmSubmitButton confirmTitle={row?.id ? "Save production entry?" : "Create production entry?"} confirmDescription="Confirm the loom, fabric, weight, and meter readings before saving.">
+          {row?.id ? "Save Entry" : "Create Production Entry"}
+        </ConfirmSubmitButton>
       </div>
     </form>
   );
