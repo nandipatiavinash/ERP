@@ -29,6 +29,24 @@ function formatTimeInIndia(value: string | null | undefined) {
   }).format(new Date(value));
 }
 
+function localTimestamp(date: string | null | undefined, time: string | null | undefined) {
+  if (!date || !time) return null;
+  return `${date}T${time}+05:30`;
+}
+
+function effectiveCheckIn(row: any) {
+  return row?.check_in_at ?? localTimestamp(row?.attendance_date, row?.check_in);
+}
+
+function effectiveCheckOut(row: any) {
+  const start = effectiveCheckIn(row);
+  const timestampEnd = row?.check_out_at ?? null;
+  const legacyEnd = localTimestamp(row?.attendance_date, row?.check_out);
+  if (start && timestampEnd && new Date(timestampEnd).getTime() > new Date(start).getTime()) return timestampEnd;
+  if (start && legacyEnd && new Date(legacyEnd).getTime() > new Date(start).getTime()) return legacyEnd;
+  return null;
+}
+
 function formatDateTimeInIndia(value: string | null | undefined) {
   if (!value) return "-";
   return new Intl.DateTimeFormat("en-IN", {
@@ -49,18 +67,20 @@ function hoursBetween(start: string | null | undefined, end: string | null | und
 }
 
 function overtimeHours(row: any) {
-  if (!row?.check_out_at || !row.attendance_date) return Number(row?.overtime_hours ?? 0);
+  const end = effectiveCheckOut(row);
+  if (!end || !row.attendance_date) return 0;
   const shiftEnd = row.employees?.shift_end ?? "18:00:00";
   const shiftEndAt = new Date(`${row.attendance_date}T${shiftEnd}+05:30`).getTime();
-  return Math.max((new Date(row.check_out_at).getTime() - shiftEndAt) / 36e5, 0);
+  return Math.max((new Date(end).getTime() - shiftEndAt) / 36e5, 0);
 }
 
 function attendanceStatus(row: any) {
-  if (!row?.check_in_at && !row?.check_in) return row?.status;
-  if (row.check_in_at && !row.check_out_at) return "present";
-  if (row.check_in_at && row.check_out_at) {
-    const hours = hoursBetween(row.check_in_at, row.check_out_at);
-    if (hours === 0) return "absent";
+  const start = effectiveCheckIn(row);
+  const end = effectiveCheckOut(row);
+  if (!start) return row?.status;
+  if (!end) return "present";
+  if (end) {
+    const hours = hoursBetween(start, end);
     if (hours < 4) return "half_day";
     return "present";
   }
@@ -114,8 +134,10 @@ export default async function AttendancePage() {
                 <TableBody>
                   {((employees ?? []) as any[]).map((employee) => {
                     const attendance = todayByEmployee.get(employee.id) as any;
-                    const hasCheckedIn = Boolean(attendance?.check_in_at || attendance?.check_in);
-                    const hasCheckedOut = Boolean(attendance?.check_out_at || attendance?.check_out);
+                    const checkIn = effectiveCheckIn(attendance);
+                    const checkOut = effectiveCheckOut(attendance);
+                    const hasCheckedIn = Boolean(checkIn);
+                    const hasCheckedOut = Boolean(checkOut);
                     const status = attendanceStatus(attendance);
                     return (
                       <TableRow key={employee.id}>
@@ -124,8 +146,8 @@ export default async function AttendancePage() {
                           <div className="text-sm text-muted-foreground">{employee.name}</div>
                         </TableCell>
                         <TableCell>{employee.shift_start} - {employee.shift_end}</TableCell>
-                        <TableCell>{attendance?.check_in_at ? formatTimeInIndia(attendance.check_in_at) : attendance?.check_in ?? "-"}</TableCell>
-                        <TableCell>{attendance?.check_out_at ? formatTimeInIndia(attendance.check_out_at) : attendance?.check_out ?? "-"}</TableCell>
+                        <TableCell>{checkIn ? formatTimeInIndia(checkIn) : "-"}</TableCell>
+                        <TableCell>{checkOut ? formatTimeInIndia(checkOut) : "-"}</TableCell>
                         <TableCell>{status ? <StatusBadge value={status} /> : "-"}</TableCell>
                         <TableCell>
                           <div className="flex flex-wrap gap-2">
@@ -168,18 +190,22 @@ export default async function AttendancePage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {attendanceRows.map((row) => (
-                    <TableRow key={row.id}>
-                      <TableCell>{formatDate(row.attendance_date)}</TableCell>
-                      <TableCell>{formatDateTimeInIndia(row.updated_at ?? row.created_at)}</TableCell>
-                      <TableCell>{row.employees?.employee_code} - {row.employees?.name}</TableCell>
-                      <TableCell>{row.check_in_at ? formatTimeInIndia(row.check_in_at) : row.check_in ?? "-"}</TableCell>
-                      <TableCell>{row.check_out_at ? formatTimeInIndia(row.check_out_at) : row.check_out ?? "-"}</TableCell>
-                      <TableCell>{formatNumber(row.check_in_at && row.check_out_at ? hoursBetween(row.check_in_at, row.check_out_at) : row.working_hours, 2)}</TableCell>
-                      <TableCell>{formatNumber(overtimeHours(row), 2)}</TableCell>
-                      <TableCell><StatusBadge value={attendanceStatus(row)} /></TableCell>
-                    </TableRow>
-                  ))}
+                  {attendanceRows.map((row) => {
+                    const checkIn = effectiveCheckIn(row);
+                    const checkOut = effectiveCheckOut(row);
+                    return (
+                      <TableRow key={row.id}>
+                        <TableCell>{formatDate(row.attendance_date)}</TableCell>
+                        <TableCell>{formatDateTimeInIndia(row.updated_at ?? row.created_at)}</TableCell>
+                        <TableCell>{row.employees?.employee_code} - {row.employees?.name}</TableCell>
+                        <TableCell>{checkIn ? formatTimeInIndia(checkIn) : "-"}</TableCell>
+                        <TableCell>{checkOut ? formatTimeInIndia(checkOut) : "-"}</TableCell>
+                        <TableCell>{formatNumber(checkIn && checkOut ? hoursBetween(checkIn, checkOut) : 0, 2)}</TableCell>
+                        <TableCell>{formatNumber(overtimeHours(row), 2)}</TableCell>
+                        <TableCell><StatusBadge value={attendanceStatus(row)} /></TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>

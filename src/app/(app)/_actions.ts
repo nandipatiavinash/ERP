@@ -194,6 +194,8 @@ export async function checkInAttendance(formData: FormData) {
   const write = existing?.id
     ? (supabase.from("attendance") as any).update({
       check_in_at: now.toISOString(),
+      check_out_at: null,
+      check_out: null,
       status: "present",
       updated_by: user.id,
     }).eq("id", existing.id)
@@ -231,6 +233,7 @@ export async function checkOutAttendance(formData: FormData) {
   if (readError) throw new Error(readError.message);
   if (!existing?.id) throw new Error("Check in before checking out.");
   if (existing.check_out_at) throw new Error("This employee is already checked out today.");
+  if (!existing.check_in_at || now.getTime() <= new Date(existing.check_in_at).getTime()) throw new Error("Check out time must be after check in time.");
 
   const { error } = await (supabase.from("attendance") as any)
     .update({ check_out_at: now.toISOString(), updated_by: user.id })
