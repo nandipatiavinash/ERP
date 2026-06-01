@@ -19,7 +19,7 @@ export default async function RawMaterialsPage({ searchParams }: { searchParams:
   await requirePermission("raw_materials.view");
   const supabase = await createClient();
   const [{ data }, { data: purchases }] = await Promise.all([
-    supabase.from("raw_materials").select("*").is("deleted_at", null).order("created_at", { ascending: false }),
+    supabase.from("raw_materials").select("id, material_name, unit, opening_stock, current_stock, status").is("deleted_at", null).order("created_at", { ascending: false }).limit(500),
     supabase
       .from("raw_material_purchases")
       .select("*, raw_materials(material_name, unit)")

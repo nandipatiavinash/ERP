@@ -1,9 +1,10 @@
+import { cache } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { navItems } from "@/lib/navigation";
 import type { AppUser, RoleName } from "@/lib/database.types";
 
-export async function getSessionUser() {
+export const getSessionUser = cache(async function getSessionUser() {
   const supabase = await createClient();
   const {
     data: { user },
@@ -25,7 +26,7 @@ export async function getSessionUser() {
   if (!appUser.roles?.name || appUser.roles.is_active === false || appUser.roles.deleted_at) return null;
 
   return appUser;
-}
+});
 
 export async function requireUser() {
   const user = await getSessionUser();
@@ -58,20 +59,24 @@ export function fallbackPermissions(role: RoleName | undefined) {
   return [];
 }
 
-export async function getSessionPermissions(user?: AppUser) {
-  const activeUser = user ?? await getSessionUser();
-  if (!activeUser) return [];
+const getPermissionsForRole = cache(async function getPermissionsForRole(roleId: string, role: RoleName | undefined) {
   const supabase = await createClient();
   const { data, error } = await (supabase
     .from("role_permissions")
     .select("permissions(module, action)")
-    .eq("role_id", activeUser.role_id) as any);
+    .eq("role_id", roleId) as any);
 
-  if (error || !data?.length) return fallbackPermissions(activeUser.roles?.name);
+  if (error || !data?.length) return fallbackPermissions(role);
 
   return data
     .map((row: any) => row.permissions ? `${row.permissions.module}.${row.permissions.action}` : null)
     .filter(Boolean) as string[];
+});
+
+export async function getSessionPermissions(user?: AppUser) {
+  const activeUser = user ?? await getSessionUser();
+  if (!activeUser) return [];
+  return getPermissionsForRole(activeUser.role_id, activeUser.roles?.name);
 }
 
 export async function requirePermission(permission: string) {

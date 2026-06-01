@@ -44,7 +44,8 @@ function formatDateTimeInIndia(value: string | null | undefined) {
 
 function hoursBetween(start: string | null | undefined, end: string | null | undefined) {
   if (!start || !end) return 0;
-  return Math.max((new Date(end).getTime() - new Date(start).getTime()) / 36e5, 0);
+  const hours = Math.max((new Date(end).getTime() - new Date(start).getTime()) / 36e5, 0);
+  return Math.round(hours * 100) / 100;
 }
 
 function overtimeHours(row: any) {

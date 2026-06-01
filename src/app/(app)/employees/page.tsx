@@ -8,7 +8,12 @@ type Params = { search?: string; page?: string; sort?: string; direction?: "asc"
 export default async function EmployeesPage({ searchParams }: { searchParams: Promise<Params> }) {
   await requirePermission("employees.view");
   const supabase = await createClient();
-  const { data } = await supabase.from("employees").select("*").is("deleted_at", null).order("created_at", { ascending: false });
+  const { data } = await supabase
+    .from("employees")
+    .select("id, employee_code, name, department, designation, salary, joining_date, shift_start, shift_end, status, created_at")
+    .is("deleted_at", null)
+    .order("created_at", { ascending: false })
+    .limit(500);
   const params = await searchParams;
   return <MasterPage config={modules.employees} rows={(data ?? []) as never} search={params.search ?? ""} page={Number(params.page ?? 1)} sort={params.sort} direction={params.direction} />;
 }

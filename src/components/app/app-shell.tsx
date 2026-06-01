@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { Menu } from "lucide-react";
 import { signOut } from "@/app/actions";
@@ -27,6 +27,7 @@ function Brand() {
 
 function NavLinks({ items, onNavigate }: { items: NavItem[]; onNavigate?: () => void }) {
   const pathname = usePathname();
+  const router = useRouter();
   return (
     <nav className="space-y-1 p-3">
       {items.map((item) => {
@@ -36,6 +37,8 @@ function NavLinks({ items, onNavigate }: { items: NavItem[]; onNavigate?: () => 
             key={item.href}
             href={item.href as any}
             prefetch={false}
+            onPointerEnter={() => router.prefetch(item.href as any)}
+            onFocus={() => router.prefetch(item.href as any)}
             onClick={onNavigate}
             className={cn(
               "flex min-h-10 items-center rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
