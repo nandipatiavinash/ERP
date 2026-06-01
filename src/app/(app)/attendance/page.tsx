@@ -29,9 +29,29 @@ function formatTimeInIndia(value: string | null | undefined) {
   }).format(new Date(value));
 }
 
+function formatDateTimeInIndia(value: string | null | undefined) {
+  if (!value) return "-";
+  return new Intl.DateTimeFormat("en-IN", {
+    timeZone: "Asia/Kolkata",
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(new Date(value));
+}
+
 function hoursBetween(start: string | null | undefined, end: string | null | undefined) {
   if (!start || !end) return 0;
   return Math.max((new Date(end).getTime() - new Date(start).getTime()) / 36e5, 0);
+}
+
+function overtimeHours(row: any) {
+  if (!row?.check_out_at || !row.attendance_date) return Number(row?.overtime_hours ?? 0);
+  const shiftEnd = row.employees?.shift_end ?? "18:00:00";
+  const shiftEndAt = new Date(`${row.attendance_date}T${shiftEnd}+05:30`).getTime();
+  return Math.max((new Date(row.check_out_at).getTime() - shiftEndAt) / 36e5, 0);
 }
 
 function attendanceStatus(row: any) {
@@ -137,6 +157,7 @@ export default async function AttendancePage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Date</TableHead>
+                    <TableHead>Recorded At</TableHead>
                     <TableHead>Employee</TableHead>
                     <TableHead>Check In</TableHead>
                     <TableHead>Check Out</TableHead>
@@ -149,11 +170,12 @@ export default async function AttendancePage() {
                   {attendanceRows.map((row) => (
                     <TableRow key={row.id}>
                       <TableCell>{formatDate(row.attendance_date)}</TableCell>
+                      <TableCell>{formatDateTimeInIndia(row.updated_at ?? row.created_at)}</TableCell>
                       <TableCell>{row.employees?.employee_code} - {row.employees?.name}</TableCell>
                       <TableCell>{row.check_in_at ? formatTimeInIndia(row.check_in_at) : row.check_in ?? "-"}</TableCell>
                       <TableCell>{row.check_out_at ? formatTimeInIndia(row.check_out_at) : row.check_out ?? "-"}</TableCell>
                       <TableCell>{formatNumber(row.check_in_at && row.check_out_at ? hoursBetween(row.check_in_at, row.check_out_at) : row.working_hours, 2)}</TableCell>
-                      <TableCell>{formatNumber(row.overtime_hours, 2)}</TableCell>
+                      <TableCell>{formatNumber(overtimeHours(row), 2)}</TableCell>
                       <TableCell><StatusBadge value={attendanceStatus(row)} /></TableCell>
                     </TableRow>
                   ))}
