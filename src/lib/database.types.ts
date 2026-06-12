@@ -49,6 +49,7 @@ export type Database = {
       looms: Table<{
         id: string;
         loom_number: string;
+        description: string | null;
         status: Status;
         created_by: string | null;
         updated_by: string | null;
@@ -59,6 +60,7 @@ export type Database = {
       fabric_types: Table<{
         id: string;
         fabric_name: string;
+        description: string | null;
         width: string;
         gsm: string;
         selling_price: string;

@@ -146,6 +146,11 @@ export async function saveMaster(moduleKey: string, formData: FormData) {
   const config = modules[moduleKey];
   const supabase = await createClient();
   const payload = validateMasterPayload(moduleKey, readPayload(formData, config.fields.map((field) => field.name))) as Record<string, unknown>;
+  if (moduleKey === "fabric-types" && !id) {
+    payload.width = 1;
+    payload.gsm = 1;
+    payload.selling_price = 0;
+  }
   payload.updated_by = user.id;
   const table = config.table as any;
 

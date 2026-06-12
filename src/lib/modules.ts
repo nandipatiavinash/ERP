@@ -36,14 +36,16 @@ export const modules: Record<string, ModuleConfig> = {
     role: ["admin"],
     fields: [
       { name: "loom_number", label: "Loom ID", type: "text", required: true },
+      { name: "description", label: "Description", type: "textarea" },
       { name: "status", label: "Status", type: "select", options: statusOptions, required: true },
     ],
     columns: [
       { key: "loom_number", label: "Loom ID" },
+      { key: "description", label: "Description" },
       { key: "status", label: "Status" },
       { key: "created_at", label: "Created" },
     ],
-    searchColumns: ["loom_number", "status"],
+    searchColumns: ["loom_number", "description", "status"],
   },
   "fabric-types": {
     key: "fabric-types",
@@ -53,19 +55,15 @@ export const modules: Record<string, ModuleConfig> = {
     role: ["admin"],
     fields: [
       { name: "fabric_name", label: "Fabric ID", type: "text", required: true },
-      { name: "width", label: "Width (in)", type: "number", step: "0.01", required: true },
-      { name: "gsm", label: "GSM", type: "number", step: "0.01", required: true },
-      { name: "selling_price", label: "Selling Price (₹)", type: "number", step: "0.01", required: true },
+      { name: "description", label: "Description", type: "textarea" },
       { name: "status", label: "Status", type: "select", options: statusOptions, required: true },
     ],
     columns: [
       { key: "fabric_name", label: "Fabric ID" },
-      { key: "width", label: "Width (in)" },
-      { key: "gsm", label: "GSM" },
-      { key: "selling_price", label: "Rate (₹)" },
+      { key: "description", label: "Description" },
       { key: "status", label: "Status" },
     ],
-    searchColumns: ["fabric_name", "status"],
+    searchColumns: ["fabric_name", "description", "status"],
   },
   "raw-materials": {
     key: "raw-materials",
