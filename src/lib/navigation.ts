@@ -4,7 +4,7 @@ export type NavItem = { href: string; label: string; roles: RoleName[]; permissi
 
 export const navItems: NavItem[] = [
   { href: "/dashboard", label: "Dashboard", roles: ["admin", "operator"], permission: "dashboard.view" },
-  { href: "/production", label: "Production", roles: ["admin", "operator"], permission: "production.view" },
+  { href: "/production", label: "Production Entry", roles: ["admin", "operator"], permission: "production.view" },
   { href: "/rolls", label: "Fabric Rolls", roles: ["admin", "operator"], permission: "rolls.view" },
   { href: "/sales", label: "Sales", roles: ["admin"], permission: "sales.view" },
   { href: "/reports", label: "Reports", roles: ["admin", "operator"], permission: "reports.view" },

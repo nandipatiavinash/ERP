@@ -19,6 +19,7 @@ const numericFields = new Set([
   "core_weight",
   "initial_meters",
   "end_meters",
+  "quantity",
   "quantity_meters",
   "rate",
 ]);
@@ -41,7 +42,7 @@ function readPayload(formData: FormData, fieldNames: string[]) {
   for (const name of fieldNames) {
     const value = formData.get(name);
     if (value === null || value === "") continue;
-    payload[name] = numericFields.has(name) ? Number(value) : sanitizeText(value);
+    payload[name] = numericFields.has(name) ? Number(Number(value).toFixed(2)) : sanitizeText(value);
   }
   return payload;
 }

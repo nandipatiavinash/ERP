@@ -40,7 +40,7 @@ export default async function RawMaterialsPage({ searchParams }: { searchParams:
         <CardContent>
           <form action={saveRawMaterialPurchase} className="grid gap-4 md:grid-cols-3">
             <div className="space-y-2">
-              <Label>Raw Material</Label>
+              <Label>Raw Material ID</Label>
               <select name="raw_material_id" required className="h-10 w-full rounded-md border bg-background px-3 text-sm">
                 <option value="" disabled>Select material</option>
                 {materials.filter((material) => material.status === "active").map((material) => (
@@ -51,7 +51,7 @@ export default async function RawMaterialsPage({ searchParams }: { searchParams:
             <div className="space-y-2"><Label>Purchase Date</Label><Input name="purchase_date" type="date" required defaultValue={new Date().toISOString().slice(0, 10)} /></div>
             <div className="space-y-2"><Label>Supplier</Label><Input name="supplier_name" /></div>
             <div className="space-y-2"><Label>Bill Number</Label><Input name="bill_number" /></div>
-            <div className="space-y-2"><Label>Quantity</Label><Input name="quantity" type="number" step="0.001" required /></div>
+            <div className="space-y-2"><Label>Quantity</Label><Input name="quantity" type="number" step="0.01" required /></div>
             <div className="space-y-2"><Label>Rate (₹/unit)</Label><Input name="rate" type="number" step="0.01" required /></div>
             <div className="space-y-2 md:col-span-3"><Label>Remarks</Label><Textarea name="remarks" /></div>
             <div className="md:col-span-3">
