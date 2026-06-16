@@ -14,7 +14,12 @@ export default async function ProductionPage() {
   const user = await requirePermission("production.view");
   const admin = isAdmin(user);
   const supabase = await createClient();
-  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+  const today = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
   const [{ data: fabrics }, { data: looms }, { data: rows }, { data: meterRows }, { data: serialRows }] = await Promise.all([
     supabase.from("fabric_types").select("id, fabric_name").eq("status", "active").is("deleted_at", null).order("fabric_name"),
     supabase.from("looms").select("id, loom_number").eq("status", "active").is("deleted_at", null).order("loom_number"),
@@ -22,7 +27,7 @@ export default async function ProductionPage() {
       .from("loom_production_entries")
       .select("*, fabric_types(fabric_name), looms(loom_number), fabric_rolls(roll_number, status)")
       .is("deleted_at", null)
-      .gte("created_at", oneHourAgo)
+      .eq("entry_date", today)
       .order("created_at", { ascending: false }),
     supabase
       .from("loom_production_entries")
@@ -77,9 +82,9 @@ export default async function ProductionPage() {
       </Card>
 
       <Card>
-        <CardHeader><CardTitle>Last 1 Hour Production Entries</CardTitle></CardHeader>
+        <CardHeader><CardTitle>Today's Production Entries</CardTitle></CardHeader>
         <CardContent>
-          {productionRows.length === 0 ? <EmptyState title="No entries in the last hour" description="New production entries will appear here immediately after saving." /> : (
+          {productionRows.length === 0 ? <EmptyState title="No entries today" description="New production entries will appear here immediately after saving." /> : (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
