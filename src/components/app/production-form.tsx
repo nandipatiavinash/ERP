@@ -47,15 +47,15 @@ export function ProductionForm({
 
   const confirmSummary = useMemo(() => {
     return [
-      { label: "Fabric ID", value: fabrics.find((f) => f.id === fabricId)?.label ?? "" },
-      { label: "Loom ID", value: looms.find((l) => l.id === loomId)?.label ?? "" },
-      { label: "Initial Meters (m)", value: `${initialMetersValue} m` },
-      { label: "End Meters (m)", value: `${endMeters} m` },
-      { label: "Gross Weight (kg)", value: `${gross} kg` },
-      { label: "Core Weight (kg)", value: `${core} kg` },
-      { label: "Net Weight (kg)", value: `${netWeight} kg` },
+      { label: "FABRIC ID", value: fabrics.find((f) => f.id === fabricId)?.label ?? "" },
+      { label: "S. No", value: String(nextSerial) },
+      { label: "GROSS WEIGHT", value: String(gross) },
+      { label: "CORE WEIGHT", value: String(core) },
+      { label: "NET WEIGHT", value: String(netWeight) },
+      { label: "NET METERS", value: String(Math.round(netMeters)) },
+      { label: "AVERAGE METER WEIGHT", value: String(Math.floor(avg)) },
     ];
-  }, [fabrics, fabricId, looms, loomId, initialMetersValue, endMeters, gross, core, netWeight]);
+  }, [fabrics, fabricId, nextSerial, gross, core, netWeight, netMeters, avg]);
 
   return (
     <form action={saveProduction} className="grid gap-4 md:grid-cols-3">
