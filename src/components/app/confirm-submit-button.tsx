@@ -11,6 +11,7 @@ type ConfirmSubmitButtonProps = ButtonProps & {
   confirmDescription?: string;
   confirmLabel?: string;
   cancelLabel?: string;
+  summary?: SummaryRow[];
 };
 
 const ones = ["", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen"];
@@ -92,6 +93,7 @@ export function ConfirmSubmitButton({
   confirmLabel = "Confirm",
   cancelLabel = "Close",
   disabled,
+  summary: propsSummary,
   ...props
 }: ConfirmSubmitButtonProps) {
   const [open, setOpen] = useState(false);
@@ -111,7 +113,11 @@ export function ConfirmSubmitButton({
         type="button"
         disabled={disabled}
         onClick={() => {
-          setSummary(collectFormSummary(buttonRef.current?.closest("form") ?? null));
+          if (propsSummary) {
+            setSummary(propsSummary);
+          } else {
+            setSummary(collectFormSummary(buttonRef.current?.closest("form") ?? null));
+          }
           setOpen(true);
         }}
         {...props}

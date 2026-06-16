@@ -33,7 +33,10 @@ export function ProductionForm({
   const [endMeters, setEndMeters] = useState(Number(row?.end_meters ?? 0));
   const [initialMetersInput, setInitialMetersInput] = useState(row?.initial_meters == null ? "" : String(row.initial_meters));
   const derivedInitialMeters = Number(lastMeters[loomId] ?? 0);
-  const initialMetersValue = isAdmin ? (initialMetersInput || String(derivedInitialMeters)) : String(derivedInitialMeters);
+  const isOriginalLoom = row && loomId === row.loom_id;
+  const initialMetersValue = isOriginalLoom
+    ? (isAdmin ? (initialMetersInput !== "" ? initialMetersInput : String(row.initial_meters ?? 0)) : String(row.initial_meters ?? 0))
+    : (isAdmin ? (initialMetersInput || String(derivedInitialMeters)) : String(derivedInitialMeters));
   const initialMeters = Number(initialMetersValue);
   const netWeight = Math.max(gross - core, 0);
   const netMeters = Math.max(endMeters - initialMeters, 0);
@@ -41,6 +44,18 @@ export function ProductionForm({
   const nextSerial = row?.display_serial ?? (fabricId ? nextSerialByFabric[fabricId] ?? 1 : "-");
 
   const summary = useMemo(() => ({ netWeight, netMeters, avg }), [netWeight, netMeters, avg]);
+
+  const confirmSummary = useMemo(() => {
+    return [
+      { label: "Fabric ID", value: fabrics.find((f) => f.id === fabricId)?.label ?? "" },
+      { label: "Loom ID", value: looms.find((l) => l.id === loomId)?.label ?? "" },
+      { label: "Initial Meters (m)", value: `${initialMetersValue} m` },
+      { label: "End Meters (m)", value: `${endMeters} m` },
+      { label: "Gross Weight (kg)", value: `${gross} kg` },
+      { label: "Core Weight (kg)", value: `${core} kg` },
+      { label: "Net Weight (kg)", value: `${netWeight} kg` },
+    ];
+  }, [fabrics, fabricId, looms, loomId, initialMetersValue, endMeters, gross, core, netWeight]);
 
   return (
     <form action={saveProduction} className="grid gap-4 md:grid-cols-3">
@@ -54,7 +69,17 @@ export function ProductionForm({
       </div>
       <div className="space-y-2">
         <Label>Loom ID</Label>
-        <select name="loom_id" value={loomId} onChange={(event) => setLoomId(event.target.value)} required className="h-10 w-full rounded-md border bg-background px-3 text-sm">
+        <select
+          name="loom_id"
+          value={loomId}
+          onChange={(event) => {
+            const nextLoomId = event.target.value;
+            setLoomId(nextLoomId);
+            setInitialMetersInput(row && nextLoomId === row.loom_id ? String(row.initial_meters ?? "") : "");
+          }}
+          required
+          className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+        >
           <option value="" disabled>Select loom</option>
           {looms.map((loom) => <option key={loom.id} value={loom.id}>{loom.label}</option>)}
         </select>
@@ -91,12 +116,12 @@ export function ProductionForm({
         <div className="text-muted-foreground">Average Meter Weight</div>
         <div className="font-semibold">{summary.avg.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} g/m</div>
       </div>
-      <div className="space-y-2 md:col-span-3">
-        <Label>Remarks</Label>
-        <Textarea name="remarks" defaultValue={row?.remarks ?? ""} />
-      </div>
       <div className="md:col-span-3">
-        <ConfirmSubmitButton confirmTitle={row?.id ? "Save production entry?" : "Create production entry?"} confirmDescription="Confirm the loom, fabric, weight, and meter readings before saving.">
+        <ConfirmSubmitButton
+          confirmTitle={row?.id ? "Save production entry?" : "Create production entry?"}
+          confirmDescription="Confirm the loom, fabric, weight, and meter readings before saving."
+          summary={confirmSummary}
+        >
           {row?.id ? "Save Entry" : "Create Production Entry"}
         </ConfirmSubmitButton>
       </div>
