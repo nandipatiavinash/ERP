@@ -14,7 +14,7 @@ export default async function RollsPage({ searchParams }: { searchParams: Promis
   const supabase = await createClient();
   let query = supabase
     .from("fabric_rolls")
-    .select("*, fabric_types(fabric_name), looms(loom_number)")
+    .select("*, fabric_types(fabric_name), looms(loom_number), loom_production_entries(gross_weight, core_weight, net_weight, net_meters, average_meter_weight)")
     .is("deleted_at", null)
     .order("created_at", { ascending: false });
   if (params.fabric_type) query = query.eq("fabric_type_id", params.fabric_type);
@@ -42,8 +42,8 @@ export default async function RollsPage({ searchParams }: { searchParams: Promis
               <CardHeader><CardTitle>{row.fabric_name}</CardTitle></CardHeader>
               <CardContent className="grid grid-cols-3 gap-3 text-sm">
                 <div><div className="text-muted-foreground">Rolls</div><div className="font-semibold">{row.rolls}</div></div>
-                <div><div className="text-muted-foreground">Weight</div><div className="font-semibold">{formatNumber(row.weight, 2)} kg</div></div>
-                <div><div className="text-muted-foreground">Meters</div><div className="font-semibold">{formatNumber(row.meters, 2)} m</div></div>
+                <div><div className="text-muted-foreground">Weight</div><div className="font-semibold">{formatNumber(row.weight, 2)}</div></div>
+                <div><div className="text-muted-foreground">Meters</div><div className="font-semibold">{formatNumber(row.meters, 0)}</div></div>
               </CardContent>
             </Card>
           </Link>
@@ -57,29 +57,40 @@ export default async function RollsPage({ searchParams }: { searchParams: Promis
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Roll</TableHead>
-                    <TableHead>Fabric</TableHead>
+                    <TableHead>Fabric type</TableHead>
+                    <TableHead>S. No</TableHead>
+                    <TableHead>Gross w8</TableHead>
+                    <TableHead>Core w8</TableHead>
+                    <TableHead>Net w8</TableHead>
+                    <TableHead>net Mtrs</TableHead>
+                    <TableHead>Avg Mtr w8</TableHead>
                     <TableHead>Loom</TableHead>
-                    <TableHead>Weight (kg)</TableHead>
-                    <TableHead>Meters (m)</TableHead>
                     <TableHead>Date</TableHead>
-                    <TableHead>Stage</TableHead>
                     <TableHead>Status</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {((rolls ?? []) as any[]).map((roll) => (
-                    <TableRow key={roll.id}>
-                      <TableCell>{roll.roll_number}</TableCell>
-                      <TableCell>{roll.fabric_types?.fabric_name}</TableCell>
-                      <TableCell>{roll.looms?.loom_number}</TableCell>
-                      <TableCell>{formatNumber(roll.weight, 2)} kg</TableCell>
-                      <TableCell>{formatNumber(roll.meters, 2)} m</TableCell>
-                      <TableCell>{formatDate(roll.production_date)}</TableCell>
-                      <TableCell>{String(roll.current_stage).replaceAll("_", " ")}</TableCell>
-                      <TableCell><StatusBadge value={roll.status} /></TableCell>
-                    </TableRow>
-                  ))}
+                  {((rolls ?? []) as any[]).map((roll) => {
+                    const fabricName = roll.fabric_types?.fabric_name ?? "";
+                    const serialNo = roll.roll_number.startsWith(fabricName + "-")
+                      ? roll.roll_number.slice(fabricName.length + 1)
+                      : roll.roll_number;
+                    const lpe = roll.loom_production_entries;
+                    return (
+                      <TableRow key={roll.id}>
+                        <TableCell>{fabricName}</TableCell>
+                        <TableCell>{serialNo}</TableCell>
+                        <TableCell>{formatNumber(lpe?.gross_weight, 2)}</TableCell>
+                        <TableCell>{formatNumber(lpe?.core_weight, 2)}</TableCell>
+                        <TableCell>{formatNumber(lpe?.net_weight, 2)}</TableCell>
+                        <TableCell>{formatNumber(Math.round(lpe?.net_meters ?? 0), 0)}</TableCell>
+                        <TableCell>{formatNumber(Math.floor(lpe?.average_meter_weight ?? 0), 0)}</TableCell>
+                        <TableCell>{roll.looms?.loom_number}</TableCell>
+                        <TableCell>{formatDate(roll.production_date)}</TableCell>
+                        <TableCell><StatusBadge value={roll.status} /></TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
