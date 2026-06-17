@@ -12,16 +12,21 @@ export default async function RollsPage({ searchParams }: { searchParams: Promis
   await requirePermission("rolls.view");
   const params = await searchParams;
   const supabase = await createClient();
-  let query = supabase
+  let rolls: any[] = [];
+  if (params.fabric_type) {
+    const { data } = await supabase
+      .from("fabric_rolls")
+      .select("*, fabric_types(fabric_name), looms(loom_number), loom_production_entries(gross_weight, core_weight, net_weight, net_meters, average_meter_weight)")
+      .is("deleted_at", null)
+      .eq("fabric_type_id", params.fabric_type)
+      .order("roll_number", { ascending: true });
+    rolls = data ?? [];
+  }
+  const { data: stock } = await supabase
     .from("fabric_rolls")
-    .select("*, fabric_types(fabric_name), looms(loom_number), loom_production_entries(gross_weight, core_weight, net_weight, net_meters, average_meter_weight)")
-    .is("deleted_at", null)
-    .order("created_at", { ascending: false });
-  if (params.fabric_type) query = query.eq("fabric_type_id", params.fabric_type);
-  const [{ data: rolls }, { data: stock }] = await Promise.all([
-    query,
-    supabase.from("fabric_rolls").select("fabric_type_id, weight, meters, status, fabric_types(fabric_name)").eq("status", "available").is("deleted_at", null),
-  ]);
+    .select("fabric_type_id, weight, meters, status, fabric_types(fabric_name)")
+    .eq("status", "available")
+    .is("deleted_at", null);
 
   const stockRows = Object.values(((stock ?? []) as any[]).reduce<Record<string, any>>((acc, roll) => {
     const key = roll.fabric_type_id;
@@ -30,7 +35,7 @@ export default async function RollsPage({ searchParams }: { searchParams: Promis
     acc[key].weight += Number(roll.weight ?? 0);
     acc[key].meters += Number(roll.meters ?? 0);
     return acc;
-  }, {}));
+  }, {})).sort((a: any, b: any) => String(a.fabric_name).localeCompare(String(b.fabric_name)));
 
   return (
     <>
@@ -52,7 +57,12 @@ export default async function RollsPage({ searchParams }: { searchParams: Promis
       <Card>
         <CardHeader><CardTitle>Rolls</CardTitle></CardHeader>
         <CardContent>
-          {(rolls ?? []).length === 0 ? <EmptyState /> : (
+          {(rolls ?? []).length === 0 ? (
+            <EmptyState
+              title={params.fabric_type ? "No records found" : "Select a fabric type"}
+              description={params.fabric_type ? "Create a record to get started." : "Click on a fabric type card above to view its rolls."}
+            />
+          ) : (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>

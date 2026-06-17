@@ -89,26 +89,26 @@ export default async function ProductionPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>S.No</TableHead>
+                    <TableHead>Fabric type</TableHead>
+                    <TableHead>S. No</TableHead>
                     <TableHead>Gross Weight</TableHead>
                     <TableHead>Core Weight</TableHead>
                     <TableHead>Net Weight</TableHead>
-                    <TableHead>Net Meters</TableHead>
-                    <TableHead>Average Weight</TableHead>
-                    <TableHead>Fabric Type</TableHead>
+                    <TableHead>Net Mtrs</TableHead>
+                    <TableHead>Avg Mtr Weight</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {productionRows.map((row, index) => (
                     <TableRow key={row.id} className={index === 0 ? "bg-emerald-50 font-semibold" : "bg-emerald-50/40"}>
+                      <TableCell>{row.fabric_types?.fabric_name}</TableCell>
                       <TableCell className="text-lg font-bold text-emerald-900">{displaySerialByEntry[row.id] ?? row.serial_number}</TableCell>
                       <TableCell>{formatNumber(row.gross_weight, 2)}</TableCell>
                       <TableCell>{formatNumber(row.core_weight, 2)}</TableCell>
                       <TableCell>{formatNumber(row.net_weight, 2)}</TableCell>
                       <TableCell>{formatNumber(Math.floor(row.net_meters), 0)}</TableCell>
                       <TableCell>{row.average_meter_weight == null ? "-" : formatNumber(Math.floor(Number(row.average_meter_weight)), 0)}</TableCell>
-                      <TableCell>{row.fabric_types?.fabric_name}</TableCell>
                       <TableCell className="min-w-96">
                         <details>
                           <summary className="cursor-pointer text-sm font-medium text-primary">Edit</summary>

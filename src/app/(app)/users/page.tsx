@@ -13,7 +13,7 @@ export default async function UsersPage() {
   await requirePermission("users.view");
   const supabase = await createClient();
   const [{ data }, { data: roles }, { data: employees }] = await Promise.all([
-    supabase.from("users").select("*, roles(name)").is("deleted_at", null).order("created_at", { ascending: false }),
+    supabase.from("users").select("*, roles(name)").is("deleted_at", null).order("full_name", { ascending: true }),
     supabase.from("roles").select("id, name").eq("is_active", true).is("deleted_at", null).order("name"),
     supabase.from("employees").select("id, user_id, employee_code, name").eq("status", "active").is("deleted_at", null).order("name"),
   ]);

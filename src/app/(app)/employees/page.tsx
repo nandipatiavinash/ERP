@@ -12,7 +12,7 @@ export default async function EmployeesPage({ searchParams }: { searchParams: Pr
     .from("employees")
     .select("id, employee_code, name, department, designation, salary, joining_date, shift_start, shift_end, status, created_at")
     .is("deleted_at", null)
-    .order("created_at", { ascending: false })
+    .order("name", { ascending: true })
     .limit(500);
   const params = await searchParams;
   return <MasterPage config={modules.employees} rows={(data ?? []) as never} search={params.search ?? ""} page={Number(params.page ?? 1)} sort={params.sort} direction={params.direction} />;

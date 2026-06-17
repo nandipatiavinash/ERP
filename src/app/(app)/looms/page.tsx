@@ -12,7 +12,7 @@ export default async function LoomsPage({ searchParams }: { searchParams: Promis
     .from("looms")
     .select("id, loom_number, description, status, created_at")
     .is("deleted_at", null)
-    .order("created_at", { ascending: false });
+    .order("loom_number", { ascending: true });
   if (error) throw new Error(error.message);
   const params = await searchParams;
   return <MasterPage config={modules.looms} rows={(data ?? []) as never} search={params.search ?? ""} page={Number(params.page ?? 1)} sort={params.sort} direction={params.direction} />;

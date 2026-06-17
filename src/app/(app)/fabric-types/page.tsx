@@ -12,7 +12,7 @@ export default async function FabricTypesPage({ searchParams }: { searchParams: 
     .from("fabric_types")
     .select("id, fabric_name, description, status")
     .is("deleted_at", null)
-    .order("created_at", { ascending: false });
+    .order("fabric_name", { ascending: true });
   if (error) throw new Error(error.message);
   const params = await searchParams;
   return <MasterPage config={modules["fabric-types"]} rows={(data ?? []) as never} search={params.search ?? ""} page={Number(params.page ?? 1)} sort={params.sort} direction={params.direction} />;
