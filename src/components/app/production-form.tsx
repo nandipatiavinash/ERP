@@ -32,25 +32,25 @@ export function ProductionForm({
   // Controlled inputs: Initialize as string to prevent stale number persistence.
   const [gross, setGross] = useState(row?.gross_weight == null ? "" : String(row.gross_weight));
   const [core, setCore] = useState(row?.core_weight == null ? "" : String(row.core_weight));
-  const [endMeters, setEndMeters] = useState(row?.end_meters == null ? "" : String(row.end_meters));
+  const [endMeters, setEndMeters] = useState(row?.end_meters == null ? "" : String(Math.round(row.end_meters)));
 
-  const [initialMetersInput, setInitialMetersInput] = useState(row?.initial_meters == null ? "" : String(row.initial_meters));
+  const [initialMetersInput, setInitialMetersInput] = useState(row?.initial_meters == null ? "" : String(Math.round(row.initial_meters)));
   const [isSaving, setIsSaving] = useState(false);
   const [errorText, setErrorText] = useState<string | null>(null);
 
-  const derivedInitialMeters = Number(lastMeters[loomId] ?? 0);
+  const derivedInitialMeters = Math.round(Number(lastMeters[loomId] ?? 0));
   const isOriginalLoom = row && loomId === row.loom_id;
   const initialMetersValue = isOriginalLoom
-    ? (isAdmin ? (initialMetersInput !== "" ? initialMetersInput : String(row.initial_meters ?? 0)) : String(row.initial_meters ?? 0))
+    ? (isAdmin ? (initialMetersInput !== "" ? initialMetersInput : String(Math.round(row.initial_meters ?? 0))) : String(Math.round(row.initial_meters ?? 0)))
     : (isAdmin ? (initialMetersInput || String(derivedInitialMeters)) : String(derivedInitialMeters));
-  const initialMeters = Number(initialMetersValue);
+  const initialMeters = Math.round(Number(initialMetersValue));
 
   const netWeight = Math.max(Number(gross || 0) - Number(core || 0), 0);
   const netMeters = Math.max(Number(endMeters || 0) - initialMeters, 0);
   const avg = netMeters > 0 ? (netWeight / netMeters) * 1000 : 0;
   const nextSerial = row?.display_serial ?? (fabricId ? nextSerialByFabric[fabricId] ?? 1 : "-");
 
-  const summary = useMemo(() => ({ netWeight, netMeters, avg }), [netWeight, netMeters, avg]);
+  const summary = useMemo(() => ({ netWeight, netMeters: Math.round(netMeters), avg: Math.floor(avg) }), [netWeight, netMeters, avg]);
 
   const confirmSummary = useMemo(() => {
     return [
@@ -112,7 +112,7 @@ export function ProductionForm({
           onChange={(event) => {
             const nextLoomId = event.target.value;
             setLoomId(nextLoomId);
-            setInitialMetersInput(row && nextLoomId === row.loom_id ? String(row.initial_meters ?? "") : "");
+            setInitialMetersInput(row && nextLoomId === row.loom_id ? String(row.initial_meters ? Math.round(row.initial_meters) : "") : "");
           }}
           required
           disabled={isSaving}
@@ -127,32 +127,32 @@ export function ProductionForm({
         <div className="text-xl font-bold text-emerald-950">{nextSerial}</div>
       </div>
       <div className="space-y-2">
-        <Label>Initial Meters (m)</Label>
-        <Input name="initial_meters" type="number" step="0.01" value={initialMetersValue} readOnly={!isAdmin} disabled={isSaving} onChange={(event) => setInitialMetersInput(event.target.value)} />
+        <Label>Initial Meters</Label>
+        <Input name="initial_meters" type="number" step="1" value={initialMetersValue} readOnly={!isAdmin} disabled={isSaving} onChange={(event) => setInitialMetersInput(event.target.value)} />
       </div>
       <div className="space-y-2">
-        <Label>Gross Weight (kg)</Label>
+        <Label>Gross Weight</Label>
         <Input name="gross_weight" type="number" step="0.01" value={gross} required disabled={isSaving} onChange={(event) => setGross(event.target.value)} />
       </div>
       <div className="space-y-2">
-        <Label>Core Weight (kg)</Label>
+        <Label>Core Weight</Label>
         <Input name="core_weight" type="number" step="0.01" value={core} required disabled={isSaving} onChange={(event) => setCore(event.target.value)} />
       </div>
       <div className="space-y-2">
-        <Label>End Meters (m)</Label>
-        <Input name="end_meters" type="number" step="0.01" value={endMeters} required disabled={isSaving} onChange={(event) => setEndMeters(event.target.value)} />
+        <Label>End Meters</Label>
+        <Input name="end_meters" type="number" step="1" value={endMeters} required disabled={isSaving} onChange={(event) => setEndMeters(event.target.value)} />
       </div>
       <div className="rounded-md border bg-muted/40 p-3 text-sm">
         <div className="text-muted-foreground">Net Weight</div>
-        <div className="font-semibold">{summary.netWeight.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} kg</div>
+        <div className="font-semibold">{summary.netWeight.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
       </div>
       <div className="rounded-md border bg-muted/40 p-3 text-sm">
         <div className="text-muted-foreground">Net Meters</div>
-        <div className="font-semibold">{summary.netMeters.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} m</div>
+        <div className="font-semibold">{summary.netMeters.toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
       </div>
       <div className="rounded-md border bg-muted/40 p-3 text-sm">
         <div className="text-muted-foreground">Average Meter Weight</div>
-        <div className="font-semibold">{summary.avg.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} g/m</div>
+        <div className="font-semibold">{summary.avg.toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</div>
       </div>
       <div className="md:col-span-3">
         {errorText ? <p className="mb-2 text-sm text-destructive">{errorText}</p> : null}
