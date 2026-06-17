@@ -59,13 +59,12 @@ export default async function RollsPage({ searchParams }: { searchParams: Promis
                   <TableRow>
                     <TableHead>Fabric type</TableHead>
                     <TableHead>S. No</TableHead>
-                    <TableHead>Gross w8</TableHead>
-                    <TableHead>Core w8</TableHead>
-                    <TableHead>Net w8</TableHead>
+                    <TableHead>Gross Weight</TableHead>
+                    <TableHead>Core Weight</TableHead>
+                    <TableHead>Net Weight</TableHead>
                     <TableHead>net Mtrs</TableHead>
-                    <TableHead>Avg Mtr w8</TableHead>
+                    <TableHead>Avg Mtr Weight</TableHead>
                     <TableHead>Loom</TableHead>
-                    <TableHead>Date</TableHead>
                     <TableHead>Status</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -86,7 +85,6 @@ export default async function RollsPage({ searchParams }: { searchParams: Promis
                         <TableCell>{formatNumber(Math.round(lpe?.net_meters ?? 0), 0)}</TableCell>
                         <TableCell>{formatNumber(Math.floor(lpe?.average_meter_weight ?? 0), 0)}</TableCell>
                         <TableCell>{roll.looms?.loom_number}</TableCell>
-                        <TableCell>{formatDate(roll.production_date)}</TableCell>
                         <TableCell><StatusBadge value={roll.status} /></TableCell>
                       </TableRow>
                     );

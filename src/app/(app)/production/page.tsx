@@ -90,11 +90,11 @@ export default async function ProductionPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>S.No</TableHead>
-                    <TableHead>Gross Weight (kg)</TableHead>
-                    <TableHead>Core Weight (kg)</TableHead>
-                    <TableHead>Net Weight (kg)</TableHead>
-                    <TableHead>Net Meters (m)</TableHead>
-                    <TableHead>Average Weight (g/m)</TableHead>
+                    <TableHead>Gross Weight</TableHead>
+                    <TableHead>Core Weight</TableHead>
+                    <TableHead>Net Weight</TableHead>
+                    <TableHead>Net Meters</TableHead>
+                    <TableHead>Average Weight</TableHead>
                     <TableHead>Fabric Type</TableHead>
                     <TableHead>Loom ID</TableHead>
                     <TableHead>Date</TableHead>
@@ -106,11 +106,11 @@ export default async function ProductionPage() {
                   {productionRows.map((row, index) => (
                     <TableRow key={row.id} className={index === 0 ? "bg-emerald-50 font-semibold" : "bg-emerald-50/40"}>
                       <TableCell className="text-lg font-bold text-emerald-900">{displaySerialByEntry[row.id] ?? row.serial_number}</TableCell>
-                      <TableCell>{formatNumber(row.gross_weight, 2)} kg</TableCell>
-                      <TableCell>{formatNumber(row.core_weight, 2)} kg</TableCell>
-                      <TableCell>{formatNumber(row.net_weight, 2)} kg</TableCell>
-                      <TableCell>{formatNumber(row.net_meters, 2)} m</TableCell>
-                      <TableCell>{formatNumber(row.average_meter_weight, 2)} g/m</TableCell>
+                      <TableCell>{formatNumber(row.gross_weight, 2)}</TableCell>
+                      <TableCell>{formatNumber(row.core_weight, 2)}</TableCell>
+                      <TableCell>{formatNumber(row.net_weight, 2)}</TableCell>
+                      <TableCell>{formatNumber(Math.round(row.net_meters), 0)}</TableCell>
+                      <TableCell>{row.average_meter_weight == null ? "-" : formatNumber(Math.floor(Number(row.average_meter_weight)), 0)}</TableCell>
                       <TableCell>{row.fabric_types?.fabric_name}</TableCell>
                       <TableCell>{row.looms?.loom_number}</TableCell>
                       <TableCell>{formatDate(row.entry_date)}</TableCell>
