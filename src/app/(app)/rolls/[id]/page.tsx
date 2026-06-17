@@ -32,6 +32,21 @@ export default async function FabricTypeRollsPage({
   const fabric = fabricData as { fabric_name: string } | null;
   const fabricName = fabric?.fabric_name ?? "Fabric";
 
+  // Sort rolls numerically by S. No suffix.
+  // Standard text sorting would list "W-12-3-10" before "W-12-3-2".
+  // This extracts and parses the numeric suffix to sort W-12-3-1, W-12-3-2 ... W-12-3-10 correctly.
+  const sortedRolls = ((rolls ?? []) as any[]).sort((a, b) => {
+    const aSerial = a.roll_number.startsWith(fabricName + "-")
+      ? Number(a.roll_number.slice(fabricName.length + 1))
+      : Number(a.roll_number);
+    const bSerial = b.roll_number.startsWith(fabricName + "-")
+      ? Number(b.roll_number.slice(fabricName.length + 1))
+      : Number(b.roll_number);
+    const aNum = Number.isNaN(aSerial) ? 0 : aSerial;
+    const bNum = Number.isNaN(bSerial) ? 0 : bSerial;
+    return aNum - bNum;
+  });
+
   return (
     <>
       <div className="mb-4">
@@ -74,7 +89,7 @@ export default async function FabricTypeRollsPage({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {((rolls ?? []) as any[]).map((roll) => {
+                  {sortedRolls.map((roll) => {
                     const serialNo = roll.roll_number.startsWith(fabricName + "-")
                       ? roll.roll_number.slice(fabricName.length + 1)
                       : roll.roll_number;
