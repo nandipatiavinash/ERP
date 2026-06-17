@@ -5,7 +5,7 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Polymer Fabric ERP",
+  title: "RK Global - Fabric ERP",
   description: "ERP for polymer fabric manufacturing",
 };
 
