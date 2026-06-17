@@ -134,7 +134,7 @@ export default async function ProductionPage() {
                         </details>
                         <form action={softDeleteProduction} className="mt-3">
                           <input type="hidden" name="id" value={row.id} />
-                          <ConfirmSubmitButton variant="outline" size="sm" confirmTitle="Void production entry?" confirmDescription="This will mark the production entry inactive and update related views.">Void</ConfirmSubmitButton>
+                          <ConfirmSubmitButton variant="outline" size="sm" confirmTitle="Delete production entry?" confirmDescription="This will delete the production entry and update related views.">Delete</ConfirmSubmitButton>
                         </form>
                       </TableCell>
                     </TableRow>
