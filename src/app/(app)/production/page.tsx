@@ -96,9 +96,6 @@ export default async function ProductionPage() {
                     <TableHead>Net Meters</TableHead>
                     <TableHead>Average Weight</TableHead>
                     <TableHead>Fabric Type</TableHead>
-                    <TableHead>Loom ID</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Roll</TableHead>
                     <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -112,12 +109,6 @@ export default async function ProductionPage() {
                       <TableCell>{formatNumber(Math.floor(row.net_meters), 0)}</TableCell>
                       <TableCell>{row.average_meter_weight == null ? "-" : formatNumber(Math.floor(Number(row.average_meter_weight)), 0)}</TableCell>
                       <TableCell>{row.fabric_types?.fabric_name}</TableCell>
-                      <TableCell>{row.looms?.loom_number}</TableCell>
-                      <TableCell>{formatDate(row.entry_date)}</TableCell>
-                      <TableCell>
-                        <div>{row.fabric_rolls?.roll_number ?? "-"}</div>
-                        {row.fabric_rolls?.status ? <StatusBadge value={row.fabric_rolls.status} /> : null}
-                      </TableCell>
                       <TableCell className="min-w-96">
                         <details>
                           <summary className="cursor-pointer text-sm font-medium text-primary">Edit</summary>
