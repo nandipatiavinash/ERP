@@ -109,7 +109,7 @@ export default async function ProductionPage() {
                       <TableCell>{formatNumber(row.gross_weight, 2)}</TableCell>
                       <TableCell>{formatNumber(row.core_weight, 2)}</TableCell>
                       <TableCell>{formatNumber(row.net_weight, 2)}</TableCell>
-                      <TableCell>{formatNumber(Math.round(row.net_meters), 0)}</TableCell>
+                      <TableCell>{formatNumber(Math.floor(row.net_meters), 0)}</TableCell>
                       <TableCell>{row.average_meter_weight == null ? "-" : formatNumber(Math.floor(Number(row.average_meter_weight)), 0)}</TableCell>
                       <TableCell>{row.fabric_types?.fabric_name}</TableCell>
                       <TableCell>{row.looms?.loom_number}</TableCell>

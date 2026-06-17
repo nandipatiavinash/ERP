@@ -32,25 +32,25 @@ export function ProductionForm({
   // Controlled inputs: Initialize as string to prevent stale number persistence.
   const [gross, setGross] = useState(row?.gross_weight == null ? "" : String(row.gross_weight));
   const [core, setCore] = useState(row?.core_weight == null ? "" : String(row.core_weight));
-  const [endMeters, setEndMeters] = useState(row?.end_meters == null ? "" : String(Math.round(row.end_meters)));
+  const [endMeters, setEndMeters] = useState(row?.end_meters == null ? "" : String(Math.floor(row.end_meters)));
 
-  const [initialMetersInput, setInitialMetersInput] = useState(row?.initial_meters == null ? "" : String(Math.round(row.initial_meters)));
+  const [initialMetersInput, setInitialMetersInput] = useState(row?.initial_meters == null ? "" : String(Math.floor(row.initial_meters)));
   const [isSaving, setIsSaving] = useState(false);
   const [errorText, setErrorText] = useState<string | null>(null);
 
-  const derivedInitialMeters = Math.round(Number(lastMeters[loomId] ?? 0));
+  const derivedInitialMeters = Math.floor(Number(lastMeters[loomId] ?? 0));
   const isOriginalLoom = row && loomId === row.loom_id;
   const initialMetersValue = isOriginalLoom
-    ? (isAdmin ? (initialMetersInput !== "" ? initialMetersInput : String(Math.round(row.initial_meters ?? 0))) : String(Math.round(row.initial_meters ?? 0)))
+    ? (isAdmin ? (initialMetersInput !== "" ? initialMetersInput : String(Math.floor(row.initial_meters ?? 0))) : String(Math.floor(row.initial_meters ?? 0)))
     : (isAdmin ? (initialMetersInput || String(derivedInitialMeters)) : String(derivedInitialMeters));
-  const initialMeters = Math.round(Number(initialMetersValue));
+  const initialMeters = Math.floor(Number(initialMetersValue));
 
   const netWeight = Math.max(Number(gross || 0) - Number(core || 0), 0);
   const netMeters = Math.max(Number(endMeters || 0) - initialMeters, 0);
   const avg = netMeters > 0 ? (netWeight / netMeters) * 1000 : 0;
   const nextSerial = row?.display_serial ?? (fabricId ? nextSerialByFabric[fabricId] ?? 1 : "-");
 
-  const summary = useMemo(() => ({ netWeight, netMeters: Math.round(netMeters), avg: Math.floor(avg) }), [netWeight, netMeters, avg]);
+  const summary = useMemo(() => ({ netWeight, netMeters: Math.floor(netMeters), avg: Math.floor(avg) }), [netWeight, netMeters, avg]);
 
   const confirmSummary = useMemo(() => {
     return [
@@ -59,7 +59,7 @@ export function ProductionForm({
       { label: "GROSS WEIGHT", value: String(gross) },
       { label: "CORE WEIGHT", value: String(core) },
       { label: "NET WEIGHT", value: String(netWeight) },
-      { label: "NET METERS", value: String(Math.round(netMeters)) },
+      { label: "NET METERS", value: String(Math.floor(netMeters)) },
       { label: "AVERAGE METER WEIGHT", value: String(Math.floor(avg)) },
     ];
   }, [fabrics, fabricId, nextSerial, gross, core, netWeight, netMeters, avg]);
@@ -112,7 +112,7 @@ export function ProductionForm({
           onChange={(event) => {
             const nextLoomId = event.target.value;
             setLoomId(nextLoomId);
-            setInitialMetersInput(row && nextLoomId === row.loom_id ? String(row.initial_meters ? Math.round(row.initial_meters) : "") : "");
+            setInitialMetersInput(row && nextLoomId === row.loom_id ? String(row.initial_meters ? Math.floor(row.initial_meters) : "") : "");
           }}
           required
           disabled={isSaving}

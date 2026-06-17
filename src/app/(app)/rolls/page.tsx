@@ -43,7 +43,7 @@ export default async function RollsPage({ searchParams }: { searchParams: Promis
               <CardContent className="grid grid-cols-3 gap-3 text-sm">
                 <div><div className="text-muted-foreground">Rolls</div><div className="font-semibold">{row.rolls}</div></div>
                 <div><div className="text-muted-foreground">Weight</div><div className="font-semibold">{formatNumber(row.weight, 2)}</div></div>
-                <div><div className="text-muted-foreground">Meters</div><div className="font-semibold">{formatNumber(row.meters, 0)}</div></div>
+                <div><div className="text-muted-foreground">Meters</div><div className="font-semibold">{formatNumber(Math.floor(row.meters), 0)}</div></div>
               </CardContent>
             </Card>
           </Link>
@@ -82,7 +82,7 @@ export default async function RollsPage({ searchParams }: { searchParams: Promis
                         <TableCell>{formatNumber(lpe?.gross_weight, 2)}</TableCell>
                         <TableCell>{formatNumber(lpe?.core_weight, 2)}</TableCell>
                         <TableCell>{formatNumber(lpe?.net_weight, 2)}</TableCell>
-                        <TableCell>{formatNumber(Math.round(lpe?.net_meters ?? 0), 0)}</TableCell>
+                        <TableCell>{formatNumber(Math.floor(lpe?.net_meters ?? 0), 0)}</TableCell>
                         <TableCell>{formatNumber(Math.floor(lpe?.average_meter_weight ?? 0), 0)}</TableCell>
                         <TableCell>{roll.looms?.loom_number}</TableCell>
                         <TableCell><StatusBadge value={roll.status} /></TableCell>
