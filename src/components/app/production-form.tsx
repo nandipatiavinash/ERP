@@ -28,18 +28,25 @@ export function ProductionForm({
   const defaultLoom = row?.loom_id ?? looms[0]?.id ?? "";
   const [fabricId, setFabricId] = useState(defaultFabric);
   const [loomId, setLoomId] = useState(defaultLoom);
-  const [gross, setGross] = useState(Number(row?.gross_weight ?? 0));
-  const [core, setCore] = useState(Number(row?.core_weight ?? 0));
-  const [endMeters, setEndMeters] = useState(Number(row?.end_meters ?? 0));
+
+  // Controlled inputs: Initialize as string to prevent stale number persistence.
+  const [gross, setGross] = useState(row?.gross_weight == null ? "" : String(row.gross_weight));
+  const [core, setCore] = useState(row?.core_weight == null ? "" : String(row.core_weight));
+  const [endMeters, setEndMeters] = useState(row?.end_meters == null ? "" : String(row.end_meters));
+
   const [initialMetersInput, setInitialMetersInput] = useState(row?.initial_meters == null ? "" : String(row.initial_meters));
+  const [isSaving, setIsSaving] = useState(false);
+  const [errorText, setErrorText] = useState<string | null>(null);
+
   const derivedInitialMeters = Number(lastMeters[loomId] ?? 0);
   const isOriginalLoom = row && loomId === row.loom_id;
   const initialMetersValue = isOriginalLoom
     ? (isAdmin ? (initialMetersInput !== "" ? initialMetersInput : String(row.initial_meters ?? 0)) : String(row.initial_meters ?? 0))
     : (isAdmin ? (initialMetersInput || String(derivedInitialMeters)) : String(derivedInitialMeters));
   const initialMeters = Number(initialMetersValue);
-  const netWeight = Math.max(gross - core, 0);
-  const netMeters = Math.max(endMeters - initialMeters, 0);
+
+  const netWeight = Math.max(Number(gross || 0) - Number(core || 0), 0);
+  const netMeters = Math.max(Number(endMeters || 0) - initialMeters, 0);
   const avg = netMeters > 0 ? (netWeight / netMeters) * 1000 : 0;
   const nextSerial = row?.display_serial ?? (fabricId ? nextSerialByFabric[fabricId] ?? 1 : "-");
 
@@ -57,12 +64,42 @@ export function ProductionForm({
     ];
   }, [fabrics, fabricId, nextSerial, gross, core, netWeight, netMeters, avg]);
 
+  // Handles client-side submission of server action saving the production record.
+  // This allows loaders, disables double submissions, and resets stale input values.
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (isSaving) return;
+    setIsSaving(true);
+    setErrorText(null);
+    try {
+      const formData = new FormData(event.currentTarget);
+      if (row?.id) {
+        formData.set("id", row.id);
+      }
+      await saveProduction(formData);
+
+      // Reset the form state upon successful submission (only for creating new records)
+      if (!row?.id) {
+        setFabricId("");
+        setLoomId(looms[0]?.id ?? "");
+        setGross("");
+        setCore("");
+        setEndMeters("");
+        setInitialMetersInput("");
+      }
+    } catch (err: any) {
+      setErrorText(err.message || "Failed to save production entry.");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   return (
-    <form action={saveProduction} className="grid gap-4 md:grid-cols-3">
+    <form onSubmit={handleSubmit} className="grid gap-4 md:grid-cols-3">
       {row?.id ? <input type="hidden" name="id" value={row.id} /> : null}
       <div className="space-y-2">
         <Label>Fabric ID</Label>
-        <select name="fabric_type_id" value={fabricId} onChange={(event) => setFabricId(event.target.value)} required className="h-10 w-full rounded-md border bg-background px-3 text-sm">
+        <select name="fabric_type_id" value={fabricId} onChange={(event) => setFabricId(event.target.value)} required disabled={isSaving} className="h-10 w-full rounded-md border bg-background px-3 text-sm">
           <option value="" disabled>Select fabric</option>
           {fabrics.map((fabric) => <option key={fabric.id} value={fabric.id}>{fabric.label}</option>)}
         </select>
@@ -78,6 +115,7 @@ export function ProductionForm({
             setInitialMetersInput(row && nextLoomId === row.loom_id ? String(row.initial_meters ?? "") : "");
           }}
           required
+          disabled={isSaving}
           className="h-10 w-full rounded-md border bg-background px-3 text-sm"
         >
           <option value="" disabled>Select loom</option>
@@ -90,19 +128,19 @@ export function ProductionForm({
       </div>
       <div className="space-y-2">
         <Label>Initial Meters (m)</Label>
-        <Input name="initial_meters" type="number" step="0.01" value={initialMetersValue} readOnly={!isAdmin} onChange={(event) => setInitialMetersInput(event.target.value)} />
+        <Input name="initial_meters" type="number" step="0.01" value={initialMetersValue} readOnly={!isAdmin} disabled={isSaving} onChange={(event) => setInitialMetersInput(event.target.value)} />
       </div>
       <div className="space-y-2">
         <Label>Gross Weight (kg)</Label>
-        <Input name="gross_weight" type="number" step="0.01" defaultValue={row?.gross_weight ?? ""} required onChange={(event) => setGross(Number(event.target.value))} />
+        <Input name="gross_weight" type="number" step="0.01" value={gross} required disabled={isSaving} onChange={(event) => setGross(event.target.value)} />
       </div>
       <div className="space-y-2">
         <Label>Core Weight (kg)</Label>
-        <Input name="core_weight" type="number" step="0.01" defaultValue={row?.core_weight ?? ""} required onChange={(event) => setCore(Number(event.target.value))} />
+        <Input name="core_weight" type="number" step="0.01" value={core} required disabled={isSaving} onChange={(event) => setCore(event.target.value)} />
       </div>
       <div className="space-y-2">
         <Label>End Meters (m)</Label>
-        <Input name="end_meters" type="number" step="0.01" defaultValue={row?.end_meters ?? ""} required onChange={(event) => setEndMeters(Number(event.target.value))} />
+        <Input name="end_meters" type="number" step="0.01" value={endMeters} required disabled={isSaving} onChange={(event) => setEndMeters(event.target.value)} />
       </div>
       <div className="rounded-md border bg-muted/40 p-3 text-sm">
         <div className="text-muted-foreground">Net Weight</div>
@@ -117,12 +155,14 @@ export function ProductionForm({
         <div className="font-semibold">{summary.avg.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} g/m</div>
       </div>
       <div className="md:col-span-3">
+        {errorText ? <p className="mb-2 text-sm text-destructive">{errorText}</p> : null}
         <ConfirmSubmitButton
           confirmTitle={row?.id ? "Save production entry?" : "Create production entry?"}
           confirmDescription="Confirm the loom, fabric, weight, and meter readings before saving."
           summary={confirmSummary}
+          disabled={isSaving}
         >
-          {row?.id ? "Save Entry" : "Create Production Entry"}
+          {isSaving ? "Saving..." : (row?.id ? "Save Entry" : "Create Production Entry")}
         </ConfirmSubmitButton>
       </div>
     </form>
