@@ -63,23 +63,12 @@ export function AppShell({
   children: React.ReactNode;
 }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-
-  useEffect(() => {
-    const hideSplash = async () => {
-      try {
-        const { SplashScreen } = await import("@capacitor/splash-screen");
-        await SplashScreen.hide();
-      } catch (e) {
-        // Ignored when running in standard browser env
-      }
-    };
-    hideSplash();
-  }, []);
-
   const items = useMemo(
     () => navItems.filter((item) => permissions.includes(item.permission) || item.roles.includes(user.roles.name)),
     [permissions, user.roles.name],
   );
+
+  return (
     <div className="min-h-screen bg-muted/30">
       <aside className="fixed inset-y-0 left-0 z-20 hidden w-64 border-r bg-background lg:block">
         <Brand />
