@@ -5,5 +5,17 @@
   "server": {
     "url": "https://erp-xi-rose.vercel.app",
     "cleartext": true
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 30000,
+      "launchAutoHide": false,
+      "backgroundColor": "#ffffff",
+      "showSpinner": true,
+      "androidSpinnerStyle": "large",
+      "spinnerColor": "#1e1b4b",
+      "splashFullScreen": true,
+      "splashImmersive": true
+    }
   }
 }
