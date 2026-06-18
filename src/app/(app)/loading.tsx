@@ -1,7 +1,10 @@
+import { Loader2 } from "lucide-react";
+
 export default function AppLoading() {
   return (
-    <div className="h-1 w-full overflow-hidden rounded bg-muted">
-      <div className="h-full w-1/3 animate-pulse rounded bg-primary/60" />
+    <div className="flex min-h-[50vh] w-full flex-col items-center justify-center gap-3 p-4">
+      <Loader2 className="h-10 w-10 animate-spin text-primary" />
+      <p className="text-sm font-medium text-muted-foreground animate-pulse">Loading ERP data...</p>
     </div>
   );
 }
