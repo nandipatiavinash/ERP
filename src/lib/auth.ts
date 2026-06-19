@@ -60,6 +60,23 @@ export function fallbackPermissions(role: RoleName | undefined) {
 }
 
 const getPermissionsForRole = cache(async function getPermissionsForRole(roleId: string, role: RoleName | undefined) {
+  if (role === "admin") {
+    const modulesList = [
+      "users", "roles", "employees", "attendance", "looms", "fabric_types", "fabric-types",
+      "raw_materials", "raw-materials", "customers", "colors", "roto_products", "roto-products",
+      "offset_products", "offset-products", "production", "sales", "reports", "rolls", "dashboard"
+    ];
+    const actionsList = ["view", "create", "edit", "delete", "export"];
+    const allPerms = [];
+    for (const m of modulesList) {
+      for (const a of actionsList) {
+        allPerms.push(`${m}.${a}`);
+        allPerms.push(`${m.replace("-", "_")}.${a}`);
+      }
+    }
+    return allPerms;
+  }
+
   const supabase = await createClient();
   const { data, error } = await (supabase
     .from("role_permissions")
@@ -81,6 +98,7 @@ export async function getSessionPermissions(user?: AppUser) {
 
 export async function requirePermission(permission: string) {
   const user = await requireUser();
+  if (user.roles?.name === "admin") return user;
   const permissions = await getSessionPermissions(user);
   if (!permissions.includes(permission)) redirect("/403");
   return user;
