@@ -1,0 +1,356 @@
+import Link from "next/link";
+import { saveRotoProduct, deactivateRotoProduct, saveOffsetProduct, deactivateOffsetProduct } from "@/app/(app)/_actions";
+import { MasterPage } from "@/components/app/master-page";
+import { ConfirmSubmitButton } from "@/components/app/confirm-submit-button";
+import { PageHeader } from "@/components/app/page-header";
+import { StatusBadge } from "@/components/app/status-badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { requirePermission } from "@/lib/auth";
+import { modules } from "@/lib/modules";
+import { createClient } from "@/lib/supabase/server";
+import { cn } from "@/lib/utils";
+
+type Params = { tab?: string; search?: string; page?: string; sort?: string; direction?: "asc" | "desc" };
+
+export default async function ProductsAdminPage({ searchParams }: { searchParams: Promise<Params> }) {
+  await requirePermission("fabric_types.view");
+  const params = await searchParams;
+  const tab = params.tab || "fabric";
+  const supabase = await createClient();
+
+  // Fetch based on active tab
+  let fabricData: any[] = [];
+  let rotoData: any[] = [];
+  let offsetData: any[] = [];
+
+  if (tab === "fabric") {
+    const { data } = await supabase
+      .from("fabric_types")
+      .select("id, fabric_name, description, status")
+      .is("deleted_at", null)
+      .order("fabric_name", { ascending: true })
+      .limit(500);
+    fabricData = data ?? [];
+  } else if (tab === "roto") {
+    const { data } = await supabase
+      .from("roto_products")
+      .select("*")
+      .order("brand", { ascending: true })
+      .limit(500);
+    rotoData = data ?? [];
+  } else if (tab === "offset") {
+    const { data } = await supabase
+      .from("offset_products")
+      .select("*")
+      .order("brand", { ascending: true })
+      .limit(500);
+    offsetData = data ?? [];
+  }
+
+  const tabClass = (key: string) =>
+    cn(
+      "px-4 py-2 text-sm font-semibold rounded-t-lg border-b-2 transition-colors",
+      tab === key
+        ? "border-primary text-primary bg-background"
+        : "border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/50"
+    );
+
+  return (
+    <>
+      <PageHeader title="Product Profiles" description="Manage fabric type templates and custom printing products for the factory." />
+
+      <div className="flex border-b border-muted mb-6">
+        <Link href={"/admin/products?tab=fabric" as any} className={tabClass("fabric")}>
+          Fabric Products
+        </Link>
+        <Link href={"/admin/products?tab=roto" as any} className={tabClass("roto")}>
+          Roto Printing Products
+        </Link>
+        <Link href={"/admin/products?tab=offset" as any} className={tabClass("offset")}>
+          Offset Printing Products
+        </Link>
+      </div>
+
+      {tab === "fabric" && (
+        <MasterPage
+          config={modules["fabric-types"]}
+          rows={fabricData as never}
+          search={params.search ?? ""}
+          page={Number(params.page ?? 1)}
+          sort={params.sort}
+          direction={params.direction}
+        />
+      )}
+
+      {tab === "roto" && (
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Add Roto Printing Product</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <form action={saveRotoProduct} className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                <div className="space-y-2">
+                  <Label htmlFor="brand">Brand</Label>
+                  <Input id="brand" name="brand" placeholder="e.g. RK-Rotogravure" required />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="width">Width (inches)</Label>
+                  <Input id="width" name="width" type="number" step="0.01" placeholder="e.g. 24.50" required />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="height">Height (inches)</Label>
+                  <Input id="height" name="height" type="number" step="0.01" placeholder="e.g. 36.00" required />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="num_cylinders">Number of Cylinders</Label>
+                  <Input id="num_cylinders" name="num_cylinders" type="number" placeholder="e.g. 6" required />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="image_file">Product Image File</Label>
+                  <Input id="image_file" name="image_file" type="file" accept="image/*" required />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="status">Status</Label>
+                  <select name="status" id="status" required className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                  </select>
+                </div>
+                <div className="flex items-end md:col-span-2 lg:col-span-3">
+                  <ConfirmSubmitButton confirmTitle="Add Roto Product?" confirmDescription="Review product brand, dimensions, cylinders, and image file before adding.">
+                    Add Product
+                  </ConfirmSubmitButton>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Roto Products</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {rotoData.length === 0 ? (
+                <EmptyState />
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Preview</TableHead>
+                        <TableHead>Brand</TableHead>
+                        <TableHead>Dimensions</TableHead>
+                        <TableHead>Cylinders</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {rotoData.map((row) => (
+                        <TableRow key={row.id}>
+                          <TableCell>
+                            {row.image_url ? (
+                              <img src={row.image_url} alt={row.brand} className="h-12 w-12 rounded object-cover border" />
+                            ) : (
+                              <div className="h-12 w-12 rounded bg-muted flex items-center justify-center text-xs text-muted-foreground">No image</div>
+                            )}
+                          </TableCell>
+                          <TableCell className="font-semibold">{row.brand}</TableCell>
+                          <TableCell>{row.width} &times; {row.height} in</TableCell>
+                          <TableCell>{row.num_cylinders}</TableCell>
+                          <TableCell>
+                            <StatusBadge value={row.status} />
+                          </TableCell>
+                          <TableCell className="min-w-80">
+                            <details className="space-y-3">
+                              <summary className="cursor-pointer text-sm font-medium text-primary">Edit</summary>
+                              <form action={saveRotoProduct} className="grid gap-4 md:grid-cols-2 bg-muted/20 p-4 rounded-md border mt-2">
+                                <input type="hidden" name="id" value={row.id} />
+                                <input type="hidden" name="image_url" value={row.image_url || ""} />
+                                <div className="space-y-2">
+                                  <Label>Brand</Label>
+                                  <Input name="brand" defaultValue={row.brand} required />
+                                </div>
+                                <div className="space-y-2">
+                                  <Label>Width (inches)</Label>
+                                  <Input name="width" type="number" step="0.01" defaultValue={row.width} required />
+                                </div>
+                                <div className="space-y-2">
+                                  <Label>Height (inches)</Label>
+                                  <Input name="height" type="number" step="0.01" defaultValue={row.height} required />
+                                </div>
+                                <div className="space-y-2">
+                                  <Label>Cylinders</Label>
+                                  <Input name="num_cylinders" type="number" defaultValue={row.num_cylinders} required />
+                                </div>
+                                <div className="space-y-2">
+                                  <Label>Update Image File</Label>
+                                  <Input name="image_file" type="file" accept="image/*" />
+                                </div>
+                                <div className="space-y-2">
+                                  <Label>Status</Label>
+                                  <select name="status" defaultValue={row.status} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+                                    <option value="active">Active</option>
+                                    <option value="inactive">Inactive</option>
+                                  </select>
+                                </div>
+                                <div className="md:col-span-2">
+                                  <ConfirmSubmitButton confirmTitle="Save changes?" confirmDescription="Confirm Roto product changes before saving.">
+                                    Save Product
+                                  </ConfirmSubmitButton>
+                                </div>
+                              </form>
+                            </details>
+                            <form action={deactivateRotoProduct} className="mt-3">
+                              <input type="hidden" name="id" value={row.id} />
+                              <ConfirmSubmitButton size="sm" variant="outline" confirmTitle="Deactivate Roto product?" confirmDescription="Are you sure you want to deactivate this Roto printing product?">
+                                Deactivate
+                              </ConfirmSubmitButton>
+                            </form>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {tab === "offset" && (
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Add Offset Printing Product</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <form action={saveOffsetProduct} className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                <div className="space-y-2">
+                  <Label htmlFor="brand">Brand</Label>
+                  <Input id="brand" name="brand" placeholder="e.g. RK-Offset" required />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="width">Width (inches)</Label>
+                  <Input id="width" name="width" type="number" step="0.01" placeholder="e.g. 18.00" required />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="height">Height (inches)</Label>
+                  <Input id="height" name="height" type="number" step="0.01" placeholder="e.g. 24.00" required />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="image_file">Product Image File</Label>
+                  <Input id="image_file" name="image_file" type="file" accept="image/*" required />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="status">Status</Label>
+                  <select name="status" id="status" required className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                  </select>
+                </div>
+                <div className="flex items-end md:col-span-2 lg:col-span-3">
+                  <ConfirmSubmitButton confirmTitle="Add Offset Product?" confirmDescription="Review product brand, dimensions, and image file before adding.">
+                    Add Product
+                  </ConfirmSubmitButton>
+                </div>
+              </form>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Offset Products</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {offsetData.length === 0 ? (
+                <EmptyState />
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Preview</TableHead>
+                        <TableHead>Brand</TableHead>
+                        <TableHead>Dimensions</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {offsetData.map((row) => (
+                        <TableRow key={row.id}>
+                          <TableCell>
+                            {row.image_url ? (
+                              <img src={row.image_url} alt={row.brand} className="h-12 w-12 rounded object-cover border" />
+                            ) : (
+                              <div className="h-12 w-12 rounded bg-muted flex items-center justify-center text-xs text-muted-foreground">No image</div>
+                            )}
+                          </TableCell>
+                          <TableCell className="font-semibold">{row.brand}</TableCell>
+                          <TableCell>{row.width} &times; {row.height} in</TableCell>
+                          <TableCell>
+                            <StatusBadge value={row.status} />
+                          </TableCell>
+                          <TableCell className="min-w-80">
+                            <details className="space-y-3">
+                              <summary className="cursor-pointer text-sm font-medium text-primary">Edit</summary>
+                              <form action={saveOffsetProduct} className="grid gap-4 md:grid-cols-2 bg-muted/20 p-4 rounded-md border mt-2">
+                                <input type="hidden" name="id" value={row.id} />
+                                <input type="hidden" name="image_url" value={row.image_url || ""} />
+                                <div className="space-y-2">
+                                  <Label>Brand</Label>
+                                  <Input name="brand" defaultValue={row.brand} required />
+                                </div>
+                                <div className="space-y-2">
+                                  <Label>Width (inches)</Label>
+                                  <Input name="width" type="number" step="0.01" defaultValue={row.width} required />
+                                </div>
+                                <div className="space-y-2">
+                                  <Label>Height (inches)</Label>
+                                  <Input name="height" type="number" step="0.01" defaultValue={row.height} required />
+                                </div>
+                                <div className="space-y-2">
+                                  <Label>Update Image File</Label>
+                                  <Input name="image_file" type="file" accept="image/*" />
+                                </div>
+                                <div className="space-y-2">
+                                  <Label>Status</Label>
+                                  <select name="status" defaultValue={row.status} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+                                    <option value="active">Active</option>
+                                    <option value="inactive">Inactive</option>
+                                  </select>
+                                </div>
+                                <div className="md:col-span-2">
+                                  <ConfirmSubmitButton confirmTitle="Save changes?" confirmDescription="Confirm Offset product changes before saving.">
+                                    Save Product
+                                  </ConfirmSubmitButton>
+                                </div>
+                              </form>
+                            </details>
+                            <form action={deactivateOffsetProduct} className="mt-3">
+                              <input type="hidden" name="id" value={row.id} />
+                              <ConfirmSubmitButton size="sm" variant="outline" confirmTitle="Deactivate Offset product?" confirmDescription="Are you sure you want to deactivate this Offset printing product?">
+                                Deactivate
+                              </ConfirmSubmitButton>
+                            </form>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
+    </>
+  );
+}

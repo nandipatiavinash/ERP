@@ -14,6 +14,7 @@ const numericFields = new Set([
   "selling_price",
   "opening_stock",
   "current_stock",
+  "critical_level",
   "salary",
   "gross_weight",
   "core_weight",
@@ -131,6 +132,8 @@ function validateMasterPayload(moduleKey: string, payload: Record<string, unknow
     } else if (numericFields.has(field.name)) {
       const numeric = numericPositive.has(field.name) ? z.number().positive() : z.number().min(0);
       shape[field.name] = field.required ? numeric : numeric.optional();
+    } else if (field.name === "is_internal") {
+      shape[field.name] = z.preprocess((val) => val === "true" || val === true, z.boolean());
     } else {
       const text = field.required ? z.string().trim().min(1) : z.string().trim().optional();
       shape[field.name] = text;
@@ -469,4 +472,268 @@ export async function saveRolePermissions(formData: FormData) {
     if (insertError) throw new Error(insertError.message);
   }
   revalidatePath("/roles");
+  revalidatePath("/admin/permissions");
+}
+
+export async function updateCriticalLevel(formData: FormData) {
+  const user = await requirePermission("raw_materials.edit");
+  const materialId = String(formData.get("material_id") ?? "");
+  const criticalLevel = Number(formData.get("critical_level") ?? 0);
+
+  const supabase = await createClient();
+  const { error } = await (supabase
+    .from("raw_materials") as any)
+    .update({ critical_level: criticalLevel, updated_by: user.id })
+    .eq("id", materialId);
+
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/critical-levels");
+  revalidatePath("/admin/raw-materials");
+}
+
+export async function saveRotoProduct(formData: FormData) {
+  await requirePermission("fabric_types.create");
+  const id = String(formData.get("id") ?? "");
+  const brand = String(formData.get("brand") ?? "").trim();
+  const width = Number(formData.get("width") ?? 0);
+  const height = Number(formData.get("height") ?? 0);
+  const numCylinders = Number(formData.get("num_cylinders") ?? 0);
+  const status = String(formData.get("status") ?? "active");
+  const file = formData.get("image_file") as File | null;
+
+  const supabase = await createClient();
+  const adminSupabase = createAdminClient();
+
+  let imageUrl = String(formData.get("image_url") ?? "");
+
+  if (file && file.size > 0) {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
+    const filePath = `roto/${fileName}`;
+
+    await adminSupabase.storage.createBucket("products", { public: true }).catch(() => {});
+
+    const { error: uploadError } = await adminSupabase.storage
+      .from("products")
+      .upload(filePath, file, { cacheControl: "3600", upsert: true });
+
+    if (uploadError) throw new Error(`Image upload failed: ${uploadError.message}`);
+
+    const { data } = adminSupabase.storage
+      .from("products")
+      .getPublicUrl(filePath);
+
+    imageUrl = data.publicUrl;
+  }
+
+  const payload = {
+    brand,
+    width,
+    height,
+    num_cylinders: numCylinders,
+    image_url: imageUrl || null,
+    status,
+  };
+
+  const query = id 
+    ? (supabase.from("roto_products") as any).update(payload).eq("id", id)
+    : (supabase.from("roto_products") as any).insert(payload);
+
+  const { error } = await query;
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/admin/products");
+}
+
+export async function deactivateRotoProduct(formData: FormData) {
+  await requirePermission("fabric_types.delete");
+  const id = String(formData.get("id") ?? "");
+  const supabase = await createClient();
+  const { error } = await (supabase
+    .from("roto_products") as any)
+    .update({ status: "inactive" })
+    .eq("id", id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/products");
+}
+
+export async function saveOffsetProduct(formData: FormData) {
+  await requirePermission("fabric_types.create");
+  const id = String(formData.get("id") ?? "");
+  const brand = String(formData.get("brand") ?? "").trim();
+  const width = Number(formData.get("width") ?? 0);
+  const height = Number(formData.get("height") ?? 0);
+  const status = String(formData.get("status") ?? "active");
+  const file = formData.get("image_file") as File | null;
+
+  const supabase = await createClient();
+  const adminSupabase = createAdminClient();
+
+  let imageUrl = String(formData.get("image_url") ?? "");
+
+  if (file && file.size > 0) {
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
+    const filePath = `offset/${fileName}`;
+
+    await adminSupabase.storage.createBucket("products", { public: true }).catch(() => {});
+
+    const { error: uploadError } = await adminSupabase.storage
+      .from("products")
+      .upload(filePath, file, { cacheControl: "3600", upsert: true });
+
+    if (uploadError) throw new Error(`Image upload failed: ${uploadError.message}`);
+
+    const { data } = adminSupabase.storage
+      .from("products")
+      .getPublicUrl(filePath);
+
+    imageUrl = data.publicUrl;
+  }
+
+  const payload = {
+    brand,
+    width,
+    height,
+    image_url: imageUrl || null,
+    status,
+  };
+
+  const query = id 
+    ? (supabase.from("offset_products") as any).update(payload).eq("id", id)
+    : (supabase.from("offset_products") as any).insert(payload);
+
+  const { error } = await query;
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/admin/products");
+}
+
+export async function deactivateOffsetProduct(formData: FormData) {
+  await requirePermission("fabric_types.delete");
+  const id = String(formData.get("id") ?? "");
+  const supabase = await createClient();
+  const { error } = await (supabase
+    .from("offset_products") as any)
+    .update({ status: "inactive" })
+    .eq("id", id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/products");
+}
+
+export async function createSalesOrder(formData: FormData) {
+  const user = await requirePermission("sales.create");
+  const customerId = String(formData.get("customer_id") ?? "");
+  const orderDate = String(formData.get("order_date") ?? "");
+
+  const supabase = await createClient();
+
+  const dateParts = orderDate.split("-");
+  const ddmm = `${dateParts[2]}${dateParts[1]}`;
+  const { data: existing } = await (supabase
+    .from("sales_orders") as any)
+    .select("order_number")
+    .eq("order_date", orderDate)
+    .is("deleted_at", null);
+  
+  let maxSeq = 0;
+  for (const order of (existing || []) as any[]) {
+    const num = order.order_number;
+    if (num.startsWith(`${ddmm}-`)) {
+      const seq = Number(num.split("-")[1]);
+      if (!isNaN(seq) && seq > maxSeq) {
+        maxSeq = seq;
+      }
+    }
+  }
+  const orderNumber = `${ddmm}-${maxSeq + 1}`;
+
+  const { data: orderHeader, error: headerError } = await (supabase
+    .from("sales_orders") as any)
+    .insert({
+      customer_id: customerId,
+      order_date: orderDate,
+      order_number: orderNumber,
+      status: "draft",
+      created_by: user.id,
+      updated_by: user.id
+    })
+    .select("id")
+    .single();
+
+  if (headerError) throw new Error(headerError.message);
+
+  const departments = formData.getAll("department").map(String);
+  const productIds = formData.getAll("product_id").map(String);
+  const quantities = formData.getAll("quantity").map(Number);
+
+  const itemsPayload = departments.map((dept, idx) => ({
+    sales_order_id: (orderHeader as any).id,
+    department: dept,
+    product_id: productIds[idx],
+    quantity: quantities[idx],
+  }));
+
+  if (itemsPayload.length > 0) {
+    const { error: itemsError } = await (supabase
+      .from("sales_order_items") as any)
+      .insert(itemsPayload);
+    
+    if (itemsError) throw new Error(itemsError.message);
+  }
+
+  revalidatePath("/sales/delivery-entry");
+  revalidatePath("/sales/delivery-confirmation");
+}
+
+export async function confirmSalesDelivery(orderId: string, itemRolls: Record<string, string[]>) {
+  const user = await requirePermission("sales.edit");
+  const supabase = await createClient();
+
+  const { data: items, error: itemsError } = await (supabase
+    .from("sales_order_items") as any)
+    .select("id, selected_roll_ids")
+    .eq("sales_order_id", orderId);
+
+  if (itemsError) throw new Error(itemsError.message);
+
+  for (const item of (items ?? []) as any[]) {
+    const newRollIds = itemRolls[item.id] || [];
+    const oldRollIds = (item.selected_roll_ids as string[]) || [];
+
+    const { error: updateItemError } = await (supabase
+      .from("sales_order_items") as any)
+      .update({ selected_roll_ids: newRollIds } as any)
+      .eq("id", item.id);
+
+    if (updateItemError) throw new Error(updateItemError.message);
+
+    const releasedRollIds = oldRollIds.filter((id) => !newRollIds.includes(id));
+    if (releasedRollIds.length > 0) {
+      const { error: releaseError } = await (supabase
+        .from("fabric_rolls") as any)
+        .update({ status: "available", updated_by: user.id } as any)
+        .in("id", releasedRollIds);
+      if (releaseError) throw new Error(releaseError.message);
+    }
+
+    if (newRollIds.length > 0) {
+      const { error: allocateError } = await (supabase
+        .from("fabric_rolls") as any)
+        .update({ status: "sold", updated_by: user.id } as any)
+        .in("id", newRollIds);
+      if (allocateError) throw new Error(allocateError.message);
+    }
+  }
+
+  const { error: orderError } = await (supabase
+    .from("sales_orders") as any)
+    .update({ status: "confirmed", updated_by: user.id } as any)
+    .eq("id", orderId);
+
+  if (orderError) throw new Error(orderError.message);
+
+  revalidatePath("/sales/delivery-confirmation");
+  revalidatePath("/rolls");
+  revalidatePath("/fabric/stock");
 }

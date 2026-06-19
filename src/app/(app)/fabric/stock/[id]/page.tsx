@@ -9,7 +9,7 @@ import { createClient } from "@/lib/supabase/server";
 import { formatDate, formatNumber } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
-export default async function FabricTypeRollsPage({
+export default async function FabricStockDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
@@ -46,9 +46,9 @@ export default async function FabricTypeRollsPage({
   return (
     <>
       <div className="mb-4">
-        <Link href="/rolls" passHref>
+        <Link href={"/fabric/stock" as any} passHref>
           <Button variant="ghost" className="gap-2 text-muted-foreground hover:text-foreground">
-            <ArrowLeft className="h-4 w-4" /> Back to Inventory
+            <ArrowLeft className="h-4 w-4" /> Back to Stock Inventory
           </Button>
         </Link>
       </div>

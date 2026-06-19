@@ -1,7 +1,7 @@
 import { cache } from "react";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { navItems } from "@/lib/navigation";
+import { navGroups } from "@/lib/navigation";
 import type { AppUser, RoleName } from "@/lib/database.types";
 
 export const getSessionUser = cache(async function getSessionUser() {
@@ -42,7 +42,7 @@ export async function requireRole(roles: RoleName[]) {
 }
 
 export function fallbackPermissions(role: RoleName | undefined) {
-  if (role === "admin") return navItems.map((item) => item.permission).concat([
+  if (role === "admin") return navGroups.flatMap((group) => group.items.map((item) => item.permission)).concat([
     "users.create", "users.edit", "users.delete",
     "roles.create", "roles.edit", "roles.delete",
     "employees.create", "employees.edit", "employees.delete",

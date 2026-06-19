@@ -77,6 +77,8 @@ export type Database = {
         unit: string;
         opening_stock: string;
         current_stock: string;
+        department: string | null;
+        critical_level: number;
         status: Status;
         created_by: string | null;
         updated_by: string | null;
@@ -149,9 +151,11 @@ export type Database = {
       customers: Table<{
         id: string;
         customer_name: string;
+        alias: string | null;
         phone: string | null;
         gst_number: string | null;
         address: string | null;
+        is_internal: boolean;
         status: Status;
         created_by: string | null;
         updated_by: string | null;
@@ -214,15 +218,36 @@ export type Database = {
         updated_at: string;
         deleted_at: string | null;
       }>;
-      audit_logs: Table<{
+      roto_products: Table<{
         id: string;
-        user_id: string | null;
-        action: string;
-        module: string;
-        record_id: string | null;
-        old_data: Json | null;
-        new_data: Json | null;
-        created_at: string;
+        brand: string;
+        width: number;
+        height: number;
+        num_cylinders: number;
+        image_url: string | null;
+        status: string;
+      }>;
+      offset_products: Table<{
+        id: string;
+        brand: string;
+        width: number;
+        height: number;
+        image_url: string | null;
+        status: string;
+      }>;
+      roto_colors: Table<{
+        id: string;
+        color_name: string;
+        description: string | null;
+        status: string;
+      }>;
+      sales_order_items: Table<{
+        id: string;
+        sales_order_id: string;
+        department: string;
+        product_id: string;
+        quantity: number;
+        selected_roll_ids: string[];
       }>;
       permissions: Table<{
         id: string;

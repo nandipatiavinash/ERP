@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { Menu } from "lucide-react";
+import { Menu, ChevronDown, ChevronRight } from "lucide-react";
 import { signOut } from "@/app/actions";
 import { BrandLogo } from "@/components/app/brand-logo";
 import { Badge } from "@/components/ui/badge";
@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import type { AppUser, RoleName } from "@/lib/database.types";
-import { navItems, type NavItem } from "@/lib/navigation";
+import { navGroups, type NavGroup } from "@/lib/navigation";
 
 function Brand() {
   return (
@@ -25,28 +25,70 @@ function Brand() {
   );
 }
 
-function NavLinks({ items, onNavigate }: { items: NavItem[]; onNavigate?: () => void }) {
+function NavLinks({ groups, onNavigate }: { groups: NavGroup[]; onNavigate?: () => void }) {
   const pathname = usePathname();
   const router = useRouter();
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+
+  // Auto-expand group containing active route on load/change
+  useEffect(() => {
+    const activeGroup = groups.find((g) => g.items.some((item) => pathname === item.href));
+    if (activeGroup) {
+      setExpanded((prev) => ({ ...prev, [activeGroup.key]: true }));
+    }
+  }, [pathname, groups]);
+
+  const toggleGroup = (key: string) => {
+    setExpanded((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
   return (
-    <nav className="space-y-1 p-3">
-      {items.map((item) => {
-        const active = pathname === item.href;
+    <nav className="space-y-1.5 p-3 overflow-y-auto max-h-[calc(100vh-4rem)]">
+      {groups.map((group) => {
+        const isExpanded = !!expanded[group.key];
+        const hasActiveItem = group.items.some((item) => pathname === item.href);
+
         return (
-          <Link
-            key={item.href}
-            href={item.href as any}
-            prefetch={false}
-            onPointerEnter={() => router.prefetch(item.href as any)}
-            onFocus={() => router.prefetch(item.href as any)}
-            onClick={onNavigate}
-            className={cn(
-              "flex min-h-10 items-center rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
-              active && "bg-muted font-medium text-foreground",
+          <div key={group.key} className="space-y-1">
+            <button
+              onClick={() => toggleGroup(group.key)}
+              className={cn(
+                "flex w-full min-h-10 items-center justify-between rounded-md px-3 py-2 text-xs font-semibold tracking-wider text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+                hasActiveItem && "text-foreground bg-muted/40"
+              )}
+            >
+              <span>{group.label}</span>
+              {isExpanded ? (
+                <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200" />
+              ) : (
+                <ChevronRight className="h-4 w-4 shrink-0 transition-transform duration-200" />
+              )}
+            </button>
+
+            {isExpanded && (
+              <div className="space-y-0.5 pl-3 border-l ml-4 mt-1 border-muted">
+                {group.items.map((item) => {
+                  const active = pathname === item.href;
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href as any}
+                      prefetch={false}
+                      onPointerEnter={() => router.prefetch(item.href as any)}
+                      onFocus={() => router.prefetch(item.href as any)}
+                      onClick={onNavigate}
+                      className={cn(
+                        "flex min-h-9 items-center rounded-md px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+                        active && "bg-muted font-medium text-foreground",
+                      )}
+                    >
+                      {item.label}
+                    </Link>
+                  );
+                })}
+              </div>
             )}
-          >
-            {item.label}
-          </Link>
+          </div>
         );
       })}
     </nav>
@@ -63,16 +105,22 @@ export function AppShell({
   children: React.ReactNode;
 }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const items = useMemo(
-    () => navItems.filter((item) => permissions.includes(item.permission) || item.roles.includes(user.roles.name)),
-    [permissions, user.roles.name],
-  );
+  const groups = useMemo(() => {
+    return navGroups
+      .map((group) => {
+        const items = group.items.filter(
+          (item) => permissions.includes(item.permission) || item.roles.includes(user.roles.name)
+        );
+        return { ...group, items };
+      })
+      .filter((group) => group.items.length > 0);
+  }, [permissions, user.roles.name]);
 
   return (
     <div className="min-h-screen bg-muted/30">
       <aside className="fixed inset-y-0 left-0 z-20 hidden w-64 border-r bg-background lg:block">
         <Brand />
-        <NavLinks items={items} />
+        <NavLinks groups={groups} />
       </aside>
 
       <div className="lg:pl-64">
@@ -87,7 +135,7 @@ export function AppShell({
               <DialogContent className="left-0 top-0 h-full w-[min(20rem,88vw)] translate-x-0 translate-y-0 overflow-y-auto rounded-none p-0">
                 <DialogTitle className="sr-only">Navigation</DialogTitle>
                 <Brand />
-                <NavLinks items={items} onNavigate={() => setMobileNavOpen(false)} />
+                <NavLinks groups={groups} onNavigate={() => setMobileNavOpen(false)} />
               </DialogContent>
             </Dialog>
             <div className="min-w-0">

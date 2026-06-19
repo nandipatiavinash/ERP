@@ -30,7 +30,6 @@ export async function signIn(_: unknown, formData: FormData) {
     return { error: "Your login exists in Supabase Auth, but no active ERP profile/role is assigned. Ask an admin to activate your ERP user." };
   }
 
-  await logLogin(userId);
   redirect("/dashboard");
 }
 
@@ -51,17 +50,6 @@ export async function resetPassword(_: unknown, formData: FormData) {
   });
   if (error) return { error: "Unable to send password reset email." };
   return { success: "Password reset email sent." };
-}
-
-export async function logLogin(userId: string) {
-  const supabase = await createClient();
-  await (supabase.from("audit_logs") as any).insert({
-    user_id: userId,
-    action: "login",
-    module: "auth",
-    record_id: userId,
-    new_data: { event: "login" },
-  });
 }
 
 export async function revalidateApp(paths: string[]) {
