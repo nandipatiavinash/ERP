@@ -69,8 +69,7 @@ export default async function FabricTypeRollsPage({
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Fabric Type</TableHead>
-                    <TableHead>Roll ID</TableHead>
+                    <TableHead>Serial Number</TableHead>
                     <TableHead className="text-right">Net Weight (kg)</TableHead>
                     <TableHead className="text-right">Meters (m)</TableHead>
                     <TableHead className="text-right">Gross Weight (kg)</TableHead>
@@ -86,7 +85,6 @@ export default async function FabricTypeRollsPage({
                     const lpe = roll.loom_production_entries;
                     return (
                       <TableRow key={roll.id} className="hover:bg-muted/30">
-                        <TableCell className="font-semibold">{fabricName}</TableCell>
                         <TableCell className="font-bold text-emerald-950">{roll.roll_number}</TableCell>
                         <TableCell className="text-right font-medium text-emerald-900">{formatNumber(lpe?.net_weight, 2)}</TableCell>
                         <TableCell className="text-right font-medium text-emerald-900">{formatNumber(Math.floor(lpe?.net_meters ?? 0), 0)}</TableCell>

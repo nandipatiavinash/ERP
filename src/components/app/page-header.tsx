@@ -3,7 +3,6 @@ export function PageHeader({ title, description, children }: { title: string; de
     <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
       <div>
         <h1 className="text-2xl font-semibold tracking-normal">{title}</h1>
-        {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
       </div>
       {children}
     </div>
