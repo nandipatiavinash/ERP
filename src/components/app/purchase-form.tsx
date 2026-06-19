@@ -189,19 +189,7 @@ export function PurchaseForm({
         </div>
       </div>
 
-      {/* Large Total Bill Value Display after 3rd row */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between border rounded-lg bg-emerald-50/20 p-4 border-emerald-100">
-        <div>
-          <span className="text-muted-foreground font-semibold text-sm">TOTAL BILL VALUE:</span>
-          <p className="text-xs text-muted-foreground mt-0.5">Sum of all added raw material items</p>
-        </div>
-        <div className="font-extrabold text-2xl text-emerald-950 mt-2 md:mt-0">
-          ₹{totalBillValue.toLocaleString("en-IN", {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          })}
-        </div>
-      </div>
+
 
       {/* Remarks */}
       <div className="space-y-2">
