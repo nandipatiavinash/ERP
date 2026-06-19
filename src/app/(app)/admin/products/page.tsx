@@ -10,11 +10,34 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { requirePermission } from "@/lib/auth";
+import { fetchMasterRows } from "@/lib/master-query";
 import { modules } from "@/lib/modules";
 import { createClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
 
 type Params = { tab?: string; search?: string; page?: string; sort?: string; direction?: "asc" | "desc" };
+
+function ProductPager({ tab, page, totalRows, shownRows }: { tab: string; page: number; totalRows: number; shownRows: number }) {
+  const totalPages = Math.max(Math.ceil(totalRows / 10), 1);
+  const href = (nextPage: number) => `/admin/products?tab=${tab}${nextPage > 1 ? `&page=${nextPage}` : ""}`;
+  return (
+    <div className="mt-4 flex flex-col gap-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+      <div>Showing {shownRows} of {totalRows} records</div>
+      <div className="flex gap-2">
+        {page <= 1 ? (
+          <button className="h-9 rounded-md border px-3 opacity-50" disabled>Previous</button>
+        ) : (
+          <Link href={href(page - 1) as any} className="inline-flex h-9 items-center rounded-md border px-3">Previous</Link>
+        )}
+        {page >= totalPages ? (
+          <button className="h-9 rounded-md border px-3 opacity-50" disabled>Next</button>
+        ) : (
+          <Link href={href(page + 1) as any} className="inline-flex h-9 items-center rounded-md border px-3">Next</Link>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export default async function ProductsAdminPage({ searchParams }: { searchParams: Promise<Params> }) {
   await requirePermission("fabric_types.view");
@@ -26,29 +49,33 @@ export default async function ProductsAdminPage({ searchParams }: { searchParams
   let fabricData: any[] = [];
   let rotoData: any[] = [];
   let offsetData: any[] = [];
+  let fabricTotal = 0;
+  let rotoTotal = 0;
+  let offsetTotal = 0;
+  const productPage = Math.max(Number(params.page ?? 1) || 1, 1);
 
   if (tab === "fabric") {
-    const { data } = await supabase
-      .from("fabric_types")
-      .select("id, fabric_name, description, status")
-      .is("deleted_at", null)
-      .order("fabric_name", { ascending: true })
-      .limit(500);
-    fabricData = data ?? [];
+    const result = await fetchMasterRows({ supabase, config: modules["fabric-types"], select: "id, fabric_name, description, status", params, defaultSort: "fabric_name" });
+    fabricData = result.rows;
+    fabricTotal = result.totalRows;
   } else if (tab === "roto") {
-    const { data } = await supabase
+    const offset = (productPage - 1) * 10;
+    const { data, count } = await supabase
       .from("roto_products")
-      .select("*")
+      .select("*", { count: "exact" })
       .order("brand", { ascending: true })
-      .limit(500);
+      .range(offset, offset + 9);
     rotoData = data ?? [];
+    rotoTotal = count ?? 0;
   } else if (tab === "offset") {
-    const { data } = await supabase
+    const offset = (productPage - 1) * 10;
+    const { data, count } = await supabase
       .from("offset_products")
-      .select("*")
+      .select("*", { count: "exact" })
       .order("brand", { ascending: true })
-      .limit(500);
+      .range(offset, offset + 9);
     offsetData = data ?? [];
+    offsetTotal = count ?? 0;
   }
 
   const tabClass = (key: string) =>
@@ -83,6 +110,8 @@ export default async function ProductsAdminPage({ searchParams }: { searchParams
           page={Number(params.page ?? 1)}
           sort={params.sort}
           direction={params.direction}
+          totalRows={fabricTotal}
+          queryParams={{ tab: "fabric" }}
         />
       )}
 
@@ -217,6 +246,7 @@ export default async function ProductsAdminPage({ searchParams }: { searchParams
                       ))}
                     </TableBody>
                   </Table>
+                  <ProductPager tab="roto" page={productPage} totalRows={rotoTotal} shownRows={rotoData.length} />
                 </div>
               )}
             </CardContent>
@@ -345,6 +375,7 @@ export default async function ProductsAdminPage({ searchParams }: { searchParams
                       ))}
                     </TableBody>
                   </Table>
+                  <ProductPager tab="offset" page={productPage} totalRows={offsetTotal} shownRows={offsetData.length} />
                 </div>
               )}
             </CardContent>

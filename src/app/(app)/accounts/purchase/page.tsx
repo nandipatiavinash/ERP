@@ -15,9 +15,9 @@ export default async function PurchaseEntryPage() {
     supabase
       .from("raw_materials")
       .select("id, material_name, unit, status")
+      .eq("status", "active")
       .is("deleted_at", null)
-      .order("material_name", { ascending: true })
-      .limit(500),
+      .order("material_name", { ascending: true }),
     supabase
       .from("customers")
       .select("id, customer_name, alias")
@@ -26,7 +26,7 @@ export default async function PurchaseEntryPage() {
       .order("customer_name"),
     supabase
       .from("raw_material_purchases")
-      .select("*, raw_materials(material_name, unit)")
+      .select("id, purchase_date, supplier_name, bill_number, quantity, rate, total_amount, raw_materials(material_name, unit)")
       .is("deleted_at", null)
       .order("created_at", { ascending: false })
       .limit(50),

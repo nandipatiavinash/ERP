@@ -81,6 +81,8 @@ export function MasterPage({
   page = 1,
   sort,
   direction = "asc",
+  totalRows,
+  queryParams,
 }: {
   config: ModuleConfig;
   rows: Row[];
@@ -88,21 +90,30 @@ export function MasterPage({
   page?: number;
   sort?: string;
   direction?: "asc" | "desc";
+  totalRows?: number;
+  queryParams?: Record<string, string | undefined>;
 }) {
-  const filteredRows = rows
-    .filter((row) => matchesSearch(row, config.searchColumns, search))
-    .sort((a, b) => {
-      if (!sort) return 0;
-      const left = String(a[sort] ?? "");
-      const right = String(b[sort] ?? "");
-      return direction === "asc" ? left.localeCompare(right) : right.localeCompare(left);
-    });
   const pageSize = 10;
-  const totalPages = Math.max(Math.ceil(filteredRows.length / pageSize), 1);
+  const serverPaginated = totalRows !== undefined;
+  const filteredRows = serverPaginated
+    ? rows
+    : rows
+      .filter((row) => matchesSearch(row, config.searchColumns, search))
+      .sort((a, b) => {
+        if (!sort) return 0;
+        const left = String(a[sort] ?? "");
+        const right = String(b[sort] ?? "");
+        return direction === "asc" ? left.localeCompare(right) : right.localeCompare(left);
+      });
+  const resultCount = totalRows ?? filteredRows.length;
+  const totalPages = Math.max(Math.ceil(resultCount / pageSize), 1);
   const currentPage = Math.min(Math.max(page, 1), totalPages);
-  const pagedRows = filteredRows.slice((currentPage - 1) * pageSize, currentPage * pageSize);
+  const pagedRows = serverPaginated ? filteredRows : filteredRows.slice((currentPage - 1) * pageSize, currentPage * pageSize);
   const query = (nextPage: number, nextSort = sort, nextDirection = direction) => {
     const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(queryParams ?? {})) {
+      if (value) params.set(key, value);
+    }
     if (search) params.set("search", search);
     if (nextPage > 1) params.set("page", String(nextPage));
     if (nextSort) params.set("sort", nextSort);
@@ -129,7 +140,7 @@ export function MasterPage({
           </div>
         </CardHeader>
         <CardContent>
-          {filteredRows.length === 0 ? <EmptyState /> : (
+          {resultCount === 0 ? <EmptyState /> : (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
@@ -170,7 +181,7 @@ export function MasterPage({
                 </TableBody>
               </Table>
               <div className="mt-4 flex flex-col gap-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-                <div>Showing {pagedRows.length} of {filteredRows.length} records</div>
+                <div>Showing {pagedRows.length} of {resultCount} records</div>
                 <div className="flex gap-2">
                   {currentPage <= 1 ? (
                     <Button variant="outline" size="sm" disabled>Previous</Button>

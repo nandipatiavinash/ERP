@@ -83,13 +83,13 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   const search = params.search ?? "";
   const supabase = await createClient();
   const [productionResult, rollsResult, rawResult, rawPurchaseResult, salesResult, attendanceResult, employeeResult] = await Promise.all([
-    supabase.from("loom_production_entries").select("*, fabric_types(fabric_name), looms(loom_number)").gte("entry_date", from).lte("entry_date", to).is("deleted_at", null).order("entry_date", { ascending: false }).limit(500),
-    supabase.from("fabric_rolls").select("*, fabric_types(fabric_name)").is("deleted_at", null).limit(1000),
-    supabase.from("raw_materials").select("*").is("deleted_at", null).order("material_name"),
-    supabase.from("raw_material_purchases").select("*, raw_materials(material_name, unit)").gte("purchase_date", from).lte("purchase_date", to).is("deleted_at", null).order("purchase_date", { ascending: false }).limit(500),
-    supabase.from("sales_orders").select("*, customers(customer_name), fabric_types(fabric_name)").gte("order_date", from).lte("order_date", to).is("deleted_at", null).order("order_date", { ascending: false }).limit(500),
-    supabase.from("attendance").select("*, employees(name, employee_code)").gte("attendance_date", from).lte("attendance_date", to).is("deleted_at", null).order("attendance_date", { ascending: false }).limit(500),
-    supabase.from("employees").select("*").is("deleted_at", null).order("name").limit(500),
+    supabase.from("loom_production_entries").select("entry_date, serial_number, net_weight, net_meters, fabric_types(fabric_name), looms(loom_number)").gte("entry_date", from).lte("entry_date", to).is("deleted_at", null).order("entry_date", { ascending: false }).limit(500),
+    (supabase as any).rpc("get_fabric_stock_summary"),
+    supabase.from("raw_materials").select("material_name, unit, opening_stock, current_stock, status").is("deleted_at", null).order("material_name"),
+    supabase.from("raw_material_purchases").select("purchase_date, supplier_name, bill_number, quantity, rate, total_amount, raw_materials(material_name, unit)").gte("purchase_date", from).lte("purchase_date", to).is("deleted_at", null).order("purchase_date", { ascending: false }).limit(500),
+    supabase.from("sales_orders").select("order_date, order_number, quantity_meters, total_amount, status, customers(customer_name), fabric_types(fabric_name)").gte("order_date", from).lte("order_date", to).is("deleted_at", null).order("order_date", { ascending: false }).limit(500),
+    supabase.from("attendance").select("attendance_date, check_in, check_out, working_hours, overtime_hours, status, employees(name, employee_code)").gte("attendance_date", from).lte("attendance_date", to).is("deleted_at", null).order("attendance_date", { ascending: false }).limit(500),
+    supabase.from("employees").select("employee_code, name, department, designation, salary, status").is("deleted_at", null).order("name").limit(500),
   ]);
 
   const production = ((productionResult.data ?? []) as DailyProductionRow[]).map((row) => ({
@@ -101,19 +101,12 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
     meters: Number(row.net_meters),
   })).filter((row) => inText(row, search));
 
-  const fabricStock = Object.values(((rollsResult.data ?? []) as FabricRollRow[]).filter((roll) => roll.status === "available").reduce<Record<string, { fabric: string | null; rolls: number; weight: number; meters: number }>>((acc, roll) => {
-    const key = roll.fabric_type_id;
-    acc[key] ??= {
-      fabric: roll.fabric_types?.fabric_name ?? null,
-      rolls: 0,
-      weight: 0,
-      meters: 0,
-    };
-    acc[key].rolls += 1;
-    acc[key].weight += Number(roll.weight ?? "0");
-    acc[key].meters += Number(roll.meters ?? "0");
-    return acc;
-  }, {})).filter((row) => inText(row, search));
+  const fabricStock = ((rollsResult.data ?? []) as any[]).map((row) => ({
+    fabric: row.fabric_name ?? null,
+    rolls: Number(row.rolls ?? 0),
+    weight: Number(row.weight ?? 0),
+    meters: Number(row.meters ?? 0),
+  })).filter((row) => inText(row, search));
 
   const rawPurchases = ((rawPurchaseResult.data ?? []) as RawMaterialPurchaseRow[]).map((row) => ({
     date: row.purchase_date,
