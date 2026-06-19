@@ -167,7 +167,7 @@ export default async function ProductsAdminPage({ searchParams }: { searchParams
                             <StatusBadge value={row.status} />
                           </TableCell>
                           <TableCell className="min-w-80">
-                            <details className="space-y-3">
+                            <details className="space-y-3" name="roto-products-accordion">
                               <summary className="cursor-pointer text-sm font-medium text-primary">Edit</summary>
                               <form action={saveRotoProduct} className="grid gap-4 md:grid-cols-2 bg-muted/20 p-4 rounded-md border mt-2">
                                 <input type="hidden" name="id" value={row.id} />
@@ -299,7 +299,7 @@ export default async function ProductsAdminPage({ searchParams }: { searchParams
                             <StatusBadge value={row.status} />
                           </TableCell>
                           <TableCell className="min-w-80">
-                            <details className="space-y-3">
+                            <details className="space-y-3" name="offset-products-accordion">
                               <summary className="cursor-pointer text-sm font-medium text-primary">Edit</summary>
                               <form action={saveOffsetProduct} className="grid gap-4 md:grid-cols-2 bg-muted/20 p-4 rounded-md border mt-2">
                                 <input type="hidden" name="id" value={row.id} />

@@ -39,6 +39,12 @@
   textarea {
     touch-action: manipulation;
   }
+
+  input[type="text"],
+  input:not([type]),
+  textarea {
+    text-transform: uppercase;
+  }
 }
 
 @media print {

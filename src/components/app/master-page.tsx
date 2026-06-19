@@ -156,7 +156,7 @@ export function MasterPage({
                         </TableCell>
                       ))}
                       <TableCell className="min-w-80">
-                        <details className="space-y-3">
+                        <details className="space-y-3" name={`${config.key}-accordion`}>
                           <summary className="cursor-pointer text-sm font-medium text-primary">Edit</summary>
                           <RecordForm config={config} row={row} />
                         </details>

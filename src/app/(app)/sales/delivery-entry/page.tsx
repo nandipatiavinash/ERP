@@ -21,7 +21,7 @@ export default async function DeliveryEntryPage() {
       .from("sales_orders")
       .select("*, customers(customer_name, alias), sales_order_items(id, department, quantity)")
       .is("deleted_at", null)
-      .order("created_at", { ascending: false })
+      .order("created_at", { ascending: true })
       .limit(100),
   ]);
 
@@ -33,7 +33,7 @@ export default async function DeliveryEntryPage() {
 
   return (
     <>
-      <PageHeader title="Delivery Entry" description="Create multi-item orders across production departments. Sequence generated in DDMM-N legacy format." />
+      <PageHeader title="Order Confirmation" description="Create multi-item orders across production departments." />
       
       <Card className="mb-6">
         <CardHeader>
@@ -63,7 +63,7 @@ export default async function DeliveryEntryPage() {
                   <TableRow>
                     <TableHead>Order Number</TableHead>
                     <TableHead>Date</TableHead>
-                    <TableHead>Customer</TableHead>
+                    <TableHead>Firm Name</TableHead>
                     <TableHead>Items Count</TableHead>
                     <TableHead>Status</TableHead>
                   </TableRow>

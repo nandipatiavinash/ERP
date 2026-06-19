@@ -41,11 +41,11 @@ export function SalesForm({ customers, fabrics, rolls, row }: { customers: Optio
         </select>
       </div>
       <div className="space-y-2">
-        <Label>Quantity (m)</Label>
+        <Label>Quantity</Label>
         <Input name="quantity_meters" type="number" step="0.01" defaultValue={row?.quantity_meters ?? ""} required onChange={(event) => setQuantity(Number(event.target.value))} />
       </div>
       <div className="space-y-2">
-        <Label>Rate (₹/m)</Label>
+        <Label>Rate</Label>
         <Input name="rate" type="number" step="0.01" defaultValue={row?.rate ?? ""} required onChange={(event) => setRate(Number(event.target.value))} />
       </div>
       <div className="rounded-md border bg-muted/40 p-3 text-sm">

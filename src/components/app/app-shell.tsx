@@ -34,12 +34,12 @@ function NavLinks({ groups, onNavigate }: { groups: NavGroup[]; onNavigate?: () 
   useEffect(() => {
     const activeGroup = groups.find((g) => g.items.some((item) => pathname === item.href));
     if (activeGroup) {
-      setExpanded((prev) => ({ ...prev, [activeGroup.key]: true }));
+      setExpanded({ [activeGroup.key]: true });
     }
   }, [pathname, groups]);
 
   const toggleGroup = (key: string) => {
-    setExpanded((prev) => ({ ...prev, [key]: !prev[key] }));
+    setExpanded((prev) => (prev[key] ? {} : { [key]: true }));
   };
 
   return (

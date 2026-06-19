@@ -16,6 +16,16 @@ type Roll = {
   meters: number;
   weight: number;
   status: string;
+  loom_production_entries?: {
+    gross_weight: number;
+    core_weight: number;
+    net_weight: number;
+    net_meters: number;
+    average_meter_weight: number;
+  } | null;
+  looms?: {
+    loom_number: string;
+  } | null;
 };
 
 type OrderItem = {
@@ -88,6 +98,7 @@ export function RollAllocationForm({
         const selectedRolls = item.availableRolls.filter((r) => selectedIds.includes(r.id));
         const totalMeters = selectedRolls.reduce((sum, r) => sum + Number(r.meters || 0), 0);
         const totalWeight = selectedRolls.reduce((sum, r) => sum + Number(r.weight || 0), 0);
+        const totalAvailableWeight = item.availableRolls.reduce((sum, r) => sum + Number(r.weight || 0), 0);
 
         return (
           <Card key={item.id} className="border-l-4 border-l-emerald-600">
@@ -104,27 +115,33 @@ export function RollAllocationForm({
                 <div className="text-right">
                   <span className="text-sm text-muted-foreground font-medium">Target:</span>
                   <div className="text-lg font-bold text-emerald-950">
-                    {formatNumber(item.quantity)} m
+                    {formatNumber(item.quantity)} kg
                   </div>
                 </div>
               </div>
             </CardHeader>
             <CardContent className="pt-4 space-y-4">
               {/* Tally Metrics */}
-              <div className="grid grid-cols-3 gap-4 bg-muted/30 p-3 rounded-lg text-sm">
+              <div className="grid grid-cols-4 gap-4 bg-muted/30 p-3 rounded-lg text-sm">
                 <div>
-                  <div className="text-muted-foreground text-xs">Selected Rolls</div>
-                  <div className="font-bold text-base text-emerald-900">{selectedIds.length}</div>
+                  <div className="text-muted-foreground text-xs">Needed (Kgs)</div>
+                  <div className="font-bold text-base text-emerald-900">{formatNumber(item.quantity, 2)}</div>
                 </div>
                 <div>
-                  <div className="text-muted-foreground text-xs">Allocated Meters</div>
-                  <div className="font-bold text-base text-emerald-900">
-                    {formatNumber(totalMeters, 2)} / {formatNumber(item.quantity)} m
+                  <div className="text-muted-foreground text-xs">Selected (Kgs)</div>
+                  <div className={`font-bold text-base ${totalWeight >= item.quantity ? "text-emerald-700" : "text-amber-700"}`}>
+                    {formatNumber(totalWeight, 2)}
                   </div>
                 </div>
                 <div>
-                  <div className="text-muted-foreground text-xs">Allocated Weight</div>
-                  <div className="font-bold text-base text-emerald-900">{formatNumber(totalWeight, 2)} kg</div>
+                  <div className="text-muted-foreground text-xs">Available (Kgs)</div>
+                  <div className="font-bold text-base text-emerald-900">{formatNumber(totalAvailableWeight, 2)}</div>
+                </div>
+                <div>
+                  <div className="text-muted-foreground text-xs">Selected Rolls</div>
+                  <div className="font-bold text-base text-emerald-900">
+                    {selectedIds.length} / {item.availableRolls.length}
+                  </div>
                 </div>
               </div>
 
@@ -157,9 +174,11 @@ export function RollAllocationForm({
                           }`}
                         >
                           <div>
-                            <div className="font-bold text-emerald-950">{roll.roll_number}</div>
-                            <div className="text-xs text-muted-foreground mt-0.5">
-                              {formatNumber(roll.meters, 0)} m | {formatNumber(roll.weight, 2)} kg
+                            <div className="font-bold text-emerald-950">Roll: {roll.roll_number}</div>
+                            <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
+                              <div>Gross: {formatNumber(roll.loom_production_entries?.gross_weight, 2)} | Core: {formatNumber(roll.loom_production_entries?.core_weight, 2)}</div>
+                              <div>Net W8: {formatNumber(roll.weight, 2)} | Mtrs: {formatNumber(Math.floor(roll.meters), 0)}</div>
+                              <div>Avg Mtrs: {roll.loom_production_entries?.average_meter_weight ? formatNumber(Math.floor(Number(roll.loom_production_entries.average_meter_weight)), 0) : "-"}</div>
                             </div>
                           </div>
                           {isSelected ? (

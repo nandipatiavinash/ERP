@@ -1,7 +1,13 @@
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/app/page-header";
+import { StatusBadge } from "@/components/app/status-badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { requirePermission } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { OrderConfirmationWorkspace } from "./OrderConfirmationWorkspace";
-import { PageHeader } from "@/components/app/page-header";
+import { formatDate } from "@/lib/utils";
 
 export default async function OrderConfirmationPage() {
   await requirePermission("sales.view");
@@ -12,42 +18,66 @@ export default async function OrderConfirmationPage() {
     .from("sales_orders")
     .select("*, customers(*), sales_order_items(*)")
     .is("deleted_at", null)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: true });
 
   if (ordersError) throw new Error(ordersError.message);
 
-  // Fetch all active fabric types, roto products, and offset products to map ids to names
-  const [
-    { data: fabrics },
-    { data: rotoProducts },
-    { data: offsetProducts },
-    { data: rolls }
-  ] = await Promise.all([
-    supabase.from("fabric_types").select("id, fabric_name"),
-    supabase.from("roto_products").select("id, brand, width, height"),
-    supabase.from("offset_products").select("id, brand, width, height"),
-    supabase
-      .from("fabric_rolls")
-      .select("id, roll_number, meters, weight, status, fabric_type_id")
-      .is("deleted_at", null)
-  ]);
+  const orderRows = (orders ?? []) as any[];
 
   return (
     <div className="space-y-6">
-      <div className="no-print">
-        <PageHeader
-          title="Order Confirmation"
-          description="Allocate rolls, review live tallies against order requirements, and print proforma invoices."
-        />
-      </div>
-
-      <OrderConfirmationWorkspace
-        orders={(orders ?? []) as any[]}
-        fabrics={(fabrics ?? []) as any[]}
-        rotoProducts={(rotoProducts ?? []) as any[]}
-        offsetProducts={(offsetProducts ?? []) as any[]}
-        rolls={(rolls ?? []) as any[]}
+      <PageHeader
+        title="Delivery Entry"
+        description="Select a sales order to allocate rolls, review live weight tallies, and confirm deliveries."
       />
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Sales Orders</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {orderRows.length === 0 ? (
+            <EmptyState />
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Order Number</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Firm Name</TableHead>
+                    <TableHead>Items Count</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {orderRows.map((order) => (
+                    <TableRow key={order.id}>
+                      <TableCell className="font-bold text-emerald-950">{order.order_number}</TableCell>
+                      <TableCell>{formatDate(order.order_date)}</TableCell>
+                      <TableCell>
+                        {order.customers?.customer_name} {order.customers?.alias ? `(${order.customers?.alias})` : ""}
+                      </TableCell>
+                      <TableCell>{order.sales_order_items?.length ?? 0} items</TableCell>
+                      <TableCell>
+                        <StatusBadge value={order.status} />
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button asChild size="sm">
+                          <Link href={`/sales/order-confirmation/${order.id}` as any}>
+                            Open Workspace
+                          </Link>
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

@@ -57,7 +57,7 @@ export default async function PermissionsPage() {
         <div className="space-y-5">
           {roleRows.map((role) => (
             <Card key={role.id}>
-              <details className="group">
+              <details className="group" name="role-accordion">
                 <summary className="flex items-center justify-between list-none cursor-pointer p-5 select-none [&::-webkit-details-marker]:hidden">
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between flex-1 mr-4">
                     <div>

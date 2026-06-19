@@ -69,7 +69,7 @@ export default async function RawMaterialsAdminPage({ searchParams }: { searchPa
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Date</TableHead><TableHead>Material</TableHead><TableHead>Supplier</TableHead><TableHead>Bill</TableHead><TableHead>Qty</TableHead><TableHead>Rate (₹)</TableHead><TableHead>Total (₹)</TableHead>
+                    <TableHead>Date</TableHead><TableHead>Material</TableHead><TableHead>Supplier</TableHead><TableHead>Bill</TableHead><TableHead>Qty</TableHead><TableHead>Rate</TableHead><TableHead>Total</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

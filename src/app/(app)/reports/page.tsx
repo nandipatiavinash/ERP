@@ -45,12 +45,12 @@ function inText(row: Record<string, unknown>, search: string) {
 
 function reportColumnLabel(column: string) {
   const labels: Record<string, string> = {
-    weight: "Weight (kg)",
-    meters: "Meters (m)",
+    weight: "Weight",
+    meters: "Meters",
     quantity: "Quantity",
-    rate: "Rate (₹)",
-    amount: "Amount (₹)",
-    salary: "Salary (₹)",
+    rate: "Rate",
+    amount: "Amount",
+    salary: "Salary",
     working_hours: "Working Hours",
     overtime_hours: "Overtime Hours",
     current_stock: "Current Stock",

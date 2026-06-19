@@ -26,7 +26,7 @@ const numericFields = new Set([
 ]);
 
 function sanitizeText(value: FormDataEntryValue) {
-  return String(value).trim().replace(/\s+/g, " ");
+  return String(value).trim().replace(/\s+/g, " ").toUpperCase();
 }
 
 function todayInIndia() {
@@ -81,7 +81,7 @@ const rawPurchaseSchema = z.object({
   remarks: z.string().optional(),
 });
 const createUserSchema = z.object({
-  full_name: z.string().trim().min(2, "Full name is required."),
+  full_name: z.string().trim().min(2, "Full name is required.").transform(val => val.toUpperCase()),
   email: z.string().trim().toLowerCase().email("Enter a valid email address."),
   password: z.string().min(8, "Password must be at least 8 characters."),
   phone: z.string().trim().optional(),
@@ -89,8 +89,8 @@ const createUserSchema = z.object({
   status: statusSchema,
 });
 const roleSchema = z.object({
-  name: z.string().trim().min(2, "Role name is required."),
-  description: z.string().trim().optional(),
+  name: z.string().trim().min(2, "Role name is required.").transform(val => val.toUpperCase()),
+  description: z.string().trim().optional().transform(val => val ? val.toUpperCase() : val),
 });
 const employeeUserLinkSchema = z.object({
   user_id: z.string().uuid(),
@@ -629,7 +629,7 @@ export async function createSalesOrder(formData: FormData) {
   const supabase = await createClient();
 
   const dateParts = orderDate.split("-");
-  const ddmm = `${dateParts[2]}${dateParts[1]}`;
+  const mmDd = `${dateParts[1]}-${dateParts[2]}`;
   const { data: existing } = await (supabase
     .from("sales_orders") as any)
     .select("order_number")
@@ -639,14 +639,15 @@ export async function createSalesOrder(formData: FormData) {
   let maxSeq = 0;
   for (const order of (existing || []) as any[]) {
     const num = order.order_number;
-    if (num.startsWith(`${ddmm}-`)) {
-      const seq = Number(num.split("-")[1]);
+    if (num.startsWith(`${mmDd}-`)) {
+      const parts = num.split("-");
+      const seq = Number(parts[2]);
       if (!isNaN(seq) && seq > maxSeq) {
         maxSeq = seq;
       }
     }
   }
-  const orderNumber = `${ddmm}-${maxSeq + 1}`;
+  const orderNumber = `${mmDd}-${String(maxSeq + 1).padStart(2, "0")}`;
 
   const { data: orderHeader, error: headerError } = await (supabase
     .from("sales_orders") as any)
@@ -683,7 +684,6 @@ export async function createSalesOrder(formData: FormData) {
   }
 
   revalidatePath("/sales/delivery-entry");
-  revalidatePath("/sales/delivery-confirmation");
 }
 
 export async function confirmSalesDelivery(orderId: string, itemRolls: Record<string, string[]>) {
@@ -733,7 +733,7 @@ export async function confirmSalesDelivery(orderId: string, itemRolls: Record<st
 
   if (orderError) throw new Error(orderError.message);
 
-  revalidatePath("/sales/delivery-confirmation");
+  revalidatePath("/sales/order-confirmation");
   revalidatePath("/rolls");
   revalidatePath("/fabric/stock");
 }

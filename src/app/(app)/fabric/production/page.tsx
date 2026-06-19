@@ -111,7 +111,7 @@ export default async function FabricProductionPage() {
                       <TableCell>{formatNumber(Math.floor(row.net_meters), 0)}</TableCell>
                       <TableCell>{row.average_meter_weight == null ? "-" : formatNumber(Math.floor(Number(row.average_meter_weight)), 0)}</TableCell>
                       <TableCell className="min-w-96">
-                        <details>
+                        <details name="production-accordion">
                           <summary className="cursor-pointer text-sm font-medium text-primary">Edit</summary>
                           <div className="mt-3">
                             <ProductionForm

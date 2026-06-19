@@ -32,6 +32,8 @@ export function DeliveryEntryForm({
   const [rows, setRows] = useState<ItemRow[]>([
     { department: "fabric", productId: "", quantity: "" },
   ]);
+  const [isPending, setIsPending] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const addRow = () => {
     setRows([...rows, { department: "fabric", productId: "", quantity: "" }]);
@@ -75,18 +77,41 @@ export function DeliveryEntryForm({
     }
   };
 
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setErrorMsg(null);
+    setIsPending(true);
+    const form = e.currentTarget;
+    const formData = new FormData(form);
+    try {
+      await createSalesOrder(formData);
+      form.reset();
+      setRows([{ department: "fabric", productId: "", quantity: "" }]);
+    } catch (err: any) {
+      setErrorMsg(err.message || "Failed to create sales order.");
+    } finally {
+      setIsPending(false);
+    }
+  };
+
   return (
-    <form action={createSalesOrder} className="space-y-6">
+    <form onSubmit={handleSubmit} className="space-y-6">
+      {errorMsg && (
+        <div className="p-4 bg-red-100 text-red-800 rounded-lg text-sm font-semibold">
+          {errorMsg}
+        </div>
+      )}
+
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-2">
-          <Label htmlFor="customer_id">Customer / Client</Label>
+          <Label htmlFor="customer_id">Firm Name</Label>
           <select
             id="customer_id"
             name="customer_id"
             required
             className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
           >
-            <option value="" disabled>Select customer</option>
+            <option value="" disabled>Select Firm</option>
             {customers.map((c) => (
               <option key={c.id} value={c.id}>
                 {c.name} {c.alias ? `(${c.alias})` : ""}
@@ -110,13 +135,6 @@ export function DeliveryEntryForm({
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Order Items</h4>
-          <button
-            type="button"
-            onClick={addRow}
-            className="inline-flex items-center gap-1 text-sm text-primary hover:text-primary-foreground font-semibold"
-          >
-            <Plus className="h-4 w-4" /> Add Item
-          </button>
         </div>
 
         <div className="space-y-3">
@@ -164,7 +182,7 @@ export function DeliveryEntryForm({
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Quantity</Label>
+                  <Label>Quantity (Kgs)</Label>
                   <Input
                     name="quantity"
                     type="number"
@@ -176,12 +194,19 @@ export function DeliveryEntryForm({
                   />
                 </div>
 
-                <div className="flex justify-end">
+                <div className="flex gap-2 justify-end">
+                  <button
+                    type="button"
+                    onClick={addRow}
+                    className="h-10 px-3 inline-flex items-center justify-center gap-1 rounded-md border border-input bg-background text-sm font-semibold text-primary hover:bg-muted"
+                  >
+                    <Plus className="h-4 w-4" /> Add Item
+                  </button>
                   <button
                     type="button"
                     onClick={() => removeRow(index)}
                     disabled={rows.length === 1}
-                    className="p-2.5 text-muted-foreground hover:text-red-600 disabled:opacity-40"
+                    className="h-10 w-10 inline-flex items-center justify-center rounded-md border border-input bg-background text-muted-foreground hover:text-red-600 disabled:opacity-40 hover:bg-muted"
                     aria-label="Remove item"
                   >
                     <Trash2 className="h-5 w-5" />
@@ -194,8 +219,8 @@ export function DeliveryEntryForm({
       </div>
 
       <div className="pt-2 border-t flex justify-end">
-        <ConfirmSubmitButton confirmTitle="Place Sales Order?" confirmDescription="This will create the sales order and prepare it for delivery assignment.">
-          Place Order
+        <ConfirmSubmitButton disabled={isPending} confirmTitle="Place Sales Order?" confirmDescription="This will create the sales order and prepare it for delivery assignment.">
+          {isPending ? "Placing Order..." : "Place Order"}
         </ConfirmSubmitButton>
       </div>
     </form>

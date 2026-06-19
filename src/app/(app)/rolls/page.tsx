@@ -42,8 +42,8 @@ export default async function RollsPage() {
                   <TableRow>
                     <TableHead>Fabric Type</TableHead>
                     <TableHead className="text-right">Rolls Count</TableHead>
-                    <TableHead className="text-right">Total Weight (kg)</TableHead>
-                    <TableHead className="text-right">Total Meters (m)</TableHead>
+                    <TableHead className="text-right">Total Weight</TableHead>
+                    <TableHead className="text-right">Total Meters</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

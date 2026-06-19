@@ -82,9 +82,8 @@ export const navGroups: NavGroup[] = [
     label: "Sales",
     roles: ["admin"],
     items: [
-      { href: "/sales/delivery-entry", label: "Delivery Entry", roles: ["admin"], permission: "sales.view" },
-      { href: "/sales/delivery-confirmation", label: "Delivery Confirmation (SMS)", roles: ["admin"], permission: "sales.view" },
-      { href: "/sales/order-confirmation", label: "Order Confirmation", roles: ["admin"], permission: "sales.view" },
+      { href: "/sales/delivery-entry", label: "Order Confirmation", roles: ["admin"], permission: "sales.view" },
+      { href: "/sales/order-confirmation", label: "Delivery Entry", roles: ["admin"], permission: "sales.view" },
     ],
   },
   {
