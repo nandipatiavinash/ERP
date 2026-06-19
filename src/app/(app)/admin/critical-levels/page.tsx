@@ -29,7 +29,23 @@ export default async function CriticalLevelsPage() {
     .order("department", { ascending: true })
     .order("material_name", { ascending: true });
 
-  if (error) throw new Error(error.message);
+  if (error) {
+    console.error("Critical Levels Database Error:", error);
+    return (
+      <div className="p-6 max-w-lg mx-auto bg-red-50 border border-red-200 rounded-lg text-red-800 space-y-3 mt-10 shadow-sm">
+        <h3 className="text-lg font-bold">Database Error</h3>
+        <p className="text-sm">
+          Failed to fetch raw materials. This typically indicates that your production database schema is out of sync or migrations (specifically `011_custom_legacy_schema.sql`) have not been pushed to production.
+        </p>
+        <div className="text-xs bg-red-100 p-4 rounded-md border font-mono overflow-x-auto">
+          Error Message: {error.message}
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Please run `npx supabase db push` or apply the migrations to your remote Supabase instance.
+        </p>
+      </div>
+    );
+  }
 
   const materials = (data ?? []) as any[];
 
