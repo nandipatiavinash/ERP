@@ -19,7 +19,7 @@ export default async function FabricTypeRollsPage({
   const { id } = await params;
   const supabase = await createClient();
 
-  const [{ data: fabricData }, { data: rolls }, { data: allocations }] = await Promise.all([
+  const [{ data: fabricData, error: fabricError }, { data: rolls, error: rollsError }, { data: allocations, error: allocationsError }] = await Promise.all([
     supabase.from("fabric_types").select("fabric_name").eq("id", id).single(),
     supabase
       .from("fabric_rolls")
@@ -29,6 +29,10 @@ export default async function FabricTypeRollsPage({
       .order("roll_number", { ascending: true }),
     (supabase as any).rpc("get_roll_allocations_for_fabric", { p_fabric_type_id: id }),
   ]);
+
+  if (fabricError || rollsError || allocationsError) {
+    throw new Error("Unable to load roll details right now.");
+  }
 
   const rollAllocationMap: Record<string, { dispatchDate: string; clientName: string }> = {};
   for (const allocation of (allocations ?? []) as any[]) {

@@ -10,7 +10,13 @@ export default async function RawMaterialsAdminPage({ searchParams }: { searchPa
   await requirePermission("raw_materials.view");
   const supabase = await createClient();
   const params = await searchParams;
-  const result = await fetchMasterRows({ supabase, config: modules["raw-materials"], select: "id, material_name, description, department, critical_level, status", params, defaultSort: "material_name" });
+  const result = await fetchMasterRows({
+    supabase,
+    config: modules["raw-materials"],
+    select: "id, material_name, department, critical_level, status",
+    params,
+    defaultSort: "material_name",
+  });
   return (
     <MasterPage
       config={modules["raw-materials"]}

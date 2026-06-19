@@ -26,7 +26,7 @@ const numericFields = new Set([
 ]);
 
 function sanitizeText(value: FormDataEntryValue) {
-  return String(value).trim().replace(/\s+/g, " ").toUpperCase();
+  return String(value).trim().replace(/\s+/g, " ");
 }
 
 function todayInIndia() {
@@ -301,22 +301,34 @@ export async function saveProduction(formData: FormData) {
 
   const { error } = await query;
   if (error) throw new Error(error.message);
-  revalidatePath("/production");
+  revalidatePath("/fabric/production");
   revalidatePath("/rolls");
   revalidatePath("/dashboard");
+  revalidatePath("/fabric/stock");
 }
 
 export async function softDeleteProduction(formData: FormData) {
   const user = await requirePermission("production.edit");
   const id = String(formData.get("id") ?? "");
-  const supabase = await createClient();
-  const { error } = await (supabase
+  const adminSupabase = createAdminClient();
+  const { error } = await (adminSupabase
     .from("loom_production_entries") as any)
     .update({ deleted_at: new Date().toISOString(), updated_by: user.id } as any)
     .eq("id", id);
-  if (error) throw new Error(error.message);
-  revalidatePath("/production");
+  if (error) {
+    if (process.env.NODE_ENV !== "production") {
+      console.error("[softDeleteProduction] failed", {
+        id,
+        userId: user.id,
+        message: error.message,
+      });
+    }
+    throw new Error(error.message);
+  }
+  revalidatePath("/fabric/production");
   revalidatePath("/rolls");
+  revalidatePath("/dashboard");
+  revalidatePath("/fabric/stock");
 }
 
 export async function saveSale(formData: FormData) {
@@ -516,7 +528,7 @@ export async function updateCriticalLevel(formData: FormData) {
 }
 
 export async function saveRotoProduct(formData: FormData) {
-  await requirePermission("fabric_types.create");
+  await requirePermission("roto_products.create");
   const id = String(formData.get("id") ?? "");
   const brand = String(formData.get("brand") ?? "").trim();
   const width = Number(formData.get("width") ?? 0);
@@ -570,7 +582,7 @@ export async function saveRotoProduct(formData: FormData) {
 }
 
 export async function deactivateRotoProduct(formData: FormData) {
-  await requirePermission("fabric_types.delete");
+  await requirePermission("roto_products.delete");
   const id = String(formData.get("id") ?? "");
   const supabase = await createClient();
   const { error } = await (supabase
@@ -582,7 +594,7 @@ export async function deactivateRotoProduct(formData: FormData) {
 }
 
 export async function saveOffsetProduct(formData: FormData) {
-  await requirePermission("fabric_types.create");
+  await requirePermission("offset_products.create");
   const id = String(formData.get("id") ?? "");
   const brand = String(formData.get("brand") ?? "").trim();
   const width = Number(formData.get("width") ?? 0);
@@ -634,7 +646,7 @@ export async function saveOffsetProduct(formData: FormData) {
 }
 
 export async function deactivateOffsetProduct(formData: FormData) {
-  await requirePermission("fabric_types.delete");
+  await requirePermission("offset_products.delete");
   const id = String(formData.get("id") ?? "");
   const supabase = await createClient();
   const { error } = await (supabase

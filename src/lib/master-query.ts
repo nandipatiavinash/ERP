@@ -41,10 +41,28 @@ export async function fetchMasterRows({
     query = query.or(config.searchColumns.map((column) => `${column}.ilike.%${search}%`).join(","));
   }
 
-  const { data, error, count } = await query
+  let response = await query
     .order(sort, { ascending: direction === "asc" })
     .range(offset, offset + MASTER_PAGE_SIZE - 1);
 
+  if (
+    response.error &&
+    /deleted_at.*does not exist|column .*deleted_at.*does not exist/i.test(response.error.message)
+  ) {
+    let fallbackQuery = supabase
+      .from(config.table)
+      .select(select, { count: "exact" });
+
+    if (search) {
+      fallbackQuery = fallbackQuery.or(config.searchColumns.map((column) => `${column}.ilike.%${search}%`).join(","));
+    }
+
+    response = await fallbackQuery
+      .order(sort, { ascending: direction === "asc" })
+      .range(offset, offset + MASTER_PAGE_SIZE - 1);
+  }
+
+  const { data, error, count } = response;
   if (error) throw new Error(error.message);
 
   return {

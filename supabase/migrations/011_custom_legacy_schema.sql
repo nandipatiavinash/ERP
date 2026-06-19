@@ -86,10 +86,26 @@ CREATE TABLE IF NOT EXISTS public.sales_order_items (
 ALTER TABLE public.sales_order_items ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Allow read access to authenticated users on sales_order_items" 
-ON public.sales_order_items FOR SELECT TO authenticated USING (true);
+ON public.sales_order_items FOR SELECT TO authenticated
+USING (
+  public.has_permission('sales.view')
+  OR public.has_permission('sales.edit')
+  OR public.has_permission('sales.create')
+  OR public.is_admin()
+);
 
 CREATE POLICY "Allow write access to authenticated users on sales_order_items" 
-ON public.sales_order_items FOR ALL TO authenticated USING (true);
+ON public.sales_order_items FOR ALL TO authenticated
+USING (
+  public.has_permission('sales.edit')
+  OR public.has_permission('sales.create')
+  OR public.is_admin()
+)
+WITH CHECK (
+  public.has_permission('sales.edit')
+  OR public.has_permission('sales.create')
+  OR public.is_admin()
+);
 
 -- 7. Alter sales_orders to support optional columns during transition
 ALTER TABLE public.sales_orders 
