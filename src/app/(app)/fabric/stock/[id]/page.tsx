@@ -33,15 +33,10 @@ export default async function FabricStockDetailPage({
   const fabricName = fabric?.fabric_name ?? "Fabric";
 
   const sortedRolls = ((rolls ?? []) as any[]).sort((a, b) => {
-    const aSerial = a.roll_number.startsWith(fabricName + "-")
-      ? Number(a.roll_number.slice(fabricName.length + 1))
-      : Number(a.roll_number);
-    const bSerial = b.roll_number.startsWith(fabricName + "-")
-      ? Number(b.roll_number.slice(fabricName.length + 1))
-      : Number(b.roll_number);
-    const aNum = Number.isNaN(aSerial) ? 0 : aSerial;
-    const bNum = Number.isNaN(bSerial) ? 0 : bSerial;
-    return aNum - bNum;
+    const dateA = new Date(a.production_date || 0).getTime();
+    const dateB = new Date(b.production_date || 0).getTime();
+    if (dateA !== dateB) return dateA - dateB;
+    return (a.roll_number || "").localeCompare(b.roll_number || "", undefined, { numeric: true });
   });
 
   return (
