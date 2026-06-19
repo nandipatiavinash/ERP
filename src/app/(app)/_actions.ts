@@ -160,12 +160,27 @@ export async function saveMaster(moduleKey: string, formData: FormData) {
   payload.updated_by = user.id;
   const table = config.table as any;
 
-  const query = id
-    ? (supabase.from(table) as any).update(payload).eq("id", id)
-    : (supabase.from(table) as any).insert({ ...payload, created_by: user.id, updated_by: user.id });
+  let finalPayload = { ...payload };
 
-  const { error } = await query as any;
-  if (error) throw new Error(error.message);
+  const buildQuery = (p: Record<string, unknown>) =>
+    id
+      ? (supabase.from(table) as any).update(p).eq("id", id)
+      : (supabase.from(table) as any).insert({ ...p, created_by: user.id, updated_by: user.id });
+
+  let { error } = await buildQuery(finalPayload) as any;
+
+  // If description column doesn't exist yet in DB (migration pending), retry without it
+  if (error && /could not find the 'description' column/i.test(error.message)) {
+    const { description: _dropped, ...payloadWithoutDesc } = finalPayload;
+    finalPayload = payloadWithoutDesc;
+    const retry = await buildQuery(finalPayload) as any;
+    error = retry.error;
+  }
+
+  if (error) {
+    console.error('saveMaster error for module', moduleKey, ':', error);
+    throw new Error(`Failed to save ${moduleKey}: ${error.message}`);
+  }
   revalidatePath(config.path);
 }
 
@@ -382,7 +397,6 @@ export async function saveRawMaterialPurchase(formData: FormData) {
       raw_material_id: id,
       quantity: qty,
       rate: rt,
-      total_amount: qty * rt,
       remarks: remarks || null,
       created_by: user.id,
       updated_by: user.id,
@@ -772,4 +786,195 @@ export async function confirmSalesDelivery(orderId: string, itemRolls: Record<st
   revalidatePath("/sales/order-confirmation");
   revalidatePath("/rolls");
   revalidatePath("/fabric/stock");
+}
+
+export async function saveRawMaterialConsumption(formData: FormData) {
+  const user = await requirePermission("production.edit");
+  const id = String(formData.get("id") ?? "");
+  const rawMaterialId = String(formData.get("raw_material_id") ?? "");
+  const department = String(formData.get("department") ?? "");
+  const quantity = Number(formData.get("quantity") ?? 0);
+  const consumptionDate = String(formData.get("consumption_date") ?? "");
+  const remarks = String(formData.get("remarks") ?? "");
+
+  if (!rawMaterialId || !department || quantity <= 0 || !consumptionDate) {
+    throw new Error("Missing required consumption fields or invalid quantity.");
+  }
+
+  const supabase = await createClient();
+  const payload = {
+    raw_material_id: rawMaterialId,
+    department,
+    quantity,
+    consumption_date: consumptionDate,
+    remarks: remarks || null,
+    updated_by: user.id,
+  };
+
+  const query = id
+    ? (supabase.from("raw_material_consumptions") as any).update(payload).eq("id", id)
+    : (supabase.from("raw_material_consumptions") as any).insert({ ...payload, created_by: user.id });
+
+  const { error } = await query;
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/fabric/consumption");
+  revalidatePath("/roto-printing/consumption");
+  revalidatePath("/lamination/consumption");
+  revalidatePath("/offset-printing/consumption");
+  revalidatePath("/finishing/consumption");
+  revalidatePath("/raw-materials");
+  revalidatePath("/dashboard");
+  revalidatePath("/reports");
+}
+
+export async function softDeleteRawMaterialConsumption(formData: FormData) {
+  const user = await requirePermission("production.edit");
+  const id = String(formData.get("id") ?? "");
+  const supabase = await createClient();
+  const { error } = await (supabase
+    .from("raw_material_consumptions") as any)
+    .update({ deleted_at: new Date().toISOString(), updated_by: user.id })
+    .eq("id", id);
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/fabric/consumption");
+  revalidatePath("/roto-printing/consumption");
+  revalidatePath("/lamination/consumption");
+  revalidatePath("/offset-printing/consumption");
+  revalidatePath("/finishing/consumption");
+  revalidatePath("/raw-materials");
+  revalidatePath("/dashboard");
+  revalidatePath("/reports");
+}
+
+export async function saveStageProduction(formData: FormData) {
+  const user = await requirePermission("production.edit");
+  const id = String(formData.get("id") ?? "");
+  const rollId = String(formData.get("roll_id") ?? "");
+  const stage = String(formData.get("stage") ?? "");
+  const productId = String(formData.get("product_id") ?? "");
+  const entryDate = String(formData.get("entry_date") ?? "");
+  const remarks = String(formData.get("remarks") ?? "");
+
+  // Gather specific details depending on stage
+  const details: Record<string, any> = {};
+  if (stage === "roto_printing") {
+    details.color_id = String(formData.get("color_id") ?? "");
+    details.cylinders = Number(formData.get("cylinders") ?? 0);
+  } else if (stage === "lamination") {
+    details.adhesive = String(formData.get("adhesive") ?? "");
+  } else if (stage === "finishing") {
+    details.packaging = String(formData.get("packaging") ?? "");
+  }
+
+  if (!rollId || !stage || !entryDate) {
+    throw new Error("Missing required production entry fields.");
+  }
+
+  const supabase = await createClient();
+  const payload = {
+    roll_id: rollId,
+    stage,
+    product_id: productId || null,
+    details,
+    entry_date: entryDate,
+    remarks: remarks || null,
+    updated_by: user.id,
+  };
+
+  const query = id
+    ? (supabase.from("stage_production_entries") as any).update(payload).eq("id", id)
+    : (supabase.from("stage_production_entries") as any).insert({ ...payload, created_by: user.id });
+
+  const { error } = await query;
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/roto-printing/production");
+  revalidatePath("/roto-printing/stock");
+  revalidatePath("/lamination/production");
+  revalidatePath("/lamination/stock");
+  revalidatePath("/offset-printing/production");
+  revalidatePath("/offset-printing/stock");
+  revalidatePath("/finishing/production");
+  revalidatePath("/finishing/stock");
+  revalidatePath("/rolls");
+  revalidatePath("/dashboard");
+  revalidatePath("/reports");
+}
+
+export async function softDeleteStageProduction(formData: FormData) {
+  const user = await requirePermission("production.edit");
+  const id = String(formData.get("id") ?? "");
+  const supabase = await createClient();
+  const { error } = await (supabase
+    .from("stage_production_entries") as any)
+    .update({ deleted_at: new Date().toISOString(), updated_by: user.id })
+    .eq("id", id);
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/roto-printing/production");
+  revalidatePath("/roto-printing/stock");
+  revalidatePath("/lamination/production");
+  revalidatePath("/lamination/stock");
+  revalidatePath("/offset-printing/production");
+  revalidatePath("/offset-printing/stock");
+  revalidatePath("/finishing/production");
+  revalidatePath("/finishing/stock");
+  revalidatePath("/rolls");
+  revalidatePath("/dashboard");
+  revalidatePath("/reports");
+}
+
+export async function saveJournalEntry(formData: FormData) {
+  const user = await requirePermission("sales.edit");
+  const id = String(formData.get("id") ?? "");
+  const entryDate = String(formData.get("entry_date") ?? "");
+  const accountName = String(formData.get("account_name") ?? "");
+  const entryType = String(formData.get("entry_type") ?? "");
+  const amount = Number(formData.get("amount") ?? 0);
+  const description = String(formData.get("description") ?? "");
+
+  if (!accountName || !entryType || amount <= 0 || !entryDate) {
+    throw new Error("Missing required journal fields or invalid amount.");
+  }
+
+  const supabase = await createClient();
+  const payload = {
+    account_name: accountName,
+    entry_type: entryType,
+    amount,
+    entry_date: entryDate,
+    description: description || null,
+    updated_by: user.id,
+  };
+
+  const query = id
+    ? (supabase.from("accounts_journal") as any).update(payload).eq("id", id)
+    : (supabase.from("accounts_journal") as any).insert({ ...payload, created_by: user.id });
+
+  const { error } = await query;
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/accounts/journal");
+  revalidatePath("/accounts/sales");
+  revalidatePath("/reports");
+}
+
+export async function softDeleteJournalEntry(formData: FormData) {
+  const user = await requirePermission("sales.edit");
+  const id = String(formData.get("id") ?? "");
+  const supabase = await createClient();
+  const { error } = await (supabase
+    .from("accounts_journal") as any)
+    .update({ deleted_at: new Date().toISOString(), updated_by: user.id })
+    .eq("id", id);
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/accounts/journal");
+  revalidatePath("/accounts/sales");
+  revalidatePath("/reports");
 }
