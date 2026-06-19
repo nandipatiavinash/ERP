@@ -1,6 +1,26 @@
--- Migration: Use Production Entry Serial Number as Roll/Stock Number
--- Relates to: Using the serial number generated on production entry as the universal roll/stock number.
+-- Migration: Use Production Entry Serial Number as Roll/Stock Number and Drop Audit Triggers
+-- Relates to: Using the serial number generated on production entry as the universal roll/stock number,
+-- and removing all legacy audit triggers since the audit_logs table was removed.
 
+-- 1. Drop all legacy audit triggers to avoid 'public.audit_logs does not exist' errors
+DROP TRIGGER IF EXISTS audit_roles ON public.roles CASCADE;
+DROP TRIGGER IF EXISTS audit_users ON public.users CASCADE;
+DROP TRIGGER IF EXISTS audit_looms ON public.looms CASCADE;
+DROP TRIGGER IF EXISTS audit_fabric_types ON public.fabric_types CASCADE;
+DROP TRIGGER IF EXISTS audit_raw_materials ON public.raw_materials CASCADE;
+DROP TRIGGER IF EXISTS audit_raw_material_purchases ON public.raw_material_purchases CASCADE;
+DROP TRIGGER IF EXISTS audit_settings ON public.settings CASCADE;
+DROP TRIGGER IF EXISTS audit_employees ON public.employees CASCADE;
+DROP TRIGGER IF EXISTS audit_attendance ON public.attendance CASCADE;
+DROP TRIGGER IF EXISTS audit_customers ON public.customers CASCADE;
+DROP TRIGGER IF EXISTS audit_production ON public.loom_production_entries CASCADE;
+DROP TRIGGER IF EXISTS audit_rolls ON public.fabric_rolls CASCADE;
+DROP TRIGGER IF EXISTS audit_sales ON public.sales_orders CASCADE;
+
+-- 2. Drop the audit row function
+DROP FUNCTION IF EXISTS public.audit_row_change() CASCADE;
+
+-- 3. Create or replace the roll sync trigger function
 CREATE OR REPLACE FUNCTION public.create_or_sync_fabric_roll()
 RETURNS trigger
 LANGUAGE plpgsql
@@ -52,7 +72,7 @@ BEGIN
 END;
 $$;
 
--- Align existing fabric rolls with their production entry serial number
+-- 4. Align existing fabric rolls with their production entry serial number
 UPDATE public.fabric_rolls fr
 SET roll_number = lpe.serial_number
 FROM public.loom_production_entries lpe
