@@ -45,23 +45,19 @@ export default async function FabricStockPage() {
                     <TableHead className="text-right">Rolls Count</TableHead>
                     <TableHead className="text-right">Total Weight (kg)</TableHead>
                     <TableHead className="text-right">Total Meters (m)</TableHead>
-                    <TableHead className="text-right">Action</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {stockRows.map((row) => (
                     <TableRow key={row.fabric_type_id}>
-                      <TableCell className="font-semibold text-base text-primary">
-                        {row.fabric_name}
+                      <TableCell className="font-semibold text-base">
+                        <Link href={`/fabric/stock/${row.fabric_type_id}` as any} className="text-primary hover:underline">
+                          {row.fabric_name}
+                        </Link>
                       </TableCell>
                       <TableCell className="text-right text-base font-medium">{row.rolls}</TableCell>
                       <TableCell className="text-right text-base font-medium">{formatNumber(row.weight, 2)}</TableCell>
                       <TableCell className="text-right text-base font-medium">{formatNumber(Math.floor(row.meters), 0)}</TableCell>
-                      <TableCell className="text-right">
-                        <Button asChild size="sm" variant="outline">
-                          <Link href={`/fabric/stock/${row.fabric_type_id}` as any}>Expand Detail</Link>
-                        </Button>
-                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

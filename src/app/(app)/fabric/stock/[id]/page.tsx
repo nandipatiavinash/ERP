@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { ArrowLeft, ChevronDown } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { PageHeader } from "@/components/app/page-header";
 import { StatusBadge } from "@/components/app/status-badge";
 import { requirePermission } from "@/lib/auth";
@@ -69,57 +70,45 @@ export default async function FabricStockDetailPage({
               description={`There are currently no active rolls for ${fabricName}.`}
             />
           ) : (
-            <div className="space-y-3">
-              {sortedRolls.map((roll) => {
-                const serialNo = roll.roll_number.startsWith(fabricName + "-")
-                  ? roll.roll_number.slice(fabricName.length + 1)
-                  : roll.roll_number;
-                const lpe = roll.loom_production_entries;
-                return (
-                  <details
-                    key={roll.id}
-                    className="group border rounded-lg bg-background p-4 [&_summary::-webkit-details-marker]:hidden transition-all duration-200 hover:border-emerald-600/40"
-                  >
-                    <summary className="flex cursor-pointer items-center justify-between gap-1.5 font-medium text-foreground">
-                      <div className="flex flex-wrap items-center gap-2 md:gap-4 text-sm md:text-base">
-                        <span className="font-bold text-emerald-950">Roll #{serialNo}</span>
-                        <span className="text-muted-foreground hidden md:inline">|</span>
-                        <span>
-                          Net Weight: <strong className="text-emerald-900">{formatNumber(lpe?.net_weight, 2)} kg</strong>
-                        </span>
-                        <span className="text-muted-foreground hidden md:inline">|</span>
-                        <span>
-                          Meters: <strong className="text-emerald-900">{formatNumber(Math.floor(lpe?.net_meters ?? 0), 0)} m</strong>
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <StatusBadge value={roll.status} />
-                        <span className="shrink-0 rounded-full bg-muted p-1.5 text-muted-foreground group-open:-rotate-180 transition-transform duration-200">
-                          <ChevronDown className="h-4 w-4" />
-                        </span>
-                      </div>
-                    </summary>
-                    <div className="mt-4 border-t pt-4 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm text-muted-foreground">
-                      <div>
-                        <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Gross Weight</div>
-                        <div className="mt-1 text-base font-semibold text-foreground">{formatNumber(lpe?.gross_weight, 2)} kg</div>
-                      </div>
-                      <div>
-                        <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Core Weight</div>
-                        <div className="mt-1 text-base font-semibold text-foreground">{formatNumber(lpe?.core_weight, 2)} kg</div>
-                      </div>
-                      <div>
-                        <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Avg Meter Weight</div>
-                        <div className="mt-1 text-base font-semibold text-foreground">{formatNumber(lpe?.average_meter_weight, 2)} g/m</div>
-                      </div>
-                      <div>
-                        <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Loom Number</div>
-                        <div className="mt-1 text-base font-semibold text-foreground">{roll.looms?.loom_number ?? "N/A"}</div>
-                      </div>
-                    </div>
-                  </details>
-                );
-              })}
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Fabric Type</TableHead>
+                    <TableHead>Roll ID</TableHead>
+                    <TableHead className="text-right">Net Weight (kg)</TableHead>
+                    <TableHead className="text-right">Meters (m)</TableHead>
+                    <TableHead className="text-right">Gross Weight (kg)</TableHead>
+                    <TableHead className="text-right">Core Weight (kg)</TableHead>
+                    <TableHead className="text-right">Avg Meter Weight (g/m)</TableHead>
+                    <TableHead>Loom</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {sortedRolls.map((roll) => {
+                    const serialNo = roll.roll_number.startsWith(fabricName + "-")
+                      ? roll.roll_number.slice(fabricName.length + 1)
+                      : roll.roll_number;
+                    const lpe = roll.loom_production_entries;
+                    return (
+                      <TableRow key={roll.id} className="hover:bg-muted/30">
+                        <TableCell className="font-semibold">{fabricName}</TableCell>
+                        <TableCell className="font-bold text-emerald-950">Roll #{serialNo}</TableCell>
+                        <TableCell className="text-right font-medium text-emerald-900">{formatNumber(lpe?.net_weight, 2)}</TableCell>
+                        <TableCell className="text-right font-medium text-emerald-900">{formatNumber(Math.floor(lpe?.net_meters ?? 0), 0)}</TableCell>
+                        <TableCell className="text-right text-muted-foreground">{formatNumber(lpe?.gross_weight, 2)}</TableCell>
+                        <TableCell className="text-right text-muted-foreground">{formatNumber(lpe?.core_weight, 2)}</TableCell>
+                        <TableCell className="text-right text-muted-foreground">{formatNumber(Math.floor(lpe?.average_meter_weight ?? 0), 0)}</TableCell>
+                        <TableCell className="font-medium">{roll.looms?.loom_number ?? "N/A"}</TableCell>
+                        <TableCell>
+                          <StatusBadge value={roll.status} />
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
             </div>
           )}
         </CardContent>

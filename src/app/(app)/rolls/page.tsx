@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader } from "@/components/app/page-header";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { requirePermission } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { formatNumber } from "@/lib/utils";
@@ -26,32 +27,44 @@ export default async function RollsPage() {
 
   return (
     <>
-      <PageHeader title="Fabric Inventory" description="Fabric stock grouped by type, with roll-level drill-down." />
-      <div className="grid gap-4 md:grid-cols-3">
-        {stockRows.map((row) => (
-          <Link key={row.fabric_type_id} href={`/rolls/${row.fabric_type_id}` as any}>
-            <Card className="transition-all duration-200 hover:bg-muted/40 hover:border-emerald-600 cursor-pointer hover:shadow-md hover:scale-[1.01]">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg font-bold text-emerald-950">{row.fabric_name}</CardTitle>
-              </CardHeader>
-              <CardContent className="grid grid-cols-3 gap-3 text-sm pt-0">
-                <div>
-                  <div className="text-muted-foreground text-xs font-medium">Rolls</div>
-                  <div className="font-bold text-base text-emerald-900">{row.rolls}</div>
-                </div>
-                <div>
-                  <div className="text-muted-foreground text-xs font-medium">Weight</div>
-                  <div className="font-bold text-base text-emerald-900">{formatNumber(row.weight, 2)}</div>
-                </div>
-                <div>
-                  <div className="text-muted-foreground text-xs font-medium">Meters</div>
-                  <div className="font-bold text-base text-emerald-900">{formatNumber(Math.floor(row.meters), 0)}</div>
-                </div>
-              </CardContent>
-            </Card>
-          </Link>
-        ))}
-      </div>
+      <PageHeader title="Fabric Stock Inventory" description="Fabric stock grouped by type, with roll-level drill-down." />
+      <Card>
+        <CardHeader>
+          <CardTitle>Available Stock Summary</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {stockRows.length === 0 ? (
+            <div className="text-center py-6 text-muted-foreground">No available fabric stock found.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Fabric Type</TableHead>
+                    <TableHead className="text-right">Rolls Count</TableHead>
+                    <TableHead className="text-right">Total Weight (kg)</TableHead>
+                    <TableHead className="text-right">Total Meters (m)</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {stockRows.map((row) => (
+                    <TableRow key={row.fabric_type_id}>
+                      <TableCell className="font-semibold text-base">
+                        <Link href={`/rolls/${row.fabric_type_id}` as any} className="text-primary hover:underline">
+                          {row.fabric_name}
+                        </Link>
+                      </TableCell>
+                      <TableCell className="text-right text-base font-medium">{row.rolls}</TableCell>
+                      <TableCell className="text-right text-base font-medium">{formatNumber(row.weight, 2)}</TableCell>
+                      <TableCell className="text-right text-base font-medium">{formatNumber(Math.floor(row.meters), 0)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </>
   );
 }
