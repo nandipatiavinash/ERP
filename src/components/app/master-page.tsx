@@ -17,9 +17,9 @@ import { formatDate, formatNumber } from "@/lib/utils";
 type Row = Record<string, unknown> & { id: string };
 
 function Field({ field, value }: { field: ModuleConfig["fields"][number]; value?: unknown }) {
-  const defaultValue = String(value ?? (field.name === "status" ? "active" : field.name === "shift_start" ? "09:00" : field.name === "shift_end" ? "18:00" : ""));
+  const defaultValue = String(value ?? (field.name === "status" ? "active" : field.name === "department" ? "fabric" : field.name === "shift_start" ? "09:00" : field.name === "shift_end" ? "18:00" : ""));
   return (
-    <div className="space-y-2">
+    <div className={field.fullWidth ? "space-y-2 md:col-span-2" : "space-y-2"}>
       <Label htmlFor={field.name}>{field.label}</Label>
       {field.type === "select" ? (
         <select name={field.name} id={field.name} defaultValue={defaultValue} required={field.required} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">

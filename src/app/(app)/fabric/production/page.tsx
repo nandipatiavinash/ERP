@@ -21,7 +21,7 @@ export default async function FabricProductionPage() {
     day: "2-digit",
   }).format(new Date());
   
-  const [{ data: fabrics }, { data: looms }, { data: rows }, { data: meterRows }, { data: serialRows }] = await Promise.all([
+  const [{ data: fabrics }, { data: looms }, { data: rows }, { data: meterRows }] = await Promise.all([
     supabase.from("fabric_types").select("id, fabric_name").eq("status", "active").is("deleted_at", null).order("fabric_name"),
     supabase.from("looms").select("id, loom_number").eq("status", "active").is("deleted_at", null).order("loom_number"),
     supabase
@@ -30,40 +30,17 @@ export default async function FabricProductionPage() {
       .is("deleted_at", null)
       .eq("entry_date", today)
       .order("created_at", { ascending: false }),
-    supabase
-      .from("loom_production_entries")
-      .select("loom_id, end_meters")
-      .is("deleted_at", null)
-      .order("created_at", { ascending: false })
-      .limit(1000),
-    supabase
-      .from("loom_production_entries")
-      .select("id, fabric_type_id")
-      .is("deleted_at", null)
-      .order("created_at", { ascending: true })
-      .limit(5000),
+    (supabase as any).rpc("get_last_end_meters_by_loom"),
   ]);
 
   const productionRows = (rows ?? []) as any[];
   const meterHistory = (meterRows ?? []) as any[];
-  const serialHistory = (serialRows ?? []) as any[];
-  const displaySerialByEntry: Record<string, number> = {};
   const lastMeters: Record<string, number> = {};
   for (const row of meterHistory) {
     if (row.loom_id && lastMeters[row.loom_id] === undefined) lastMeters[row.loom_id] = Number(row.end_meters ?? 0);
   }
   for (const loom of (looms ?? []) as any[]) {
     if (lastMeters[loom.id] === undefined) lastMeters[loom.id] = 0;
-  }
-  const nextSerialByFabric = serialHistory.reduce<Record<string, number>>((serials, row) => {
-    if (!row.fabric_type_id) return serials;
-    const currentSerial = Math.min((serials[row.fabric_type_id] ?? 0) + 1, 999);
-    serials[row.fabric_type_id] = currentSerial;
-    if (row.id) displaySerialByEntry[row.id] = currentSerial;
-    return serials;
-  }, {});
-  for (const fabric of (fabrics ?? []) as any[]) {
-    nextSerialByFabric[fabric.id] = Math.min((nextSerialByFabric[fabric.id] ?? 0) + 1, 999);
   }
 
   return (
@@ -76,7 +53,6 @@ export default async function FabricProductionPage() {
             fabrics={((fabrics ?? []) as any[]).map((fabric) => ({ id: fabric.id, label: fabric.fabric_name }))}
             looms={((looms ?? []) as any[]).map((loom) => ({ id: loom.id, label: loom.loom_number }))}
             lastMeters={lastMeters}
-            nextSerialByFabric={nextSerialByFabric}
             isAdmin={admin}
           />
         </CardContent>
@@ -104,7 +80,7 @@ export default async function FabricProductionPage() {
                   {productionRows.map((row, index) => (
                     <TableRow key={row.id} className={index === 0 ? "bg-emerald-50 font-semibold" : "bg-emerald-50/40"}>
                       <TableCell>{row.fabric_types?.fabric_name}</TableCell>
-                      <TableCell className="text-lg font-bold text-emerald-900">{displaySerialByEntry[row.id] ?? row.serial_number}</TableCell>
+                      <TableCell className="text-lg font-bold text-emerald-900">{row.serial_number}</TableCell>
                       <TableCell>{formatNumber(row.gross_weight, 2)}</TableCell>
                       <TableCell>{formatNumber(row.core_weight, 2)}</TableCell>
                       <TableCell>{formatNumber(row.net_weight, 2)}</TableCell>
@@ -115,11 +91,10 @@ export default async function FabricProductionPage() {
                           <summary className="cursor-pointer text-sm font-medium text-primary">Edit</summary>
                           <div className="mt-3">
                             <ProductionForm
-                              row={{ ...row, display_serial: displaySerialByEntry[row.id] }}
+                              row={row}
                               fabrics={((fabrics ?? []) as any[]).map((fabric) => ({ id: fabric.id, label: fabric.fabric_name }))}
                               looms={((looms ?? []) as any[]).map((loom) => ({ id: loom.id, label: loom.loom_number }))}
                               lastMeters={lastMeters}
-                              nextSerialByFabric={nextSerialByFabric}
                               isAdmin={admin}
                             />
                           </div>

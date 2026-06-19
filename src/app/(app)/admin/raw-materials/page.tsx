@@ -10,7 +10,7 @@ export default async function RawMaterialsAdminPage({ searchParams }: { searchPa
   const supabase = await createClient();
   const { data } = await supabase
     .from("raw_materials")
-    .select("id, material_name, description, unit, department, critical_level, status")
+    .select("id, material_name, description, department, critical_level, status")
     .is("deleted_at", null)
     .order("material_name", { ascending: true })
     .limit(500);

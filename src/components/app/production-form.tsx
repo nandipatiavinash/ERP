@@ -13,14 +13,12 @@ export function ProductionForm({
   fabrics,
   looms,
   lastMeters,
-  nextSerialByFabric,
   isAdmin,
   row,
 }: {
   fabrics: Option[];
   looms: Option[];
   lastMeters: Record<string, number>;
-  nextSerialByFabric: Record<string, number>;
   isAdmin: boolean;
   row?: Record<string, any>;
 }) {
@@ -48,7 +46,7 @@ export function ProductionForm({
   const netWeight = Math.max(Number(gross || 0) - Number(core || 0), 0);
   const netMeters = Math.max(Number(endMeters || 0) - initialMeters, 0);
   const avg = netMeters > 0 ? (netWeight / netMeters) * 1000 : 0;
-  const nextSerial = row?.display_serial ?? (fabricId ? nextSerialByFabric[fabricId] ?? 1 : "-");
+  const nextSerial = row?.serial_number ?? "Auto";
 
   const summary = useMemo(() => ({ netWeight, netMeters: Math.floor(netMeters), avg: Math.floor(avg) }), [netWeight, netMeters, avg]);
 

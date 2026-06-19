@@ -154,6 +154,9 @@ export async function saveMaster(moduleKey: string, formData: FormData) {
     payload.gsm = 1;
     payload.selling_price = 0;
   }
+  if (moduleKey === "raw-materials" && !payload.unit) {
+    payload.unit = "-";
+  }
   payload.updated_by = user.id;
   const table = config.table as any;
 

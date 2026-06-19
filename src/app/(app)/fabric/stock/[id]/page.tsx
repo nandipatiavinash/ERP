@@ -19,7 +19,7 @@ export default async function FabricStockDetailPage({
   const { id } = await params;
   const supabase = await createClient();
 
-  const [{ data: fabricData }, { data: rolls }, { data: salesOrders }, { data: salesOrderItems }] = await Promise.all([
+  const [{ data: fabricData }, { data: rolls }, { data: allocations }] = await Promise.all([
     supabase.from("fabric_types").select("fabric_name").eq("id", id).single(),
     supabase
       .from("fabric_rolls")
@@ -27,41 +27,15 @@ export default async function FabricStockDetailPage({
       .eq("fabric_type_id", id)
       .is("deleted_at", null)
       .order("roll_number", { ascending: true }),
-    supabase
-      .from("sales_orders")
-      .select("order_date, selected_roll_ids, status, customers(customer_name)")
-      .eq("status", "confirmed")
-      .is("deleted_at", null),
-    supabase
-      .from("sales_order_items")
-      .select("selected_roll_ids, sales_orders(order_date, status, customers(customer_name))")
+    (supabase as any).rpc("get_roll_allocations_for_fabric", { p_fabric_type_id: id }),
   ]);
 
   const rollAllocationMap: Record<string, { dispatchDate: string; clientName: string }> = {};
-  if (salesOrders) {
-    for (const order of salesOrders as any[]) {
-      if (order.selected_roll_ids) {
-        for (const rollId of order.selected_roll_ids) {
-          rollAllocationMap[rollId] = {
-            dispatchDate: order.order_date,
-            clientName: order.customers?.customer_name ?? "Unknown",
-          };
-        }
-      }
-    }
-  }
-  if (salesOrderItems) {
-    for (const item of salesOrderItems as any[]) {
-      const order = item.sales_orders;
-      if (order && order.status === "confirmed" && item.selected_roll_ids) {
-        for (const rollId of item.selected_roll_ids) {
-          rollAllocationMap[rollId] = {
-            dispatchDate: order.order_date,
-            clientName: order.customers?.customer_name ?? "Unknown",
-          };
-        }
-      }
-    }
+  for (const allocation of (allocations ?? []) as any[]) {
+    rollAllocationMap[allocation.roll_id] = {
+      dispatchDate: allocation.dispatch_date,
+      clientName: allocation.client_name ?? "Unknown",
+    };
   }
 
   const fabric = fabricData as { fabric_name: string } | null;

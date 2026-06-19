@@ -8,6 +8,7 @@ export type FieldConfig = {
   type: FieldType;
   required?: boolean;
   step?: string;
+  fullWidth?: boolean;
   options?: { label: string; value: string }[];
 };
 
@@ -66,33 +67,31 @@ export const modules: Record<string, ModuleConfig> = {
   },
   "raw-materials": {
     key: "raw-materials",
-    title: "Raw Material Inventory",
+    title: "Raw Materials ID",
     table: "raw_materials",
     path: "/admin/raw-materials",
     role: ["admin"],
     fields: [
-      { name: "material_name", label: "Raw Material ID", type: "text", required: true },
-      { name: "description", label: "Description", type: "text", required: false },
-      { name: "unit", label: "Unit", type: "text", required: true },
-      { name: "department", label: "Department", type: "select", options: [
+      { name: "department", label: "Department", type: "select", fullWidth: true, options: [
         { label: "Fabric", value: "fabric" },
         { label: "Roto Printing", value: "roto-printing" },
         { label: "Lamination", value: "lamination" },
         { label: "Off-set Printing", value: "offset-printing" },
         { label: "Finishing", value: "finishing" },
       ], required: true },
+      { name: "material_name", label: "Raw Material ID", type: "text", required: true },
+      { name: "description", label: "Description", type: "text", required: false },
       { name: "critical_level", label: "Critical Stock Level", type: "number", step: "0.01", required: true },
       { name: "status", label: "Status", type: "select", options: statusOptions, required: true },
     ],
     columns: [
+      { key: "department", label: "Department" },
       { key: "material_name", label: "Raw Material ID" },
       { key: "description", label: "Description" },
-      { key: "unit", label: "Unit" },
-      { key: "department", label: "Department" },
       { key: "critical_level", label: "Critical Level" },
       { key: "status", label: "Status" },
     ],
-    searchColumns: ["material_name", "description", "unit", "department", "status"],
+    searchColumns: ["material_name", "description", "department", "status"],
   },
   employees: {
     key: "employees",
