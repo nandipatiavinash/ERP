@@ -358,6 +358,7 @@ export async function saveRawMaterialPurchase(formData: FormData) {
   } as any);
   if (error) throw new Error(error.message);
   revalidatePath("/raw-materials");
+  revalidatePath("/accounts/purchase");
   revalidatePath("/dashboard");
   revalidatePath("/reports");
 }

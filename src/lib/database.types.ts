@@ -75,6 +75,7 @@ export type Database = {
         id: string;
         material_name: string;
         unit: string;
+        description: string | null;
         opening_stock: string;
         current_stock: string;
         department: string | null;

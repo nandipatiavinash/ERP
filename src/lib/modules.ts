@@ -72,6 +72,7 @@ export const modules: Record<string, ModuleConfig> = {
     role: ["admin"],
     fields: [
       { name: "material_name", label: "Raw Material ID", type: "text", required: true },
+      { name: "description", label: "Description", type: "text", required: false },
       { name: "unit", label: "Unit", type: "text", required: true },
       { name: "department", label: "Department", type: "select", options: [
         { label: "Fabric", value: "fabric" },
@@ -81,20 +82,17 @@ export const modules: Record<string, ModuleConfig> = {
         { label: "Finishing", value: "finishing" },
       ], required: true },
       { name: "critical_level", label: "Critical Stock Level", type: "number", step: "0.01", required: true },
-      { name: "opening_stock", label: "Opening Stock", type: "number", step: "0.01", required: true },
-      { name: "current_stock", label: "Current Stock", type: "number", step: "0.01", required: true },
       { name: "status", label: "Status", type: "select", options: statusOptions, required: true },
     ],
     columns: [
       { key: "material_name", label: "Raw Material ID" },
+      { key: "description", label: "Description" },
       { key: "unit", label: "Unit" },
       { key: "department", label: "Department" },
       { key: "critical_level", label: "Critical Level" },
-      { key: "opening_stock", label: "Opening Stock" },
-      { key: "current_stock", label: "Current Stock" },
       { key: "status", label: "Status" },
     ],
-    searchColumns: ["material_name", "unit", "department", "status"],
+    searchColumns: ["material_name", "description", "unit", "department", "status"],
   },
   employees: {
     key: "employees",
