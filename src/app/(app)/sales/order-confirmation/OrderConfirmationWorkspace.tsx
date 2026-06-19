@@ -359,7 +359,6 @@ export function OrderConfirmationWorkspace({
                                       <thead>
                                         <tr className="bg-muted/40 border-b text-xs font-bold uppercase tracking-wider text-muted-foreground">
                                           <th className="p-3">S.No</th>
-                                          <th className="p-3">Roll No</th>
                                           <th className="p-3">Net W8</th>
                                           <th className="p-3">Core W8</th>
                                           <th className="p-3">Gross W8</th>
@@ -369,14 +368,13 @@ export function OrderConfirmationWorkspace({
                                         </tr>
                                       </thead>
                                       <tbody className="divide-y">
-                                        {selectedRolls.map((roll, idx) => {
+                                        {selectedRolls.map((roll) => {
                                           const grossW = roll.loom_production_entries?.gross_weight ? formatNumber(roll.loom_production_entries.gross_weight, 2) : "-";
                                           const coreW = roll.loom_production_entries?.core_weight ? formatNumber(roll.loom_production_entries.core_weight, 2) : "-";
                                           const avgMeterW = roll.loom_production_entries?.average_meter_weight ? formatNumber(Math.floor(Number(roll.loom_production_entries.average_meter_weight)), 0) : "-";
                                           const loomNo = roll.looms?.loom_number ?? "-";
                                           return (
                                             <tr key={roll.id}>
-                                              <td className="p-3 font-semibold text-muted-foreground">{idx + 1}</td>
                                               <td className="p-3 font-bold text-emerald-950">{roll.roll_number}</td>
                                               <td className="p-3 font-semibold">{formatNumber(roll.weight, 2)}</td>
                                               <td className="p-3">{coreW}</td>
@@ -555,7 +553,6 @@ export function OrderConfirmationWorkspace({
                                           <tr className="bg-muted/40 border-b text-xs font-bold uppercase tracking-wider text-muted-foreground">
                                             <th className="p-3 w-12 text-center">Select</th>
                                             <th className="p-3">S.No</th>
-                                            <th className="p-3">Roll No</th>
                                             <th className="p-3">Net W8</th>
                                             <th className="p-3">Core W8</th>
                                             <th className="p-3">Gross W8</th>
@@ -566,7 +563,7 @@ export function OrderConfirmationWorkspace({
                                           </tr>
                                         </thead>
                                         <tbody className="divide-y">
-                                          {itemRolls.map((roll, idx) => {
+                                          {itemRolls.map((roll) => {
                                             const isSelected = selectedIds.includes(roll.id);
                                             const grossW = roll.loom_production_entries?.gross_weight ? formatNumber(roll.loom_production_entries.gross_weight, 2) : "-";
                                             const coreW = roll.loom_production_entries?.core_weight ? formatNumber(roll.loom_production_entries.core_weight, 2) : "-";
@@ -588,7 +585,6 @@ export function OrderConfirmationWorkspace({
                                                     className="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
                                                   />
                                                 </td>
-                                                <td className="p-3 font-semibold text-muted-foreground">{idx + 1}</td>
                                                 <td className="p-3 font-bold text-emerald-950">{roll.roll_number}</td>
                                                 <td className="p-3 font-semibold">{formatNumber(roll.weight, 2)}</td>
                                                 <td className="p-3">{coreW}</td>
