@@ -341,22 +341,42 @@ export async function saveSale(formData: FormData) {
 
 export async function saveRawMaterialPurchase(formData: FormData) {
   const user = await requirePermission("raw_materials.edit");
-  const payload = assertValid(rawPurchaseSchema, readPayload(formData, [
-    "raw_material_id",
-    "purchase_date",
-    "supplier_name",
-    "bill_number",
-    "quantity",
-    "rate",
-    "remarks",
-  ]));
+
+  const purchase_date = String(formData.get("purchase_date") ?? "");
+  const supplier_name = String(formData.get("supplier_name") ?? "");
+  const bill_number = String(formData.get("bill_number") ?? "");
+  const remarks = String(formData.get("remarks") ?? "");
+
+  const raw_material_ids = formData.getAll("raw_material_id").map(String);
+  const quantities = formData.getAll("quantity").map(Number);
+  const rates = formData.getAll("rate").map(Number);
+
+  if (raw_material_ids.length === 0) {
+    throw new Error("At least one raw material item must be added.");
+  }
+
   const supabase = await createClient();
-  const { error } = await supabase.from("raw_material_purchases").insert({
-    ...payload,
-    created_by: user.id,
-    updated_by: user.id,
-  } as any);
+
+  const inserts = raw_material_ids.map((id, index) => {
+    const qty = quantities[index] ?? 0;
+    const rt = rates[index] ?? 0;
+    return {
+      purchase_date,
+      supplier_name: supplier_name || null,
+      bill_number: bill_number || null,
+      raw_material_id: id,
+      quantity: qty,
+      rate: rt,
+      total_amount: qty * rt,
+      remarks: remarks || null,
+      created_by: user.id,
+      updated_by: user.id,
+    };
+  });
+
+  const { error } = await supabase.from("raw_material_purchases").insert(inserts as any);
   if (error) throw new Error(error.message);
+
   revalidatePath("/raw-materials");
   revalidatePath("/accounts/purchase");
   revalidatePath("/dashboard");
