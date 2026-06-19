@@ -17,7 +17,7 @@ export default async function OrderWorkspacePage({
 
   // Fetch all active orders with customer details and order items
   const [{ data: orders }, { data: fabrics }, { data: rotoProducts }, { data: offsetProducts }, { data: rolls }] = await Promise.all([
-    supabase.from("sales_orders").select("*, customers(*), sales_order_items(*)").is("deleted_at", null).order("created_at", { ascending: true }),
+    supabase.from("sales_orders").select("*, customers(*), sales_order_items(*)").is("deleted_at", null).order("created_at", { ascending: false }),
     supabase.from("fabric_types").select("id, fabric_name"),
     supabase.from("roto_products").select("id, brand, width, height"),
     supabase.from("offset_products").select("id, brand, width, height"),

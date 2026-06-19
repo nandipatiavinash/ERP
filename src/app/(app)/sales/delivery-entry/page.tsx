@@ -21,7 +21,7 @@ export default async function DeliveryEntryPage() {
       .from("sales_orders")
       .select("*, customers(customer_name, alias), sales_order_items(id, department, quantity)")
       .is("deleted_at", null)
-      .order("created_at", { ascending: true })
+      .order("created_at", { ascending: false })
       .limit(100),
   ]);
 

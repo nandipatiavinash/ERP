@@ -18,7 +18,7 @@ export default async function OrderConfirmationPage() {
     .from("sales_orders")
     .select("*, customers(*), sales_order_items(*)")
     .is("deleted_at", null)
-    .order("created_at", { ascending: true });
+    .order("created_at", { ascending: false });
 
   if (ordersError) throw new Error(ordersError.message);
 
