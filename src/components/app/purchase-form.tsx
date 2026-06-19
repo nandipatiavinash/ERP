@@ -19,8 +19,6 @@ export function PurchaseForm({
 }) {
   const [clientSelect, setClientSelect] = useState("");
   const [clientName, setClientName] = useState("");
-  const [quantity, setQuantity] = useState(0);
-  const [rate, setRate] = useState(0);
 
   const handleClientChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const val = e.target.value;
@@ -110,7 +108,6 @@ export function PurchaseForm({
           step="0.01"
           required
           placeholder="0.00"
-          onChange={(e) => setQuantity(Number(e.target.value))}
         />
       </div>
 
@@ -122,20 +119,7 @@ export function PurchaseForm({
           step="0.01"
           required
           placeholder="0.00"
-          onChange={(e) => setRate(Number(e.target.value))}
         />
-      </div>
-
-      <div className="rounded-md border bg-muted/40 p-3 text-sm md:col-span-3 flex items-center justify-between">
-        <div>
-          <span className="text-muted-foreground font-medium">Estimated Total Amount:</span>
-        </div>
-        <div className="font-bold text-base text-emerald-900">
-          ₹{(quantity * rate).toLocaleString("en-IN", {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          })}
-        </div>
       </div>
 
       <div className="space-y-2 md:col-span-3">

@@ -26,6 +26,10 @@ export default async function FabricStockPage() {
     return acc;
   }, {})).sort((a: any, b: any) => String(a.fabric_name).localeCompare(String(b.fabric_name)));
 
+  const totalRolls = stockRows.reduce((sum: number, r: any) => sum + r.rolls, 0);
+  const totalWeight = stockRows.reduce((sum: number, r: any) => sum + r.weight, 0);
+  const totalMeters = stockRows.reduce((sum: number, r: any) => sum + r.meters, 0);
+
   return (
     <>
       <PageHeader title="Fabric Stock Inventory" description="Fabric stock grouped by type, with roll-level drill-down." />
@@ -60,6 +64,12 @@ export default async function FabricStockPage() {
                       <TableCell className="text-right text-base font-medium">{formatNumber(Math.floor(row.meters), 0)}</TableCell>
                     </TableRow>
                   ))}
+                  <TableRow className="bg-muted/50 font-bold border-t-2">
+                    <TableCell className="text-base font-bold">Total</TableCell>
+                    <TableCell className="text-right text-base font-bold">{totalRolls}</TableCell>
+                    <TableCell className="text-right text-base font-bold">{formatNumber(totalWeight, 2)}</TableCell>
+                    <TableCell className="text-right text-base font-bold">{formatNumber(Math.floor(totalMeters), 0)}</TableCell>
+                  </TableRow>
                 </TableBody>
               </Table>
             </div>
