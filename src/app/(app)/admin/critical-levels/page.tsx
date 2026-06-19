@@ -35,7 +35,7 @@ export default async function CriticalLevelsPage() {
 
   // Group materials by department
   const grouped = materials.reduce<Record<string, any[]>>((acc, material) => {
-    const dept = material.department || "fabric";
+    const dept = (material.department || "fabric").toLowerCase();
     acc[dept] ??= [];
     acc[dept].push(material);
     return acc;
@@ -75,7 +75,9 @@ export default async function CriticalLevelsPage() {
                       </TableHeader>
                       <TableBody>
                         {deptMaterials.map((material) => {
-                          const isLowStock = material.current_stock <= (material.critical_level ?? 0);
+                          const currentStockVal = Number(material.current_stock ?? 0);
+                          const criticalLevelVal = Number(material.critical_level ?? 0);
+                          const isLowStock = currentStockVal <= criticalLevelVal;
                           return (
                             <TableRow key={material.id}>
                               <TableCell className="font-semibold">{material.material_name}</TableCell>

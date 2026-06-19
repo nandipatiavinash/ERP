@@ -157,7 +157,7 @@ export function RollAllocationForm({
                           }`}
                         >
                           <div>
-                            <div className="font-bold text-emerald-950">Roll #{roll.roll_number.split("-").pop()}</div>
+                            <div className="font-bold text-emerald-950">{roll.roll_number}</div>
                             <div className="text-xs text-muted-foreground mt-0.5">
                               {formatNumber(roll.meters, 0)} m | {formatNumber(roll.weight, 2)} kg
                             </div>
