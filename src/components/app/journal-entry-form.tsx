@@ -450,7 +450,7 @@ export function JournalEntryForm({
   );
 }
 
-// Searchable Account Dropdown Component
+// Account Dropdown Component
 function SearchableAccountSelect({
   value,
   onChange,
@@ -463,9 +463,7 @@ function SearchableAccountSelect({
   accounts?: { name: string }[];
 }) {
   const [isOpen, setIsOpen] = useState(false);
-  const [search, setSearch] = useState("");
   const containerRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
 
   // Close dropdown on click outside
   useEffect(() => {
@@ -478,17 +476,8 @@ function SearchableAccountSelect({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const filteredAccounts = useMemo(() => {
-    const q = search.toLowerCase().trim();
-    if (!q) return accounts;
-    return accounts.filter(
-      (a) => a.name.toLowerCase().includes(q)
-    );
-  }, [search, accounts]);
-
   const handleSelect = (name: string) => {
     onChange(name);
-    setSearch("");
     setIsOpen(false);
   };
 
@@ -498,7 +487,6 @@ function SearchableAccountSelect({
         onClick={() => {
           if (!disabled) {
             setIsOpen(!isOpen);
-            setTimeout(() => inputRef.current?.focus(), 50);
           }
         }}
         className={`h-10 w-full px-3 flex items-center justify-between rounded-md border bg-background text-sm cursor-pointer shadow-sm focus-within:ring-1 focus-within:ring-primary ${
@@ -511,29 +499,13 @@ function SearchableAccountSelect({
 
       {isOpen && (
         <div className="absolute left-0 mt-1.5 min-w-[340px] w-max max-w-[90vw] max-h-[400px] overflow-y-auto border border-emerald-100 bg-white rounded-lg shadow-xl z-50">
-          {/* Search box inside dropdown */}
-          <div className="sticky top-0 bg-white p-2 z-10 border-b border-gray-100">
-            <div className="relative">
-              <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
-              <input
-                ref={inputRef}
-                type="text"
-                placeholder="Search firm / client name..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="h-9 pl-8 pr-3 w-full rounded-md border border-emerald-100 bg-emerald-50/20 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500"
-              />
-            </div>
-          </div>
-
-          {/* List items */}
           <div className="py-1">
-            {filteredAccounts.length === 0 ? (
+            {accounts.length === 0 ? (
               <div className="p-4 text-center text-sm text-muted-foreground">
                 No firms / clients found
               </div>
             ) : (
-              filteredAccounts.map((item) => (
+              accounts.map((item) => (
                 <div
                   key={item.name}
                   onClick={() => handleSelect(item.name)}
@@ -551,3 +523,4 @@ function SearchableAccountSelect({
     </div>
   );
 }
+
