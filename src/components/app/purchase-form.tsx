@@ -49,8 +49,8 @@ export function PurchaseForm({
       {
         key: `item-${Date.now()}-${Math.random()}`,
         raw_material_id: draft.raw_material_id,
-        material_label: `${mat.material_name} (${mat.unit})`,
-        unit: mat.unit,
+        material_label: mat.material_name,
+        unit: mat.unit && mat.unit !== "-" ? mat.unit : "",
         quantity: draft.quantity,
         rate: draft.rate,
       },
@@ -203,7 +203,7 @@ export function PurchaseForm({
                   className="grid grid-cols-[2fr_1fr_1fr_1fr_auto] gap-3 items-center px-3 py-2 rounded-md bg-muted/20 border text-sm"
                 >
                   <span className="font-medium truncate">{idx + 1}. {item.material_label}</span>
-                  <span>{item.quantity} {item.unit}</span>
+                  <span>{item.quantity}{item.unit ? ` ${item.unit}` : ""}</span>
                   <span>₹{item.rate}</span>
                   <span className="font-semibold">₹{amount.toFixed(2)}</span>
                   <button
@@ -218,16 +218,7 @@ export function PurchaseForm({
               );
             })}
 
-            {/* Total row */}
-            <div className="grid grid-cols-[2fr_1fr_1fr_1fr_auto] gap-3 items-center px-3 py-2 rounded-md bg-primary/5 border-t font-bold text-sm">
-              <span>{items.length} item{items.length !== 1 ? "s" : ""}</span>
-              <span></span>
-              <span>Total</span>
-              <span className="text-primary">
-                ₹{items.reduce((s, it) => s + (Number(it.quantity) || 0) * (Number(it.rate) || 0), 0).toFixed(2)}
-              </span>
-              <span></span>
-            </div>
+
           </div>
         )}
 
