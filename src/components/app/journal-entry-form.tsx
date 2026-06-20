@@ -60,12 +60,14 @@ export function JournalEntryForm({
   nextJournalNo = "JE-000001",
   editJournalNo = "",
   editJournalDate = "",
+  accounts = [],
   row // Legacy single row fallback (e.g. prefill from Sales Page)
 }: {
   initialRows?: any[];
   nextJournalNo?: string;
   editJournalNo?: string;
   editJournalDate?: string;
+  accounts?: { category: string; name: string }[];
   row?: { account_name?: string; entry_type?: "debit" | "credit" };
 }) {
   const isEditing = !!editJournalNo;
@@ -308,6 +310,7 @@ export function JournalEntryForm({
                       value={rowObj.accountName}
                       onChange={(val) => handleRowChange(index, { accountName: val })}
                       disabled={isSaving}
+                      accounts={accounts}
                     />
                     {rowObj.errors.accountName && (
                       <p className="text-xs text-destructive mt-1 font-medium">
@@ -482,11 +485,13 @@ export function JournalEntryForm({
 function SearchableAccountSelect({
   value,
   onChange,
-  disabled
+  disabled,
+  accounts = []
 }: {
   value: string;
   onChange: (val: string) => void;
   disabled?: boolean;
+  accounts?: { category: string; name: string }[];
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -504,17 +509,21 @@ function SearchableAccountSelect({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  const allAccounts = useMemo(() => {
+    return [...accounts, ...CHART_OF_ACCOUNTS];
+  }, [accounts]);
+
   const filteredAccounts = useMemo(() => {
     const q = search.toLowerCase().trim();
-    if (!q) return CHART_OF_ACCOUNTS;
-    return CHART_OF_ACCOUNTS.filter(
+    if (!q) return allAccounts;
+    return allAccounts.filter(
       (a) => a.name.toLowerCase().includes(q) || a.category.toLowerCase().includes(q)
     );
-  }, [search]);
+  }, [search, allAccounts]);
 
   // Group accounts by category
   const groupedAccounts = useMemo(() => {
-    const groups: Record<string, typeof CHART_OF_ACCOUNTS> = {};
+    const groups: Record<string, typeof allAccounts> = {};
     for (const a of filteredAccounts) {
       if (!groups[a.category]) {
         groups[a.category] = [];
@@ -522,7 +531,7 @@ function SearchableAccountSelect({
       groups[a.category].push(a);
     }
     return groups;
-  }, [filteredAccounts]);
+  }, [filteredAccounts, allAccounts]);
 
   const handleSelect = (name: string) => {
     onChange(name);

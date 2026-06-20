@@ -30,14 +30,27 @@ export default async function AccountsJournalPage(props: {
 
   const supabase = await createClient();
 
-  // 1. Fetch entries
-  const { data: entries } = await supabase
-    .from("accounts_journal")
-    .select("*")
-    .is("deleted_at", null)
-    .order("entry_date", { ascending: false })
-    .order("created_at", { ascending: false })
-    .limit(300);
+  // 1. Fetch entries + customers (for account dropdown)
+  const [{ data: entries }, { data: customers }] = await Promise.all([
+    supabase
+      .from("accounts_journal")
+      .select("*")
+      .is("deleted_at", null)
+      .order("entry_date", { ascending: false })
+      .order("created_at", { ascending: false })
+      .limit(300),
+    supabase
+      .from("customers")
+      .select("id, customer_name, alias, gst_number")
+      .eq("status", "active")
+      .is("deleted_at", null)
+      .order("customer_name")
+  ]);
+
+  const accountsList = ((customers ?? []) as any[]).map((c) => ({
+    category: "Clients / Firms",
+    name: c.customer_name + (c.alias ? ` (${c.alias})` : ""),
+  }));
 
   const rows = (entries ?? []) as JournalEntryRow[];
 
@@ -150,6 +163,7 @@ export default async function AccountsJournalPage(props: {
             nextJournalNo={nextJournalNo}
             editJournalNo={editJournalNo}
             editJournalDate={editJournalDate}
+            accounts={accountsList}
           />
         </CardContent>
       </Card>
