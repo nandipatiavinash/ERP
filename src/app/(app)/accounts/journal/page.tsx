@@ -142,20 +142,7 @@ export default async function AccountsJournalPage(props: {
       />
 
       <Card className="mb-5 border-emerald-100 shadow-sm">
-        <CardHeader className="bg-emerald-50/20 border-b border-emerald-100 flex flex-row items-center justify-between">
-          <CardTitle className="text-emerald-900">
-            {isEditing ? `Edit Journal Entry: ${editJournalNo}` : "New Journal Entry"}
-          </CardTitle>
-          {isEditing && (
-            <Link
-              href="/accounts/journal"
-              className="text-sm font-semibold text-emerald-600 hover:text-emerald-800"
-            >
-              Cancel Edit & Create New
-            </Link>
-          )}
-        </CardHeader>
-        <CardContent className="pt-6">
+        <CardContent className="p-6">
           <JournalEntryForm
             key={editJournalNo || "new"}
             initialRows={editRows}

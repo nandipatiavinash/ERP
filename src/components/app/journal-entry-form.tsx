@@ -7,6 +7,7 @@ import { ConfirmSubmitButton } from "@/components/app/confirm-submit-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
 
 
@@ -232,17 +233,31 @@ export function JournalEntryForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
-      {/* Header Section */}
-      <div className="bg-emerald-50/50 p-4 rounded-xl border border-emerald-100">
-        <div className="space-y-2 max-w-xs">
-          <Label className="text-emerald-900 font-medium">Journal Date</Label>
+      {/* Header Section with Title and Date Inline */}
+      <div className="flex flex-row items-center justify-between gap-4 border-b border-emerald-100 pb-4 mb-2">
+        <div className="flex items-center gap-3">
+          <h2 className="text-base font-bold text-emerald-950">
+            {isEditing ? `Edit Journal Entry: ${journalNo}` : "New Journal Entry"}
+          </h2>
+          {isEditing && (
+            <Link
+              href="/accounts/journal"
+              className="text-xs font-semibold text-emerald-600 hover:text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-100 hover:bg-emerald-100 transition-colors"
+            >
+              Cancel Edit
+            </Link>
+          )}
+        </div>
+        
+        <div className="flex items-center gap-2">
+          <Label className="text-emerald-900 font-semibold text-xs uppercase tracking-wider shrink-0">Date:</Label>
           <Input
             type="date"
             required
             value={entryDate}
             onChange={(e) => setEntryDate(e.target.value)}
             disabled={isSaving}
-            className="bg-white border-emerald-200 text-emerald-950 font-semibold"
+            className="w-36 h-9 text-xs bg-white border-emerald-200 text-emerald-950 font-semibold px-2.5 py-1 rounded-lg"
           />
         </div>
       </div>
