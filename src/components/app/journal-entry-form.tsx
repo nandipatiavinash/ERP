@@ -254,16 +254,16 @@ export function JournalEntryForm({
       </div>
 
       {/* Main Rows Table */}
-      <div className="border rounded-xl overflow-hidden shadow-sm bg-white">
+      <div className="border rounded-xl shadow-sm bg-white">
         <div className="overflow-x-auto max-h-[450px]">
-          <table className="w-full text-left border-collapse table-fixed">
+          <table className="w-full text-left border-collapse" style={{ minWidth: '900px' }}>
             <thead className="sticky top-0 bg-emerald-50 border-b border-emerald-100 text-xs font-semibold text-emerald-800 uppercase tracking-wider z-20">
               <tr>
-                <th className="p-3" style={{ width: '40%' }}>Account Name</th>
-                <th className="p-3" style={{ width: '28%' }}>Description</th>
-                <th className="p-3 w-[130px] text-right">Debit (₹)</th>
-                <th className="p-3 w-[130px] text-right">Credit (₹)</th>
-                <th className="p-3 w-[90px] text-center">Actions</th>
+                <th className="p-4" style={{ width: '35%', minWidth: '280px' }}>Account Name</th>
+                <th className="p-4" style={{ width: '30%', minWidth: '200px' }}>Description</th>
+                <th className="p-4 text-right" style={{ width: '14%', minWidth: '120px' }}>Debit (₹)</th>
+                <th className="p-4 text-right" style={{ width: '14%', minWidth: '120px' }}>Credit (₹)</th>
+                <th className="p-4 text-center" style={{ width: '7%', minWidth: '80px' }}>Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -274,7 +274,7 @@ export function JournalEntryForm({
                   className="hover:bg-slate-50/50 transition-colors"
                 >
                   {/* Account Name Dropdown */}
-                  <td className="p-3 align-top">
+                  <td className="p-4 align-top" style={{ overflow: 'visible' }}>
                     <SearchableAccountSelect
                       value={rowObj.accountName}
                       onChange={(val) => handleRowChange(index, { accountName: val })}
@@ -289,7 +289,7 @@ export function JournalEntryForm({
                   </td>
 
                   {/* Description Input */}
-                  <td className="p-3 align-top">
+                  <td className="p-4 align-top">
                     <Input
                       placeholder="Line item description..."
                       value={rowObj.description}
@@ -305,7 +305,7 @@ export function JournalEntryForm({
                   </td>
 
                   {/* Debit Amount */}
-                  <td className="p-3 align-top">
+                  <td className="p-4 align-top">
                     <Input
                       type="number"
                       step="0.01"
@@ -329,7 +329,7 @@ export function JournalEntryForm({
                   </td>
 
                   {/* Credit Amount */}
-                  <td className="p-3 align-top">
+                  <td className="p-4 align-top">
                     <Input
                       type="number"
                       step="0.01"
@@ -353,7 +353,7 @@ export function JournalEntryForm({
                   </td>
 
                   {/* Row Actions */}
-                  <td className="p-3 align-top text-center">
+                  <td className="p-4 align-top text-center">
                     <div className="flex items-center justify-center gap-1">
                       <Button
                         type="button"
