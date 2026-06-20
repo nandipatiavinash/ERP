@@ -233,14 +233,8 @@ export function JournalEntryForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {/* Header Section */}
-      <div className="grid gap-4 sm:grid-cols-2 bg-emerald-50/50 p-4 rounded-xl border border-emerald-100">
-        <div className="space-y-2">
-          <Label className="text-emerald-900 font-medium">Journal Entry Number</Label>
-          <div className="h-10 px-3 flex items-center bg-white border border-emerald-200 rounded-md font-bold text-emerald-950 font-mono shadow-sm">
-            {journalNo}
-          </div>
-        </div>
-        <div className="space-y-2">
+      <div className="bg-emerald-50/50 p-4 rounded-xl border border-emerald-100">
+        <div className="space-y-2 max-w-xs">
           <Label className="text-emerald-900 font-medium">Journal Date</Label>
           <Input
             type="date"
@@ -248,10 +242,11 @@ export function JournalEntryForm({
             value={entryDate}
             onChange={(e) => setEntryDate(e.target.value)}
             disabled={isSaving}
-            className="border-emerald-200 bg-white"
+            className="bg-white border-emerald-200 text-emerald-950 font-semibold"
           />
         </div>
       </div>
+
 
       {/* Header Row */}
       <div className="border border-emerald-100 rounded-xl overflow-hidden shadow-sm bg-white">
@@ -382,7 +377,7 @@ export function JournalEntryForm({
       )}
 
       {/* Validation Message & Submission */}
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col items-start gap-3">
         {totalDebit !== totalCredit && totalDebit > 0 && (
           <p className="text-sm text-destructive font-semibold">
             Total Debit must be equal to Total Credit before submitting.
@@ -392,7 +387,7 @@ export function JournalEntryForm({
           confirmTitle={isEditing ? "Update journal entry?" : "Log journal entry?"}
           confirmDescription="Ensure all account lines, descriptions, and debits/credits are correct before submitting."
           disabled={!isValid || isSaving}
-          className="w-full h-11 text-base shadow-sm"
+          className="w-auto px-6 h-10 text-sm shadow-sm"
         >
           {isSaving
             ? "Saving..."

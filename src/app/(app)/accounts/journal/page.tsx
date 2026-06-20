@@ -185,7 +185,6 @@ export default async function AccountsJournalPage(props: {
                 <TableHeader className="bg-emerald-50/45">
                   <TableRow>
                     <TableHead className="w-[120px]">Date</TableHead>
-                    <th className="p-3 text-left w-[140px] font-semibold text-sm text-muted-foreground uppercase tracking-wider">Journal No</th>
                     <TableHead>Account details</TableHead>
                     <TableHead className="text-right w-[150px]">Amount (₹)</TableHead>
                     <TableHead className="w-[140px] text-right">Actions</TableHead>
@@ -195,11 +194,10 @@ export default async function AccountsJournalPage(props: {
                   {groupedList.map((entry: any) => (
                     <TableRow key={entry.journal_no} className="hover:bg-slate-50/40">
                       <TableCell className="align-top font-medium">{formatDate(entry.entry_date)}</TableCell>
-                      <TableCell className="align-top font-bold text-emerald-950 font-mono">{entry.journal_no}</TableCell>
                       <TableCell className="p-3">
-                        <div className="space-y-1.5">
+                        <div className="space-y-2">
                           {entry.lines.map((line: any) => (
-                            <div key={line.id} className="flex items-start justify-between text-sm">
+                            <div key={line.id} className="flex items-center justify-between text-sm min-h-[24px]">
                               <div>
                                 <span className={line.entry_type === "credit" ? "pl-6 text-slate-500" : "font-semibold text-slate-800"}>
                                   {line.account_name}
@@ -208,15 +206,21 @@ export default async function AccountsJournalPage(props: {
                                   ({line.description})
                                 </span>
                               </div>
-                              <span className="text-xs font-mono font-bold text-slate-500">
+                              <span className="text-xs font-mono font-bold text-slate-400 border border-slate-100 px-1.5 py-0.5 rounded bg-slate-50">
                                 {line.entry_type === "debit" ? "Dr" : "Cr"}
                               </span>
                             </div>
                           ))}
                         </div>
                       </TableCell>
-                      <TableCell className="align-top text-right font-bold text-emerald-950 font-mono">
-                        ₹{formatNumber(entry.total, 2)}
+                      <TableCell className="p-3 text-right">
+                        <div className="space-y-2">
+                          {entry.lines.map((line: any) => (
+                            <div key={line.id} className="text-sm font-bold text-emerald-950 font-mono min-h-[24px] flex items-center justify-end">
+                              ₹{formatNumber(line.amount, 2)}
+                            </div>
+                          ))}
+                        </div>
                       </TableCell>
                       <TableCell className="align-top text-right">
                         <div className="flex items-center justify-end gap-2">
