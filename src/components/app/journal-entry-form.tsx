@@ -351,34 +351,6 @@ export function JournalEntryForm({
         ))}
       </div>
 
-      {/* Real-time Totals and Status */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 border rounded-xl bg-slate-50/80">
-        <div className="space-y-1">
-          <div className="text-sm font-semibold text-slate-700 flex flex-wrap gap-x-4">
-            <span>Total Debit: <span className="font-mono text-emerald-950 font-bold">₹{totalDebit.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></span>
-            <span>Total Credit: <span className="font-mono text-emerald-950 font-bold">₹{totalCredit.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></span>
-          </div>
-          {totalDebit !== totalCredit && totalDebit > 0 && (
-            <p className="text-xs text-destructive font-medium flex items-center gap-1 mt-1">
-              Difference: ₹{Math.abs(totalDebit - totalCredit).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
-            </p>
-          )}
-        </div>
-
-        {/* Balanced Status Indicator */}
-        <div className="shrink-0">
-          {isBalanced ? (
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-100 border border-emerald-200 text-emerald-800 text-xs font-bold shadow-sm">
-              <CheckCircle2 className="h-4 w-4" /> Balanced Journal Entry
-            </div>
-          ) : (
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-destructive/10 border border-destructive/20 text-destructive text-xs font-bold shadow-sm">
-              <XCircle className="h-4 w-4" /> Journal Entry Not Balanced
-            </div>
-          )}
-        </div>
-      </div>
-
       {/* Messages */}
       {errorText && (
         <div className="p-3.5 text-sm bg-destructive/5 border border-destructive/20 text-destructive rounded-lg font-medium">
@@ -391,25 +363,55 @@ export function JournalEntryForm({
         </div>
       )}
 
-      {/* Validation Message & Submission */}
-      <div className="flex flex-col items-start gap-3">
-        {totalDebit !== totalCredit && totalDebit > 0 && (
-          <p className="text-sm text-destructive font-semibold">
-            Total Debit must be equal to Total Credit before submitting.
-          </p>
-        )}
-        <ConfirmSubmitButton
-          confirmTitle={isEditing ? "Update journal entry?" : "Log journal entry?"}
-          confirmDescription="Ensure all account lines, descriptions, and debits/credits are correct before submitting."
-          disabled={!isValid || isSaving}
-          className="w-auto px-6 h-10 text-sm shadow-sm"
-        >
-          {isSaving
-            ? "Saving..."
-            : isEditing
-            ? "Update Journal Entry"
-            : "Submit Journal Entry"}
-        </ConfirmSubmitButton>
+      {/* Real-time Totals, Balanced Indicator, and Submission Inline */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 border rounded-xl bg-slate-50/80">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
+          <div className="space-y-1">
+            <div className="text-sm font-semibold text-slate-700 flex flex-wrap gap-x-4">
+              <span>Total Debit: <span className="font-mono text-emerald-950 font-bold">₹{totalDebit.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></span>
+              <span>Total Credit: <span className="font-mono text-emerald-950 font-bold">₹{totalCredit.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></span>
+            </div>
+            {totalDebit !== totalCredit && totalDebit > 0 && (
+              <p className="text-xs text-destructive font-medium flex items-center gap-1 mt-1">
+                Difference: ₹{Math.abs(totalDebit - totalCredit).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+              </p>
+            )}
+          </div>
+
+          {/* Balanced Status Indicator */}
+          <div className="shrink-0">
+            {isBalanced ? (
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-100 border border-emerald-200 text-emerald-800 text-xs font-bold shadow-sm">
+                <CheckCircle2 className="h-4 w-4" /> Balanced
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-destructive/10 border border-destructive/20 text-destructive text-xs font-bold shadow-sm">
+                <XCircle className="h-4 w-4" /> Not Balanced
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Submission */}
+        <div className="flex items-center gap-3">
+          {totalDebit !== totalCredit && totalDebit > 0 && (
+            <p className="text-xs text-destructive font-semibold">
+              Must be balanced to submit.
+            </p>
+          )}
+          <ConfirmSubmitButton
+            confirmTitle={isEditing ? "Update journal entry?" : "Log journal entry?"}
+            confirmDescription="Ensure all account lines, descriptions, and debits/credits are correct before submitting."
+            disabled={!isValid || isSaving}
+            className="w-auto px-5 h-10 text-sm shadow-sm"
+          >
+            {isSaving
+              ? "Saving..."
+              : isEditing
+              ? "Update Entry"
+              : "Submit Journal Entry"}
+          </ConfirmSubmitButton>
+        </div>
       </div>
     </form>
   );
