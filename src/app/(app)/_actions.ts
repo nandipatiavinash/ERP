@@ -415,8 +415,40 @@ export async function saveRawMaterialPurchase(formData: FormData) {
   const { error } = await supabase.from("raw_material_purchases").insert(inserts as any);
   if (error) throw new Error(error.message);
 
+  // Auto-generate journal entries for purchase
+  try {
+    const journalNo = await generateNextJournalNo(supabase);
+    const journalInserts = [
+      {
+        journal_no: journalNo,
+        entry_date: purchase_date,
+        account_name: "Purchase A/c",
+        entry_type: "debit",
+        amount: totalBillValue,
+        description: `${bill_number} (${supplier_name})`,
+        created_by: user.id,
+        updated_by: user.id,
+      },
+      {
+        journal_no: journalNo,
+        entry_date: purchase_date,
+        account_name: supplier_name,
+        entry_type: "credit",
+        amount: totalBillValue,
+        description: bill_number,
+        created_by: user.id,
+        updated_by: user.id,
+      },
+    ];
+    await (supabase.from("accounts_journal") as any).insert(journalInserts);
+  } catch (_journalErr) {
+    // Purchase saved successfully, journal auto-gen is best-effort
+    console.error("Auto-journal for purchase failed:", _journalErr);
+  }
+
   revalidatePath("/raw-materials");
   revalidatePath("/accounts/purchase");
+  revalidatePath("/accounts/journal");
   revalidatePath("/dashboard");
   revalidatePath("/reports");
 }
@@ -1057,3 +1089,95 @@ export async function softDeleteJournalEntryGroup(formData: FormData) {
   revalidatePath("/reports");
 }
 
+// --- Helper: generate next journal number ---
+async function generateNextJournalNo(supabase: any): Promise<string> {
+  const { data: dbJournals } = await supabase
+    .from("accounts_journal")
+    .select("journal_no")
+    .is("deleted_at", null);
+  const journalNos = ((dbJournals ?? []) as Array<{ journal_no: string | null }>)
+    .map((j) => j.journal_no)
+    .filter((no): no is string => Boolean(no));
+  let nextInt = 1;
+  for (const no of journalNos) {
+    const match = no.match(/JE-(\d+)/);
+    if (match) {
+      const val = parseInt(match[1], 10);
+      if (val >= nextInt) nextInt = val + 1;
+    }
+  }
+  return `JE-${String(nextInt).padStart(6, "0")}`;
+}
+
+export async function saveSalesOrderBilling(formData: FormData) {
+  const user = await requirePermission("sales.edit");
+  const orderId = String(formData.get("order_id") ?? "");
+  const billNumber = String(formData.get("bill_number") ?? "").trim();
+  const billValue = Number(formData.get("bill_value") ?? 0);
+
+  if (!orderId || !billNumber) {
+    throw new Error("Order ID and Bill Number are required.");
+  }
+  if (!Number.isFinite(billValue) || billValue <= 0) {
+    throw new Error("Bill Value must be a positive amount.");
+  }
+
+  const supabase = await createClient();
+
+  // Fetch the order with customer name
+  const { data: order, error: orderError } = await (supabase
+    .from("sales_orders") as any)
+    .select("id, customer_id, order_date, customers(customer_name)")
+    .eq("id", orderId)
+    .single();
+
+  if (orderError || !order) throw new Error("Sales order not found.");
+
+  const customerName = (order as any).customers?.customer_name ?? "Unknown";
+  const entryDate = (order as any).order_date ?? todayInIndia();
+
+  // Update sales order with billing info
+  const { error: updateError } = await (supabase
+    .from("sales_orders") as any)
+    .update({
+      bill_number: billNumber,
+      bill_value: billValue,
+      updated_by: user.id,
+    } as any)
+    .eq("id", orderId);
+
+  if (updateError) throw new Error(updateError.message);
+
+  // Auto-generate journal entries for sales
+  const journalNo = await generateNextJournalNo(supabase);
+  const journalInserts = [
+    {
+      journal_no: journalNo,
+      entry_date: entryDate,
+      account_name: customerName,
+      entry_type: "debit",
+      amount: billValue,
+      description: billNumber,
+      created_by: user.id,
+      updated_by: user.id,
+    },
+    {
+      journal_no: journalNo,
+      entry_date: entryDate,
+      account_name: "Sales A/c",
+      entry_type: "credit",
+      amount: billValue,
+      description: `${billNumber} (${customerName})`,
+      created_by: user.id,
+      updated_by: user.id,
+    },
+  ];
+
+  const { error: journalError } = await (supabase.from("accounts_journal") as any).insert(journalInserts);
+  if (journalError) throw new Error(journalError.message);
+
+  revalidatePath("/accounts/sales");
+  revalidatePath("/accounts/journal");
+  revalidatePath("/sales/order-confirmation");
+  revalidatePath("/reports");
+}

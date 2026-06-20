@@ -1,111 +1,76 @@
-import { JournalEntryForm } from "@/components/app/journal-entry-form";
-import { ConfirmSubmitButton } from "@/components/app/confirm-submit-button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { PageHeader } from "@/components/app/page-header";
-import { softDeleteJournalEntry, softDeleteJournalEntryGroup } from "@/app/(app)/_actions";
 import { requirePermission } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, formatNumber } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { SalesEntryClient } from "./SalesEntryClient";
 
 export default async function AccountsSalesPage() {
   await requirePermission("sales.view");
   const supabase = await createClient();
 
-  const { data: entries } = await supabase
-    .from("accounts_journal")
-    .select("*")
+  // 1. Fetch confirmed delivery orders that are NOT yet billed
+  const { data: pendingOrders } = await (supabase
+    .from("sales_orders") as any)
+    .select("id, order_number, order_date, customer_id, status, bill_number, bill_value, customers(customer_name, alias, phone, address, gst_number), sales_order_items(id, department, product_id, quantity, selected_roll_ids)")
+    .eq("status", "confirmed")
+    .is("bill_number", null)
     .is("deleted_at", null)
-    .or("account_name.ilike.%sales%,account_name.ilike.%revenue%")
-    .order("entry_date", { ascending: false })
-    .order("created_at", { ascending: false })
-    .limit(100);
+    .order("order_date", { ascending: false });
 
-  const rows = (entries ?? []) as any[];
-  const totalSales = rows.filter(r => r.entry_type === "credit").reduce((sum, r) => sum + Number(r.amount), 0);
+  // 2. Fetch billed orders
+  const { data: billedOrders } = await (supabase
+    .from("sales_orders") as any)
+    .select("id, order_number, order_date, bill_number, bill_value, customers(customer_name), sales_order_items(id, department, product_id, quantity, selected_roll_ids)")
+    .eq("status", "confirmed")
+    .not("bill_number", "is", null)
+    .is("deleted_at", null)
+    .order("order_date", { ascending: false })
+    .limit(50);
+
+  // 3. Gather all roll IDs across pending + billed orders to fetch roll data
+  const allOrders = [...((pendingOrders ?? []) as any[]), ...((billedOrders ?? []) as any[])];
+  const allRollIds: string[] = [];
+  for (const order of allOrders) {
+    for (const item of ((order as any).sales_order_items ?? []) as any[]) {
+      const ids = ((item.selected_roll_ids ?? []) as string[]);
+      allRollIds.push(...ids);
+    }
+  }
+  const uniqueRollIds = Array.from(new Set(allRollIds));
+
+  // 4. Fetch roll details with production entries
+  let rolls: any[] = [];
+  if (uniqueRollIds.length > 0) {
+    const { data: rollData } = await supabase
+      .from("fabric_rolls")
+      .select("id, roll_number, meters, weight, fabric_type_id, loom_production_entries(gross_weight, core_weight, net_weight, net_meters, average_meter_weight)")
+      .in("id", uniqueRollIds)
+      .is("deleted_at", null);
+    rolls = (rollData ?? []) as any[];
+  }
+
+  // 5. Fetch fabric types for product name lookup
+  const { data: fabricTypes } = await supabase
+    .from("fabric_types")
+    .select("id, fabric_name");
 
   return (
     <>
       <PageHeader
         title="Sales Entry"
-        description="Record sales transactions as journal entries and view the sales ledger."
+        description="View confirmed deliveries, enter billing details, and generate journal entries."
       />
 
-      <Card className="mb-5">
-        <CardHeader>
-          <CardTitle>New Sales Entry</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <JournalEntryForm row={{ account_name: "Sales", entry_type: "credit" }} />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-4">
-            Recent Sales Entries
-            <span className="text-sm font-normal text-muted-foreground">
-              Total Sales (Cr): ₹{formatNumber(totalSales, 2)}
-            </span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {rows.length === 0 ? (
-            <EmptyState title="No sales entries found" description="Sales journal entries will appear here after being saved." />
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Account</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead className="text-right">Amount (₹)</TableHead>
-                    <TableHead>Description</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {rows.map((row: any) => (
-                    <TableRow key={row.id}>
-                      <TableCell>{formatDate(row.entry_date)}</TableCell>
-                      <TableCell className="font-medium">{row.account_name}</TableCell>
-                      <TableCell>
-                        <Badge className={row.entry_type === "debit" ? "bg-red-100 text-red-800 border-red-200" : "bg-emerald-100 text-emerald-800 border-emerald-200"}>
-                          {row.entry_type === "debit" ? "Dr" : "Cr"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right font-mono">
-                        {formatNumber(row.amount, 2)}
-                      </TableCell>
-                      <TableCell>{row.description ?? "-"}</TableCell>
-                      <TableCell>
-                        <form action={row.journal_no ? softDeleteJournalEntryGroup : softDeleteJournalEntry}>
-                          {row.journal_no ? (
-                            <input type="hidden" name="journal_no" value={row.journal_no} />
-                          ) : (
-                            <input type="hidden" name="id" value={row.id} />
-                          )}
-                          <ConfirmSubmitButton
-                            size="sm"
-                            variant="outline"
-                            confirmTitle="Delete sales entry?"
-                            confirmDescription={row.journal_no ? `This will delete the entire transaction group ${row.journal_no}.` : "This will soft-delete the sales journal entry."}
-                          >
-                            Delete
-                          </ConfirmSubmitButton>
-                        </form>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      <SalesEntryClient
+        pendingOrders={(pendingOrders ?? []) as any[]}
+        billedOrders={(billedOrders ?? []) as any[]}
+        rolls={rolls}
+        fabricTypes={(fabricTypes ?? []) as any[]}
+      />
     </>
   );
 }
