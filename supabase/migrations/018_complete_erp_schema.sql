@@ -62,6 +62,8 @@ CREATE TABLE IF NOT EXISTS public.raw_material_consumptions (
 -- Enable RLS for raw_material_consumptions
 ALTER TABLE public.raw_material_consumptions ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Allow read access to permitted users on raw_material_consumptions" ON public.raw_material_consumptions;
+DROP POLICY IF EXISTS "Allow read access to permitted users on raw_material_consumptio" ON public.raw_material_consumptions;
 CREATE POLICY "Allow read access to permitted users on raw_material_consumptions"
 ON public.raw_material_consumptions FOR SELECT TO authenticated
 USING (
@@ -71,6 +73,8 @@ USING (
   OR public.is_admin()
 );
 
+DROP POLICY IF EXISTS "Allow write access to permitted users on raw_material_consumptions" ON public.raw_material_consumptions;
+DROP POLICY IF EXISTS "Allow write access to permitted users on raw_material_consumptio" ON public.raw_material_consumptions;
 CREATE POLICY "Allow write access to permitted users on raw_material_consumptions"
 ON public.raw_material_consumptions FOR ALL TO authenticated
 USING (
@@ -149,6 +153,8 @@ CREATE TABLE IF NOT EXISTS public.stage_production_entries (
 -- Enable RLS for stage_production_entries
 ALTER TABLE public.stage_production_entries ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Allow read access to permitted users on stage_production_entries" ON public.stage_production_entries;
+DROP POLICY IF EXISTS "Allow read access to permitted users on stage_production_entrie" ON public.stage_production_entries;
 CREATE POLICY "Allow read access to permitted users on stage_production_entries"
 ON public.stage_production_entries FOR SELECT TO authenticated
 USING (
@@ -158,6 +164,8 @@ USING (
   OR public.is_admin()
 );
 
+DROP POLICY IF EXISTS "Allow write access to permitted users on stage_production_entries" ON public.stage_production_entries;
+DROP POLICY IF EXISTS "Allow write access to permitted users on stage_production_entrie" ON public.stage_production_entries;
 CREATE POLICY "Allow write access to permitted users on stage_production_entries"
 ON public.stage_production_entries FOR ALL TO authenticated
 USING (
@@ -233,6 +241,8 @@ CREATE TABLE IF NOT EXISTS public.accounts_journal (
 -- Enable RLS for accounts_journal
 ALTER TABLE public.accounts_journal ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Allow read access to permitted users on accounts_journal" ON public.accounts_journal;
+DROP POLICY IF EXISTS "Allow read access to permitted users on accounts_journa" ON public.accounts_journal;
 CREATE POLICY "Allow read access to permitted users on accounts_journal"
 ON public.accounts_journal FOR SELECT TO authenticated
 USING (
@@ -241,6 +251,8 @@ USING (
   OR public.is_admin()
 );
 
+DROP POLICY IF EXISTS "Allow write access to permitted users on accounts_journal" ON public.accounts_journal;
+DROP POLICY IF EXISTS "Allow write access to permitted users on accounts_journa" ON public.accounts_journal;
 CREATE POLICY "Allow write access to permitted users on accounts_journal"
 ON public.accounts_journal FOR ALL TO authenticated
 USING (
