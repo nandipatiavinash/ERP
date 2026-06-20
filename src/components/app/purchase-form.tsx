@@ -95,116 +95,123 @@ export function PurchaseForm({
           <Input name="bill_number" placeholder="Enter bill number" required />
         </div>
 
-        <div className="rounded-md border bg-muted/40 p-3 h-10 flex items-center justify-between text-sm">
-          <span className="text-muted-foreground font-semibold">Total Bill Value:</span>
-          <span className="font-bold text-base text-emerald-950">
-            ₹{totalBillValue.toLocaleString("en-IN", {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            })}
-          </span>
-        </div>
-      </div>
+         <div className="space-y-2">
+           <Label>Total Bill Value (Including GST)</Label>
+           <Input
+             name="total_bill_value"
+             type="number"
+             required
+             placeholder="Enter total bill amount"
+           />
+         </div>
+       </div>
 
-      {/* 3rd row: Raw Material items */}
-      <div className="space-y-3">
-        <div className="flex items-center justify-between border-b pb-2">
-          <Label className="text-sm font-bold uppercase tracking-wider text-muted-foreground">
-            Purchase Items
-          </Label>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={handleAddItem}
-            className="flex items-center gap-1.5 font-semibold"
-          >
-            <Plus className="h-4 w-4" /> Add Item
-          </Button>
-        </div>
+       {/* 3rd row: Raw Material items */}
+       <div className="space-y-3">
+         <div className="flex items-center justify-between border-b pb-2">
+           <Label className="text-sm font-bold uppercase tracking-wider text-muted-foreground">
+             Purchase Items
+           </Label>
+         </div>
 
-        <div className="space-y-3">
-          {items.map((item, index) => (
-            <div key={item.key} className="flex flex-col md:flex-row gap-3 items-end bg-muted/10 p-3 rounded-lg border border-border">
-              <div className="flex-1 w-full space-y-2">
-                <Label className="md:hidden">Raw Material ID</Label>
-                {index === 0 && <Label className="hidden md:block">Raw Material ID</Label>}
-                <select
-                  name="raw_material_id"
-                  required
-                  value={item.raw_material_id}
-                  onChange={(e) => handleItemChange(item.key, "raw_material_id", e.target.value)}
-                  className="h-10 w-full rounded-md border bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-                >
-                  <option value="" disabled>Select material</option>
-                  {materials.map((material) => (
-                    <option key={material.id} value={material.id}>
-                      {material.material_name} ({material.unit})
-                    </option>
-                  ))}
-                </select>
-              </div>
+         <div className="space-y-3">
+           {items.map((item, index) => (
+             <div key={item.key} className="flex flex-col md:flex-row gap-3 items-end bg-muted/10 p-3 rounded-lg border border-border">
+               <div className="flex-1 w-full space-y-2">
+                 <Label className="md:hidden">Raw Material ID</Label>
+                 {index === 0 && <Label className="hidden md:block">Raw Material ID</Label>}
+                 <select
+                   name="raw_material_id"
+                   required
+                   value={item.raw_material_id}
+                   onChange={(e) => handleItemChange(item.key, "raw_material_id", e.target.value)}
+                   className="h-10 w-full rounded-md border bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                 >
+                   <option value="" disabled>Select material</option>
+                   {materials.map((material) => (
+                     <option key={material.id} value={material.id}>
+                       {material.material_name} ({material.unit})
+                     </option>
+                   ))}
+                 </select>
+               </div>
 
-              <div className="w-full md:w-40 space-y-2">
-                <Label className="md:hidden">Qty</Label>
-                {index === 0 && <Label className="hidden md:block">Qty</Label>}
-                <Input
-                  name="quantity"
-                  type="number"
-                  step="0.01"
-                  required
-                  value={item.quantity}
-                  onChange={(e) => handleItemChange(item.key, "quantity", e.target.value)}
-                  placeholder="0.00"
-                />
-              </div>
+               <div className="w-full md:w-40 space-y-2">
+                 <Label className="md:hidden">Qty</Label>
+                 {index === 0 && <Label className="hidden md:block">Qty</Label>}
+                 <Input
+                   name="quantity"
+                   type="number"
+                   step="0.01"
+                   required
+                   value={item.quantity}
+                   onChange={(e) => handleItemChange(item.key, "quantity", e.target.value)}
+                   placeholder="0.00"
+                 />
+               </div>
 
-              <div className="w-full md:w-40 space-y-2">
-                <Label className="md:hidden">Unit Rate (₹)</Label>
-                {index === 0 && <Label className="hidden md:block">Unit Rate (₹)</Label>}
-                <Input
-                  name="rate"
-                  type="number"
-                  step="0.01"
-                  required
-                  value={item.rate}
-                  onChange={(e) => handleItemChange(item.key, "rate", e.target.value)}
-                  placeholder="0.00"
-                />
-              </div>
+               <div className="w-full md:w-40 space-y-2">
+                 <Label className="md:hidden">Unit Rate (₹)</Label>
+                 {index === 0 && <Label className="hidden md:block">Unit Rate (₹)</Label>}
+                 <Input
+                   name="rate"
+                   type="number"
+                   step="0.01"
+                   required
+                   value={item.rate}
+                   onChange={(e) => handleItemChange(item.key, "rate", e.target.value)}
+                   placeholder="0.00"
+                 />
+               </div>
 
-              {items.length > 1 && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="text-destructive hover:text-destructive hover:bg-destructive/10 h-10 w-10 shrink-0"
-                  onClick={() => handleRemoveItem(item.key)}
-                >
-                  <Trash2 className="h-5 w-5" />
-                </Button>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
+               {items.length > 1 && (
+                 <Button
+                   type="button"
+                   variant="ghost"
+                   size="icon"
+                   className="text-destructive hover:text-destructive hover:bg-destructive/10 h-10 w-10 shrink-0"
+                   onClick={() => handleRemoveItem(item.key)}
+                 >
+                   <Trash2 className="h-5 w-5" />
+                 </Button>
+               )}
+             </div>
+           ))}
+
+           {/* Add Item Button placed aligned to the bottom-right of the items */}
+           <div className="flex justify-between items-center pt-2">
+             <div className="flex-1"></div>
+             <div className="flex gap-3">
+               <Button
+                 type="button"
+                 variant="outline"
+                 onClick={handleAddItem}
+                 className="flex items-center gap-1.5 font-semibold h-10 w-40"
+               >
+                 <Plus className="h-4 w-4" /> Add Item
+               </Button>
+               {items.length > 1 && <div className="w-10 shrink-0"></div>}
+             </div>
+           </div>
+         </div>
+       </div>
 
 
 
-      {/* Remarks */}
-      <div className="space-y-2">
-        <Label>Remarks</Label>
-        <Textarea name="remarks" placeholder="Optional remarks or notes about the purchase..." />
-      </div>
+       {/* Remarks */}
+       <div className="space-y-2">
+         <Label>Remarks</Label>
+         <Textarea name="remarks" placeholder="Optional remarks or notes about the purchase..." />
+       </div>
 
-      <div>
-        <ConfirmSubmitButton
-          confirmTitle="Save raw material purchase?"
-          confirmDescription={`Confirm client, bill number, and items count (${items.length}) before saving.`}
-        >
-          Save Purchase
-        </ConfirmSubmitButton>
-      </div>
+       <div>
+         <ConfirmSubmitButton
+           confirmTitle="Save raw material purchase?"
+           confirmDescription={`Confirm client, bill number, and items count (${items.length}) before saving.`}
+         >
+           Save Purchase
+         </ConfirmSubmitButton>
+       </div>
     </form>
   );
 }

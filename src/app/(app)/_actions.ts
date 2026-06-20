@@ -381,6 +381,9 @@ export async function saveRawMaterialPurchase(formData: FormData) {
   const quantities = formData.getAll("quantity").map(Number);
   const rates = formData.getAll("rate").map(Number);
 
+  const total_bill_value = formData.get("total_bill_value") ? String(formData.get("total_bill_value")) : "";
+  const finalRemarks = total_bill_value ? `[Total Bill Value: ₹${total_bill_value}] ${remarks}`.trim() : remarks;
+
   if (raw_material_ids.length === 0) {
     throw new Error("At least one raw material item must be added.");
   }
@@ -397,7 +400,7 @@ export async function saveRawMaterialPurchase(formData: FormData) {
       raw_material_id: id,
       quantity: qty,
       rate: rt,
-      remarks: remarks || null,
+      remarks: finalRemarks || null,
       created_by: user.id,
       updated_by: user.id,
     };
