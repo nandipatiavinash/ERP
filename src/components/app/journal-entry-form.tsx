@@ -8,38 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 
-const CHART_OF_ACCOUNTS = [
-  // Assets
-  { category: "Assets", name: "Cash in Hand" },
-  { category: "Assets", name: "Bank Account" },
-  { category: "Assets", name: "Accounts Receivable (Debtors)" },
-  { category: "Assets", name: "Raw Material Stock" },
-  { category: "Assets", name: "Finished Goods Stock" },
-  { category: "Assets", name: "Machinery & Equipment" },
-  { category: "Assets", name: "Office Equipments" },
-  // Liabilities
-  { category: "Liabilities", name: "Accounts Payable (Creditors)" },
-  { category: "Liabilities", name: "GST Payable" },
-  { category: "Liabilities", name: "Outstanding Salaries" },
-  { category: "Liabilities", name: "Bank Loan" },
-  // Equity
-  { category: "Equity", name: "Capital Account" },
-  { category: "Equity", name: "Retained Earnings" },
-  // Revenue
-  { category: "Revenue", name: "Sales Revenue" },
-  { category: "Revenue", name: "Scrap Sales" },
-  { category: "Revenue", name: "Other Income" },
-  // Expenses
-  { category: "Expenses", name: "Purchase Expense (Raw Materials)" },
-  { category: "Expenses", name: "Printing Inks Expense" },
-  { category: "Expenses", name: "Lamination Film Expense" },
-  { category: "Expenses", name: "Salaries & Wages" },
-  { category: "Expenses", name: "Electricity & Power Expense" },
-  { category: "Expenses", name: "Rent Expense" },
-  { category: "Expenses", name: "Office Expenses" },
-  { category: "Expenses", name: "Fuel & Transport Expense" },
-  { category: "Expenses", name: "Repair & Maintenance" }
-];
+
 
 type JournalRow = {
   id?: string;
@@ -67,7 +36,7 @@ export function JournalEntryForm({
   nextJournalNo?: string;
   editJournalNo?: string;
   editJournalDate?: string;
-  accounts?: { category: string; name: string }[];
+  accounts?: { name: string }[];
   row?: { account_name?: string; entry_type?: "debit" | "credit" };
 }) {
   const isEditing = !!editJournalNo;
@@ -491,7 +460,7 @@ function SearchableAccountSelect({
   value: string;
   onChange: (val: string) => void;
   disabled?: boolean;
-  accounts?: { category: string; name: string }[];
+  accounts?: { name: string }[];
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -509,29 +478,13 @@ function SearchableAccountSelect({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const allAccounts = useMemo(() => {
-    return [...accounts, ...CHART_OF_ACCOUNTS];
-  }, [accounts]);
-
   const filteredAccounts = useMemo(() => {
     const q = search.toLowerCase().trim();
-    if (!q) return allAccounts;
-    return allAccounts.filter(
-      (a) => a.name.toLowerCase().includes(q) || a.category.toLowerCase().includes(q)
+    if (!q) return accounts;
+    return accounts.filter(
+      (a) => a.name.toLowerCase().includes(q)
     );
-  }, [search, allAccounts]);
-
-  // Group accounts by category
-  const groupedAccounts = useMemo(() => {
-    const groups: Record<string, typeof allAccounts> = {};
-    for (const a of filteredAccounts) {
-      if (!groups[a.category]) {
-        groups[a.category] = [];
-      }
-      groups[a.category].push(a);
-    }
-    return groups;
-  }, [filteredAccounts, allAccounts]);
+  }, [search, accounts]);
 
   const handleSelect = (name: string) => {
     onChange(name);
@@ -557,45 +510,38 @@ function SearchableAccountSelect({
       </div>
 
       {isOpen && (
-        <div className="absolute left-0 right-0 mt-1.5 max-h-[300px] overflow-y-auto border border-emerald-100 bg-white rounded-lg shadow-xl z-50 divide-y divide-gray-100">
+        <div className="absolute left-0 mt-1.5 min-w-[340px] w-max max-w-[90vw] max-h-[400px] overflow-y-auto border border-emerald-100 bg-white rounded-lg shadow-xl z-50">
           {/* Search box inside dropdown */}
-          <div className="sticky top-0 bg-white p-2 z-10">
+          <div className="sticky top-0 bg-white p-2 z-10 border-b border-gray-100">
             <div className="relative">
               <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
               <input
                 ref={inputRef}
                 type="text"
-                placeholder="Type to search..."
+                placeholder="Search firm / client name..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="h-8 pl-8 pr-3 w-full rounded-md border border-emerald-100 bg-emerald-50/20 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                className="h-9 pl-8 pr-3 w-full rounded-md border border-emerald-100 bg-emerald-50/20 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500"
               />
             </div>
           </div>
 
           {/* List items */}
           <div className="py-1">
-            {Object.keys(groupedAccounts).length === 0 ? (
-              <div className="p-3 text-center text-xs text-muted-foreground">
-                No accounts found
+            {filteredAccounts.length === 0 ? (
+              <div className="p-4 text-center text-sm text-muted-foreground">
+                No firms / clients found
               </div>
             ) : (
-              Object.entries(groupedAccounts).map(([category, items]) => (
-                <div key={category} className="py-1">
-                  <div className="px-3 py-1 text-[10px] font-bold text-emerald-800 uppercase tracking-wider bg-emerald-50/30">
-                    {category}
-                  </div>
-                  {items.map((item) => (
-                    <div
-                      key={item.name}
-                      onClick={() => handleSelect(item.name)}
-                      className={`px-4 py-2 text-sm text-slate-700 hover:bg-emerald-50 hover:text-emerald-900 cursor-pointer flex items-center justify-between ${
-                        value === item.name ? "bg-emerald-50/50 text-emerald-900 font-medium" : ""
-                      }`}
-                    >
-                      <span>{item.name}</span>
-                    </div>
-                  ))}
+              filteredAccounts.map((item) => (
+                <div
+                  key={item.name}
+                  onClick={() => handleSelect(item.name)}
+                  className={`px-4 py-2.5 text-sm text-slate-700 hover:bg-emerald-50 hover:text-emerald-900 cursor-pointer transition-colors ${
+                    value === item.name ? "bg-emerald-50 text-emerald-900 font-semibold" : ""
+                  }`}
+                >
+                  {item.name}
                 </div>
               ))
             )}

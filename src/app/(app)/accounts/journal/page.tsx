@@ -48,8 +48,7 @@ export default async function AccountsJournalPage(props: {
   ]);
 
   const accountsList = ((customers ?? []) as any[]).map((c) => ({
-    category: "Clients / Firms",
-    name: c.customer_name + (c.alias ? ` (${c.alias})` : ""),
+    name: c.customer_name,
   }));
 
   const rows = (entries ?? []) as JournalEntryRow[];
