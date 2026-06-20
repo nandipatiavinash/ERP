@@ -166,14 +166,14 @@ export function MasterPage({
                           {formatRecordValue(row, column.key)}
                         </TableCell>
                       ))}
-                      <TableCell className="min-w-80">
+                      <TableCell>
                         <details className="space-y-3" name={`${config.key}-accordion`}>
                           <summary className="cursor-pointer text-sm font-medium text-primary">Edit</summary>
                           <RecordForm config={config} row={row} />
                         </details>
                         <form action={deactivateMaster.bind(null, config.key)} className="mt-3">
                           <input type="hidden" name="id" value={row.id} />
-                          <ConfirmSubmitButton size="sm" variant="outline" confirmTitle="Deactivate this record?" confirmDescription="This record will be marked inactive and hidden from active workflows.">Deactivate</ConfirmSubmitButton>
+                          <ConfirmSubmitButton size="sm" variant="outline" confirmTitle="Delete this record?" confirmDescription="This record will be deleted from active workflows.">Delete</ConfirmSubmitButton>
                         </form>
                       </TableCell>
                     </TableRow>
