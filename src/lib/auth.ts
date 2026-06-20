@@ -51,6 +51,7 @@ export function fallbackPermissions(role: RoleName | undefined) {
     "fabric_types.create", "fabric_types.edit", "fabric_types.delete",
     "raw_materials.create", "raw_materials.edit", "raw_materials.delete",
     "customers.create", "customers.edit", "customers.delete",
+    "roto_colors.create", "roto_colors.edit", "roto_colors.delete",
     "production.create", "production.edit",
     "sales.create", "sales.edit",
     "reports.export",
@@ -63,8 +64,9 @@ const getPermissionsForRole = cache(async function getPermissionsForRole(roleId:
   if (role === "admin") {
     const modulesList = [
       "users", "roles", "employees", "attendance", "looms", "fabric_types", "fabric-types",
-      "raw_materials", "raw-materials", "customers", "colors", "roto_products", "roto-products",
-      "offset_products", "offset-products", "production", "sales", "reports", "rolls", "dashboard"
+      "raw_materials", "raw-materials", "customers", "colors", "roto_colors", "roto-colors",
+      "roto_products", "roto-products", "offset_products", "offset-products",
+      "production", "sales", "reports", "rolls", "dashboard"
     ];
     const actionsList = ["view", "create", "edit", "delete", "export"];
     const allPerms = [];
