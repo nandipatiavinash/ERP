@@ -259,11 +259,11 @@ export function JournalEntryForm({
           <table className="w-full text-left border-collapse table-fixed">
             <thead className="sticky top-0 bg-emerald-50 border-b border-emerald-100 text-xs font-semibold text-emerald-800 uppercase tracking-wider z-20">
               <tr>
-                <th className="p-3 w-[260px]">Account Name</th>
-                <th className="p-3 w-[320px]">Description</th>
-                <th className="p-3 w-[150px] text-right">Debit (₹)</th>
-                <th className="p-3 w-[150px] text-right">Credit (₹)</th>
-                <th className="p-3 w-[100px] text-center">Actions</th>
+                <th className="p-3" style={{ width: '40%' }}>Account Name</th>
+                <th className="p-3" style={{ width: '28%' }}>Description</th>
+                <th className="p-3 w-[130px] text-right">Debit (₹)</th>
+                <th className="p-3 w-[130px] text-right">Credit (₹)</th>
+                <th className="p-3 w-[90px] text-center">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -489,7 +489,7 @@ function SearchableAccountSelect({
             setIsOpen(!isOpen);
           }
         }}
-        className={`h-10 w-full px-3 flex items-center justify-between rounded-md border bg-background text-sm cursor-pointer shadow-sm focus-within:ring-1 focus-within:ring-primary ${
+        className={`h-12 w-full px-4 flex items-center justify-between rounded-md border bg-background text-base cursor-pointer shadow-sm focus-within:ring-1 focus-within:ring-primary ${
           disabled ? "opacity-50 cursor-not-allowed bg-muted" : "hover:border-emerald-300"
         } ${value ? "text-emerald-950 font-medium border-emerald-200" : "text-muted-foreground"}`}
       >
@@ -498,10 +498,10 @@ function SearchableAccountSelect({
       </div>
 
       {isOpen && (
-        <div className="absolute left-0 mt-1.5 min-w-[340px] w-max max-w-[90vw] max-h-[400px] overflow-y-auto border border-emerald-100 bg-white rounded-lg shadow-xl z-50">
-          <div className="py-1">
+        <div className="absolute left-0 mt-1.5 min-w-full w-max max-w-[90vw] max-h-[50vh] overflow-y-auto border border-emerald-100 bg-white rounded-lg shadow-2xl z-50">
+          <div className="py-2">
             {accounts.length === 0 ? (
-              <div className="p-4 text-center text-sm text-muted-foreground">
+              <div className="p-5 text-center text-base text-muted-foreground">
                 No firms / clients found
               </div>
             ) : (
@@ -509,7 +509,7 @@ function SearchableAccountSelect({
                 <div
                   key={item.name}
                   onClick={() => handleSelect(item.name)}
-                  className={`px-4 py-2.5 text-sm text-slate-700 hover:bg-emerald-50 hover:text-emerald-900 cursor-pointer transition-colors ${
+                  className={`px-5 py-3 text-base text-slate-700 hover:bg-emerald-50 hover:text-emerald-900 cursor-pointer transition-colors ${
                     value === item.name ? "bg-emerald-50 text-emerald-900 font-semibold" : ""
                   }`}
                 >
