@@ -16,10 +16,10 @@ import { formatDate, formatNumber } from "@/lib/utils";
 
 type Row = Record<string, unknown> & { id: string };
 
-function Field({ field, value }: { field: ModuleConfig["fields"][number]; value?: unknown }) {
+function Field({ field, value, isEdit = false }: { field: ModuleConfig["fields"][number]; value?: unknown; isEdit?: boolean }) {
   const defaultValue = String(value ?? (field.name === "status" ? "active" : field.name === "department" ? "fabric" : field.name === "shift_start" ? "09:00" : field.name === "shift_end" ? "18:00" : ""));
   return (
-    <div className={field.fullWidth ? "space-y-2 md:col-span-2" : "space-y-2"}>
+    <div className={(field.fullWidth && !isEdit) ? "space-y-2 md:col-span-2" : "space-y-2"}>
       <Label htmlFor={field.name}>{field.label}</Label>
       {field.type === "select" ? (
         <select name={field.name} id={field.name} defaultValue={defaultValue} required={field.required} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
@@ -36,13 +36,13 @@ function Field({ field, value }: { field: ModuleConfig["fields"][number]; value?
   );
 }
 
-function RecordForm({ config, row }: { config: ModuleConfig; row?: Row }) {
+function RecordForm({ config, row, isEdit = false }: { config: ModuleConfig; row?: Row; isEdit?: boolean }) {
   const action = saveMaster.bind(null, config.key);
   return (
-    <form action={action} className="grid gap-4 md:grid-cols-2">
+    <form action={action} className={`grid gap-4 ${isEdit ? "grid-cols-1" : "md:grid-cols-2"} text-left`}>
       {row ? <input type="hidden" name="id" value={row.id} /> : null}
-      {config.fields.map((field) => <Field key={field.name} field={field} value={row?.[field.name]} />)}
-      <div className="flex items-end md:col-span-2">
+      {config.fields.map((field) => <Field key={field.name} field={field} value={row?.[field.name]} isEdit={isEdit} />)}
+      <div className={`flex items-end ${isEdit ? "" : "md:col-span-2"}`}>
         <ConfirmSubmitButton confirmTitle={row ? "Save record changes?" : "Create new record?"} confirmDescription="Review the details before confirming this record change.">
           {row ? "Save Changes" : "Add Record"}
         </ConfirmSubmitButton>
@@ -148,28 +148,28 @@ export function MasterPage({
                     {config.columns.map((column) => {
                       const nextDirection = sort === column.key && direction === "asc" ? "desc" : "asc";
                       return (
-                        <TableHead key={column.key}>
-                          <Link href={query(1, column.key, nextDirection) as any} className="inline-flex items-center gap-1 hover:text-foreground">
+                        <TableHead key={column.key} className="text-center">
+                          <Link href={query(1, column.key, nextDirection) as any} className="inline-flex items-center justify-center gap-1 hover:text-foreground w-full">
                             {column.label}
                           </Link>
                         </TableHead>
                       );
                     })}
-                    <TableHead>Actions</TableHead>
+                    <TableHead className="text-center">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {pagedRows.map((row) => (
                     <TableRow key={row.id}>
                       {config.columns.map((column) => (
-                        <TableCell key={column.key}>
+                        <TableCell key={column.key} className="text-center">
                           {formatRecordValue(row, column.key)}
                         </TableCell>
                       ))}
-                      <TableCell>
+                      <TableCell className="text-center">
                         <details className="space-y-3" name={`${config.key}-accordion`}>
-                          <summary className="cursor-pointer text-sm font-medium text-primary">Edit</summary>
-                          <RecordForm config={config} row={row} />
+                          <summary className="cursor-pointer text-sm font-medium text-primary inline-block">Edit</summary>
+                          <RecordForm config={config} row={row} isEdit={true} />
                         </details>
                         <form action={deactivateMaster.bind(null, config.key)} className="mt-3">
                           <input type="hidden" name="id" value={row.id} />
