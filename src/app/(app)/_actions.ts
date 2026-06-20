@@ -132,8 +132,6 @@ function validateMasterPayload(moduleKey: string, payload: Record<string, unknow
     } else if (numericFields.has(field.name)) {
       const numeric = numericPositive.has(field.name) ? z.number().positive() : z.number().min(0);
       shape[field.name] = field.required ? numeric : numeric.optional();
-    } else if (field.name === "is_internal") {
-      shape[field.name] = z.preprocess((val) => val === "true" || val === true, z.boolean());
     } else {
       const text = field.required ? z.string().trim().min(1) : z.string().trim().optional();
       shape[field.name] = text;

@@ -192,7 +192,7 @@ export type Database = {
         phone: string | null;
         gst_number: string | null;
         address: string | null;
-        is_internal: boolean;
+        is_internal: string;
         status: Status;
         created_by: string | null;
         updated_by: string | null;

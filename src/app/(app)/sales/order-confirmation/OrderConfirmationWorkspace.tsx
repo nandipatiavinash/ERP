@@ -41,7 +41,7 @@ type Customer = {
   phone?: string;
   gst_number?: string;
   address?: string;
-  is_internal: boolean;
+  is_internal: string;
   status: string;
 };
 
