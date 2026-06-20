@@ -13,12 +13,14 @@ export function ProductionForm({
   fabrics,
   looms,
   lastMeters,
+  nextSerials,
   isAdmin,
   row,
 }: {
   fabrics: Option[];
   looms: Option[];
   lastMeters: Record<string, number>;
+  nextSerials?: Record<string, string>;
   isAdmin: boolean;
   row?: Record<string, any>;
 }) {
@@ -46,7 +48,9 @@ export function ProductionForm({
   const netWeight = Math.max(Number(gross || 0) - Number(core || 0), 0);
   const netMeters = Math.max(Number(endMeters || 0) - initialMeters, 0);
   const avg = netMeters > 0 ? (netWeight / netMeters) * 1000 : 0;
-  const nextSerial = row?.serial_number ?? "Auto";
+  const nextSerial = row?.serial_number
+    ? row.serial_number
+    : (fabricId && nextSerials ? (nextSerials[fabricId] ?? "1") : "Select fabric");
 
   const summary = useMemo(() => ({ netWeight, netMeters: Math.floor(netMeters), avg: Math.floor(avg) }), [netWeight, netMeters, avg]);
 
