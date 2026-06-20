@@ -1,32 +1,256 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
+import { Plus, Trash2, CheckCircle2, XCircle, Search } from "lucide-react";
 import { saveJournalEntry } from "@/app/(app)/_actions";
 import { ConfirmSubmitButton } from "@/components/app/confirm-submit-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
 
-export function JournalEntryForm({ row }: { row?: Record<string, any> }) {
+const CHART_OF_ACCOUNTS = [
+  // Assets
+  { category: "Assets", name: "Cash in Hand" },
+  { category: "Assets", name: "Bank Account" },
+  { category: "Assets", name: "Accounts Receivable (Debtors)" },
+  { category: "Assets", name: "Raw Material Stock" },
+  { category: "Assets", name: "Finished Goods Stock" },
+  { category: "Assets", name: "Machinery & Equipment" },
+  { category: "Assets", name: "Office Equipments" },
+  // Liabilities
+  { category: "Liabilities", name: "Accounts Payable (Creditors)" },
+  { category: "Liabilities", name: "GST Payable" },
+  { category: "Liabilities", name: "Outstanding Salaries" },
+  { category: "Liabilities", name: "Bank Loan" },
+  // Equity
+  { category: "Equity", name: "Capital Account" },
+  { category: "Equity", name: "Retained Earnings" },
+  // Revenue
+  { category: "Revenue", name: "Sales Revenue" },
+  { category: "Revenue", name: "Scrap Sales" },
+  { category: "Revenue", name: "Other Income" },
+  // Expenses
+  { category: "Expenses", name: "Purchase Expense (Raw Materials)" },
+  { category: "Expenses", name: "Printing Inks Expense" },
+  { category: "Expenses", name: "Lamination Film Expense" },
+  { category: "Expenses", name: "Salaries & Wages" },
+  { category: "Expenses", name: "Electricity & Power Expense" },
+  { category: "Expenses", name: "Rent Expense" },
+  { category: "Expenses", name: "Office Expenses" },
+  { category: "Expenses", name: "Fuel & Transport Expense" },
+  { category: "Expenses", name: "Repair & Maintenance" }
+];
+
+type JournalRow = {
+  id?: string;
+  key: string;
+  accountName: string;
+  description: string;
+  debit: string;
+  credit: string;
+  errors: {
+    accountName?: string;
+    description?: string;
+    amount?: string;
+  };
+};
+
+export function JournalEntryForm({
+  initialRows = [],
+  nextJournalNo = "JE-000001",
+  editJournalNo = "",
+  editJournalDate = "",
+  row // Legacy single row fallback (e.g. prefill from Sales Page)
+}: {
+  initialRows?: any[];
+  nextJournalNo?: string;
+  editJournalNo?: string;
+  editJournalDate?: string;
+  row?: { account_name?: string; entry_type?: "debit" | "credit" };
+}) {
+  const isEditing = !!editJournalNo;
+  const [journalNo] = useState(isEditing ? editJournalNo : nextJournalNo);
+  const [entryDate, setEntryDate] = useState(
+    isEditing ? editJournalDate : new Date().toISOString().slice(0, 10)
+  );
+
+  // Initialize rows: loaded edit rows, or prefill from 'row' prop, or two empty rows
+  const [rows, setRows] = useState<JournalRow[]>(() => {
+    if (initialRows.length > 0) {
+      return initialRows.map((r) => ({
+        id: r.id,
+        key: `row-${r.id}-${Math.random()}`,
+        accountName: r.account_name,
+        description: r.description ?? "",
+        debit: r.entry_type === "debit" ? String(r.amount) : "",
+        credit: r.entry_type === "credit" ? String(r.amount) : "",
+        errors: {}
+      }));
+    }
+
+    if (row?.account_name) {
+      return [
+        {
+          key: `row-init-1`,
+          accountName: row.entry_type === "credit" ? "Accounts Receivable (Debtors)" : row.account_name,
+          description: "Sales entry",
+          debit: row.entry_type === "debit" ? "" : "",
+          credit: "",
+          errors: {}
+        },
+        {
+          key: `row-init-2`,
+          accountName: row.entry_type === "credit" ? row.account_name : "Accounts Receivable (Debtors)",
+          description: "Sales entry",
+          debit: "",
+          credit: "",
+          errors: {}
+        }
+      ];
+    }
+
+    return [
+      { key: "row-1", accountName: "", description: "", debit: "", credit: "", errors: {} },
+      { key: "row-2", accountName: "", description: "", debit: "", credit: "", errors: {} }
+    ];
+  });
+
+  const [lastAddedKey, setLastAddedKey] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [errorText, setErrorText] = useState<string | null>(null);
-  const [accountName, setAccountName] = useState(row?.account_name ?? "");
-  const [entryType, setEntryType] = useState(row?.entry_type ?? "");
-  const [amount, setAmount] = useState(row?.amount == null ? "" : String(row.amount));
+  const [successText, setSuccessText] = useState<string | null>(null);
+
+  // Auto-focus on the newly added row's account dropdown search or input
+  useEffect(() => {
+    if (lastAddedKey) {
+      const element = document.querySelector(`[data-row-key="${lastAddedKey}"] input`);
+      if (element instanceof HTMLElement) {
+        element.focus();
+      }
+      setLastAddedKey(null);
+    }
+  }, [lastAddedKey]);
+
+  // Real-time totals
+  const totalDebit = useMemo(() => {
+    return rows.reduce((sum, r) => sum + (parseFloat(r.debit) || 0), 0);
+  }, [rows]);
+
+  const totalCredit = useMemo(() => {
+    return rows.reduce((sum, r) => sum + (parseFloat(r.credit) || 0), 0);
+  }, [rows]);
+
+  const isBalanced = Math.abs(totalDebit - totalCredit) < 0.01 && totalDebit > 0;
+
+  // Validation function
+  const validateRow = (rowObj: JournalRow): JournalRow["errors"] => {
+    const errs: JournalRow["errors"] = {};
+    if (!rowObj.accountName) {
+      errs.accountName = "Select an account";
+    }
+    if (!rowObj.description.trim()) {
+      errs.description = "Enter description";
+    }
+    const debVal = parseFloat(rowObj.debit);
+    const credVal = parseFloat(rowObj.credit);
+
+    if (!rowObj.debit && !rowObj.credit) {
+      errs.amount = "Enter Debit or Credit";
+    } else if (rowObj.debit && rowObj.credit) {
+      errs.amount = "Cannot enter both";
+    } else {
+      const val = rowObj.debit ? debVal : credVal;
+      if (isNaN(val)) {
+        errs.amount = "Invalid number";
+      } else if (val <= 0) {
+        errs.amount = "Must be positive";
+      } else {
+        // Decimal place check
+        const parts = (rowObj.debit || rowObj.credit).split(".");
+        if (parts[1] && parts[1].length > 2) {
+          errs.amount = "Max 2 decimals";
+        }
+      }
+    }
+    return errs;
+  };
+
+  const handleRowChange = (index: number, fields: Partial<Omit<JournalRow, "key" | "errors">>) => {
+    setRows((prev) => {
+      const next = [...prev];
+      const updatedRow = { ...next[index], ...fields };
+      updatedRow.errors = validateRow(updatedRow);
+      next[index] = updatedRow;
+      return next;
+    });
+  };
+
+  const handleAddRow = (index: number) => {
+    const newKey = `row-${Date.now()}-${Math.random()}`;
+    const newRow: JournalRow = {
+      key: newKey,
+      accountName: "",
+      description: "",
+      debit: "",
+      credit: "",
+      errors: { accountName: "Select an account", description: "Enter description", amount: "Enter Debit or Credit" }
+    };
+    setRows((prev) => {
+      const next = [...prev];
+      next.splice(index + 1, 0, newRow);
+      return next;
+    });
+    setLastAddedKey(newKey);
+  };
+
+  const handleRemoveRow = (index: number) => {
+    if (rows.length <= 1) return;
+    setRows((prev) => prev.filter((_, idx) => idx !== index));
+  };
+
+  // Form validity check
+  const hasErrors = rows.some((r) => Object.keys(r.errors).length > 0);
+  const allFieldsFilled = rows.every(
+    (r) => r.accountName && r.description && (r.debit || r.credit)
+  );
+  const isValid = rows.length >= 2 && allFieldsFilled && !hasErrors && isBalanced;
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (isSaving) return;
+    if (isSaving || !isValid) return;
     setIsSaving(true);
     setErrorText(null);
+    setSuccessText(null);
+
     try {
-      const formData = new FormData(event.currentTarget);
-      if (row?.id) formData.set("id", row.id);
+      const formData = new FormData();
+      formData.set("journal_no", journalNo);
+      formData.set("entry_date", entryDate);
+      if (isEditing) {
+        formData.set("original_journal_no", editJournalNo);
+      }
+
+      const rowsData = rows.map((r) => ({
+        account_name: r.accountName,
+        description: r.description,
+        debit: parseFloat(r.debit) || 0,
+        credit: parseFloat(r.credit) || 0
+      }));
+      formData.set("rows_json", JSON.stringify(rowsData));
+
       await saveJournalEntry(formData);
-      if (!row?.id) {
-        setAccountName("");
-        setEntryType("");
-        setAmount("");
+
+      setSuccessText(
+        isEditing ? "Journal Entry updated successfully!" : "Journal Entry logged successfully!"
+      );
+
+      if (!isEditing) {
+        // Reset form
+        setRows([
+          { key: "row-1", accountName: "", description: "", debit: "", credit: "", errors: {} },
+          { key: "row-2", accountName: "", description: "", debit: "", credit: "", errors: {} }
+        ]);
+        setEntryDate(new Date().toISOString().slice(0, 10));
       }
     } catch (err: any) {
       setErrorText(err.message || "Failed to save journal entry.");
@@ -36,85 +260,339 @@ export function JournalEntryForm({ row }: { row?: Record<string, any> }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="grid gap-4 md:grid-cols-2 lg:grid-cols-5 items-end">
-      {row?.id && <input type="hidden" name="id" value={row.id} />}
-
-      <div className="space-y-2">
-        <Label>Entry Date</Label>
-        <Input
-          name="entry_date"
-          type="date"
-          required
-          defaultValue={row?.entry_date ?? new Date().toISOString().slice(0, 10)}
-          disabled={isSaving}
-        />
+    <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Header Section */}
+      <div className="grid gap-4 sm:grid-cols-2 bg-emerald-50/50 p-4 rounded-xl border border-emerald-100">
+        <div className="space-y-2">
+          <Label className="text-emerald-900 font-medium">Journal Entry Number</Label>
+          <div className="h-10 px-3 flex items-center bg-white border border-emerald-200 rounded-md font-bold text-emerald-950 font-mono shadow-sm">
+            {journalNo}
+          </div>
+        </div>
+        <div className="space-y-2">
+          <Label className="text-emerald-900 font-medium">Journal Date</Label>
+          <Input
+            type="date"
+            required
+            value={entryDate}
+            onChange={(e) => setEntryDate(e.target.value)}
+            disabled={isSaving}
+            className="border-emerald-200 bg-white"
+          />
+        </div>
       </div>
 
-      <div className="space-y-2">
-        <Label>Account Name</Label>
-        <Input
-          name="account_name"
-          required
-          value={accountName}
-          onChange={(e) => setAccountName(e.target.value)}
-          placeholder="e.g. Cash, Bank, Sales"
-          disabled={isSaving}
-        />
+      {/* Main Rows Table */}
+      <div className="border rounded-xl overflow-hidden shadow-sm bg-white">
+        <div className="overflow-x-auto max-h-[450px]">
+          <table className="w-full text-left border-collapse table-fixed">
+            <thead className="sticky top-0 bg-emerald-50 border-b border-emerald-100 text-xs font-semibold text-emerald-800 uppercase tracking-wider z-20">
+              <tr>
+                <th className="p-3 w-[260px]">Account Name</th>
+                <th className="p-3 w-[320px]">Description</th>
+                <th className="p-3 w-[150px] text-right">Debit (₹)</th>
+                <th className="p-3 w-[150px] text-right">Credit (₹)</th>
+                <th className="p-3 w-[100px] text-center">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {rows.map((rowObj, index) => (
+                <tr
+                  key={rowObj.key}
+                  data-row-key={rowObj.key}
+                  className="hover:bg-slate-50/50 transition-colors"
+                >
+                  {/* Account Name Dropdown */}
+                  <td className="p-3 align-top">
+                    <SearchableAccountSelect
+                      value={rowObj.accountName}
+                      onChange={(val) => handleRowChange(index, { accountName: val })}
+                      disabled={isSaving}
+                    />
+                    {rowObj.errors.accountName && (
+                      <p className="text-xs text-destructive mt-1 font-medium">
+                        {rowObj.errors.accountName}
+                      </p>
+                    )}
+                  </td>
+
+                  {/* Description Input */}
+                  <td className="p-3 align-top">
+                    <Input
+                      placeholder="Line item description..."
+                      value={rowObj.description}
+                      onChange={(e) => handleRowChange(index, { description: e.target.value })}
+                      disabled={isSaving}
+                      className="h-10 text-sm"
+                    />
+                    {rowObj.errors.description && (
+                      <p className="text-xs text-destructive mt-1 font-medium">
+                        {rowObj.errors.description}
+                      </p>
+                    )}
+                  </td>
+
+                  {/* Debit Amount */}
+                  <td className="p-3 align-top">
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      placeholder="0.00"
+                      value={rowObj.debit}
+                      onChange={(e) =>
+                        handleRowChange(index, {
+                          debit: e.target.value,
+                          credit: e.target.value ? "" : rowObj.credit
+                        })
+                      }
+                      disabled={isSaving || !!rowObj.credit}
+                      className="text-right font-mono h-10 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    />
+                    {rowObj.errors.amount && !rowObj.credit && (
+                      <p className="text-xs text-destructive mt-1 font-medium text-right">
+                        {rowObj.errors.amount}
+                      </p>
+                    )}
+                  </td>
+
+                  {/* Credit Amount */}
+                  <td className="p-3 align-top">
+                    <Input
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      placeholder="0.00"
+                      value={rowObj.credit}
+                      onChange={(e) =>
+                        handleRowChange(index, {
+                          credit: e.target.value,
+                          debit: e.target.value ? "" : rowObj.debit
+                        })
+                      }
+                      disabled={isSaving || !!rowObj.debit}
+                      className="text-right font-mono h-10 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    />
+                    {rowObj.errors.amount && !rowObj.debit && (
+                      <p className="text-xs text-destructive mt-1 font-medium text-right">
+                        {rowObj.errors.amount}
+                      </p>
+                    )}
+                  </td>
+
+                  {/* Row Actions */}
+                  <td className="p-3 align-top text-center">
+                    <div className="flex items-center justify-center gap-1">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleAddRow(index)}
+                        disabled={isSaving}
+                        className="h-8 w-8 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-md"
+                        title="Add row below"
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleRemoveRow(index)}
+                        disabled={isSaving || rows.length <= 1}
+                        className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/5 rounded-md disabled:opacity-30"
+                        title="Delete row"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
-      <div className="space-y-2">
-        <Label>Entry Type</Label>
-        <select
-          name="entry_type"
-          value={entryType}
-          onChange={(e) => setEntryType(e.target.value)}
-          required
-          disabled={isSaving}
-          className="h-10 w-full rounded-md border bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-        >
-          <option value="" disabled>Select type</option>
-          <option value="debit">Debit</option>
-          <option value="credit">Credit</option>
-        </select>
+      {/* Real-time Totals and Status */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 border rounded-xl bg-slate-50/80">
+        <div className="space-y-1">
+          <div className="text-sm font-semibold text-slate-700 flex flex-wrap gap-x-4">
+            <span>Total Debit: <span className="font-mono text-emerald-950 font-bold">₹{totalDebit.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></span>
+            <span>Total Credit: <span className="font-mono text-emerald-950 font-bold">₹{totalCredit.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></span>
+          </div>
+          {totalDebit !== totalCredit && totalDebit > 0 && (
+            <p className="text-xs text-destructive font-medium flex items-center gap-1 mt-1">
+              Difference: ₹{Math.abs(totalDebit - totalCredit).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+            </p>
+          )}
+        </div>
+
+        {/* Balanced Status Indicator */}
+        <div className="shrink-0">
+          {isBalanced ? (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-100 border border-emerald-200 text-emerald-800 text-xs font-bold shadow-sm">
+              <CheckCircle2 className="h-4 w-4" /> Balanced Journal Entry
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-destructive/10 border border-destructive/20 text-destructive text-xs font-bold shadow-sm">
+              <XCircle className="h-4 w-4" /> Journal Entry Not Balanced
+            </div>
+          )}
+        </div>
       </div>
 
-      <div className="space-y-2">
-        <Label>Amount (₹)</Label>
-        <Input
-          name="amount"
-          type="number"
-          step="0.01"
-          min="0.01"
-          required
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          placeholder="0.00"
-          disabled={isSaving}
-        />
-      </div>
+      {/* Messages */}
+      {errorText && (
+        <div className="p-3.5 text-sm bg-destructive/5 border border-destructive/20 text-destructive rounded-lg font-medium">
+          {errorText}
+        </div>
+      )}
+      {successText && (
+        <div className="p-3.5 text-sm bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-lg font-semibold flex items-center gap-2">
+          <CheckCircle2 className="h-4.5 w-4.5" /> {successText}
+        </div>
+      )}
 
-      <div className="space-y-2">
-        <Label>Description</Label>
-        <Textarea
-          name="description"
-          placeholder="Optional description..."
-          defaultValue={row?.description ?? ""}
-          rows={1}
-          disabled={isSaving}
-          className="min-h-10 h-10 resize-none py-2"
-        />
-      </div>
-
-      <div className="md:col-span-2 lg:col-span-5 flex flex-col gap-2">
-        {errorText && <p className="text-sm text-destructive">{errorText}</p>}
+      {/* Validation Message & Submission */}
+      <div className="flex flex-col gap-3">
+        {totalDebit !== totalCredit && totalDebit > 0 && (
+          <p className="text-sm text-destructive font-semibold">
+            Total Debit must be equal to Total Credit before submitting.
+          </p>
+        )}
         <ConfirmSubmitButton
-          confirmTitle={row?.id ? "Update journal entry?" : "Create journal entry?"}
-          confirmDescription="Confirm the account, type, and amount before saving."
-          disabled={isSaving}
+          confirmTitle={isEditing ? "Update journal entry?" : "Log journal entry?"}
+          confirmDescription="Ensure all account lines, descriptions, and debits/credits are correct before submitting."
+          disabled={!isValid || isSaving}
+          className="w-full h-11 text-base shadow-sm"
         >
-          {isSaving ? "Saving..." : (row?.id ? "Save Changes" : "Log Journal Entry")}
+          {isSaving
+            ? "Saving..."
+            : isEditing
+            ? "Update Journal Entry"
+            : "Submit Journal Entry"}
         </ConfirmSubmitButton>
       </div>
     </form>
+  );
+}
+
+// Searchable Account Dropdown Component
+function SearchableAccountSelect({
+  value,
+  onChange,
+  disabled
+}: {
+  value: string;
+  onChange: (val: string) => void;
+  disabled?: boolean;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Close dropdown on click outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const filteredAccounts = useMemo(() => {
+    const q = search.toLowerCase().trim();
+    if (!q) return CHART_OF_ACCOUNTS;
+    return CHART_OF_ACCOUNTS.filter(
+      (a) => a.name.toLowerCase().includes(q) || a.category.toLowerCase().includes(q)
+    );
+  }, [search]);
+
+  // Group accounts by category
+  const groupedAccounts = useMemo(() => {
+    const groups: Record<string, typeof CHART_OF_ACCOUNTS> = {};
+    for (const a of filteredAccounts) {
+      if (!groups[a.category]) {
+        groups[a.category] = [];
+      }
+      groups[a.category].push(a);
+    }
+    return groups;
+  }, [filteredAccounts]);
+
+  const handleSelect = (name: string) => {
+    onChange(name);
+    setSearch("");
+    setIsOpen(false);
+  };
+
+  return (
+    <div className="relative w-full" ref={containerRef}>
+      <div
+        onClick={() => {
+          if (!disabled) {
+            setIsOpen(!isOpen);
+            setTimeout(() => inputRef.current?.focus(), 50);
+          }
+        }}
+        className={`h-10 w-full px-3 flex items-center justify-between rounded-md border bg-background text-sm cursor-pointer shadow-sm focus-within:ring-1 focus-within:ring-primary ${
+          disabled ? "opacity-50 cursor-not-allowed bg-muted" : "hover:border-emerald-300"
+        } ${value ? "text-emerald-950 font-medium border-emerald-200" : "text-muted-foreground"}`}
+      >
+        <span className="truncate">{value || "Select account..."}</span>
+        <Search className="h-4 w-4 shrink-0 text-slate-400" />
+      </div>
+
+      {isOpen && (
+        <div className="absolute left-0 right-0 mt-1.5 max-h-[300px] overflow-y-auto border border-emerald-100 bg-white rounded-lg shadow-xl z-50 divide-y divide-gray-100">
+          {/* Search box inside dropdown */}
+          <div className="sticky top-0 bg-white p-2 z-10">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-slate-400" />
+              <input
+                ref={inputRef}
+                type="text"
+                placeholder="Type to search..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="h-8 pl-8 pr-3 w-full rounded-md border border-emerald-100 bg-emerald-50/20 text-xs focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              />
+            </div>
+          </div>
+
+          {/* List items */}
+          <div className="py-1">
+            {Object.keys(groupedAccounts).length === 0 ? (
+              <div className="p-3 text-center text-xs text-muted-foreground">
+                No accounts found
+              </div>
+            ) : (
+              Object.entries(groupedAccounts).map(([category, items]) => (
+                <div key={category} className="py-1">
+                  <div className="px-3 py-1 text-[10px] font-bold text-emerald-800 uppercase tracking-wider bg-emerald-50/30">
+                    {category}
+                  </div>
+                  {items.map((item) => (
+                    <div
+                      key={item.name}
+                      onClick={() => handleSelect(item.name)}
+                      className={`px-4 py-2 text-sm text-slate-700 hover:bg-emerald-50 hover:text-emerald-900 cursor-pointer flex items-center justify-between ${
+                        value === item.name ? "bg-emerald-50/50 text-emerald-900 font-medium" : ""
+                      }`}
+                    >
+                      <span>{item.name}</span>
+                    </div>
+                  ))}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

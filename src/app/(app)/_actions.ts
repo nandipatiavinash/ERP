@@ -375,19 +375,27 @@ export async function saveRawMaterialPurchase(formData: FormData) {
   const purchase_date = String(formData.get("purchase_date") ?? "");
   const supplier_name = String(formData.get("supplier_name") ?? "");
   const bill_number = String(formData.get("bill_number") ?? "");
-  const remarks = String(formData.get("remarks") ?? "");
+  const remarks = String(formData.get("remarks") ?? "").trim();
 
   const raw_material_ids = formData.getAll("raw_material_id").map(String);
   const quantities = formData.getAll("quantity").map(Number);
   const rates = formData.getAll("rate").map(Number);
+  const totalBillValue = Number(formData.get("total_bill_value") ?? 0);
 
-  const total_bill_value = formData.get("total_bill_value") ? String(formData.get("total_bill_value")) : "";
-  const finalRemarks = total_bill_value ? `[Total Bill Value: ₹${total_bill_value}] ${remarks}`.trim() : remarks;
-
+  if (!purchase_date || !supplier_name || !bill_number) {
+    throw new Error("Purchase date, client, and bill number are required.");
+  }
+  if (!Number.isFinite(totalBillValue) || totalBillValue <= 0) {
+    throw new Error("Total bill value must be a positive amount.");
+  }
   if (raw_material_ids.length === 0) {
     throw new Error("At least one raw material item must be added.");
   }
+  if (raw_material_ids.some((id) => !id) || quantities.some((qty) => qty <= 0) || rates.some((rate) => rate <= 0)) {
+    throw new Error("Every purchase item must have a material, positive quantity, and positive rate.");
+  }
 
+  const finalRemarks = `[TOTAL_BILL_VALUE:${totalBillValue.toFixed(2)}] ${remarks}`.trim();
   const supabase = await createClient();
 
   const inserts = raw_material_ids.map((id, index) => {
@@ -400,7 +408,7 @@ export async function saveRawMaterialPurchase(formData: FormData) {
       raw_material_id: id,
       quantity: qty,
       rate: rt,
-      remarks: finalRemarks || null,
+      remarks: finalRemarks,
       created_by: user.id,
       updated_by: user.id,
     };
@@ -933,33 +941,85 @@ export async function softDeleteStageProduction(formData: FormData) {
 
 export async function saveJournalEntry(formData: FormData) {
   const user = await requirePermission("sales.edit");
-  const id = String(formData.get("id") ?? "");
+  const journalNo = String(formData.get("journal_no") ?? "");
   const entryDate = String(formData.get("entry_date") ?? "");
-  const accountName = String(formData.get("account_name") ?? "");
-  const entryType = String(formData.get("entry_type") ?? "");
-  const amount = Number(formData.get("amount") ?? 0);
-  const description = String(formData.get("description") ?? "");
+  const rowsJson = String(formData.get("rows_json") ?? "");
+  const originalJournalNo = String(formData.get("original_journal_no") ?? "");
 
-  if (!accountName || !entryType || amount <= 0 || !entryDate) {
-    throw new Error("Missing required journal fields or invalid amount.");
+  if (!journalNo || !entryDate || !rowsJson) {
+    throw new Error("Missing required journal fields.");
+  }
+
+  type JournalFormRow = {
+    account_name: string;
+    description: string;
+    debit: number;
+    credit: number;
+  };
+  type JournalInsertRow = {
+    journal_no: string;
+    entry_date: string;
+    account_name: string;
+    entry_type: "debit" | "credit";
+    amount: number;
+    description: string;
+    created_by: string;
+    updated_by: string;
+  };
+
+  const rows = JSON.parse(rowsJson) as JournalFormRow[];
+
+  if (rows.length < 2) {
+    throw new Error("At least 2 rows are required for a journal entry.");
+  }
+
+  // Validate totals and rows
+  let totalDebit = 0;
+  let totalCredit = 0;
+  for (const r of rows) {
+    if (!r.account_name) throw new Error("Account name is required on all rows.");
+    if (!r.description) throw new Error("Description is required on all rows.");
+    if (r.debit > 0 && r.credit > 0) throw new Error("A row cannot contain both Debit and Credit.");
+    if (r.debit <= 0 && r.credit <= 0) throw new Error("Either Debit or Credit must be entered on all rows.");
+    if (r.debit > 0) {
+      if (r.debit <= 0) throw new Error("Amount must be positive.");
+      totalDebit += r.debit;
+    }
+    if (r.credit > 0) {
+      if (r.credit <= 0) throw new Error("Amount must be positive.");
+      totalCredit += r.credit;
+    }
+  }
+
+  if (Math.abs(totalDebit - totalCredit) > 0.01) {
+    throw new Error("Total Debit must be equal to Total Credit before submitting.");
   }
 
   const supabase = await createClient();
-  const payload = {
-    account_name: accountName,
-    entry_type: entryType,
-    amount,
+
+  // If editing (originalJournalNo exists), soft delete old rows first
+  if (originalJournalNo) {
+    const { error: deleteError } = await (supabase
+      .from("accounts_journal") as any)
+      .update({ deleted_at: new Date().toISOString(), updated_by: user.id })
+      .eq("journal_no", originalJournalNo);
+    if (deleteError) throw new Error(deleteError.message);
+  }
+
+  // Insert new rows
+  const inserts: JournalInsertRow[] = rows.map((r) => ({
+    journal_no: journalNo,
     entry_date: entryDate,
-    description: description || null,
+    account_name: r.account_name,
+    entry_type: r.debit > 0 ? "debit" : "credit",
+    amount: r.debit > 0 ? r.debit : r.credit,
+    description: r.description,
+    created_by: user.id,
     updated_by: user.id,
-  };
+  }));
 
-  const query = id
-    ? (supabase.from("accounts_journal") as any).update(payload).eq("id", id)
-    : (supabase.from("accounts_journal") as any).insert({ ...payload, created_by: user.id });
-
-  const { error } = await query;
-  if (error) throw new Error(error.message);
+  const { error: insertError } = await (supabase.from("accounts_journal") as any).insert(inserts);
+  if (insertError) throw new Error(insertError.message);
 
   revalidatePath("/accounts/journal");
   revalidatePath("/accounts/sales");
@@ -981,3 +1041,21 @@ export async function softDeleteJournalEntry(formData: FormData) {
   revalidatePath("/accounts/sales");
   revalidatePath("/reports");
 }
+
+export async function softDeleteJournalEntryGroup(formData: FormData) {
+  const user = await requirePermission("sales.edit");
+  const journalNo = String(formData.get("journal_no") ?? "");
+  if (!journalNo) throw new Error("Missing journal number.");
+  const supabase = await createClient();
+  const { error } = await (supabase
+    .from("accounts_journal") as any)
+    .update({ deleted_at: new Date().toISOString(), updated_by: user.id })
+    .eq("journal_no", journalNo);
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/accounts/journal");
+  revalidatePath("/accounts/sales");
+  revalidatePath("/reports");
+}
+

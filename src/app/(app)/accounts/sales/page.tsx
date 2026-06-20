@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { PageHeader } from "@/components/app/page-header";
-import { softDeleteJournalEntry } from "@/app/(app)/_actions";
+import { softDeleteJournalEntry, softDeleteJournalEntryGroup } from "@/app/(app)/_actions";
 import { requirePermission } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, formatNumber } from "@/lib/utils";
@@ -82,13 +82,17 @@ export default async function AccountsSalesPage() {
                       </TableCell>
                       <TableCell>{row.description ?? "-"}</TableCell>
                       <TableCell>
-                        <form action={softDeleteJournalEntry}>
-                          <input type="hidden" name="id" value={row.id} />
+                        <form action={row.journal_no ? softDeleteJournalEntryGroup : softDeleteJournalEntry}>
+                          {row.journal_no ? (
+                            <input type="hidden" name="journal_no" value={row.journal_no} />
+                          ) : (
+                            <input type="hidden" name="id" value={row.id} />
+                          )}
                           <ConfirmSubmitButton
                             size="sm"
                             variant="outline"
                             confirmTitle="Delete sales entry?"
-                            confirmDescription="This will soft-delete the sales journal entry."
+                            confirmDescription={row.journal_no ? `This will delete the entire transaction group ${row.journal_no}.` : "This will soft-delete the sales journal entry."}
                           >
                             Delete
                           </ConfirmSubmitButton>

@@ -7,6 +7,11 @@ import { requirePermission } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, formatNumber } from "@/lib/utils";
 
+function getEnteredBillValue(remarks: string | null, fallback: string | number) {
+  const match = remarks?.match(/\[TOTAL_BILL_VALUE:([0-9]+(?:\.[0-9]+)?)\]/);
+  return match ? Number(match[1]) : Number(fallback);
+}
+
 export default async function PurchaseEntryPage() {
   await requirePermission("sales.view"); // Matches navGroups permission for this page
   const supabase = await createClient();
@@ -26,7 +31,7 @@ export default async function PurchaseEntryPage() {
       .order("customer_name"),
     supabase
       .from("raw_material_purchases")
-      .select("id, purchase_date, supplier_name, bill_number, quantity, rate, total_amount, raw_materials(material_name, unit)")
+      .select("id, purchase_date, supplier_name, bill_number, quantity, rate, total_amount, remarks, raw_materials(material_name, unit)")
       .is("deleted_at", null)
       .order("created_at", { ascending: false })
       .limit(50),
@@ -88,8 +93,8 @@ export default async function PurchaseEntryPage() {
                       <TableCell>
                         {formatNumber(purchase.quantity, 2)} {purchase.raw_materials?.unit ?? ""}
                       </TableCell>
-                      <TableCell>₹{formatNumber(purchase.rate, 2)}</TableCell>
-                      <TableCell>₹{formatNumber(purchase.total_amount, 2)}</TableCell>
+                      <TableCell>{"\u20b9"}{formatNumber(purchase.rate, 2)}</TableCell>
+                      <TableCell>{"\u20b9"}{formatNumber(getEnteredBillValue(purchase.remarks, purchase.total_amount), 2)}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -101,3 +106,4 @@ export default async function PurchaseEntryPage() {
     </div>
   );
 }
+

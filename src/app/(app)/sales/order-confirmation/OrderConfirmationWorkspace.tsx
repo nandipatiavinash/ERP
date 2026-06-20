@@ -66,6 +66,18 @@ interface OrderConfirmationWorkspaceProps {
   singleViewMode?: boolean;
 }
 
+function getRollSerialValue(rollNumber: string) {
+  const matches = rollNumber.match(/\d+/g);
+  const lastNumber = matches?.at(-1);
+  return lastNumber ? Number(lastNumber) : Number.POSITIVE_INFINITY;
+}
+
+function sortRollsBySerial(a: Roll, b: Roll) {
+  const serialDiff = getRollSerialValue(a.roll_number) - getRollSerialValue(b.roll_number);
+  if (serialDiff !== 0) return serialDiff;
+  return a.roll_number.localeCompare(b.roll_number, undefined, { numeric: true, sensitivity: "base" });
+}
+
 export function OrderConfirmationWorkspace({
   orders,
   fabrics,
@@ -173,14 +185,15 @@ export function OrderConfirmationWorkspace({
     });
   };
 
-  // Resolve available and currently allocated rolls for an item
   const getItemRolls = (item: OrderItem) => {
     if (item.department !== "fabric") return [];
-    return rolls.filter(
-      (r) =>
-        r.fabric_type_id === item.product_id &&
-        (r.status === "available" || item.selected_roll_ids?.includes(r.id))
-    );
+    return rolls
+      .filter(
+        (r) =>
+          r.fabric_type_id === item.product_id &&
+          (r.status === "available" || item.selected_roll_ids?.includes(r.id))
+      )
+      .sort(sortRollsBySerial);
   };
 
   return (
@@ -305,7 +318,9 @@ export function OrderConfirmationWorkspace({
                     <div className="space-y-6">
                       {selectedOrder.sales_order_items?.map((item) => {
                         const prodName = getProductName(item.department, item.product_id);
-                        const selectedRolls = rolls.filter((r) => item.selected_roll_ids?.includes(r.id));
+                        const selectedRolls = rolls
+                          .filter((r) => item.selected_roll_ids?.includes(r.id))
+                          .sort(sortRollsBySerial);
                         const totalWeight = selectedRolls.reduce((sum, r) => sum + Number(r.weight || 0), 0);
                         const totalMeters = selectedRolls.reduce((sum, r) => sum + Number(r.meters || 0), 0);
 

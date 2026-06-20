@@ -103,6 +103,42 @@ export type Database = {
         updated_at: string;
         deleted_at: string | null;
       }>;
+      accounts_journal: Table<{
+        id: string;
+        journal_no: string | null;
+        entry_date: string;
+        account_name: string;
+        entry_type: "debit" | "credit";
+        amount: string;
+        description: string | null;
+        created_by: string | null;
+        updated_by: string | null;
+        created_at: string;
+        updated_at: string;
+        deleted_at: string | null;
+      }, {
+        id?: string;
+        journal_no?: string | null;
+        entry_date?: string;
+        account_name: string;
+        entry_type: "debit" | "credit";
+        amount: number | string;
+        description?: string | null;
+        created_by?: string | null;
+        updated_by?: string | null;
+        created_at?: string;
+        updated_at?: string;
+        deleted_at?: string | null;
+      }, {
+        journal_no?: string | null;
+        entry_date?: string;
+        account_name?: string;
+        entry_type?: "debit" | "credit";
+        amount?: number | string;
+        description?: string | null;
+        updated_by?: string | null;
+        deleted_at?: string | null;
+      }>;
       settings: Table<{
         id: string;
         key: string;

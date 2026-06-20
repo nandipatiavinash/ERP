@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Trash2, Plus, PackagePlus } from "lucide-react";
 import { saveRawMaterialPurchase } from "@/app/(app)/_actions";
 import { ConfirmSubmitButton } from "@/components/app/confirm-submit-button";
@@ -28,8 +28,12 @@ export function PurchaseForm({
   materials: MaterialOption[];
   customers: CustomerOption[];
 }) {
+  const formRef = useRef<HTMLFormElement>(null);
   // Confirmed items list (shown below input row)
   const [items, setItems] = useState<PurchaseItem[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
+  const [errorText, setErrorText] = useState<string | null>(null);
+  const [successText, setSuccessText] = useState<string | null>(null);
 
   // Current input row state
   const [draft, setDraft] = useState({
@@ -42,6 +46,7 @@ export function PurchaseForm({
 
   const handleAddItem = () => {
     if (!draft.raw_material_id || !draft.quantity || !draft.rate) return;
+    if (Number(draft.quantity) <= 0 || Number(draft.rate) <= 0) return;
     const mat = materials.find((m) => m.id === draft.raw_material_id);
     if (!mat) return;
     setItems((prev) => [
@@ -63,8 +68,30 @@ export function PurchaseForm({
     setItems((prev) => prev.filter((item) => item.key !== key));
   };
 
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (isSaving || items.length === 0) return;
+
+    setIsSaving(true);
+    setErrorText(null);
+    setSuccessText(null);
+
+    try {
+      const formData = new FormData(event.currentTarget);
+      await saveRawMaterialPurchase(formData);
+      setItems([]);
+      setDraft({ raw_material_id: "", quantity: "", rate: "" });
+      formRef.current?.reset();
+      setSuccessText("Purchase saved successfully.");
+    } catch (err: any) {
+      setErrorText(err.message || "Failed to save purchase.");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   return (
-    <form action={saveRawMaterialPurchase} className="space-y-5">
+    <form ref={formRef} onSubmit={handleSubmit} className="space-y-5">
 
       {/* Row 1: Purchase Date */}
       <div className="max-w-xs space-y-2">
@@ -106,6 +133,8 @@ export function PurchaseForm({
           <Input
             name="total_bill_value"
             type="number"
+            step="0.01"
+            min="0.01"
             required
             placeholder="Enter total bill amount"
           />
@@ -143,6 +172,7 @@ export function PurchaseForm({
             <Input
               type="number"
               step="0.01"
+              min="0.01"
               placeholder="0.00"
               value={draft.quantity}
               onChange={(e) => setDraft((d) => ({ ...d, quantity: e.target.value }))}
@@ -155,6 +185,7 @@ export function PurchaseForm({
             <Input
               type="number"
               step="0.01"
+              min="0.01"
               placeholder="0.00"
               value={draft.rate}
               onChange={(e) => setDraft((d) => ({ ...d, rate: e.target.value }))}
@@ -166,7 +197,7 @@ export function PurchaseForm({
             type="button"
             variant="default"
             onClick={handleAddItem}
-            disabled={!draft.raw_material_id || !draft.quantity || !draft.rate}
+            disabled={!draft.raw_material_id || Number(draft.quantity) <= 0 || Number(draft.rate) <= 0}
             className="h-10 gap-1.5 shrink-0"
           >
             <Plus className="h-4 w-4" /> Add Item
@@ -237,12 +268,14 @@ export function PurchaseForm({
       </div>
 
       <div>
+        {errorText ? <p className="mb-2 text-sm text-destructive">{errorText}</p> : null}
+        {successText ? <p className="mb-2 text-sm font-medium text-emerald-700">{successText}</p> : null}
         <ConfirmSubmitButton
           confirmTitle="Save raw material purchase?"
           confirmDescription={`Confirm client, bill number, and items count (${items.length}) before saving.`}
-          disabled={items.length === 0}
+          disabled={items.length === 0 || isSaving}
         >
-          Save Purchase
+          {isSaving ? "Saving..." : "Save Purchase"}
         </ConfirmSubmitButton>
       </div>
     </form>

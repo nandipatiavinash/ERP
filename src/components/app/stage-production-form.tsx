@@ -85,11 +85,20 @@ export function StageProductionForm({
           {row?.roll_id && row?.fabric_rolls?.roll_number && (
             <option value={row.roll_id}>{row.fabric_rolls.roll_number} (Current)</option>
           )}
-          {rolls.map((r) => (
-            <option key={r.id} value={r.id}>
-              {r.roll_number}
-            </option>
-          ))}
+          {[...rolls]
+            .sort((a, b) => {
+              const aNum = parseInt(a.roll_number, 10);
+              const bNum = parseInt(b.roll_number, 10);
+              if (isNaN(aNum) && isNaN(bNum)) return a.roll_number.localeCompare(b.roll_number);
+              if (isNaN(aNum)) return 1;
+              if (isNaN(bNum)) return -1;
+              return aNum - bNum;
+            })
+            .map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.roll_number}
+              </option>
+            ))}
         </select>
       </div>
 
