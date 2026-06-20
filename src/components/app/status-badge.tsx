@@ -7,5 +7,6 @@ export function StatusBadge({ value }: { value: string }) {
       : value === "inactive" || value === "voided" || value === "cancelled" || value === "absent"
         ? "border-red-200 bg-red-50 text-red-700"
         : "border-amber-200 bg-amber-50 text-amber-700";
-  return <Badge className={tone}>{value.replaceAll("_", " ")}</Badge>;
+  const displayLabel = value === "draft" ? "Pending" : value.replaceAll("_", " ");
+  return <Badge className={tone}>{displayLabel}</Badge>;
 }

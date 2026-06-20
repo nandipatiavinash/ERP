@@ -182,7 +182,7 @@ export const attendanceStatuses = [
 ];
 
 export const salesStatuses = [
-  { label: "Draft", value: "draft" },
+  { label: "Pending", value: "draft" },
   { label: "Confirmed", value: "confirmed" },
   { label: "Cancelled", value: "cancelled" },
 ];

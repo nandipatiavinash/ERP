@@ -55,6 +55,7 @@ function formatRecordValue(row: Row, columnKey: string) {
   const value = row[columnKey];
   if (columnKey === "status") return <StatusBadge value={String(value)} />;
   if (columnKey.endsWith("_at") || columnKey.endsWith("_date")) return formatDate(value == null ? null : String(value));
+  if (columnKey === "phone" || columnKey.includes("phone") || columnKey.includes("mobile")) return String(value ?? "-");
 
   const number = Number(value);
   if (!Number.isNaN(number) && value !== null && value !== undefined && value !== "") {

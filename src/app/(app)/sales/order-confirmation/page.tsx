@@ -58,27 +58,35 @@ export default async function OrderConfirmationPage({ searchParams }: { searchPa
                     <TableHead>Firm Name</TableHead>
                     <TableHead>Items Count</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Action</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {orderRows.map((order) => (
-                    <TableRow key={order.id}>
-                      <TableCell className="font-bold text-emerald-950">{order.order_number}</TableCell>
-                      <TableCell>{formatDate(order.order_date)}</TableCell>
-                      <TableCell>
-                        {order.customers?.customer_name} {order.customers?.alias ? `(${order.customers?.alias})` : ""}
+                    <TableRow key={order.id} className="hover:bg-slate-50 transition-colors cursor-pointer">
+                      <TableCell className="font-bold text-emerald-950 p-0">
+                        <Link href={`/sales/order-confirmation/${order.id}` as any} className="block p-4">
+                          {order.order_number}
+                        </Link>
                       </TableCell>
-                      <TableCell>{order.sales_order_items?.length ?? 0} items</TableCell>
-                      <TableCell>
-                        <StatusBadge value={order.status} />
+                      <TableCell className="p-0">
+                        <Link href={`/sales/order-confirmation/${order.id}` as any} className="block p-4">
+                          {formatDate(order.order_date)}
+                        </Link>
                       </TableCell>
-                      <TableCell className="text-right">
-                        <Button asChild size="sm">
-                          <Link href={`/sales/order-confirmation/${order.id}` as any}>
-                            Open Workspace
-                          </Link>
-                        </Button>
+                      <TableCell className="p-0">
+                        <Link href={`/sales/order-confirmation/${order.id}` as any} className="block p-4">
+                          {order.customers?.customer_name} {order.customers?.alias ? `(${order.customers?.alias})` : ""}
+                        </Link>
+                      </TableCell>
+                      <TableCell className="p-0">
+                        <Link href={`/sales/order-confirmation/${order.id}` as any} className="block p-4">
+                          {order.sales_order_items?.length ?? 0} items
+                        </Link>
+                      </TableCell>
+                      <TableCell className="p-0">
+                        <Link href={`/sales/order-confirmation/${order.id}` as any} className="block p-4">
+                          <StatusBadge value={order.status} />
+                        </Link>
                       </TableCell>
                     </TableRow>
                   ))}
