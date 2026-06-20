@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { Plus, Trash2, CheckCircle2, XCircle, Search } from "lucide-react";
 import { saveJournalEntry } from "@/app/(app)/_actions";
 import { ConfirmSubmitButton } from "@/components/app/confirm-submit-button";
@@ -253,137 +253,92 @@ export function JournalEntryForm({
         </div>
       </div>
 
-      {/* Main Rows Table */}
-      <div className="border rounded-xl shadow-sm bg-white">
-        <div className="overflow-x-auto max-h-[450px]">
-          <table className="w-full text-left border-collapse" style={{ minWidth: '900px' }}>
-            <thead className="sticky top-0 bg-emerald-50 border-b border-emerald-100 text-xs font-semibold text-emerald-800 uppercase tracking-wider z-20">
-              <tr>
-                <th className="p-4" style={{ width: '35%', minWidth: '280px' }}>Account Name</th>
-                <th className="p-4" style={{ width: '30%', minWidth: '200px' }}>Description</th>
-                <th className="p-4 text-right" style={{ width: '14%', minWidth: '120px' }}>Debit (₹)</th>
-                <th className="p-4 text-right" style={{ width: '14%', minWidth: '120px' }}>Credit (₹)</th>
-                <th className="p-4 text-center" style={{ width: '7%', minWidth: '80px' }}>Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {rows.map((rowObj, index) => (
-                <tr
-                  key={rowObj.key}
-                  data-row-key={rowObj.key}
-                  className="hover:bg-slate-50/50 transition-colors"
-                >
-                  {/* Account Name Dropdown */}
-                  <td className="p-4 align-top" style={{ overflow: 'visible' }}>
-                    <SearchableAccountSelect
-                      value={rowObj.accountName}
-                      onChange={(val) => handleRowChange(index, { accountName: val })}
-                      disabled={isSaving}
-                      accounts={accounts}
-                    />
-                    {rowObj.errors.accountName && (
-                      <p className="text-xs text-destructive mt-1 font-medium">
-                        {rowObj.errors.accountName}
-                      </p>
-                    )}
-                  </td>
-
-                  {/* Description Input */}
-                  <td className="p-4 align-top">
-                    <Input
-                      placeholder="Line item description..."
-                      value={rowObj.description}
-                      onChange={(e) => handleRowChange(index, { description: e.target.value })}
-                      disabled={isSaving}
-                      className="h-10 text-sm"
-                    />
-                    {rowObj.errors.description && (
-                      <p className="text-xs text-destructive mt-1 font-medium">
-                        {rowObj.errors.description}
-                      </p>
-                    )}
-                  </td>
-
-                  {/* Debit Amount */}
-                  <td className="p-4 align-top">
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0.01"
-                      placeholder="0.00"
-                      value={rowObj.debit}
-                      onChange={(e) =>
-                        handleRowChange(index, {
-                          debit: e.target.value,
-                          credit: e.target.value ? "" : rowObj.credit
-                        })
-                      }
-                      disabled={isSaving || !!rowObj.credit}
-                      className="text-right font-mono h-10 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                    />
-                    {rowObj.errors.amount && !rowObj.credit && (
-                      <p className="text-xs text-destructive mt-1 font-medium text-right">
-                        {rowObj.errors.amount}
-                      </p>
-                    )}
-                  </td>
-
-                  {/* Credit Amount */}
-                  <td className="p-4 align-top">
-                    <Input
-                      type="number"
-                      step="0.01"
-                      min="0.01"
-                      placeholder="0.00"
-                      value={rowObj.credit}
-                      onChange={(e) =>
-                        handleRowChange(index, {
-                          credit: e.target.value,
-                          debit: e.target.value ? "" : rowObj.debit
-                        })
-                      }
-                      disabled={isSaving || !!rowObj.debit}
-                      className="text-right font-mono h-10 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                    />
-                    {rowObj.errors.amount && !rowObj.debit && (
-                      <p className="text-xs text-destructive mt-1 font-medium text-right">
-                        {rowObj.errors.amount}
-                      </p>
-                    )}
-                  </td>
-
-                  {/* Row Actions */}
-                  <td className="p-4 align-top text-center">
-                    <div className="flex items-center justify-center gap-1">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleAddRow(index)}
-                        disabled={isSaving}
-                        className="h-8 w-8 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-md"
-                        title="Add row below"
-                      >
-                        <Plus className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => handleRemoveRow(index)}
-                        disabled={isSaving || rows.length <= 1}
-                        className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/5 rounded-md disabled:opacity-30"
-                        title="Delete row"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      {/* Header Row */}
+      <div className="border border-emerald-100 rounded-xl overflow-hidden shadow-sm bg-white">
+        <div className="grid grid-cols-[2fr_2fr_1fr_1fr_80px] bg-emerald-50 border-b border-emerald-100 px-4 py-3 text-xs font-semibold text-emerald-800 uppercase tracking-wider">
+          <div>Account Name</div>
+          <div>Description</div>
+          <div className="text-right">Debit (₹)</div>
+          <div className="text-right">Credit (₹)</div>
+          <div className="text-center">Actions</div>
         </div>
+
+        {/* Entry Rows */}
+        {rows.map((rowObj, index) => (
+          <div
+            key={rowObj.key}
+            className="grid grid-cols-[2fr_2fr_1fr_1fr_80px] gap-0 border-b border-gray-100 last:border-b-0 px-4 py-4 hover:bg-slate-50/40 transition-colors items-start"
+          >
+            {/* Account Name Dropdown */}
+            <div className="pr-3">
+              <SearchableAccountSelect
+                value={rowObj.accountName}
+                onChange={(val) => handleRowChange(index, { accountName: val })}
+                disabled={isSaving}
+                accounts={accounts}
+              />
+              {rowObj.errors.accountName && (
+                <p className="text-xs text-destructive mt-1 font-medium">{rowObj.errors.accountName}</p>
+              )}
+            </div>
+
+            {/* Description */}
+            <div className="pr-3">
+              <Input
+                placeholder="Line item description..."
+                value={rowObj.description}
+                onChange={(e) => handleRowChange(index, { description: e.target.value })}
+                disabled={isSaving}
+                className="h-11 text-sm"
+              />
+              {rowObj.errors.description && (
+                <p className="text-xs text-destructive mt-1 font-medium">{rowObj.errors.description}</p>
+              )}
+            </div>
+
+            {/* Debit */}
+            <div className="pr-3">
+              <Input
+                type="number" step="0.01" min="0.01" placeholder="0.00"
+                value={rowObj.debit}
+                onChange={(e) => handleRowChange(index, { debit: e.target.value, credit: e.target.value ? "" : rowObj.credit })}
+                disabled={isSaving || !!rowObj.credit}
+                className="text-right font-mono h-11 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              />
+              {rowObj.errors.amount && !rowObj.credit && (
+                <p className="text-xs text-destructive mt-1 font-medium text-right">{rowObj.errors.amount}</p>
+              )}
+            </div>
+
+            {/* Credit */}
+            <div className="pr-3">
+              <Input
+                type="number" step="0.01" min="0.01" placeholder="0.00"
+                value={rowObj.credit}
+                onChange={(e) => handleRowChange(index, { credit: e.target.value, debit: e.target.value ? "" : rowObj.debit })}
+                disabled={isSaving || !!rowObj.debit}
+                className="text-right font-mono h-11 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              />
+              {rowObj.errors.amount && !rowObj.debit && (
+                <p className="text-xs text-destructive mt-1 font-medium text-right">{rowObj.errors.amount}</p>
+              )}
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center justify-center gap-1 pt-0.5">
+              <Button type="button" variant="ghost" size="icon"
+                onClick={() => handleAddRow(index)} disabled={isSaving}
+                className="h-9 w-9 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-md" title="Add row below">
+                <Plus className="h-4 w-4" />
+              </Button>
+              <Button type="button" variant="ghost" size="icon"
+                onClick={() => handleRemoveRow(index)} disabled={isSaving || rows.length <= 1}
+                className="h-9 w-9 text-destructive hover:text-destructive hover:bg-destructive/5 rounded-md disabled:opacity-30" title="Delete row">
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        ))}
       </div>
 
       {/* Real-time Totals and Status */}
@@ -450,7 +405,7 @@ export function JournalEntryForm({
   );
 }
 
-// Account Dropdown Component
+// Account Dropdown — uses fixed positioning so it escapes overflow clipping
 function SearchableAccountSelect({
   value,
   onChange,
@@ -463,18 +418,51 @@ function SearchableAccountSelect({
   accounts?: { name: string }[];
 }) {
   const [isOpen, setIsOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
+  const triggerRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Close dropdown on click outside
+  // Position dropdown using fixed coords from trigger element
+  const openDropdown = () => {
+    if (!triggerRef.current) return;
+    const rect = triggerRef.current.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const spaceAbove = rect.top;
+    const dropdownHeight = Math.min(accounts.length * 52 + 16, 320);
+    const openUpward = spaceBelow < dropdownHeight && spaceAbove > spaceBelow;
+    setDropdownStyle({
+      position: 'fixed',
+      left: rect.left,
+      width: Math.max(rect.width, 340),
+      zIndex: 9999,
+      ...(openUpward
+        ? { bottom: window.innerHeight - rect.top + 4 }
+        : { top: rect.bottom + 4 }),
+    });
+    setIsOpen(true);
+  };
+
+  // Close on outside click
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+      if (
+        triggerRef.current && !triggerRef.current.contains(event.target as Node) &&
+        dropdownRef.current && !dropdownRef.current.contains(event.target as Node)
+      ) {
         setIsOpen(false);
       }
     }
-    document.addEventListener("mousedown", handleClickOutside);
+    if (isOpen) document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  }, [isOpen]);
+
+  // Close on scroll
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleScroll = () => setIsOpen(false);
+    window.addEventListener('scroll', handleScroll, true);
+    return () => window.removeEventListener('scroll', handleScroll, true);
+  }, [isOpen]);
 
   const handleSelect = (name: string) => {
     onChange(name);
@@ -482,45 +470,63 @@ function SearchableAccountSelect({
   };
 
   return (
-    <div className="relative w-full" ref={containerRef}>
+    <div className="w-full">
+      {/* Trigger */}
       <div
+        ref={triggerRef}
         onClick={() => {
           if (!disabled) {
-            setIsOpen(!isOpen);
+            if (isOpen) setIsOpen(false);
+            else openDropdown();
           }
         }}
-        className={`h-12 w-full px-4 flex items-center justify-between rounded-md border bg-background text-base cursor-pointer shadow-sm focus-within:ring-1 focus-within:ring-primary ${
-          disabled ? "opacity-50 cursor-not-allowed bg-muted" : "hover:border-emerald-300"
-        } ${value ? "text-emerald-950 font-medium border-emerald-200" : "text-muted-foreground"}`}
+        className={`h-11 w-full px-4 flex items-center justify-between rounded-lg border-2 bg-white text-sm cursor-pointer transition-all ${
+          disabled
+            ? 'opacity-50 cursor-not-allowed bg-gray-50 border-gray-200'
+            : isOpen
+            ? 'border-emerald-400 ring-2 ring-emerald-100'
+            : 'border-gray-200 hover:border-emerald-300'
+        } ${value ? 'text-slate-900 font-medium' : 'text-slate-400'}`}
       >
-        <span className="truncate">{value || "Select account..."}</span>
-        <Search className="h-4 w-4 shrink-0 text-slate-400" />
+        <span className="truncate">{value || 'Select account...'}</span>
+        <svg className={`h-4 w-4 shrink-0 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+        </svg>
       </div>
 
+      {/* Fixed-position dropdown — not clipped by any overflow parent */}
       {isOpen && (
-        <div className="absolute left-0 mt-1.5 min-w-full w-max max-w-[90vw] max-h-[50vh] overflow-y-auto border border-emerald-100 bg-white rounded-lg shadow-2xl z-50">
-          <div className="py-2">
-            {accounts.length === 0 ? (
-              <div className="p-5 text-center text-base text-muted-foreground">
-                No firms / clients found
-              </div>
-            ) : (
-              accounts.map((item) => (
+        <div
+          ref={dropdownRef}
+          style={dropdownStyle}
+          className="bg-white border border-emerald-100 rounded-xl shadow-2xl overflow-y-auto"
+        >
+          {accounts.length === 0 ? (
+            <div className="p-5 text-center text-sm text-slate-400">No firms / clients found</div>
+          ) : (
+            <div className="py-2">
+              {accounts.map((item) => (
                 <div
                   key={item.name}
-                  onClick={() => handleSelect(item.name)}
-                  className={`px-5 py-3 text-base text-slate-700 hover:bg-emerald-50 hover:text-emerald-900 cursor-pointer transition-colors ${
-                    value === item.name ? "bg-emerald-50 text-emerald-900 font-semibold" : ""
+                  onMouseDown={(e) => { e.preventDefault(); handleSelect(item.name); }}
+                  className={`px-4 py-3 text-sm cursor-pointer transition-colors flex items-center gap-2 ${
+                    value === item.name
+                      ? 'bg-emerald-50 text-emerald-900 font-semibold'
+                      : 'text-slate-700 hover:bg-emerald-50 hover:text-emerald-900'
                   }`}
                 >
-                  {item.name}
+                  {value === item.name && (
+                    <svg className="h-3.5 w-3.5 text-emerald-600 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  )}
+                  <span className={value === item.name ? '' : 'pl-5'}>{item.name}</span>
                 </div>
-              ))
-            )}
-          </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
   );
 }
-
