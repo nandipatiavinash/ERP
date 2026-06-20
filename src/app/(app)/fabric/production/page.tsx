@@ -35,12 +35,7 @@ export default async function FabricProductionPage() {
   ]);
 
   const productionRows = ((rows ?? []) as any[]).sort((a, b) => {
-    const aSerial = Number.parseInt(String(a.serial_number ?? ""), 10);
-    const bSerial = Number.parseInt(String(b.serial_number ?? ""), 10);
-    if (!Number.isNaN(aSerial) && !Number.isNaN(bSerial) && aSerial !== bSerial) {
-      return aSerial - bSerial;
-    }
-    return String(a.serial_number ?? "").localeCompare(String(b.serial_number ?? ""));
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
   });
   const meterHistory = (meterRows ?? []) as any[];
   const lastMeters: Record<string, number> = {};
