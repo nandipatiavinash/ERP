@@ -1,11 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, PackagePlus } from "lucide-react";
 import { createSalesOrder } from "@/app/(app)/_actions";
 import { ConfirmSubmitButton } from "@/components/app/confirm-submit-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
 
 type Customer = { id: string; name: string; alias?: string | null };
 type ProductOption = { id: string; label: string };
@@ -17,10 +18,21 @@ type DeliveryEntryFormProps = {
   offsetProducts: ProductOption[];
 };
 
-type ItemRow = {
+type ConfirmedRow = {
+  key: string;
   department: string;
+  departmentLabel: string;
   productId: string;
+  productLabel: string;
   quantity: string;
+};
+
+const DEPT_LABELS: Record<string, string> = {
+  fabric: "Fabric",
+  "roto-printing": "Roto Printing",
+  lamination: "Lamination",
+  "offset-printing": "Off-set Printing",
+  finishing: "Finishing",
 };
 
 export function DeliveryEntryForm({
@@ -29,52 +41,61 @@ export function DeliveryEntryForm({
   rotoProducts,
   offsetProducts,
 }: DeliveryEntryFormProps) {
-  const [rows, setRows] = useState<ItemRow[]>([
-    { department: "fabric", productId: "", quantity: "" },
-  ]);
+  const [confirmedRows, setConfirmedRows] = useState<ConfirmedRow[]>([]);
   const [isPending, setIsPending] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const addRow = () => {
-    setRows([...rows, { department: "fabric", productId: "", quantity: "" }]);
-  };
-
-  const removeRow = (index: number) => {
-    if (rows.length === 1) return;
-    setRows(rows.filter((_, i) => i !== index));
-  };
-
-  const updateRow = (index: number, field: keyof ItemRow, value: string) => {
-    const updated = [...rows];
-    updated[index] = { ...updated[index], [field]: value };
-    // Clear product ID if department changes
-    if (field === "department") {
-      updated[index].productId = "";
-    }
-    setRows(updated);
-  };
+  // Draft (input row) state
+  const [draft, setDraft] = useState({
+    department: "fabric",
+    productId: "",
+    quantity: "",
+  });
 
   const getProductOptions = (dept: string): ProductOption[] => {
     switch (dept) {
-      case "fabric":
-        return fabricProducts;
-      case "roto-printing":
-        return rotoProducts;
-      case "offset-printing":
-        return offsetProducts;
-      case "lamination":
-        return [
-          { id: "lam-film-25", label: "Laminated Film 2.5 mil" },
-          { id: "lam-film-30", label: "Laminated Film 3.0 mil" },
-        ];
-      case "finishing":
-        return [
-          { id: "finished-bags-28", label: "Finished Bags W-28" },
-          { id: "finished-bags-32", label: "Finished Bags W-32" },
-        ];
-      default:
-        return [];
+      case "fabric": return fabricProducts;
+      case "roto-printing": return rotoProducts;
+      case "offset-printing": return offsetProducts;
+      case "lamination": return [
+        { id: "lam-film-25", label: "Laminated Film 2.5 mil" },
+        { id: "lam-film-30", label: "Laminated Film 3.0 mil" },
+      ];
+      case "finishing": return [
+        { id: "finished-bags-28", label: "Finished Bags W-28" },
+        { id: "finished-bags-32", label: "Finished Bags W-32" },
+      ];
+      default: return [];
     }
+  };
+
+  const draftOptions = getProductOptions(draft.department);
+  const selectedProduct = draftOptions.find((p) => p.id === draft.productId);
+
+  const handleDeptChange = (dept: string) => {
+    setDraft({ department: dept, productId: "", quantity: "" });
+  };
+
+  const handleAddItem = () => {
+    if (!draft.productId || !draft.quantity) return;
+    const product = draftOptions.find((p) => p.id === draft.productId);
+    if (!product) return;
+    setConfirmedRows((prev) => [
+      ...prev,
+      {
+        key: `row-${Date.now()}-${Math.random()}`,
+        department: draft.department,
+        departmentLabel: DEPT_LABELS[draft.department] ?? draft.department,
+        productId: draft.productId,
+        productLabel: product.label,
+        quantity: draft.quantity,
+      },
+    ]);
+    setDraft((d) => ({ ...d, productId: "", quantity: "" }));
+  };
+
+  const handleRemoveRow = (key: string) => {
+    setConfirmedRows((prev) => prev.filter((r) => r.key !== key));
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -86,7 +107,8 @@ export function DeliveryEntryForm({
     try {
       await createSalesOrder(formData);
       form.reset();
-      setRows([{ department: "fabric", productId: "", quantity: "" }]);
+      setConfirmedRows([]);
+      setDraft({ department: "fabric", productId: "", quantity: "" });
     } catch (err: any) {
       setErrorMsg(err.message || "Failed to create sales order.");
     } finally {
@@ -102,7 +124,8 @@ export function DeliveryEntryForm({
         </div>
       )}
 
-      <div className="grid gap-4 md:grid-cols-2">
+      {/* Firm & Date */}
+      <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="customer_id">Firm Name</Label>
           <select
@@ -132,94 +155,119 @@ export function DeliveryEntryForm({
         </div>
       </div>
 
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Order Items</h4>
+      {/* Order Items */}
+      <div className="space-y-3">
+        <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b pb-1 block">
+          Order Items
+        </Label>
+
+        {/* --- Single input row: Dept | Product | Qty | + Add Item --- */}
+        <div className="flex flex-wrap gap-3 items-end p-3 rounded-lg border bg-muted/10">
+          {/* Department */}
+          <div className="flex-1 min-w-[130px] space-y-1">
+            <Label className="text-xs">Department</Label>
+            <select
+              value={draft.department}
+              onChange={(e) => handleDeptChange(e.target.value)}
+              className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+            >
+              {Object.entries(DEPT_LABELS).map(([val, lbl]) => (
+                <option key={val} value={val}>{lbl}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Product */}
+          <div className="flex-[2] min-w-[160px] space-y-1">
+            <Label className="text-xs">Product ID / Type</Label>
+            <select
+              value={draft.productId}
+              onChange={(e) => setDraft((d) => ({ ...d, productId: e.target.value }))}
+              className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+            >
+              <option value="" disabled>Select product</option>
+              {draftOptions.map((opt) => (
+                <option key={opt.id} value={opt.id}>{opt.label}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Quantity */}
+          <div className="w-28 space-y-1">
+            <Label className="text-xs">Qty (Kgs)</Label>
+            <Input
+              type="number"
+              step="0.01"
+              placeholder="e.g. 5000"
+              value={draft.quantity}
+              onChange={(e) => setDraft((d) => ({ ...d, quantity: e.target.value }))}
+            />
+          </div>
+
+          {/* Add Item button */}
+          <Button
+            type="button"
+            variant="default"
+            onClick={handleAddItem}
+            disabled={!draft.productId || !draft.quantity}
+            className="h-10 gap-1.5 shrink-0"
+          >
+            <Plus className="h-4 w-4" /> Add Item
+          </Button>
         </div>
 
-        <div className="space-y-3">
-          {rows.map((row, index) => {
-            const options = getProductOptions(row.department);
+        {/* Hidden inputs for confirmed rows */}
+        {confirmedRows.map((row) => (
+          <span key={row.key}>
+            <input type="hidden" name="department" value={row.department} />
+            <input type="hidden" name="product_id" value={row.productId} />
+            <input type="hidden" name="quantity" value={row.quantity} />
+          </span>
+        ))}
 
-            return (
+        {/* Added items list */}
+        {confirmedRows.length > 0 ? (
+          <div className="space-y-2">
+            {/* Header */}
+            <div className="hidden sm:grid sm:grid-cols-[1fr_2fr_1fr_auto] gap-3 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              <span>Department</span>
+              <span>Product</span>
+              <span>Qty (Kgs)</span>
+              <span></span>
+            </div>
+            {confirmedRows.map((row, idx) => (
               <div
-                key={index}
-                className="grid gap-3 items-end p-4 border rounded-lg bg-muted/20 relative md:grid-cols-[1.5fr_2fr_1fr_auto]"
+                key={row.key}
+                className="grid grid-cols-[1fr_2fr_1fr_auto] gap-3 items-center px-3 py-2 rounded-md bg-muted/20 border text-sm"
               >
-                <div className="space-y-2">
-                  <Label>Department</Label>
-                  <select
-                    name="department"
-                    value={row.department}
-                    onChange={(e) => updateRow(index, "department", e.target.value)}
-                    required
-                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                  >
-                    <option value="fabric">Fabric</option>
-                    <option value="roto-printing">Roto Printing</option>
-                    <option value="lamination">Lamination</option>
-                    <option value="offset-printing">Off-set Printing</option>
-                    <option value="finishing">Finishing</option>
-                  </select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Product ID / Type</Label>
-                  <select
-                    name="product_id"
-                    value={row.productId}
-                    onChange={(e) => updateRow(index, "productId", e.target.value)}
-                    required
-                    className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                  >
-                    <option value="" disabled>Select product</option>
-                    {options.map((opt) => (
-                      <option key={opt.id} value={opt.id}>
-                        {opt.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Quantity (Kgs)</Label>
-                  <Input
-                    name="quantity"
-                    type="number"
-                    step="0.01"
-                    placeholder="e.g. 5000"
-                    value={row.quantity}
-                    onChange={(e) => updateRow(index, "quantity", e.target.value)}
-                    required
-                  />
-                </div>
-
-                <div className="flex gap-2 justify-end">
-                  <button
-                    type="button"
-                    onClick={addRow}
-                    className="h-10 px-3 inline-flex items-center justify-center gap-1 rounded-md border border-input bg-background text-sm font-semibold text-primary hover:bg-muted"
-                  >
-                    <Plus className="h-4 w-4" /> Add Item
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => removeRow(index)}
-                    disabled={rows.length === 1}
-                    className="h-10 w-10 inline-flex items-center justify-center rounded-md border border-input bg-background text-muted-foreground hover:text-red-600 disabled:opacity-40 hover:bg-muted"
-                    aria-label="Remove item"
-                  >
-                    <Trash2 className="h-5 w-5" />
-                  </button>
-                </div>
+                <span className="text-muted-foreground">{idx + 1}. {row.departmentLabel}</span>
+                <span className="font-medium truncate">{row.productLabel}</span>
+                <span>{row.quantity} kg</span>
+                <button
+                  type="button"
+                  onClick={() => handleRemoveRow(row.key)}
+                  className="text-muted-foreground hover:text-destructive transition-colors"
+                  aria-label="Remove"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
               </div>
-            );
-          })}
-        </div>
+            ))}
+          </div>
+        ) : (
+          <div className="flex flex-col items-center gap-2 py-6 text-muted-foreground text-sm">
+            <PackagePlus className="h-8 w-8 opacity-40" />
+            <span>No items added yet. Fill the row above and click <strong>Add Item</strong>.</span>
+          </div>
+        )}
       </div>
 
       <div className="pt-2 border-t flex justify-end">
-        <ConfirmSubmitButton disabled={isPending} confirmTitle="Place Sales Order?" confirmDescription="This will create the sales order and prepare it for delivery assignment.">
+        <ConfirmSubmitButton
+          disabled={isPending || confirmedRows.length === 0}
+          confirmTitle="Place Sales Order?"
+          confirmDescription="This will create the sales order and prepare it for delivery assignment."
+        >
           {isPending ? "Placing Order..." : "Place Order"}
         </ConfirmSubmitButton>
       </div>

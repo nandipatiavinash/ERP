@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Trash2, Plus } from "lucide-react";
+import { Trash2, Plus, PackagePlus } from "lucide-react";
 import { saveRawMaterialPurchase } from "@/app/(app)/_actions";
 import { ConfirmSubmitButton } from "@/components/app/confirm-submit-button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,8 @@ type CustomerOption = { id: string; customer_name: string; alias?: string | null
 type PurchaseItem = {
   key: string;
   raw_material_id: string;
+  material_label: string;
+  unit: string;
   quantity: string;
   rate: string;
 };
@@ -26,53 +28,57 @@ export function PurchaseForm({
   materials: MaterialOption[];
   customers: CustomerOption[];
 }) {
-  const [items, setItems] = useState<PurchaseItem[]>([
-    { key: "item-0", raw_material_id: "", quantity: "", rate: "" },
-  ]);
+  // Confirmed items list (shown below input row)
+  const [items, setItems] = useState<PurchaseItem[]>([]);
+
+  // Current input row state
+  const [draft, setDraft] = useState({
+    raw_material_id: "",
+    quantity: "",
+    rate: "",
+  });
+
+  const selectedMaterial = materials.find((m) => m.id === draft.raw_material_id);
 
   const handleAddItem = () => {
+    if (!draft.raw_material_id || !draft.quantity || !draft.rate) return;
+    const mat = materials.find((m) => m.id === draft.raw_material_id);
+    if (!mat) return;
     setItems((prev) => [
       ...prev,
-      { key: `item-${Date.now()}-${Math.random()}`, raw_material_id: "", quantity: "", rate: "" },
+      {
+        key: `item-${Date.now()}-${Math.random()}`,
+        raw_material_id: draft.raw_material_id,
+        material_label: `${mat.material_name} (${mat.unit})`,
+        unit: mat.unit,
+        quantity: draft.quantity,
+        rate: draft.rate,
+      },
     ]);
+    // Reset draft to blank for next entry
+    setDraft({ raw_material_id: "", quantity: "", rate: "" });
   };
 
   const handleRemoveItem = (key: string) => {
-    if (items.length > 1) {
-      setItems((prev) => prev.filter((item) => item.key !== key));
-    }
+    setItems((prev) => prev.filter((item) => item.key !== key));
   };
-
-  const handleItemChange = (key: string, field: keyof PurchaseItem, value: string) => {
-    setItems((prev) =>
-      prev.map((item) => (item.key === key ? { ...item, [field]: value } : item))
-    );
-  };
-
-  // Calculate total bill value
-  const totalBillValue = items.reduce((sum, item) => {
-    const qty = Number(item.quantity) || 0;
-    const rate = Number(item.rate) || 0;
-    return sum + qty * rate;
-  }, 0);
 
   return (
-    <form action={saveRawMaterialPurchase} className="space-y-6">
-      {/* 1st row: Purchase Date only */}
-      <div className="grid gap-4 grid-cols-1">
-        <div className="space-y-2 max-w-sm">
-          <Label>Purchase Date</Label>
-          <Input
-            name="purchase_date"
-            type="date"
-            required
-            defaultValue={new Date().toISOString().slice(0, 10)}
-          />
-        </div>
+    <form action={saveRawMaterialPurchase} className="space-y-5">
+
+      {/* Row 1: Purchase Date */}
+      <div className="max-w-xs space-y-2">
+        <Label>Purchase Date</Label>
+        <Input
+          name="purchase_date"
+          type="date"
+          required
+          defaultValue={new Date().toISOString().slice(0, 10)}
+        />
       </div>
 
-      {/* 2nd row: Client, Bill number, Total Bill value */}
-      <div className="grid gap-4 md:grid-cols-3 items-end">
+      {/* Row 2: Client | Bill Number | Total Bill Value */}
+      <div className="grid gap-4 sm:grid-cols-3">
         <div className="space-y-2">
           <Label>Client</Label>
           <select
@@ -95,123 +101,159 @@ export function PurchaseForm({
           <Input name="bill_number" placeholder="Enter bill number" required />
         </div>
 
-         <div className="space-y-2">
-           <Label>Total Bill Value (Including GST)</Label>
-           <Input
-             name="total_bill_value"
-             type="number"
-             required
-             placeholder="Enter total bill amount"
-           />
-         </div>
-       </div>
+        <div className="space-y-2">
+          <Label>Total Bill Value (incl. GST)</Label>
+          <Input
+            name="total_bill_value"
+            type="number"
+            required
+            placeholder="Enter total bill amount"
+          />
+        </div>
+      </div>
 
-       {/* 3rd row: Raw Material items */}
-       <div className="space-y-3">
-         <div className="flex items-center justify-between border-b pb-2">
-           <Label className="text-sm font-bold uppercase tracking-wider text-muted-foreground">
-             Purchase Items
-           </Label>
-         </div>
+      {/* Row 3: Purchase Items */}
+      <div className="space-y-3">
+        <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground border-b pb-1 block">
+          Purchase Items
+        </Label>
 
-         <div className="space-y-3">
-           {items.map((item, index) => (
-             <div key={item.key} className="flex flex-col md:flex-row gap-3 items-end bg-muted/10 p-3 rounded-lg border border-border">
-               <div className="flex-1 w-full space-y-2">
-                 <Label className="md:hidden">Raw Material ID</Label>
-                 {index === 0 && <Label className="hidden md:block">Raw Material ID</Label>}
-                 <select
-                   name="raw_material_id"
-                   required
-                   value={item.raw_material_id}
-                   onChange={(e) => handleItemChange(item.key, "raw_material_id", e.target.value)}
-                   className="h-10 w-full rounded-md border bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-                 >
-                   <option value="" disabled>Select material</option>
-                   {materials.map((material) => (
-                     <option key={material.id} value={material.id}>
-                       {material.material_name} ({material.unit})
-                     </option>
-                   ))}
-                 </select>
-               </div>
+        {/* --- Single input row: Material | Qty | Rate | + Add Item --- */}
+        <div className="flex flex-wrap gap-3 items-end p-3 rounded-lg border bg-muted/10">
+          {/* Material select */}
+          <div className="flex-1 min-w-[160px] space-y-1">
+            <Label className="text-xs">Raw Material</Label>
+            <select
+              value={draft.raw_material_id}
+              onChange={(e) => setDraft((d) => ({ ...d, raw_material_id: e.target.value }))}
+              className="h-10 w-full rounded-md border bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+            >
+              <option value="" disabled>Select material</option>
+              {materials.map((material) => (
+                <option key={material.id} value={material.id}>
+                  {material.material_name} ({material.unit})
+                </option>
+              ))}
+            </select>
+          </div>
 
-               <div className="w-full md:w-40 space-y-2">
-                 <Label className="md:hidden">Qty</Label>
-                 {index === 0 && <Label className="hidden md:block">Qty</Label>}
-                 <Input
-                   name="quantity"
-                   type="number"
-                   step="0.01"
-                   required
-                   value={item.quantity}
-                   onChange={(e) => handleItemChange(item.key, "quantity", e.target.value)}
-                   placeholder="0.00"
-                 />
-               </div>
+          {/* Qty */}
+          <div className="w-28 space-y-1">
+            <Label className="text-xs">Qty {selectedMaterial ? `(${selectedMaterial.unit})` : ""}</Label>
+            <Input
+              type="number"
+              step="0.01"
+              placeholder="0.00"
+              value={draft.quantity}
+              onChange={(e) => setDraft((d) => ({ ...d, quantity: e.target.value }))}
+            />
+          </div>
 
-               <div className="w-full md:w-40 space-y-2">
-                 <Label className="md:hidden">Unit Rate (₹)</Label>
-                 {index === 0 && <Label className="hidden md:block">Unit Rate (₹)</Label>}
-                 <Input
-                   name="rate"
-                   type="number"
-                   step="0.01"
-                   required
-                   value={item.rate}
-                   onChange={(e) => handleItemChange(item.key, "rate", e.target.value)}
-                   placeholder="0.00"
-                 />
-               </div>
+          {/* Rate */}
+          <div className="w-28 space-y-1">
+            <Label className="text-xs">Rate (₹)</Label>
+            <Input
+              type="number"
+              step="0.01"
+              placeholder="0.00"
+              value={draft.rate}
+              onChange={(e) => setDraft((d) => ({ ...d, rate: e.target.value }))}
+            />
+          </div>
 
-               {items.length > 1 && (
-                 <Button
-                   type="button"
-                   variant="ghost"
-                   size="icon"
-                   className="text-destructive hover:text-destructive hover:bg-destructive/10 h-10 w-10 shrink-0"
-                   onClick={() => handleRemoveItem(item.key)}
-                 >
-                   <Trash2 className="h-5 w-5" />
-                 </Button>
-               )}
-             </div>
-           ))}
+          {/* Add Item button */}
+          <Button
+            type="button"
+            variant="default"
+            onClick={handleAddItem}
+            disabled={!draft.raw_material_id || !draft.quantity || !draft.rate}
+            className="h-10 gap-1.5 shrink-0"
+          >
+            <Plus className="h-4 w-4" /> Add Item
+          </Button>
+        </div>
 
-           {/* Add Item Button placed aligned to the bottom-right of the items */}
-           <div className="flex justify-between items-center pt-2">
-             <div className="flex-1"></div>
-             <div className="flex gap-3">
-               <Button
-                 type="button"
-                 variant="outline"
-                 onClick={handleAddItem}
-                 className="flex items-center gap-1.5 font-semibold h-10 w-40"
-               >
-                 <Plus className="h-4 w-4" /> Add Item
-               </Button>
-               {items.length > 1 && <div className="w-10 shrink-0"></div>}
-             </div>
-           </div>
-         </div>
-       </div>
+        {/* --- Hidden inputs for confirmed items (submitted with form) --- */}
+        {items.map((item) => (
+          <input key={`hidden-${item.key}`} type="hidden" name="raw_material_id" value={item.raw_material_id} />
+        ))}
+        {items.map((item) => (
+          <input key={`hidden-qty-${item.key}`} type="hidden" name="quantity" value={item.quantity} />
+        ))}
+        {items.map((item) => (
+          <input key={`hidden-rate-${item.key}`} type="hidden" name="rate" value={item.rate} />
+        ))}
 
+        {/* --- Added items list (below input row) --- */}
+        {items.length > 0 && (
+          <div className="space-y-2">
+            {/* Header row */}
+            <div className="hidden sm:grid sm:grid-cols-[2fr_1fr_1fr_1fr_auto] gap-3 px-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              <span>Material</span>
+              <span>Qty</span>
+              <span>Rate (₹)</span>
+              <span>Amount (₹)</span>
+              <span></span>
+            </div>
+            {items.map((item, idx) => {
+              const amount = (Number(item.quantity) || 0) * (Number(item.rate) || 0);
+              return (
+                <div
+                  key={item.key}
+                  className="grid grid-cols-[2fr_1fr_1fr_1fr_auto] gap-3 items-center px-3 py-2 rounded-md bg-muted/20 border text-sm"
+                >
+                  <span className="font-medium truncate">{idx + 1}. {item.material_label}</span>
+                  <span>{item.quantity} {item.unit}</span>
+                  <span>₹{item.rate}</span>
+                  <span className="font-semibold">₹{amount.toFixed(2)}</span>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveItem(item.key)}
+                    className="text-muted-foreground hover:text-destructive transition-colors"
+                    aria-label="Remove"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              );
+            })}
 
+            {/* Total row */}
+            <div className="grid grid-cols-[2fr_1fr_1fr_1fr_auto] gap-3 items-center px-3 py-2 rounded-md bg-primary/5 border-t font-bold text-sm">
+              <span>{items.length} item{items.length !== 1 ? "s" : ""}</span>
+              <span></span>
+              <span>Total</span>
+              <span className="text-primary">
+                ₹{items.reduce((s, it) => s + (Number(it.quantity) || 0) * (Number(it.rate) || 0), 0).toFixed(2)}
+              </span>
+              <span></span>
+            </div>
+          </div>
+        )}
 
-       {/* Remarks */}
-       <div className="space-y-2">
-         <Label>Remarks</Label>
-         <Textarea name="remarks" placeholder="Optional remarks or notes about the purchase..." />
-       </div>
+        {items.length === 0 && (
+          <div className="flex flex-col items-center gap-2 py-6 text-muted-foreground text-sm">
+            <PackagePlus className="h-8 w-8 opacity-40" />
+            <span>No items added yet. Fill the row above and click <strong>Add Item</strong>.</span>
+          </div>
+        )}
+      </div>
 
-       <div>
-         <ConfirmSubmitButton
-           confirmTitle="Save raw material purchase?"
-           confirmDescription={`Confirm client, bill number, and items count (${items.length}) before saving.`}
-         >
-           Save Purchase
-         </ConfirmSubmitButton>
-       </div>
+      {/* Remarks */}
+      <div className="space-y-2">
+        <Label>Remarks</Label>
+        <Textarea name="remarks" placeholder="Optional remarks or notes about the purchase..." />
+      </div>
+
+      <div>
+        <ConfirmSubmitButton
+          confirmTitle="Save raw material purchase?"
+          confirmDescription={`Confirm client, bill number, and items count (${items.length}) before saving.`}
+          disabled={items.length === 0}
+        >
+          Save Purchase
+        </ConfirmSubmitButton>
+      </div>
     </form>
   );
 }
