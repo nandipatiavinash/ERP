@@ -427,12 +427,14 @@ function SearchableAccountSelect({
   value: string;
   onChange: (val: string) => void;
   disabled?: boolean;
-  accounts?: { name: string }[];
+  accounts?: { name: string; alias?: string }[];
 }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
   const triggerRef = useRef<HTMLDivElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Position dropdown using fixed coords from trigger element
   const openDropdown = () => {
@@ -440,18 +442,27 @@ function SearchableAccountSelect({
     const rect = triggerRef.current.getBoundingClientRect();
     const spaceBelow = window.innerHeight - rect.bottom;
     const spaceAbove = rect.top;
-    const dropdownHeight = Math.min(accounts.length * 52 + 16, 320);
+    
+    // Predict dropdown height including search bar (approx max 300px)
+    const dropdownHeight = 300;
     const openUpward = spaceBelow < dropdownHeight && spaceAbove > spaceBelow;
+    
     setDropdownStyle({
       position: 'fixed',
       left: rect.left,
-      width: Math.max(rect.width, 340),
+      width: Math.max(rect.width, 360),
       zIndex: 9999,
       ...(openUpward
         ? { bottom: window.innerHeight - rect.top + 4 }
         : { top: rect.bottom + 4 }),
     });
+    setSearchQuery("");
     setIsOpen(true);
+    
+    // Auto-focus search input shortly after rendering
+    setTimeout(() => {
+      searchInputRef.current?.focus();
+    }, 50);
   };
 
   // Close on outside click
@@ -468,10 +479,15 @@ function SearchableAccountSelect({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isOpen]);
 
-  // Close on scroll
+  // Close on scroll (only if scrolling outside the dropdown container itself)
   useEffect(() => {
     if (!isOpen) return;
-    const handleScroll = () => setIsOpen(false);
+    const handleScroll = (event: Event) => {
+      if (dropdownRef.current && dropdownRef.current.contains(event.target as Node)) {
+        return;
+      }
+      setIsOpen(false);
+    };
     window.addEventListener('scroll', handleScroll, true);
     return () => window.removeEventListener('scroll', handleScroll, true);
   }, [isOpen]);
@@ -480,6 +496,21 @@ function SearchableAccountSelect({
     onChange(name);
     setIsOpen(false);
   };
+
+  const filteredAccounts = useMemo(() => {
+    if (!searchQuery.trim()) return accounts;
+    const query = searchQuery.toLowerCase();
+    return accounts.filter((acc) => {
+      const nameMatch = acc.name.toLowerCase().includes(query);
+      const aliasMatch = acc.alias?.toLowerCase().includes(query) ?? false;
+      return nameMatch || aliasMatch;
+    });
+  }, [accounts, searchQuery]);
+
+  const selectedAccountObj = accounts.find(a => a.name === value);
+  const displayLabel = selectedAccountObj 
+    ? (selectedAccountObj.name + (selectedAccountObj.alias ? ` (${selectedAccountObj.alias})` : ''))
+    : (value || 'Select account...');
 
   return (
     <div className="w-full">
@@ -500,7 +531,7 @@ function SearchableAccountSelect({
             : 'border-gray-200 hover:border-emerald-300'
         } ${value ? 'text-slate-900 font-medium' : 'text-slate-400'}`}
       >
-        <span className="truncate">{value || 'Select account...'}</span>
+        <span className="truncate">{displayLabel}</span>
         <svg className={`h-4 w-4 shrink-0 text-slate-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
         </svg>
@@ -511,32 +542,63 @@ function SearchableAccountSelect({
         <div
           ref={dropdownRef}
           style={dropdownStyle}
-          className="bg-white border border-emerald-100 rounded-xl shadow-2xl overflow-y-auto"
+          className="bg-white border border-emerald-100 rounded-xl shadow-2xl flex flex-col overflow-hidden max-h-[300px]"
         >
-          {accounts.length === 0 ? (
-            <div className="p-5 text-center text-sm text-slate-400">No firms / clients found</div>
-          ) : (
-            <div className="py-2">
-              {accounts.map((item) => (
-                <div
-                  key={item.name}
-                  onMouseDown={(e) => { e.preventDefault(); handleSelect(item.name); }}
-                  className={`px-4 py-3 text-sm cursor-pointer transition-colors flex items-center gap-2 ${
-                    value === item.name
-                      ? 'bg-emerald-50 text-emerald-900 font-semibold'
-                      : 'text-slate-700 hover:bg-emerald-50 hover:text-emerald-900'
-                  }`}
-                >
-                  {value === item.name && (
-                    <svg className="h-3.5 w-3.5 text-emerald-600 shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                  )}
-                  <span className={value === item.name ? '' : 'pl-5'}>{item.name}</span>
-                </div>
-              ))}
-            </div>
-          )}
+          {/* Search Input Sticky Header */}
+          <div className="p-2 border-b border-slate-100 bg-slate-50 sticky top-0 flex items-center gap-2 shrink-0">
+            <Search className="h-4 w-4 text-slate-400 shrink-0 ml-1" />
+            <input
+              ref={searchInputRef}
+              type="text"
+              placeholder="Type to search account/alias..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-transparent border-0 p-0.5 text-sm outline-none focus:ring-0 placeholder-slate-400"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                className="text-slate-400 hover:text-slate-600 mr-1"
+              >
+                ×
+              </button>
+            )}
+          </div>
+
+          {/* Account List Area */}
+          <div className="overflow-y-auto flex-1 min-h-0 divide-y divide-slate-100">
+            {filteredAccounts.length === 0 ? (
+              <div className="p-5 text-center text-sm text-slate-400">No matching accounts found</div>
+            ) : (
+              <div className="py-1">
+                {filteredAccounts.map((item) => {
+                  const isSelected = value === item.name;
+                  const itemLabel = item.name + (item.alias ? ` (${item.alias})` : '');
+                  return (
+                    <div
+                      key={item.name}
+                      onMouseDown={(e) => { e.preventDefault(); handleSelect(item.name); }}
+                      className={`px-4 py-2.5 text-sm cursor-pointer transition-colors flex items-center gap-2 ${
+                        isSelected
+                          ? 'bg-emerald-50 text-emerald-950 font-semibold'
+                          : 'text-slate-700 hover:bg-slate-50 hover:text-slate-900'
+                      }`}
+                    >
+                      <div className="w-5 shrink-0 flex items-center justify-center">
+                        {isSelected && (
+                          <svg className="h-4 w-4 text-emerald-600" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                      </div>
+                      <span className="truncate">{itemLabel}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
