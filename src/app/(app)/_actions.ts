@@ -1217,3 +1217,81 @@ export async function saveSalesOrderBilling(formData: FormData) {
   revalidatePath("/sales/order-confirmation");
   revalidatePath("/reports");
 }
+
+export async function deleteSalesOrderCompletely(orderId: string) {
+  const user = await requirePermission("sales.edit");
+  const supabase = await createClient();
+
+  const { data: order, error: orderError } = await (supabase
+    .from("sales_orders") as any)
+    .select("id, bill_number, sales_order_items(id, selected_roll_ids)")
+    .eq("id", orderId)
+    .single();
+
+  if (orderError || !order) {
+    throw new Error("Sales order not found or already deleted.");
+  }
+
+  const orderData = order as any;
+  const billNumber = orderData.bill_number;
+  const items = orderData.sales_order_items || [];
+
+  const rollIds: string[] = [];
+  for (const item of items) {
+    if (item.selected_roll_ids && Array.isArray(item.selected_roll_ids)) {
+      rollIds.push(...item.selected_roll_ids);
+    }
+  }
+
+  if (rollIds.length > 0) {
+    const { error: rollUpdateErr } = await (supabase
+      .from("fabric_rolls") as any)
+      .update({ status: "available", updated_by: user.id })
+      .in("id", rollIds);
+    if (rollUpdateErr) {
+      throw new Error("Failed to reset roll statuses: " + rollUpdateErr.message);
+    }
+  }
+
+  if (billNumber) {
+    const { data: journalRows } = await (supabase
+      .from("accounts_journal") as any)
+      .select("journal_no")
+      .or(`description.eq."${billNumber}",description.like."${billNumber} (%)"`);
+    
+    const journalNos = (journalRows || []).map((r: any) => r.journal_no);
+    if (journalNos.length > 0) {
+      const { error: journalDelErr } = await (supabase
+        .from("accounts_journal") as any)
+        .delete()
+        .in("journal_no", journalNos);
+      if (journalDelErr) {
+        throw new Error("Failed to delete related journal entries: " + journalDelErr.message);
+      }
+    }
+  }
+
+  const { error: itemsDelErr } = await (supabase
+    .from("sales_order_items") as any)
+    .delete()
+    .eq("sales_order_id", orderId);
+  if (itemsDelErr) {
+    throw new Error("Failed to delete sales order items: " + itemsDelErr.message);
+  }
+
+  const { error: orderDelErr } = await (supabase
+    .from("sales_orders") as any)
+    .delete()
+    .eq("id", orderId);
+  if (orderDelErr) {
+    throw new Error("Failed to delete sales order: " + orderDelErr.message);
+  }
+
+  revalidatePath("/sales/delivery-entry");
+  revalidatePath("/sales/order-confirmation");
+  revalidatePath("/accounts/sales");
+  revalidatePath("/accounts/journal");
+  revalidatePath("/rolls");
+  revalidatePath("/fabric/stock");
+  revalidatePath("/reports");
+}

@@ -1,4 +1,5 @@
 import { DeliveryEntryForm } from "@/components/app/delivery-entry-form";
+import { DeleteOrderButton } from "@/components/app/delete-order-button";
 import { PageHeader } from "@/components/app/page-header";
 import { StatusBadge } from "@/components/app/status-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -66,6 +67,7 @@ export default async function DeliveryEntryPage() {
                     <TableHead>Firm Name</TableHead>
                     <TableHead>Items Count</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead className="w-12 text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -79,6 +81,9 @@ export default async function DeliveryEntryPage() {
                       <TableCell>{order.sales_order_items?.length ?? 0} items</TableCell>
                       <TableCell>
                         <StatusBadge value={order.status} />
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <DeleteOrderButton orderId={order.id} />
                       </TableCell>
                     </TableRow>
                   ))}
