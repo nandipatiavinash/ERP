@@ -51,25 +51,40 @@ export function SalesPrintView({ order, rollsByProduct }: SalesPrintViewProps) {
       {/* ---------- Print-specific styles ---------- */}
       <style>{`
         @media print {
-          /* Hide everything except the print area */
-          body > *:not(#__next),
-          header, nav, aside,
+          /* Hide headers, sidebars, buttons, etc. */
+          header,
+          aside,
+          nav,
+          button,
           .no-print,
           [data-print-hide] {
             display: none !important;
           }
 
-          /* Let the print area fill the page */
+          /* Reset main page container layout paddings and background */
+          html,
+          body,
+          main,
+          div.lg\\:pl-64,
+          div.min-h-screen {
+            background: #fff !important;
+            color: #000 !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            position: static !important;
+            width: 100% !important;
+            height: auto !important;
+            min-height: 0 !important;
+          }
+
+          /* Ensure the print container spans the page and doesn't get boxed */
           .sales-print-area {
             display: block !important;
-            position: absolute;
-            inset: 0;
-            margin: 0;
-            padding: 12mm 10mm;
-            background: #fff;
-            color: #000;
-            font-size: 11px;
-            line-height: 1.5;
+            border: none !important;
+            box-shadow: none !important;
+            margin: 0 !important;
+            padding: 12mm 10mm !important;
+            width: 100% !important;
           }
 
           .sales-print-area table {
@@ -124,64 +139,21 @@ export function SalesPrintView({ order, rollsByProduct }: SalesPrintViewProps) {
       <div className="sales-print-area rounded-lg border border-gray-200 bg-white p-8 text-sm text-gray-900 shadow-sm">
         {/* ── Invoice header ── */}
         <div className="mb-6 border-b border-gray-300 pb-4">
-          <h1 className="text-2xl font-bold tracking-tight text-gray-900">
-            SALES INVOICE
-          </h1>
-
-          <div className="mt-4 grid grid-cols-2 gap-x-12 gap-y-2 text-sm">
-            {/* Left column – customer */}
-            <div className="space-y-1">
+          <div className="flex justify-between items-start text-sm">
+            {/* Left column – customer name only */}
+            <div>
               {customer && (
-                <>
-                  <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
-                    Bill To
-                  </p>
-                  <p className="text-base font-semibold">
-                    {customer.customer_name}
-                  </p>
-                  {customer.address && (
-                    <p className="text-gray-600">{customer.address}</p>
-                  )}
-                  {customer.gst_number && (
-                    <p className="text-gray-600">
-                      <span className="font-medium">GST:</span>{" "}
-                      {customer.gst_number}
-                    </p>
-                  )}
-                  {customer.phone && (
-                    <p className="text-gray-600">
-                      <span className="font-medium">Phone:</span>{" "}
-                      {customer.phone}
-                    </p>
-                  )}
-                </>
+                <p className="text-lg font-bold">
+                  {customer.customer_name}
+                </p>
               )}
             </div>
 
-            {/* Right column – order meta */}
-            <div className="space-y-1 text-right">
-              <p>
-                <span className="font-medium text-gray-500">Order #:</span>{" "}
-                {order.order_number}
-              </p>
-              <p>
-                <span className="font-medium text-gray-500">Date:</span>{" "}
+            {/* Right column – date only */}
+            <div className="text-right">
+              <p className="text-sm font-medium">
                 {formatDate(order.order_date)}
               </p>
-              {order.bill_number && (
-                <p>
-                  <span className="font-medium text-gray-500">Bill #:</span>{" "}
-                  {order.bill_number}
-                </p>
-              )}
-              {order.bill_value != null && (
-                <p>
-                  <span className="font-medium text-gray-500">
-                    Bill Value:
-                  </span>{" "}
-                  ₹{formatNumber(order.bill_value)}
-                </p>
-              )}
             </div>
           </div>
         </div>
@@ -262,9 +234,7 @@ export function SalesPrintView({ order, rollsByProduct }: SalesPrintViewProps) {
                     <td className="border border-gray-200 px-3 py-2 text-right tabular-nums">
                       {formatNumber(totalNetWeight)}
                     </td>
-                    <td className="border border-gray-200 px-3 py-2 text-right tabular-nums">
-                      {formatNumber(totalMeters)}
-                    </td>
+                    <td className="border border-gray-200 px-3 py-2 text-right tabular-nums" />
                     <td className="border border-gray-200 px-3 py-2" />
                   </tr>
                 </tfoot>
@@ -294,24 +264,6 @@ export function SalesPrintView({ order, rollsByProduct }: SalesPrintViewProps) {
                     {formatNumber(grandTotalNetWeight)} kg
                   </td>
                 </tr>
-                <tr>
-                  <td className="py-1 font-medium text-gray-500">
-                    Total Meters
-                  </td>
-                  <td className="py-1 text-right tabular-nums font-semibold">
-                    {formatNumber(grandTotalMeters)} m
-                  </td>
-                </tr>
-                {order.bill_value != null && (
-                  <tr className="border-t border-gray-300">
-                    <td className="pt-2 text-base font-bold text-gray-900">
-                      Bill Value
-                    </td>
-                    <td className="pt-2 text-right text-base font-bold tabular-nums text-gray-900">
-                      ₹{formatNumber(order.bill_value)}
-                    </td>
-                  </tr>
-                )}
               </tbody>
             </table>
           </div>

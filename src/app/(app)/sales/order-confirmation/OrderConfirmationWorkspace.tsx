@@ -566,15 +566,14 @@ export function OrderConfirmationWorkspace({
                                       <table className="w-full text-left border-collapse text-sm">
                                         <thead>
                                           <tr className="bg-muted/40 border-b text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                                            <th className="p-3 w-12 text-center">Select</th>
+                                                                            <th className="p-3 w-12 text-center">Select</th>
                                             <th className="p-3">S.No</th>
-                                            <th className="p-3">Net W8</th>
-                                            <th className="p-3">Core W8</th>
                                             <th className="p-3">Gross W8</th>
+                                            <th className="p-3">Core W8</th>
+                                            <th className="p-3">Net W8</th>
                                             <th className="p-3">Mtrs</th>
                                             <th className="p-3">Avg Mtrs</th>
                                             <th className="p-3">Loom</th>
-                                            <th className="p-3">Status</th>
                                           </tr>
                                         </thead>
                                         <tbody className="divide-y">
@@ -601,15 +600,12 @@ export function OrderConfirmationWorkspace({
                                                   />
                                                 </td>
                                                 <td className="p-3 font-bold text-emerald-950">{roll.roll_number}</td>
-                                                <td className="p-3 font-semibold">{formatNumber(roll.weight, 2)}</td>
-                                                <td className="p-3">{coreW}</td>
                                                 <td className="p-3">{grossW}</td>
+                                                <td className="p-3">{coreW}</td>
+                                                <td className="p-3 font-semibold">{formatNumber(roll.weight, 2)}</td>
                                                 <td className="p-3">{formatNumber(roll.meters, 0)}</td>
                                                 <td className="p-3">{avgMeterW}</td>
                                                 <td className="p-3 font-medium">{loomNo}</td>
-                                                <td className="p-3">
-                                                  <StatusBadge value={roll.status} />
-                                                </td>
                                               </tr>
                                             );
                                           })}
