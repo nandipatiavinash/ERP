@@ -1017,7 +1017,6 @@ export async function saveJournalEntry(formData: FormData) {
   let totalCredit = 0;
   for (const r of rows) {
     if (!r.account_name) throw new Error("Account name is required on all rows.");
-    if (!r.description) throw new Error("Description is required on all rows.");
     if (r.debit > 0 && r.credit > 0) throw new Error("A row cannot contain both Debit and Credit.");
     if (r.debit <= 0 && r.credit <= 0) throw new Error("Either Debit or Credit must be entered on all rows.");
     if (r.debit > 0) {

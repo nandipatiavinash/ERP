@@ -120,9 +120,6 @@ export function JournalEntryForm({
     if (!rowObj.accountName) {
       errs.accountName = "Select an account";
     }
-    if (!rowObj.description.trim()) {
-      errs.description = "Enter description";
-    }
     const debVal = parseFloat(rowObj.debit);
     const credVal = parseFloat(rowObj.credit);
 
@@ -165,7 +162,7 @@ export function JournalEntryForm({
       description: "",
       debit: "",
       credit: "",
-      errors: { accountName: "Select an account", description: "Enter description", amount: "Enter Debit or Credit" }
+      errors: { accountName: "Select an account", amount: "Enter Debit or Credit" }
     };
     setRows((prev) => {
       const next = [...prev];
@@ -183,7 +180,7 @@ export function JournalEntryForm({
   // Form validity check
   const hasErrors = rows.some((r) => Object.keys(r.errors).length > 0);
   const allFieldsFilled = rows.every(
-    (r) => r.accountName && r.description && (r.debit || r.credit)
+    (r) => r.accountName && (r.debit || r.credit)
   );
   const isValid = rows.length >= 2 && allFieldsFilled && !hasErrors && isBalanced;
 
