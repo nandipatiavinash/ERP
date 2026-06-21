@@ -92,7 +92,7 @@ export default async function PurchaseEntryPage() {
                       <TableCell>{purchase.supplier_name ?? "-"}</TableCell>
                       <TableCell>{purchase.bill_number ?? "-"}</TableCell>
                       <TableCell>
-                        {formatNumber(purchase.quantity, 2)} {purchase.raw_materials?.unit ?? ""}
+                        {formatNumber(purchase.quantity, 0)} {purchase.raw_materials?.unit ?? ""}
                       </TableCell>
                       <TableCell>{"\u20b9"}{formatNumber(purchase.rate, 2)}</TableCell>
                       <TableCell>{"\u20b9"}{formatNumber(getEnteredBillValue(purchase.remarks, purchase.total_amount), 2)}</TableCell>

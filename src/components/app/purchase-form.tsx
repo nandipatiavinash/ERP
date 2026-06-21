@@ -56,7 +56,7 @@ export function PurchaseForm({
         raw_material_id: draft.raw_material_id,
         material_label: mat.material_name,
         unit: mat.unit && mat.unit !== "-" ? mat.unit : "",
-        quantity: draft.quantity,
+        quantity: String(Math.round(Number(draft.quantity))),
         rate: draft.rate,
       },
     ]);
@@ -171,9 +171,9 @@ export function PurchaseForm({
             <Label className="text-xs">Qty {selectedMaterial ? `(${selectedMaterial.unit})` : ""}</Label>
             <Input
               type="number"
-              step="0.01"
-              min="0.01"
-              placeholder="0.00"
+              step="1"
+              min="1"
+              placeholder="0"
               value={draft.quantity}
               onChange={(e) => setDraft((d) => ({ ...d, quantity: e.target.value }))}
             />
@@ -234,7 +234,7 @@ export function PurchaseForm({
                   className="grid grid-cols-[2fr_1fr_1fr_1fr_auto] gap-3 items-center px-3 py-2 rounded-md bg-muted/20 border text-sm"
                 >
                   <span className="font-medium truncate">{idx + 1}. {item.material_label}</span>
-                  <span>{item.quantity}{item.unit ? ` ${item.unit}` : ""}</span>
+                  <span>{Math.round(Number(item.quantity))}{item.unit ? ` ${item.unit}` : ""}</span>
                   <span>₹{item.rate}</span>
                   <span className="font-semibold">₹{amount.toFixed(2)}</span>
                   <button
