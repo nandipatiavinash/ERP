@@ -544,16 +544,16 @@ function SearchableAccountSelect({
         <div
           ref={dropdownRef}
           style={dropdownStyle}
-          className="bg-white border-2 border-emerald-500 rounded-xl shadow-2xl flex flex-col overflow-hidden"
+          className="bg-white border border-slate-200 rounded-xl shadow-2xl flex flex-col overflow-hidden"
         >
           {/* Search Input Sticky Header */}
           <div className="p-3 border-b border-slate-100 bg-slate-50 sticky top-0 shrink-0">
-            <div className="flex items-center gap-2 px-3 py-2 rounded-lg border-2 border-emerald-300 bg-white shadow-sm focus-within:border-emerald-500 transition-colors">
-              <Search className="h-4 w-4 text-emerald-600 shrink-0" />
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 bg-white shadow-sm focus-within:border-slate-400 transition-colors">
+              <Search className="h-4 w-4 text-slate-400 shrink-0" />
               <input
                 ref={searchInputRef}
                 type="text"
-                placeholder="🔍 Type account or alias..."
+                placeholder="Type to search account/alias..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full bg-transparent border-0 p-0 text-sm outline-none focus:ring-0 text-slate-800 placeholder-slate-400 font-medium"
@@ -585,13 +585,13 @@ function SearchableAccountSelect({
                       onMouseDown={(e) => { e.preventDefault(); handleSelect(item.name); }}
                       className={`px-4 py-2.5 text-sm cursor-pointer transition-colors flex items-center gap-2 ${
                         isSelected
-                          ? 'bg-emerald-50 text-emerald-950 font-semibold'
+                          ? 'bg-slate-100 text-slate-900 font-semibold'
                           : 'text-slate-700 hover:bg-slate-50 hover:text-slate-900'
                       }`}
                     >
                       <div className="w-5 shrink-0 flex items-center justify-center">
                         {isSelected && (
-                          <svg className="h-4 w-4 text-emerald-600" fill="currentColor" viewBox="0 0 20 20">
+                          <svg className="h-4 w-4 text-slate-600" fill="currentColor" viewBox="0 0 20 20">
                             <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                           </svg>
                         )}
