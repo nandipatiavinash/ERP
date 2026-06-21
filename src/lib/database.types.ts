@@ -193,6 +193,8 @@ export type Database = {
         gst_number: string | null;
         address: string | null;
         is_internal: string;
+        opening_debit: number;
+        opening_credit: number;
         status: Status;
         created_by: string | null;
         updated_by: string | null;

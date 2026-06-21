@@ -104,6 +104,7 @@ export const navGroups: NavGroup[] = [
       { href: "/reports/sales-confirmation", label: "Sales Confirmation", roles: ["admin"], permission: "reports.view" },
       { href: "/reports/accounts", label: "Account Reports", roles: ["admin"], permission: "reports.view" },
       { href: "/reports/opening-balance", label: "Opening Balance", roles: ["admin"], permission: "reports.view" },
+      { href: "/reports/stock", label: "Stock Report", roles: ["admin", "operator"], permission: "reports.view" },
       { href: "/reports/closing-stock", label: "Closing Stock", roles: ["admin", "operator"], permission: "reports.view" },
       { href: "/reports/profit-loss", label: "Profit & Loss", roles: ["admin"], permission: "reports.view" },
       { href: "/reports/balance-sheet", label: "Balance Sheet", roles: ["admin"], permission: "reports.view" },

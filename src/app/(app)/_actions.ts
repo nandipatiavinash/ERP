@@ -1528,3 +1528,34 @@ export async function saveSalesConfirmationRates(
 
   revalidatePath("/reports/sales-confirmation");
 }
+
+export async function saveAccountOpeningBalance(formData: FormData) {
+  const user = await requirePermission("customers.edit");
+  const id = String(formData.get("id") ?? "");
+  const openingDebit = Number(formData.get("opening_debit") ?? 0);
+  const openingCredit = Number(formData.get("opening_credit") ?? 0);
+
+  if (!id) {
+    throw new Error("Account ID is required.");
+  }
+  if (openingDebit < 0 || openingCredit < 0) {
+    throw new Error("Opening values cannot be negative.");
+  }
+
+  const supabase = await createClient();
+  const { error } = await (supabase
+    .from("customers") as any)
+    .update({
+      opening_debit: openingDebit,
+      opening_credit: openingCredit,
+      updated_by: user.id,
+    } as any)
+    .eq("id", id);
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  revalidatePath("/reports/opening-balance");
+  revalidatePath("/reports/accounts");
+}
