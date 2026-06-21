@@ -64,7 +64,6 @@ export default async function DeliveryEntryPage() {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Order Number</TableHead>
-                    <TableHead>Date</TableHead>
                     <TableHead>Firm Name</TableHead>
                     <TableHead>Items Count</TableHead>
                     <TableHead>Status</TableHead>
@@ -75,7 +74,6 @@ export default async function DeliveryEntryPage() {
                   {orderRows.map((order) => (
                     <TableRow key={order.id}>
                       <TableCell className="font-bold text-emerald-950">{order.order_number}</TableCell>
-                      <TableCell>{formatDate(order.order_date)}</TableCell>
                       <TableCell>
                         {order.customers?.customer_name} {order.customers?.alias ? `(${order.customers?.alias})` : ""}
                       </TableCell>

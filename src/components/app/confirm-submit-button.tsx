@@ -100,6 +100,22 @@ export function ConfirmSubmitButton({
   const [summary, setSummary] = useState<SummaryRow[]>([]);
   const buttonRef = useRef<HTMLButtonElement>(null);
 
+  const isDeleteAction =
+    confirmTitle.toLowerCase().includes("delete") ||
+    confirmTitle.toLowerCase().includes("deactivate") ||
+    (typeof children === "string" && children.toLowerCase().includes("delete"));
+
+  const finalConfirmLabel = isDeleteAction && confirmLabel === "Confirm" ? "Yes" : confirmLabel;
+  const finalCancelLabel = isDeleteAction && cancelLabel === "Close" ? "No" : cancelLabel;
+  const finalDescription = isDeleteAction &&
+    (confirmDescription === "Please confirm before saving this change." ||
+     confirmDescription.toLowerCase().includes("delete") ||
+     confirmDescription.toLowerCase().includes("deactivate") ||
+     confirmDescription.toLowerCase().includes("remove") ||
+     confirmDescription.toLowerCase().includes("will be deleted"))
+    ? "Do you want to delete this?"
+    : confirmDescription;
+
   function submitForm() {
     const form = buttonRef.current?.closest("form");
     setOpen(false);
@@ -128,7 +144,7 @@ export function ConfirmSubmitButton({
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>{confirmTitle}</DialogTitle>
-            <DialogDescription>{confirmDescription}</DialogDescription>
+            <DialogDescription>{finalDescription}</DialogDescription>
           </DialogHeader>
           {summary.length > 0 ? (
             <div className="max-h-72 overflow-y-auto rounded-md border bg-muted/30 p-3">
@@ -147,9 +163,9 @@ export function ConfirmSubmitButton({
           ) : null}
           <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             <DialogClose asChild>
-              <Button type="button" variant="outline">{cancelLabel}</Button>
+              <Button type="button" variant="outline">{finalCancelLabel}</Button>
             </DialogClose>
-            <Button type="button" onClick={submitForm}>{confirmLabel}</Button>
+            <Button type="button" onClick={submitForm}>{finalConfirmLabel}</Button>
           </div>
         </DialogContent>
       </Dialog>

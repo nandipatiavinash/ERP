@@ -55,7 +55,6 @@ export default async function OrderConfirmationPage({ searchParams }: { searchPa
                 <TableHeader>
                   <TableRow>
                     <TableHead>Order Number</TableHead>
-                    <TableHead>Date</TableHead>
                     <TableHead>Firm Name</TableHead>
                     <TableHead>Items Count</TableHead>
                     <TableHead>Status</TableHead>
@@ -67,11 +66,6 @@ export default async function OrderConfirmationPage({ searchParams }: { searchPa
                       <TableCell className="font-bold text-emerald-950 p-0">
                         <Link href={`/sales/order-confirmation/${order.id}` as any} prefetch={false} className="block p-4">
                           {order.order_number}
-                        </Link>
-                      </TableCell>
-                      <TableCell className="p-0">
-                        <Link href={`/sales/order-confirmation/${order.id}` as any} prefetch={false} className="block p-4">
-                          {formatDate(order.order_date)}
                         </Link>
                       </TableCell>
                       <TableCell className="p-0">
