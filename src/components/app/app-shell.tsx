@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useState, Suspense } from "react";
 import { Menu, ChevronDown, ChevronRight } from "lucide-react";
 import { signOut } from "@/app/actions";
 import { BrandLogo } from "@/components/app/brand-logo";
@@ -118,6 +118,7 @@ export function AppShell({
 
   return (
     <div className="min-h-screen bg-muted/30">
+      <RouteTransitionBar />
       <aside className="fixed inset-y-0 left-0 z-20 hidden w-64 border-r bg-background lg:block">
         <Brand />
         <NavLinks groups={groups} />
@@ -155,5 +156,86 @@ export function AppShell({
         <main className="p-4 lg:p-6">{children}</main>
       </div>
     </div>
+  );
+}
+
+function RouteTransitionBarInner() {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    // Hide progress bar once the route/search parameters update completes
+    setLoading(false);
+  }, [pathname, searchParams]);
+
+  useEffect(() => {
+    const handleAnchorClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      const anchor = target.closest("a");
+
+      if (anchor) {
+        const href = anchor.getAttribute("href");
+        const targetAttr = anchor.getAttribute("target");
+
+        // Show progress bar for internal link transitions (in same window/tab)
+        if (
+          href &&
+          href.startsWith("/") &&
+          (!targetAttr || targetAttr === "_self")
+        ) {
+          const currentUrl = window.location.pathname + window.location.search;
+          if (href !== currentUrl) {
+            setLoading(true);
+          }
+        }
+      }
+    };
+
+    const handleFormSubmit = (e: SubmitEvent) => {
+      const form = e.target as HTMLFormElement;
+      const action = form.getAttribute("action");
+
+      // Show loading bar for internal form-based queries (e.g., search/filter forms)
+      if (!action || action.startsWith("/")) {
+        setLoading(true);
+      }
+    };
+
+    document.addEventListener("click", handleAnchorClick);
+    document.addEventListener("submit", handleFormSubmit);
+
+    return () => {
+      document.removeEventListener("click", handleAnchorClick);
+      document.removeEventListener("submit", handleFormSubmit);
+    };
+  }, []);
+
+  if (!loading) return null;
+
+  return (
+    <div className="fixed top-0 left-0 right-0 z-[9999] h-1 bg-primary overflow-hidden">
+      <div className="h-full bg-primary-foreground/30 animate-infinite-loading progress-bar-shine" />
+      <style>{`
+        @keyframes infinite-loading {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(100%); }
+        }
+        .animate-infinite-loading {
+          animation: infinite-loading 1.2s infinite linear;
+        }
+        .progress-bar-shine {
+          background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+        }
+      `}</style>
+    </div>
+  );
+}
+
+export function RouteTransitionBar() {
+  return (
+    <Suspense fallback={null}>
+      <RouteTransitionBarInner />
+    </Suspense>
   );
 }
