@@ -446,12 +446,14 @@ function SearchableAccountSelect({
     // Predict dropdown height including search bar (approx max 300px)
     const dropdownHeight = 300;
     const openUpward = spaceBelow < dropdownHeight && spaceAbove > spaceBelow;
+    const maxH = Math.max(150, openUpward ? spaceAbove - 20 : spaceBelow - 20);
     
     setDropdownStyle({
       position: 'fixed',
       left: rect.left,
       width: Math.max(rect.width, 360),
       zIndex: 9999,
+      maxHeight: `${maxH}px`,
       ...(openUpward
         ? { bottom: window.innerHeight - rect.top + 4 }
         : { top: rect.bottom + 4 }),
@@ -542,28 +544,30 @@ function SearchableAccountSelect({
         <div
           ref={dropdownRef}
           style={dropdownStyle}
-          className="bg-white border border-emerald-100 rounded-xl shadow-2xl flex flex-col overflow-hidden max-h-[300px]"
+          className="bg-white border-2 border-emerald-500 rounded-xl shadow-2xl flex flex-col overflow-hidden"
         >
           {/* Search Input Sticky Header */}
-          <div className="p-2 border-b border-slate-100 bg-slate-50 sticky top-0 flex items-center gap-2 shrink-0">
-            <Search className="h-4 w-4 text-slate-400 shrink-0 ml-1" />
-            <input
-              ref={searchInputRef}
-              type="text"
-              placeholder="Type to search account/alias..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-transparent border-0 p-0.5 text-sm outline-none focus:ring-0 placeholder-slate-400"
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => setSearchQuery("")}
-                className="text-slate-400 hover:text-slate-600 mr-1"
-              >
-                ×
-              </button>
-            )}
+          <div className="p-3 border-b border-slate-100 bg-slate-50 sticky top-0 shrink-0">
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg border-2 border-emerald-300 bg-white shadow-sm focus-within:border-emerald-500 transition-colors">
+              <Search className="h-4 w-4 text-emerald-600 shrink-0" />
+              <input
+                ref={searchInputRef}
+                type="text"
+                placeholder="🔍 Type account or alias..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-transparent border-0 p-0 text-sm outline-none focus:ring-0 text-slate-800 placeholder-slate-400 font-medium"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  className="text-slate-400 hover:text-slate-600 text-lg font-bold px-1"
+                >
+                  ×
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Account List Area */}
