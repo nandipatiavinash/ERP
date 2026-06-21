@@ -12,26 +12,31 @@ export default async function AccountsSalesPage() {
   await requirePermission("sales.view");
   const supabase = await createClient();
 
-  // 1. Fetch confirmed delivery orders that are NOT yet billed
-  const { data: pendingOrders } = await (supabase
-    .from("sales_orders") as any)
-    .select("id, order_number, order_date, customer_id, status, bill_number, bill_value, customers(customer_name, alias, phone, address, gst_number), sales_order_items(id, department, product_id, quantity, selected_roll_ids)")
-    .eq("status", "confirmed")
-    .is("bill_number", null)
-    .is("deleted_at", null)
-    .order("order_date", { ascending: false });
+  // 1. Fetch pending orders, billed orders, and fabric types concurrently
+  const [pendingRes, billedRes, fabricTypesRes] = await Promise.all([
+    (supabase.from("sales_orders") as any)
+      .select("id, order_number, order_date, customer_id, status, bill_number, bill_value, customers(customer_name, alias, phone, address, gst_number), sales_order_items(id, department, product_id, quantity, selected_roll_ids)")
+      .eq("status", "confirmed")
+      .is("bill_number", null)
+      .is("deleted_at", null)
+      .order("order_date", { ascending: false }),
+    (supabase.from("sales_orders") as any)
+      .select("id, order_number, order_date, bill_number, bill_value, customers(customer_name), sales_order_items(id, department, product_id, quantity, selected_roll_ids)")
+      .eq("status", "confirmed")
+      .not("bill_number", "is", null)
+      .is("deleted_at", null)
+      .order("order_date", { ascending: false })
+      .limit(50),
+    supabase
+      .from("fabric_types")
+      .select("id, fabric_name")
+  ]);
 
-  // 2. Fetch billed orders
-  const { data: billedOrders } = await (supabase
-    .from("sales_orders") as any)
-    .select("id, order_number, order_date, bill_number, bill_value, customers(customer_name), sales_order_items(id, department, product_id, quantity, selected_roll_ids)")
-    .eq("status", "confirmed")
-    .not("bill_number", "is", null)
-    .is("deleted_at", null)
-    .order("order_date", { ascending: false })
-    .limit(50);
+  const pendingOrders = pendingRes.data;
+  const billedOrders = billedRes.data;
+  const fabricTypes = fabricTypesRes.data;
 
-  // 3. Gather all roll IDs across pending + billed orders to fetch roll data
+  // 2. Gather all roll IDs across pending + billed orders to fetch roll data
   const allOrders = [...((pendingOrders ?? []) as any[]), ...((billedOrders ?? []) as any[])];
   const allRollIds: string[] = [];
   for (const order of allOrders) {
@@ -42,7 +47,7 @@ export default async function AccountsSalesPage() {
   }
   const uniqueRollIds = Array.from(new Set(allRollIds));
 
-  // 4. Fetch roll details with production entries
+  // 3. Fetch roll details with production entries
   let rolls: any[] = [];
   if (uniqueRollIds.length > 0) {
     const { data: rollData } = await supabase
@@ -52,11 +57,6 @@ export default async function AccountsSalesPage() {
       .is("deleted_at", null);
     rolls = (rollData ?? []) as any[];
   }
-
-  // 5. Fetch fabric types for product name lookup
-  const { data: fabricTypes } = await supabase
-    .from("fabric_types")
-    .select("id, fabric_name");
 
   return (
     <>

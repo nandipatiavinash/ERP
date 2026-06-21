@@ -64,27 +64,27 @@ export default async function OrderConfirmationPage({ searchParams }: { searchPa
                   {orderRows.map((order) => (
                     <TableRow key={order.id} className="hover:bg-slate-50 transition-colors cursor-pointer">
                       <TableCell className="font-bold text-emerald-950 p-0">
-                        <Link href={`/sales/order-confirmation/${order.id}` as any} className="block p-4">
+                        <Link href={`/sales/order-confirmation/${order.id}` as any} prefetch={false} className="block p-4">
                           {order.order_number}
                         </Link>
                       </TableCell>
                       <TableCell className="p-0">
-                        <Link href={`/sales/order-confirmation/${order.id}` as any} className="block p-4">
+                        <Link href={`/sales/order-confirmation/${order.id}` as any} prefetch={false} className="block p-4">
                           {formatDate(order.order_date)}
                         </Link>
                       </TableCell>
                       <TableCell className="p-0">
-                        <Link href={`/sales/order-confirmation/${order.id}` as any} className="block p-4">
+                        <Link href={`/sales/order-confirmation/${order.id}` as any} prefetch={false} className="block p-4">
                           {order.customers?.customer_name} {order.customers?.alias ? `(${order.customers?.alias})` : ""}
                         </Link>
                       </TableCell>
                       <TableCell className="p-0">
-                        <Link href={`/sales/order-confirmation/${order.id}` as any} className="block p-4">
+                        <Link href={`/sales/order-confirmation/${order.id}` as any} prefetch={false} className="block p-4">
                           {order.sales_order_items?.length ?? 0} items
                         </Link>
                       </TableCell>
                       <TableCell className="p-0">
-                        <Link href={`/sales/order-confirmation/${order.id}` as any} className="block p-4">
+                        <Link href={`/sales/order-confirmation/${order.id}` as any} prefetch={false} className="block p-4">
                           <StatusBadge value={order.status} />
                         </Link>
                       </TableCell>

@@ -54,7 +54,7 @@ export default async function RollsPage() {
                   {stockRows.map((row) => (
                     <TableRow key={row.fabric_type_id}>
                       <TableCell className="font-semibold text-base">
-                        <Link href={`/rolls/${row.fabric_type_id}` as any} className="text-primary hover:underline">
+                        <Link href={`/rolls/${row.fabric_type_id}` as any} prefetch={false} className="text-primary hover:underline">
                           {row.fabric_name}
                         </Link>
                       </TableCell>

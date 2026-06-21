@@ -62,7 +62,7 @@ export default async function ProductsAdminPage({ searchParams }: { searchParams
     const offset = (productPage - 1) * 10;
     const { data, count } = await supabase
       .from("roto_products")
-      .select("*", { count: "exact" })
+      .select("id, brand, width, height, num_cylinders, image_url, status", { count: "exact" })
       .order("brand", { ascending: true })
       .range(offset, offset + 9);
     rotoData = data ?? [];
@@ -71,7 +71,7 @@ export default async function ProductsAdminPage({ searchParams }: { searchParams
     const offset = (productPage - 1) * 10;
     const { data, count } = await supabase
       .from("offset_products")
-      .select("*", { count: "exact" })
+      .select("id, brand, width, height, image_url, status", { count: "exact" })
       .order("brand", { ascending: true })
       .range(offset, offset + 9);
     offsetData = data ?? [];

@@ -14,14 +14,25 @@ export default async function OrderWorkspacePage({
   await requirePermission("sales.view");
   const { id } = await params;
   const supabase = await createClient();
+  const [
+    orderResult,
+    { data: fabrics },
+    { data: rotoProducts },
+    { data: offsetProducts }
+  ] = await Promise.all([
+    supabase
+      .from("sales_orders")
+      .select("*, customers(*), sales_order_items(*)")
+      .eq("id", id)
+      .is("deleted_at", null)
+      .maybeSingle(),
+    supabase.from("fabric_types").select("id, fabric_name"),
+    supabase.from("roto_products").select("id, brand, width, height"),
+    supabase.from("offset_products").select("id, brand, width, height")
+  ]);
 
-  const { data: order, error: orderError } = await supabase
-    .from("sales_orders")
-    .select("*, customers(*), sales_order_items(*)")
-    .eq("id", id)
-    .is("deleted_at", null)
-    .maybeSingle();
-  if (orderError) throw new Error(orderError.message);
+  if (orderResult.error) throw new Error(orderResult.error.message);
+  const order = orderResult.data;
   if (!order) notFound();
 
   const orderItems = ((order as any).sales_order_items ?? []) as any[];
@@ -32,10 +43,8 @@ export default async function OrderWorkspacePage({
   ]));
   const rollSelect = "id, roll_number, meters, weight, status, fabric_type_id, looms(loom_number), loom_production_entries(gross_weight, core_weight, net_weight, net_meters, average_meter_weight)";
 
-  const [{ data: fabrics }, { data: rotoProducts }, { data: offsetProducts }, availableRollsResult, selectedRollsResult] = await Promise.all([
-    supabase.from("fabric_types").select("id, fabric_name"),
-    supabase.from("roto_products").select("id, brand, width, height"),
-    supabase.from("offset_products").select("id, brand, width, height"),
+  // 2. Fetch available and selected rolls in parallel
+  const [availableRollsResult, selectedRollsResult] = await Promise.all([
     fabricTypeIds.length > 0
       ? supabase.from("fabric_rolls").select(rollSelect).in("fabric_type_id", fabricTypeIds).eq("status", "available").is("deleted_at", null).order("roll_number", { ascending: true })
       : Promise.resolve({ data: [], error: null }),

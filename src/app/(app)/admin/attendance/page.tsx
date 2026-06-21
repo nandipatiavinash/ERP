@@ -93,23 +93,44 @@ export default async function AttendanceAdminPage() {
   const canManageAllAttendance = permissions.includes("employees.view") || permissions.includes("users.view");
   const supabase = await createClient();
   const today = todayInIndia();
+
+  let employees: any[] = [];
+  let attendanceRows: any[] = [];
+
   const employeeQuery = supabase
     .from("employees")
     .select("id, user_id, name, employee_code, shift_start, shift_end")
     .eq("status", "active")
     .is("deleted_at", null)
     .order("name");
-  const { data: employees } = await (canManageAllAttendance ? employeeQuery : employeeQuery.eq("user_id", user.id));
-  const employeeIds = ((employees ?? []) as any[]).map((employee) => employee.id);
-  let attendanceQuery = supabase
-    .from("attendance")
-    .select("*, employees(name, employee_code, shift_start, shift_end)")
-    .is("deleted_at", null)
-    .order("attendance_date", { ascending: false })
-    .limit(100);
-  if (!canManageAllAttendance) attendanceQuery = attendanceQuery.in("employee_id", employeeIds.length ? employeeIds : ["00000000-0000-0000-0000-000000000000"]);
-  const { data: rows } = await attendanceQuery;
-  const attendanceRows = (rows ?? []) as any[];
+
+  if (canManageAllAttendance) {
+    const [empRes, attRes] = await Promise.all([
+      employeeQuery,
+      supabase
+        .from("attendance")
+        .select("id, employee_id, attendance_date, check_in, check_out, check_in_at, check_out_at, status, created_at, updated_at, employees(name, employee_code, shift_start, shift_end)")
+        .is("deleted_at", null)
+        .order("attendance_date", { ascending: false })
+        .limit(100)
+    ]);
+    employees = empRes.data ?? [];
+    attendanceRows = attRes.data ?? [];
+  } else {
+    const [empRes, attRes] = await Promise.all([
+      employeeQuery.eq("user_id", user.id),
+      supabase
+        .from("attendance")
+        .select("id, employee_id, attendance_date, check_in, check_out, check_in_at, check_out_at, status, created_at, updated_at, employees!inner(name, employee_code, shift_start, shift_end, user_id)")
+        .eq("employees.user_id", user.id)
+        .is("deleted_at", null)
+        .order("attendance_date", { ascending: false })
+        .limit(100)
+    ]);
+    employees = empRes.data ?? [];
+    attendanceRows = attRes.data ?? [];
+  }
+
   const todayByEmployee = new Map(attendanceRows.filter((row) => row.attendance_date === today).map((row) => [row.employee_id, row]));
 
   return (
