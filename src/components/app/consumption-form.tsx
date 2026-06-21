@@ -114,11 +114,13 @@ export function ConsumptionForm({ department, materials, row }: ConsumptionFormP
       <div className="md:col-span-2 lg:col-span-4 flex flex-col gap-2">
         {errorText && <p className="text-sm text-destructive">{errorText}</p>}
         <ConfirmSubmitButton
-          confirmTitle={row?.id ? "Save consumption log?" : "Log raw material consumption?"}
-          confirmDescription="Confirm the material, quantity, and date before logging."
+          confirmTitle={row?.id ? "Save changes?" : "Submit consumption?"}
+          confirmDescription="Confirm the material and quantity before submitting."
           disabled={isSaving}
+          size="sm"
+          className="rounded-full w-fit px-6 bg-emerald-600 hover:bg-emerald-700 text-white"
         >
-          {isSaving ? "Saving..." : (row?.id ? "Save Changes" : "Log Consumption")}
+          {isSaving ? "Saving..." : "Submit"}
         </ConfirmSubmitButton>
       </div>
     </form>
