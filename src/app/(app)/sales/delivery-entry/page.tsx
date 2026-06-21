@@ -13,7 +13,7 @@ export default async function DeliveryEntryPage() {
   const supabase = await createClient();
 
   const [{ data: customers }, { data: fabrics }, { data: roto }, { data: offset }, { data: orders }] = await Promise.all([
-    supabase.from("customers").select("id, customer_name, alias").eq("status", "active").is("deleted_at", null).order("customer_name"),
+    supabase.from("customers").select("id, customer_name, alias").eq("status", "active").eq("is_internal", "client a/c").is("deleted_at", null).order("customer_name"),
     supabase.from("fabric_types").select("id, fabric_name").eq("status", "active").is("deleted_at", null).order("fabric_name"),
     supabase.from("roto_products").select("id, brand, width, height").eq("status", "active").order("brand"),
     supabase.from("offset_products").select("id, brand, width, height").eq("status", "active").order("brand"),

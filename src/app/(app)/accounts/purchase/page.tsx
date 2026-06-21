@@ -27,6 +27,7 @@ export default async function PurchaseEntryPage() {
       .from("customers")
       .select("id, customer_name, alias")
       .eq("status", "active")
+      .eq("is_internal", "client a/c")
       .is("deleted_at", null)
       .order("customer_name"),
     supabase
