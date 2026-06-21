@@ -24,7 +24,8 @@ export default async function OrderConfirmationPage({ searchParams }: { searchPa
     .from("sales_orders")
     .select("id, order_number, order_date, status, customers(customer_name, alias), sales_order_items(id)", { count: "exact" })
     .is("deleted_at", null)
-    .order("created_at", { ascending: false })
+    .order("order_date", { ascending: true })
+    .order("order_number", { ascending: true })
     .range(offset, offset + pageSize - 1);
 
   if (ordersError) throw new Error(ordersError.message);

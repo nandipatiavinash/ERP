@@ -191,7 +191,7 @@ export async function deactivateMaster(moduleKey: string, formData: FormData) {
   const table = config.table as any;
   const { error } = await (supabase
     .from(table) as any)
-    .update({ status: "inactive", deleted_at: new Date().toISOString(), updated_by: user.id })
+    .delete()
     .eq("id", id);
   if (error) throw new Error(error.message);
   revalidatePath(config.path);
@@ -326,7 +326,7 @@ export async function softDeleteProduction(formData: FormData) {
   const adminSupabase = createAdminClient();
   const { error } = await (adminSupabase
     .from("loom_production_entries") as any)
-    .update({ deleted_at: new Date().toISOString(), updated_by: user.id } as any)
+    .delete()
     .eq("id", id);
   if (error) {
     if (process.env.NODE_ENV !== "production") {
@@ -552,7 +552,7 @@ export async function deactivateRole(formData: FormData) {
   const supabase = await createClient();
   const { error } = await (supabase
     .from("roles") as any)
-    .update({ is_active: false, deleted_at: new Date().toISOString() } as any)
+    .delete()
     .eq("id", roleId);
   if (error) throw new Error(error.message);
   revalidatePath("/roles");
@@ -884,7 +884,7 @@ export async function softDeleteRawMaterialConsumption(formData: FormData) {
   const supabase = await createClient();
   const { error } = await (supabase
     .from("raw_material_consumptions") as any)
-    .update({ deleted_at: new Date().toISOString(), updated_by: user.id })
+    .delete()
     .eq("id", id);
 
   if (error) throw new Error(error.message);
@@ -960,7 +960,7 @@ export async function softDeleteStageProduction(formData: FormData) {
   const supabase = await createClient();
   const { error } = await (supabase
     .from("stage_production_entries") as any)
-    .update({ deleted_at: new Date().toISOString(), updated_by: user.id })
+    .delete()
     .eq("id", id);
 
   if (error) throw new Error(error.message);
@@ -1090,7 +1090,7 @@ export async function softDeleteJournalEntry(formData: FormData) {
   const supabase = await createClient();
   const { error } = await (supabase
     .from("accounts_journal") as any)
-    .update({ deleted_at: new Date().toISOString(), updated_by: user.id })
+    .delete()
     .eq("id", id);
 
   if (error) throw new Error(error.message);
@@ -1107,7 +1107,7 @@ export async function softDeleteJournalEntryGroup(formData: FormData) {
   const supabase = await createClient();
   const { error } = await (supabase
     .from("accounts_journal") as any)
-    .update({ deleted_at: new Date().toISOString(), updated_by: user.id })
+    .delete()
     .eq("journal_no", journalNo);
 
   if (error) throw new Error(error.message);
