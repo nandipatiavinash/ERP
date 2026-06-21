@@ -417,11 +417,19 @@ export async function saveRawMaterialPurchase(formData: FormData) {
 
   // Auto-generate journal entries for purchase
   try {
+    const [purchaseAcResult, supplierAcResult] = await Promise.all([
+      supabase.from("customers").select("id").eq("customer_name", "Purchase A/c").is("deleted_at", null).maybeSingle(),
+      supabase.from("customers").select("id").eq("customer_name", supplier_name).is("deleted_at", null).maybeSingle()
+    ]);
+    const purchaseAc = purchaseAcResult.data as any;
+    const supplierAc = supplierAcResult.data as any;
+
     const journalNo = await generateNextJournalNo(supabase);
     const journalInserts = [
       {
         journal_no: journalNo,
         entry_date: purchase_date,
+        account_id: purchaseAc?.id ?? null,
         account_name: "Purchase A/c",
         entry_type: "debit",
         amount: totalBillValue,
@@ -432,6 +440,7 @@ export async function saveRawMaterialPurchase(formData: FormData) {
       {
         journal_no: journalNo,
         entry_date: purchase_date,
+        account_id: supplierAc?.id ?? null,
         account_name: supplier_name,
         entry_type: "credit",
         amount: totalBillValue,
@@ -1036,17 +1045,37 @@ export async function saveJournalEntry(formData: FormData) {
     if (deleteError) throw new Error(deleteError.message);
   }
 
+  // Resolve account_ids from names/aliases dynamically on the server
+  const { data: matchedCustomersData } = await supabase
+    .from("customers")
+    .select("id, customer_name, alias")
+    .is("deleted_at", null);
+
+  const matchedCustomers = (matchedCustomersData ?? []) as any[];
+  const nameToIdMap = new Map<string, string>();
+  for (const c of matchedCustomers) {
+    nameToIdMap.set(c.customer_name.toLowerCase().trim(), c.id);
+    if (c.alias) {
+      nameToIdMap.set(c.alias.toLowerCase().trim(), c.id);
+    }
+  }
+
   // Insert new rows
-  const inserts: JournalInsertRow[] = rows.map((r) => ({
-    journal_no: journalNo,
-    entry_date: entryDate,
-    account_name: r.account_name,
-    entry_type: r.debit > 0 ? "debit" : "credit",
-    amount: r.debit > 0 ? r.debit : r.credit,
-    description: r.description,
-    created_by: user.id,
-    updated_by: user.id,
-  }));
+  const inserts = rows.map((r) => {
+    const cleanName = r.account_name.toLowerCase().trim();
+    const accountId = nameToIdMap.get(cleanName) || null;
+    return {
+      journal_no: journalNo,
+      entry_date: entryDate,
+      account_id: accountId,
+      account_name: r.account_name,
+      entry_type: r.debit > 0 ? "debit" : "credit",
+      amount: r.debit > 0 ? r.debit : r.credit,
+      description: r.description,
+      created_by: user.id,
+      updated_by: user.id,
+    };
+  });
 
   const { error: insertError } = await (supabase.from("accounts_journal") as any).insert(inserts);
   if (insertError) throw new Error(insertError.message);
@@ -1148,12 +1177,19 @@ export async function saveSalesOrderBilling(formData: FormData) {
 
   if (updateError) throw new Error(updateError.message);
 
-  // Auto-generate journal entries for sales
+  const [customerAcResult, salesAcResult] = await Promise.all([
+    supabase.from("customers").select("id").eq("customer_name", customerName).is("deleted_at", null).maybeSingle(),
+    supabase.from("customers").select("id").eq("customer_name", "Sales A/c").is("deleted_at", null).maybeSingle()
+  ]);
+  const customerAc = customerAcResult.data as any;
+  const salesAc = salesAcResult.data as any;
+
   const journalNo = await generateNextJournalNo(supabase);
   const journalInserts = [
     {
       journal_no: journalNo,
       entry_date: entryDate,
+      account_id: customerAc?.id ?? null,
       account_name: customerName,
       entry_type: "debit",
       amount: billValue,
@@ -1164,6 +1200,7 @@ export async function saveSalesOrderBilling(formData: FormData) {
     {
       journal_no: journalNo,
       entry_date: entryDate,
+      account_id: salesAc?.id ?? null,
       account_name: "Sales A/c",
       entry_type: "credit",
       amount: billValue,
