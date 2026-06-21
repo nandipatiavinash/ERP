@@ -215,10 +215,10 @@ export function SalesPrintView({ order, rollsByProduct }: SalesPrintViewProps) {
                         {formatNumber(roll.net_weight)}
                       </td>
                       <td className="border border-gray-200 px-3 py-1.5 text-right tabular-nums">
-                        {formatNumber(roll.net_meters)}
+                        {formatNumber(Math.floor(roll.net_meters), 0)}
                       </td>
                       <td className="border border-gray-200 px-3 py-1.5 text-right tabular-nums">
-                        {formatNumber(roll.average_meter_weight, 3)}
+                        {formatNumber(Math.floor(roll.average_meter_weight), 0)}
                       </td>
                     </tr>
                   ))}

@@ -1,12 +1,13 @@
 "use client";
 
 import { useState, useTransition, useMemo } from "react";
-import { Check, Printer, X, ChevronRight, ChevronDown, Search } from "lucide-react";
-import { confirmSalesDelivery } from "@/app/(app)/_actions";
+import { Check, Printer, X, ChevronRight, ChevronDown, Search, Trash2 } from "lucide-react";
+import { confirmSalesDelivery, deleteSalesOrderItem } from "@/app/(app)/_actions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/app/status-badge";
 import { Label } from "@/components/ui/label";
 import { formatNumber, formatDate } from "@/lib/utils";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 type Roll = {
   id: string;
@@ -99,6 +100,23 @@ export function OrderConfirmationWorkspace({
   // Expanded items state: Record<itemId, boolean>
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
 
+  const [deleteItemId, setDeleteItemId] = useState<string | null>(null);
+  const [remainingAction, setRemainingAction] = useState<"close" | "backorder">("close");
+
+  // Calculate sum of weights of all currently selected rolls across all items
+  const totalSelectedWeight = useMemo(() => {
+    if (!selectedOrderId) return 0;
+    const currentOrder = orders.find((o) => o.id === selectedOrderId);
+    if (!currentOrder) return 0;
+    let sum = 0;
+    currentOrder.sales_order_items?.forEach((item) => {
+      const selectedIds = allocation[item.id] || [];
+      const itemRolls = rolls.filter((r) => selectedIds.includes(r.id));
+      sum += itemRolls.reduce((s, r) => s + Number(r.weight || 0), 0);
+    });
+    return sum;
+  }, [selectedOrderId, allocation, rolls, orders]);
+
   // Resolve product name helper
   const getProductName = (dept: string, productId: string) => {
     if (dept === "fabric") {
@@ -177,10 +195,32 @@ export function OrderConfirmationWorkspace({
 
     startTransition(async () => {
       try {
-        await confirmSalesDelivery(selectedOrder.id, allocation);
+        await confirmSalesDelivery(selectedOrder.id, allocation, remainingAction);
         setSuccessMsg("Order allocations saved and delivery status confirmed successfully!");
       } catch (err: any) {
         setErrorMsg(err.message || "Failed to save order confirmation.");
+      }
+    });
+  };
+
+  const handleDeleteItem = (itemId: string) => {
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    setDeleteItemId(null);
+
+    startTransition(async () => {
+      try {
+        await deleteSalesOrderItem(itemId);
+        setSuccessMsg("Item deleted successfully!");
+        
+        if (selectedOrder) {
+          const updatedItems = selectedOrder.sales_order_items?.filter((x) => x.id !== itemId) || [];
+          if (updatedItems.length === 0) {
+            setSelectedOrderId(null);
+          }
+        }
+      } catch (err: any) {
+        setErrorMsg(err.message || "Failed to delete item.");
       }
     });
   };
@@ -420,8 +460,13 @@ export function OrderConfirmationWorkspace({
                     <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                       Active Order Workspace
                     </div>
-                    <CardTitle className="text-xl font-black mt-1 text-emerald-950">
-                      Order #{selectedOrder.order_number}
+                    <CardTitle className="text-xl font-black mt-1 text-emerald-950 flex flex-wrap items-center gap-3">
+                      <span>Order #{selectedOrder.order_number}</span>
+                      {totalSelectedWeight > 0 && (
+                        <span className="text-sm font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
+                          Selected Weight: {formatNumber(totalSelectedWeight, 2)} kg
+                        </span>
+                      )}
                     </CardTitle>
                     <p className="text-sm text-muted-foreground mt-0.5">
                       Date: {formatDate(selectedOrder.order_date)} | Firm Name:{" "}
@@ -431,7 +476,21 @@ export function OrderConfirmationWorkspace({
                       {selectedOrder.customers?.alias && ` (${selectedOrder.customers.alias})`}
                     </p>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-end gap-3">
+                    <div className="flex flex-col gap-1">
+                      <Label htmlFor="remaining-action" className="text-xs text-muted-foreground font-semibold">
+                        On Remaining Items:
+                      </Label>
+                      <select
+                        id="remaining-action"
+                        value={remainingAction}
+                        onChange={(e) => setRemainingAction(e.target.value as any)}
+                        className="h-9 rounded-md border border-slate-200 bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-primary font-semibold"
+                      >
+                        <option value="close">Close Order (Fully Delivered)</option>
+                        <option value="backorder">Partial Order (Create Backorder)</option>
+                      </select>
+                    </div>
                     <button
                       type="button"
                       onClick={handleSave}
@@ -514,6 +573,17 @@ export function OrderConfirmationWorkspace({
                                     {formatNumber(totalWeight)} kg
                                   </span>
                                 </div>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setDeleteItemId(item.id);
+                                  }}
+                                  className="p-1.5 rounded-md text-red-500 hover:bg-red-50 hover:text-red-600 transition-colors shrink-0"
+                                  title="Delete Item"
+                                >
+                                  <Trash2 className="h-4.5 w-4.5" />
+                                </button>
                               </div>
                             </div>
 
@@ -628,7 +698,37 @@ export function OrderConfirmationWorkspace({
         )}
       </div>
 
-
+      <Dialog open={deleteItemId !== null} onOpenChange={(open) => { if (!open) setDeleteItemId(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete Item from Order?</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this item from the order? Any allocated rolls will be released.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-3 mt-4">
+            <button
+              type="button"
+              onClick={() => setDeleteItemId(null)}
+              className="inline-flex h-9 items-center justify-center rounded-md border border-input bg-background px-4 text-sm font-semibold hover:bg-accent transition-colors"
+            >
+              No
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                if (deleteItemId) {
+                  handleDeleteItem(deleteItemId);
+                }
+              }}
+              disabled={isPending}
+              className="inline-flex h-9 items-center justify-center rounded-md bg-destructive px-4 text-sm font-semibold text-destructive-foreground hover:bg-destructive/90 transition-colors disabled:opacity-50"
+            >
+              Yes
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

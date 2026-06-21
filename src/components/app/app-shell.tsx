@@ -116,6 +116,59 @@ export function AppShell({
       .filter((group) => group.items.length > 0);
   }, [permissions, user.roles.name]);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (target instanceof HTMLInputElement && target.type === "number") {
+        if (e.key === "-" || e.key === "+" || e.key === "e" || e.key === "E") {
+          e.preventDefault();
+        }
+      }
+    };
+
+    const handlePaste = (e: ClipboardEvent) => {
+      const target = e.target as HTMLElement;
+      if (target instanceof HTMLInputElement && target.type === "number") {
+        const text = e.clipboardData?.getData("text");
+        if (text && (Number(text) < 0 || isNaN(Number(text)))) {
+          e.preventDefault();
+        }
+      }
+    };
+
+    const handleInput = (e: Event) => {
+      const target = e.target as HTMLElement;
+      if (target instanceof HTMLInputElement && target.type === "number") {
+        if (Number(target.value) < 0) {
+          target.value = "0";
+        }
+      }
+    };
+
+    const addMinAttribute = () => {
+      document.querySelectorAll('input[type="number"]').forEach((el) => {
+        if (!el.hasAttribute("min")) {
+          el.setAttribute("min", "0");
+        }
+      });
+    };
+
+    window.addEventListener("keydown", handleKeyDown, { capture: true });
+    window.addEventListener("paste", handlePaste, { capture: true });
+    window.addEventListener("input", handleInput, { capture: true });
+
+    addMinAttribute();
+    const observer = new MutationObserver(addMinAttribute);
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown, { capture: true });
+      window.removeEventListener("paste", handlePaste, { capture: true });
+      window.removeEventListener("input", handleInput, { capture: true });
+      observer.disconnect();
+    };
+  }, []);
+
   return (
     <div className="min-h-screen bg-muted/30">
       <RouteTransitionBar />

@@ -23,6 +23,7 @@ export default async function OrderConfirmationPage({ searchParams }: { searchPa
   const { data: orders, error: ordersError, count } = await supabase
     .from("sales_orders")
     .select("id, order_number, order_date, status, customers(customer_name, alias), sales_order_items(id)", { count: "exact" })
+    .eq("status", "draft")
     .is("deleted_at", null)
     .order("order_date", { ascending: true })
     .order("order_number", { ascending: true })

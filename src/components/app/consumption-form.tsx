@@ -6,8 +6,9 @@ import { ConfirmSubmitButton } from "@/components/app/confirm-submit-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { todayInIndia, formatNumber } from "@/lib/utils";
 
-type MaterialOption = { id: string; material_name: string; unit: string };
+type MaterialOption = { id: string; material_name: string; unit: string; current_stock?: number };
 
 type ConsumptionFormProps = {
   department: string;
@@ -22,6 +23,8 @@ export function ConsumptionForm({ department, materials, row }: ConsumptionFormP
   const defaultMaterial = row?.raw_material_id ?? "";
   const [materialId, setMaterialId] = useState(defaultMaterial);
   const [quantity, setQuantity] = useState(row?.quantity == null ? "" : String(row.quantity));
+
+  const selectedMaterial = materials.find((m) => m.id === materialId);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -50,6 +53,8 @@ export function ConsumptionForm({ department, materials, row }: ConsumptionFormP
   return (
     <form onSubmit={handleSubmit} className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 items-end">
       {row?.id && <input type="hidden" name="id" value={row.id} />}
+      <input type="hidden" name="consumption_date" value={row?.consumption_date ?? todayInIndia()} />
+
       <div className="space-y-2">
         <Label>Raw Material</Label>
         <select
@@ -70,6 +75,17 @@ export function ConsumptionForm({ department, materials, row }: ConsumptionFormP
       </div>
 
       <div className="space-y-2">
+        <Label>Available Stock</Label>
+        <Input
+          type="text"
+          readOnly
+          disabled
+          value={selectedMaterial ? `${formatNumber(selectedMaterial.current_stock ?? 0, 2)} ${selectedMaterial.unit}` : "Select a material"}
+          className="bg-muted font-medium"
+        />
+      </div>
+
+      <div className="space-y-2">
         <Label>Quantity</Label>
         <Input
           name="quantity"
@@ -79,17 +95,6 @@ export function ConsumptionForm({ department, materials, row }: ConsumptionFormP
           value={quantity}
           onChange={(e) => setQuantity(e.target.value)}
           placeholder="0.00"
-          disabled={isSaving}
-        />
-      </div>
-
-      <div className="space-y-2">
-        <Label>Consumption Date</Label>
-        <Input
-          name="consumption_date"
-          type="date"
-          required
-          defaultValue={row?.consumption_date ?? new Date().toISOString().slice(0, 10)}
           disabled={isSaving}
         />
       </div>

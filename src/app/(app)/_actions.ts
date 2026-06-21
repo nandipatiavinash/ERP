@@ -786,56 +786,234 @@ export async function createSalesOrder(formData: FormData) {
   revalidatePath("/sales/delivery-entry");
 }
 
-export async function confirmSalesDelivery(orderId: string, itemRolls: Record<string, string[]>) {
+export async function deleteSalesOrderItem(itemId: string) {
   const user = await requirePermission("sales.edit");
   const supabase = await createClient();
 
-  const { data: items, error: itemsError } = await (supabase
+  const { data: item, error: itemError } = await (supabase
     .from("sales_order_items") as any)
-    .select("id, selected_roll_ids")
-    .eq("sales_order_id", orderId);
+    .select("sales_order_id, selected_roll_ids")
+    .eq("id", itemId)
+    .maybeSingle();
 
-  if (itemsError) throw new Error(itemsError.message);
-
-  for (const item of (items ?? []) as any[]) {
-    const newRollIds = itemRolls[item.id] || [];
-    const oldRollIds = (item.selected_roll_ids as string[]) || [];
-
-    const { error: updateItemError } = await (supabase
-      .from("sales_order_items") as any)
-      .update({ selected_roll_ids: newRollIds } as any)
-      .eq("id", item.id);
-
-    if (updateItemError) throw new Error(updateItemError.message);
-
-    const releasedRollIds = oldRollIds.filter((id) => !newRollIds.includes(id));
-    if (releasedRollIds.length > 0) {
-      const { error: releaseError } = await (supabase
-        .from("fabric_rolls") as any)
-        .update({ status: "available", updated_by: user.id } as any)
-        .in("id", releasedRollIds);
-      if (releaseError) throw new Error(releaseError.message);
-    }
-
-    if (newRollIds.length > 0) {
-      const { error: allocateError } = await (supabase
-        .from("fabric_rolls") as any)
-        .update({ status: "sold", updated_by: user.id } as any)
-        .in("id", newRollIds);
-      if (allocateError) throw new Error(allocateError.message);
-    }
+  if (itemError || !item) {
+    throw new Error(itemError?.message || "Item not found.");
   }
 
-  const { error: orderError } = await (supabase
-    .from("sales_orders") as any)
-    .update({ status: "confirmed", updated_by: user.id } as any)
-    .eq("id", orderId);
+  const orderId = item.sales_order_id;
+  const rollIds = (item.selected_roll_ids as string[]) || [];
 
-  if (orderError) throw new Error(orderError.message);
+  if (rollIds.length > 0) {
+    const { error: releaseError } = await (supabase
+      .from("fabric_rolls") as any)
+      .update({ status: "available", updated_by: user.id } as any)
+      .in("id", rollIds);
+    if (releaseError) throw new Error(releaseError.message);
+  }
+
+  const { error: deleteError } = await (supabase
+    .from("sales_order_items") as any)
+    .delete()
+    .eq("id", itemId);
+  if (deleteError) throw new Error(deleteError.message);
+
+  const { data: remainingItems, error: countError } = await (supabase
+    .from("sales_order_items") as any)
+    .select("id")
+    .eq("sales_order_id", orderId);
+
+  if (countError) throw new Error(countError.message);
+
+  if (!remainingItems || remainingItems.length === 0) {
+    const { error: deleteOrderError } = await (supabase
+      .from("sales_orders") as any)
+      .delete()
+      .eq("id", orderId);
+    if (deleteOrderError) throw new Error(deleteOrderError.message);
+  }
 
   revalidatePath("/sales/order-confirmation");
   revalidatePath("/rolls");
   revalidatePath("/fabric/stock");
+  revalidatePath("/accounts/sales");
+}
+
+export async function confirmSalesDelivery(
+  orderId: string,
+  itemRolls: Record<string, string[]>,
+  remainingAction: "backorder" | "close" = "close"
+) {
+  const user = await requirePermission("sales.edit");
+  const supabase = await createClient();
+
+  const { data: order, error: orderFetchError } = await (supabase
+    .from("sales_orders") as any)
+    .select("*, sales_order_items(*)")
+    .eq("id", orderId)
+    .single();
+
+  if (orderFetchError || !order) {
+    throw new Error(orderFetchError?.message || "Order not found.");
+  }
+
+  const items = (order.sales_order_items || []) as any[];
+
+  const allNewRollIds = Object.values(itemRolls).flat();
+  const rollsData: Record<string, number> = {};
+  if (allNewRollIds.length > 0) {
+    const { data: rollData, error: rollError } = await (supabase
+      .from("fabric_rolls") as any)
+      .select("id, weight")
+      .in("id", allNewRollIds);
+    if (rollError) throw new Error("Failed to retrieve roll details.");
+    for (const r of rollData || []) {
+      rollsData[r.id] = Number(r.weight || 0);
+    }
+  }
+
+  const backorderItems: Array<{ department: string; product_id: string; quantity: number }> = [];
+  const itemsToKeep: string[] = [];
+
+  for (const item of items) {
+    const newRollIds = itemRolls[item.id] || [];
+    const oldRollIds = (item.selected_roll_ids as string[]) || [];
+
+    if (item.department === "fabric") {
+      const deliveredWeight = newRollIds.reduce((sum, rid) => sum + (rollsData[rid] || 0), 0);
+
+      if (deliveredWeight < item.quantity) {
+        if (remainingAction === "backorder") {
+          const remainingQty = item.quantity - deliveredWeight;
+          if (deliveredWeight > 0) {
+            const { error: updateItemError } = await (supabase
+              .from("sales_order_items") as any)
+              .update({
+                selected_roll_ids: newRollIds,
+                quantity: deliveredWeight,
+              } as any)
+              .eq("id", item.id);
+            if (updateItemError) throw new Error(updateItemError.message);
+            itemsToKeep.push(item.id);
+
+            backorderItems.push({
+              department: item.department,
+              product_id: item.product_id,
+              quantity: remainingQty,
+            });
+          } else {
+            const { error: deleteItemError } = await (supabase
+              .from("sales_order_items") as any)
+              .delete()
+              .eq("id", item.id);
+            if (deleteItemError) throw new Error(deleteItemError.message);
+
+            backorderItems.push({
+              department: item.department,
+              product_id: item.product_id,
+              quantity: item.quantity,
+            });
+          }
+        } else {
+          if (deliveredWeight > 0) {
+            const { error: updateItemError } = await (supabase
+              .from("sales_order_items") as any)
+              .update({
+                selected_roll_ids: newRollIds,
+                quantity: deliveredWeight,
+              } as any)
+              .eq("id", item.id);
+            if (updateItemError) throw new Error(updateItemError.message);
+            itemsToKeep.push(item.id);
+          } else {
+            const { error: deleteItemError } = await (supabase
+              .from("sales_order_items") as any)
+              .delete()
+              .eq("id", item.id);
+            if (deleteItemError) throw new Error(deleteItemError.message);
+          }
+        }
+      } else {
+        const { error: updateItemError } = await (supabase
+          .from("sales_order_items") as any)
+          .update({
+            selected_roll_ids: newRollIds,
+            quantity: deliveredWeight,
+          } as any)
+          .eq("id", item.id);
+        if (updateItemError) throw new Error(updateItemError.message);
+        itemsToKeep.push(item.id);
+      }
+
+      const releasedRollIds = oldRollIds.filter((id) => !newRollIds.includes(id));
+      if (releasedRollIds.length > 0) {
+        const { error: releaseError } = await (supabase
+          .from("fabric_rolls") as any)
+          .update({ status: "available", updated_by: user.id } as any)
+          .in("id", releasedRollIds);
+        if (releaseError) throw new Error(releaseError.message);
+      }
+
+      if (newRollIds.length > 0) {
+        const { error: allocateError } = await (supabase
+          .from("fabric_rolls") as any)
+          .update({ status: "sold", updated_by: user.id } as any)
+          .in("id", newRollIds);
+        if (allocateError) throw new Error(allocateError.message);
+      }
+    } else {
+      itemsToKeep.push(item.id);
+    }
+  }
+
+  if (backorderItems.length > 0) {
+    const { data: newOrder, error: newOrderError } = await (supabase
+      .from("sales_orders") as any)
+      .insert({
+        customer_id: order.customer_id,
+        order_date: order.order_date,
+        order_number: order.order_number,
+        status: "draft",
+        created_by: user.id,
+        updated_by: user.id,
+      } as any)
+      .select("id")
+      .single();
+
+    if (newOrderError) throw new Error("Failed to create backorder sales order.");
+
+    const backorderItemsPayload = backorderItems.map((bo) => ({
+      sales_order_id: (newOrder as any).id,
+      department: bo.department,
+      product_id: bo.product_id,
+      quantity: bo.quantity,
+      selected_roll_ids: [],
+    }));
+
+    const { error: boInsertError } = await (supabase
+      .from("sales_order_items") as any)
+      .insert(backorderItemsPayload);
+    if (boInsertError) throw new Error("Failed to create backordered items.");
+  }
+
+  if (itemsToKeep.length > 0) {
+    const { error: orderError } = await (supabase
+      .from("sales_orders") as any)
+      .update({ status: "confirmed", updated_by: user.id } as any)
+      .eq("id", orderId);
+
+    if (orderError) throw new Error(orderError.message);
+  } else {
+    const { error: deleteOrderError } = await (supabase
+      .from("sales_orders") as any)
+      .delete()
+      .eq("id", orderId);
+    if (deleteOrderError) throw new Error(deleteOrderError.message);
+  }
+
+  revalidatePath("/sales/order-confirmation");
+  revalidatePath("/rolls");
+  revalidatePath("/fabric/stock");
+  revalidatePath("/accounts/sales");
 }
 
 export async function saveRawMaterialConsumption(formData: FormData) {
@@ -882,6 +1060,22 @@ export async function softDeleteRawMaterialConsumption(formData: FormData) {
   const user = await requirePermission("production.edit");
   const id = String(formData.get("id") ?? "");
   const supabase = await createClient();
+
+  // Fetch the entry first to verify its consumption date
+  const { data: entry, error: fetchError } = await (supabase
+    .from("raw_material_consumptions") as any)
+    .select("consumption_date")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (fetchError || !entry) {
+    throw new Error("Consumption log not found.");
+  }
+
+  if (entry.consumption_date !== todayInIndia()) {
+    throw new Error("You can only delete consumption logs on the day they are created.");
+  }
+
   const { error } = await (supabase
     .from("raw_material_consumptions") as any)
     .delete()

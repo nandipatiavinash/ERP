@@ -7,16 +7,17 @@ import { PageHeader } from "@/components/app/page-header";
 import { softDeleteRawMaterialConsumption } from "@/app/(app)/_actions";
 import { requirePermission } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { formatDate, formatNumber } from "@/lib/utils";
+import { formatDate, formatNumber, todayInIndia } from "@/lib/utils";
 
 export default async function OffsetPrintingConsumptionPage() {
   await requirePermission("production.view");
   const supabase = await createClient();
+  const date = todayInIndia();
 
   const [{ data: rawMaterials }, { data: consumptions }] = await Promise.all([
     supabase
       .from("raw_materials")
-      .select("id, material_name, unit, status")
+      .select("id, material_name, unit, status, current_stock")
       .eq("department", "offset-printing")
       .eq("status", "active")
       .is("deleted_at", null)
@@ -25,10 +26,9 @@ export default async function OffsetPrintingConsumptionPage() {
       .from("raw_material_consumptions")
       .select("*, raw_materials(material_name, unit)")
       .eq("department", "offset-printing")
+      .eq("consumption_date", date)
       .is("deleted_at", null)
-      .order("consumption_date", { ascending: false })
-      .order("created_at", { ascending: false })
-      .limit(50),
+      .order("created_at", { ascending: false }),
   ]);
 
   const materials = (rawMaterials ?? []) as any[];

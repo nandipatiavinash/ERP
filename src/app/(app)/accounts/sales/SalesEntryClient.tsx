@@ -294,7 +294,7 @@ export function SalesEntryClient({ pendingOrders, billedOrders, rolls, fabricTyp
                                   <TableCell className="text-sm font-mono font-medium">{g.productName}</TableCell>
                                   <TableCell className="text-sm text-right">{g.rolls.length}</TableCell>
                                   <TableCell className="text-sm text-right font-mono">{formatNumber(g.totalNetWeight, 1)}</TableCell>
-                                  <TableCell className="text-sm text-right font-mono">{formatNumber(g.totalMeters, 0)}</TableCell>
+                                  <TableCell className="text-sm text-right font-mono">{formatNumber(Math.floor(g.totalMeters), 0)}</TableCell>
                                 </TableRow>
                               ))}
                               <TableRow className="bg-emerald-50/60 font-semibold">
@@ -303,7 +303,7 @@ export function SalesEntryClient({ pendingOrders, billedOrders, rolls, fabricTyp
                                   {groups.reduce((s, g) => s + g.rolls.length, 0)}
                                 </TableCell>
                                 <TableCell className="text-sm text-right font-mono">{formatNumber(grandTotalKg, 1)}</TableCell>
-                                <TableCell className="text-sm text-right font-mono">{formatNumber(grandTotalMtrs, 0)}</TableCell>
+                                <TableCell className="text-sm text-right font-mono">{formatNumber(Math.floor(grandTotalMtrs), 0)}</TableCell>
                               </TableRow>
                             </TableBody>
                           </Table>
@@ -337,7 +337,7 @@ export function SalesEntryClient({ pendingOrders, billedOrders, rolls, fabricTyp
                             disabled={isPending}
                           >
                             <Receipt className="h-3.5 w-3.5" />
-                            {isPending ? "Saving..." : "Submit & Generate Journal"}
+                            {isPending ? "Saving..." : "Submit"}
                           </Button>
                           <Button
                             size="sm"

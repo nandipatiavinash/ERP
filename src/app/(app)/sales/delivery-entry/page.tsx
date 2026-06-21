@@ -7,11 +7,18 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { requirePermission } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { formatDate, formatNumber } from "@/lib/utils";
+import { formatDate, formatNumber, todayInIndia } from "@/lib/utils";
+import { DateFilter } from "@/components/app/date-filter";
 
-export default async function DeliveryEntryPage() {
+export default async function DeliveryEntryPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ date?: string }>;
+}) {
   await requirePermission("sales.view");
   const supabase = await createClient();
+  const params = await searchParams;
+  const date = params.date || todayInIndia();
 
   const [{ data: customers }, { data: fabrics }, { data: roto }, { data: offset }, { data: orders }] = await Promise.all([
     supabase.from("customers").select("id, customer_name, alias").eq("status", "active").eq("is_internal", "client a/c").is("deleted_at", null).order("customer_name"),
@@ -21,6 +28,7 @@ export default async function DeliveryEntryPage() {
     supabase
       .from("sales_orders")
       .select("*, customers(customer_name, alias), sales_order_items(id, department, quantity)")
+      .eq("order_date", date)
       .is("deleted_at", null)
       .order("order_date", { ascending: true })
       .order("order_number", { ascending: true })
@@ -52,8 +60,9 @@ export default async function DeliveryEntryPage() {
       </Card>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
           <CardTitle>Recent Orders</CardTitle>
+          <DateFilter date={date} baseUrl="/sales/delivery-entry" />
         </CardHeader>
         <CardContent>
           {orderRows.length === 0 ? (
