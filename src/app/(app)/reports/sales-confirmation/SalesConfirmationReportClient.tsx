@@ -78,19 +78,18 @@ export function SalesConfirmationReportClient({
     return groups;
   }, [orders]);
 
-  // Initialize input rates/prices
   useEffect(() => {
     const initialPrices: Record<string, number> = {};
     const initialGst: Record<string, number> = {};
 
     orders.forEach((order) => {
-      initialGst[order.id] = Math.floor(order.gst_rate ?? 18);
+      initialGst[order.id] = Number(order.gst_rate ?? 18);
       order.sales_order_items?.forEach((item) => {
         if (item.price != null && Number(item.price) !== 0) {
-          initialPrices[item.id] = Math.floor(Number(item.price));
+          initialPrices[item.id] = Number(item.price);
         } else if (item.department === "fabric") {
           const fab = fabrics.find((f) => f.id === item.product_id);
-          initialPrices[item.id] = Math.floor(fab?.selling_price ?? 0);
+          initialPrices[item.id] = Number(fab?.selling_price ?? 0);
         } else {
           initialPrices[item.id] = 0;
         }
@@ -143,12 +142,12 @@ export function SalesConfirmationReportClient({
   };
 
   const handlePriceChange = (itemId: string, val: string) => {
-    const price = Math.floor(Number(val));
+    const price = Number(val);
     setPrices((prev) => ({ ...prev, [itemId]: isNaN(price) ? 0 : price }));
   };
 
   const handleGstChange = (orderId: string, val: string) => {
-    const rate = Math.floor(Number(val));
+    const rate = Number(val);
     setGstRates((prev) => ({ ...prev, [orderId]: isNaN(rate) ? 0 : rate }));
   };
 
@@ -161,9 +160,9 @@ export function SalesConfirmationReportClient({
     try {
       const itemPrices: Record<string, number> = {};
       orderItems.forEach((item) => {
-        itemPrices[item.id] = Math.floor(prices[item.id] ?? 0);
+        itemPrices[item.id] = Number(prices[item.id] ?? 0);
       });
-      const gstRate = Math.floor(gstRates[orderId] ?? 18);
+      const gstRate = Number(gstRates[orderId] ?? 18);
 
       await saveSalesConfirmationRates(orderId, itemPrices, gstRate);
 
@@ -227,8 +226,8 @@ export function SalesConfirmationReportClient({
                       const gstPct = gstRates[order.id] ?? 18;
 
                       const itemsWithCalcs = order.sales_order_items?.map((item) => {
-                        const qty = Math.floor(getItemQuantity(item));
-                        const price = Math.floor(prices[item.id] ?? 0);
+                        const qty = Number(getItemQuantity(item));
+                        const price = Number(prices[item.id] ?? 0);
                         const amount = qty * price;
                         return {
                           ...item,
@@ -241,9 +240,9 @@ export function SalesConfirmationReportClient({
                       }) || [];
 
                       const baseTotal = itemsWithCalcs.reduce((s, item) => s + item.amount, 0);
-                      const gstAmount = Math.floor(baseTotal * (gstPct / 100));
+                      const gstAmount = baseTotal * (gstPct / 100);
                       const calculatedTotal = baseTotal + gstAmount;
-                      const billValue = Math.floor(order.bill_value ?? 0);
+                      const billValue = Number(order.bill_value ?? 0);
                       const balance = calculatedTotal - billValue;
 
                       return (
@@ -280,7 +279,7 @@ export function SalesConfirmationReportClient({
                               </div>
                               <div>
                                 <span className="text-[9px] text-muted-foreground uppercase tracking-wider block">Bill Value</span>
-                                <span className="font-bold text-slate-800">₹{formatNumber(billValue, 0)}</span>
+                                <span className="font-bold text-slate-800">₹{formatNumber(Math.floor(billValue), 0)}</span>
                               </div>
                               <div>
                                 <span className="text-[9px] text-muted-foreground uppercase tracking-wider block">Balance</span>
@@ -289,7 +288,7 @@ export function SalesConfirmationReportClient({
                                     balance > 0 ? "text-rose-600" : "text-emerald-600"
                                   }`}
                                 >
-                                  ₹{formatNumber(balance, 0)}
+                                  ₹{formatNumber(Math.floor(balance), 0)}
                                 </span>
                               </div>
                             </div>
@@ -302,19 +301,19 @@ export function SalesConfirmationReportClient({
                               <div className="grid grid-cols-2 md:grid-cols-5 gap-3 bg-slate-50 border border-slate-200 text-slate-800 p-3 rounded-lg shadow-inner text-xs">
                                 <div>
                                   <div className="text-slate-500 text-[10px] uppercase font-semibold">Base Amount</div>
-                                  <div className="font-bold mt-0.5">₹{formatNumber(baseTotal, 0)}</div>
+                                  <div className="font-bold mt-0.5">₹{formatNumber(Math.floor(baseTotal), 0)}</div>
                                 </div>
                                 <div>
                                   <div className="text-slate-500 text-[10px] uppercase font-semibold">GST Amount</div>
-                                  <div className="font-bold mt-0.5">₹{formatNumber(gstAmount, 0)}</div>
+                                  <div className="font-bold mt-0.5">₹{formatNumber(Math.floor(gstAmount), 0)}</div>
                                 </div>
                                 <div>
                                   <div className="text-slate-500 text-[10px] uppercase font-semibold">Calculated Total</div>
-                                  <div className="font-bold mt-0.5 text-emerald-700">₹{formatNumber(calculatedTotal, 0)}</div>
+                                  <div className="font-bold mt-0.5 text-emerald-700">₹{formatNumber(Math.floor(calculatedTotal), 0)}</div>
                                 </div>
                                 <div>
                                   <div className="text-slate-500 text-[10px] uppercase font-semibold">Bill Value</div>
-                                  <div className="font-bold mt-0.5 text-slate-700">₹{formatNumber(billValue, 0)}</div>
+                                  <div className="font-bold mt-0.5 text-slate-700">₹{formatNumber(Math.floor(billValue), 0)}</div>
                                 </div>
                                 <div className="col-span-2 md:col-span-1 border-t md:border-t-0 md:border-l border-slate-200 pt-2 md:pt-0 md:pl-3">
                                   <div className="text-slate-500 text-[10px] uppercase font-semibold">Outstanding Balance</div>
@@ -323,7 +322,7 @@ export function SalesConfirmationReportClient({
                                       balance > 0 ? "text-rose-700" : "text-emerald-700"
                                     }`}
                                   >
-                                    ₹{formatNumber(balance, 0)}
+                                    ₹{formatNumber(Math.floor(balance), 0)}
                                   </div>
                                 </div>
                               </div>
@@ -358,16 +357,16 @@ export function SalesConfirmationReportClient({
                                             <Input
                                               type="number"
                                               min="0"
-                                              step="1"
-                                              placeholder="0"
-                                              value={prices[item.id] ?? ""}
+                                              step="0.01"
+                                              placeholder="0.00"
+                                              value={prices[item.id] === 0 ? "" : (prices[item.id] ?? "")}
                                               onChange={(e) => handlePriceChange(item.id, e.target.value)}
                                               className="h-7 pl-5 pr-2 w-28 text-right text-xs border-slate-300 focus-visible:ring-emerald-500"
                                             />
                                           </div>
                                         </TableCell>
                                         <TableCell className="text-xs text-right font-bold text-slate-900">
-                                          ₹{formatNumber(item.amount, 0)}
+                                          ₹{formatNumber(Math.floor(item.amount), 0)}
                                         </TableCell>
                                       </TableRow>
                                     ))}
@@ -389,7 +388,8 @@ export function SalesConfirmationReportClient({
                                         type="number"
                                         min="0"
                                         max="100"
-                                        value={gstPct}
+                                        step="0.01"
+                                        value={gstRates[order.id] === 0 ? "" : (gstRates[order.id] ?? "")}
                                         onChange={(e) => handleGstChange(order.id, e.target.value)}
                                         className="h-7 pr-7 text-xs border-slate-300 focus-visible:ring-emerald-500"
                                       />

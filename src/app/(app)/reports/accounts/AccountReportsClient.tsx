@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Label } from "@/components/ui/label";
+import { formatNumber } from "@/lib/utils";
 
 interface Account {
   id: string;
@@ -231,13 +232,13 @@ export function AccountReportsClient({
               <TableBody>
                 {/* Opening Value Row */}
                 <TableRow className="border-b border-slate-100 bg-slate-50/30">
-                  <TableCell className="py-3 text-slate-500 font-medium text-sm">{from}</TableCell>
+                  <TableCell className="py-3 text-slate-550 font-medium text-sm">{from}</TableCell>
                   <TableCell className="py-3 font-bold text-slate-800 text-sm">OPENING VALUE</TableCell>
                   <TableCell className="py-3 text-right text-slate-900 font-medium text-sm">
-                    {ledgerData.openingDr > 0 ? ledgerData.openingDr : "-"}
+                    {ledgerData.openingDr > 0 ? formatNumber(ledgerData.openingDr, 0) : "-"}
                   </TableCell>
                   <TableCell className="py-3 text-right text-slate-900 font-medium text-sm">
-                    {ledgerData.openingCr > 0 ? ledgerData.openingCr : "-"}
+                    {ledgerData.openingCr > 0 ? formatNumber(ledgerData.openingCr, 0) : "-"}
                   </TableCell>
                 </TableRow>
 
@@ -258,10 +259,10 @@ export function AccountReportsClient({
                           {entry.description || "Journal Entry"}
                         </TableCell>
                         <TableCell className="py-3 text-right text-slate-900 text-sm">
-                          {entry.entry_type === "debit" ? amt : "-"}
+                          {entry.entry_type === "debit" ? formatNumber(amt, 0) : "-"}
                         </TableCell>
                         <TableCell className="py-3 text-right text-slate-900 text-sm">
-                          {entry.entry_type === "credit" ? amt : "-"}
+                          {entry.entry_type === "credit" ? formatNumber(amt, 0) : "-"}
                         </TableCell>
                       </TableRow>
                     );
@@ -273,10 +274,10 @@ export function AccountReportsClient({
                   <TableCell className="py-3"></TableCell>
                   <TableCell className="py-3 font-bold text-slate-900 text-sm text-right">TOTAL</TableCell>
                   <TableCell className="py-3 text-right text-slate-950 font-bold text-sm border-t border-slate-300">
-                    {ledgerData.totalDr > 0 ? ledgerData.totalDr : "-"}
+                    {ledgerData.totalDr > 0 ? formatNumber(ledgerData.totalDr, 0) : "-"}
                   </TableCell>
                   <TableCell className="py-3 text-right text-slate-950 font-bold text-sm border-t border-slate-300">
-                    {ledgerData.totalCr > 0 ? ledgerData.totalCr : "-"}
+                    {ledgerData.totalCr > 0 ? formatNumber(ledgerData.totalCr, 0) : "-"}
                   </TableCell>
                 </TableRow>
 
@@ -285,10 +286,10 @@ export function AccountReportsClient({
                   <TableCell className="py-3"></TableCell>
                   <TableCell className="py-3 font-bold text-slate-900 text-sm text-right">BALANCE</TableCell>
                   <TableCell className="py-3 text-right text-slate-950 font-black text-sm">
-                    {ledgerData.balanceDr > 0 ? `${ledgerData.balanceDr} Dr.` : "-"}
+                    {ledgerData.balanceDr > 0 ? `${formatNumber(ledgerData.balanceDr, 0)} Dr.` : "-"}
                   </TableCell>
                   <TableCell className="py-3 text-right text-slate-950 font-black text-sm">
-                    {ledgerData.balanceCr > 0 ? `${ledgerData.balanceCr} Cr.` : "-"}
+                    {ledgerData.balanceCr > 0 ? `${formatNumber(ledgerData.balanceCr, 0)} Cr.` : "-"}
                   </TableCell>
                 </TableRow>
               </TableBody>
@@ -325,10 +326,10 @@ export function AccountReportsClient({
                           {displayName}
                         </TableCell>
                         <TableCell className="py-3 text-right text-slate-900 text-sm">
-                          {entry.entry_type === "debit" ? amt : "-"}
+                          {entry.entry_type === "debit" ? formatNumber(amt, 0) : "-"}
                         </TableCell>
                         <TableCell className="py-3 text-right text-slate-900 text-sm">
-                          {entry.entry_type === "credit" ? amt : "-"}
+                          {entry.entry_type === "credit" ? formatNumber(amt, 0) : "-"}
                         </TableCell>
                       </TableRow>
                     );
@@ -341,10 +342,10 @@ export function AccountReportsClient({
                     <TableCell className="py-3"></TableCell>
                     <TableCell className="py-3 font-bold text-slate-900 text-sm text-right">TOTAL TRANSACTIONS</TableCell>
                     <TableCell className="py-3 text-right text-slate-950 font-bold text-sm">
-                      {daybookTotals.totalDr}
+                      {formatNumber(daybookTotals.totalDr, 0)}
                     </TableCell>
                     <TableCell className="py-3 text-right text-slate-950 font-bold text-sm">
-                      {daybookTotals.totalCr}
+                      {formatNumber(daybookTotals.totalCr, 0)}
                     </TableCell>
                   </TableRow>
                 )}

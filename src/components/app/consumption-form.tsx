@@ -73,7 +73,7 @@ export function ConsumptionForm({ department, materials, row }: ConsumptionFormP
           <option value="" disabled>Select material</option>
           {materials.map((m) => (
             <option key={m.id} value={m.id}>
-              {m.material_name} ({m.unit})
+              {m.material_name}
             </option>
           ))}
         </select>
@@ -85,7 +85,7 @@ export function ConsumptionForm({ department, materials, row }: ConsumptionFormP
           type="text"
           readOnly
           disabled
-          value={selectedMaterial ? `${formatNumber(selectedMaterial.current_stock ?? 0, 2)} ${selectedMaterial.unit}` : "Select a material"}
+          value={selectedMaterial ? formatNumber(Math.floor(Number(selectedMaterial.current_stock ?? 0)), 0) : "Select a material"}
           className="bg-muted font-medium"
         />
       </div>

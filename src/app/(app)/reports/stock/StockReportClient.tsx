@@ -175,7 +175,6 @@ export function StockReportClient({
                 <TableRow className="bg-slate-50 border-b border-slate-200">
                   <TableHead className="w-10"></TableHead>
                   <TableHead className="font-semibold text-slate-700">Raw Material ID</TableHead>
-                  <TableHead className="font-semibold text-slate-700">Unit</TableHead>
                   <TableHead className="font-semibold text-slate-700 text-right">Total Purchase</TableHead>
                   <TableHead className="font-semibold text-slate-700 text-right">Total Consumption</TableHead>
                   <TableHead className="font-semibold text-slate-700 text-right">Available</TableHead>
@@ -199,7 +198,6 @@ export function StockReportClient({
                           )}
                         </TableCell>
                         <TableCell className="font-medium text-slate-900 py-3">{material.material_name}</TableCell>
-                        <TableCell className="text-slate-600 py-3">{material.unit}</TableCell>
                         <TableCell className="text-right text-slate-950 font-medium py-3">
                           {material.totalPurchase}
                         </TableCell>
