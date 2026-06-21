@@ -1028,6 +1028,9 @@ export async function saveRawMaterialConsumption(formData: FormData) {
   if (!rawMaterialId || !department || quantity <= 0 || !consumptionDate) {
     throw new Error("Missing required consumption fields or invalid quantity.");
   }
+  if (quantity % 25 !== 0) {
+    throw new Error("Quantity must be a multiple of 25.");
+  }
 
   const supabase = await createClient();
   const payload = {
@@ -1488,4 +1491,40 @@ export async function deleteSalesOrderCompletely(orderId: string) {
   revalidatePath("/rolls");
   revalidatePath("/fabric/stock");
   revalidatePath("/reports");
+}
+
+export async function saveSalesConfirmationRates(
+  orderId: string,
+  itemPrices: Record<string, number>,
+  gstRate: number
+) {
+  const user = await requirePermission("sales.edit");
+  const supabase = await createClient();
+
+  // Update sales order GST rate
+  const { error: orderError } = await (supabase
+    .from("sales_orders") as any)
+    .update({ gst_rate: gstRate, updated_by: user.id } as any)
+    .eq("id", orderId);
+
+  if (orderError) {
+    throw new Error(orderError.message);
+  }
+
+  // Update prices for sales order items
+  const itemUpdates = Object.entries(itemPrices).map(([itemId, price]) =>
+    (supabase
+      .from("sales_order_items") as any)
+      .update({ price } as any)
+      .eq("id", itemId)
+  );
+
+  const results = await Promise.all(itemUpdates);
+  for (const res of results) {
+    if (res.error) {
+      throw new Error(res.error.message);
+    }
+  }
+
+  revalidatePath("/reports/sales-confirmation");
 }

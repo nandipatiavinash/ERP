@@ -4,15 +4,22 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { PageHeader } from "@/components/app/page-header";
+import { DateFilter } from "@/components/app/date-filter";
 import { softDeleteRawMaterialConsumption } from "@/app/(app)/_actions";
 import { requirePermission } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, formatNumber, todayInIndia } from "@/lib/utils";
 
-export default async function RotoPrintingConsumptionPage() {
+export default async function RotoPrintingConsumptionPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ date?: string }>;
+}) {
   await requirePermission("production.view");
   const supabase = await createClient();
-  const date = todayInIndia();
+  const params = await searchParams;
+  const date = params.date || todayInIndia();
+  const isToday = date === todayInIndia();
 
   const [{ data: rawMaterials }, { data: consumptions }] = await Promise.all([
     supabase
@@ -38,21 +45,31 @@ export default async function RotoPrintingConsumptionPage() {
     <>
       <PageHeader
         title="Roto Printing Raw Material Consumption"
-        description="Log and monitor the consumption of raw materials (inks, solvents, etc.) in the Roto Printing process."
+        description="Log and monitor the consumption of raw materials (inks, chemicals, solvents) in the Roto Printing process."
       />
 
-      <Card className="mb-5">
-        <CardHeader>
-          <CardTitle>Log Consumption</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ConsumptionForm department="roto-printing" materials={materials} />
-        </CardContent>
-      </Card>
+      <div className="flex justify-end mb-4">
+        <DateFilter date={date} baseUrl="/roto-printing/consumption" />
+      </div>
+
+      {isToday ? (
+        <Card className="mb-5">
+          <CardHeader>
+            <CardTitle>Log Consumption</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ConsumptionForm department="roto-printing" materials={materials} />
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="mb-5 bg-amber-50 border border-amber-200 text-amber-800 rounded-lg p-4 text-sm font-medium">
+          Viewing historical records. Logging and deleting are only allowed on the current day.
+        </div>
+      )}
 
       <Card>
         <CardHeader>
-          <CardTitle>Recent Consumptions</CardTitle>
+          <CardTitle>Consumptions for {formatDate(date)}</CardTitle>
         </CardHeader>
         <CardContent>
           {rows.length === 0 ? (
@@ -66,11 +83,11 @@ export default async function RotoPrintingConsumptionPage() {
                     <TableHead>Material</TableHead>
                     <TableHead className="text-right">Quantity</TableHead>
                     <TableHead>Remarks</TableHead>
-                    <TableHead>Actions</TableHead>
+                    {isToday && <TableHead>Actions</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {rows.map((row) => (
+                  {rows.map((row: any) => (
                     <TableRow key={row.id}>
                       <TableCell>{formatDate(row.consumption_date)}</TableCell>
                       <TableCell>{row.raw_materials?.material_name ?? "-"}</TableCell>
@@ -78,19 +95,21 @@ export default async function RotoPrintingConsumptionPage() {
                         {formatNumber(row.quantity, 2)} {row.raw_materials?.unit ?? ""}
                       </TableCell>
                       <TableCell>{row.remarks ?? "-"}</TableCell>
-                      <TableCell>
-                        <form action={softDeleteRawMaterialConsumption}>
-                          <input type="hidden" name="id" value={row.id} />
-                          <ConfirmSubmitButton
-                            size="sm"
-                            variant="outline"
-                            confirmTitle="Delete consumption log?"
-                            confirmDescription="This will revert the stock update and remove the log entry."
-                          >
-                            Delete
-                          </ConfirmSubmitButton>
-                        </form>
-                      </TableCell>
+                      {isToday && (
+                        <TableCell>
+                          <form action={softDeleteRawMaterialConsumption}>
+                            <input type="hidden" name="id" value={row.id} />
+                            <ConfirmSubmitButton
+                              size="sm"
+                              variant="outline"
+                              confirmTitle="Delete consumption log?"
+                              confirmDescription="This will revert the stock update and remove the log entry."
+                            >
+                              Delete
+                            </ConfirmSubmitButton>
+                          </form>
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))}
                 </TableBody>

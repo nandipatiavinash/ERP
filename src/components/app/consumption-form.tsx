@@ -29,6 +29,11 @@ export function ConsumptionForm({ department, materials, row }: ConsumptionFormP
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (isSaving) return;
+    const qtyNum = Number(quantity);
+    if (isNaN(qtyNum) || qtyNum <= 0 || qtyNum % 25 !== 0) {
+      setErrorText("Quantity must be a multiple of 25.");
+      return;
+    }
     setIsSaving(true);
     setErrorText(null);
     try {
@@ -111,7 +116,7 @@ export function ConsumptionForm({ department, materials, row }: ConsumptionFormP
         />
       </div>
 
-      <div className="md:col-span-2 lg:col-span-4 flex flex-col gap-2">
+      <div className="md:col-span-2 lg:col-span-4 flex flex-col items-end gap-2">
         {errorText && <p className="text-sm text-destructive">{errorText}</p>}
         <ConfirmSubmitButton
           confirmTitle={row?.id ? "Save changes?" : "Submit consumption?"}

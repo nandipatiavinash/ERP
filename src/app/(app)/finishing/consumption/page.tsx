@@ -4,15 +4,22 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { PageHeader } from "@/components/app/page-header";
+import { DateFilter } from "@/components/app/date-filter";
 import { softDeleteRawMaterialConsumption } from "@/app/(app)/_actions";
 import { requirePermission } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, formatNumber, todayInIndia } from "@/lib/utils";
 
-export default async function FinishingConsumptionPage() {
+export default async function FinishingConsumptionPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ date?: string }>;
+}) {
   await requirePermission("production.view");
   const supabase = await createClient();
-  const date = todayInIndia();
+  const params = await searchParams;
+  const date = params.date || todayInIndia();
+  const isToday = date === todayInIndia();
 
   const [{ data: rawMaterials }, { data: consumptions }] = await Promise.all([
     supabase
@@ -41,18 +48,28 @@ export default async function FinishingConsumptionPage() {
         description="Log and monitor the consumption of raw materials (threads, packaging material, etc.) in the Finishing process."
       />
 
-      <Card className="mb-5">
-        <CardHeader>
-          <CardTitle>Log Consumption</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ConsumptionForm department="finishing" materials={materials} />
-        </CardContent>
-      </Card>
+      <div className="flex justify-end mb-4">
+        <DateFilter date={date} baseUrl="/finishing/consumption" />
+      </div>
+
+      {isToday ? (
+        <Card className="mb-5">
+          <CardHeader>
+            <CardTitle>Log Consumption</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ConsumptionForm department="finishing" materials={materials} />
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="mb-5 bg-amber-50 border border-amber-200 text-amber-800 rounded-lg p-4 text-sm font-medium">
+          Viewing historical records. Logging and deleting are only allowed on the current day.
+        </div>
+      )}
 
       <Card>
         <CardHeader>
-          <CardTitle>Recent Consumptions</CardTitle>
+          <CardTitle>Consumptions for {formatDate(date)}</CardTitle>
         </CardHeader>
         <CardContent>
           {rows.length === 0 ? (
@@ -66,7 +83,7 @@ export default async function FinishingConsumptionPage() {
                     <TableHead>Material</TableHead>
                     <TableHead className="text-right">Quantity</TableHead>
                     <TableHead>Remarks</TableHead>
-                    <TableHead>Actions</TableHead>
+                    {isToday && <TableHead>Actions</TableHead>}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -78,19 +95,21 @@ export default async function FinishingConsumptionPage() {
                         {formatNumber(row.quantity, 2)} {row.raw_materials?.unit ?? ""}
                       </TableCell>
                       <TableCell>{row.remarks ?? "-"}</TableCell>
-                      <TableCell>
-                        <form action={softDeleteRawMaterialConsumption}>
-                          <input type="hidden" name="id" value={row.id} />
-                          <ConfirmSubmitButton
-                            size="sm"
-                            variant="outline"
-                            confirmTitle="Delete consumption log?"
-                            confirmDescription="This will revert the stock update and remove the log entry."
-                          >
-                            Delete
-                          </ConfirmSubmitButton>
-                        </form>
-                      </TableCell>
+                      {isToday && (
+                        <TableCell>
+                          <form action={softDeleteRawMaterialConsumption}>
+                            <input type="hidden" name="id" value={row.id} />
+                            <ConfirmSubmitButton
+                              size="sm"
+                              variant="outline"
+                              confirmTitle="Delete consumption log?"
+                              confirmDescription="This will revert the stock update and remove the log entry."
+                            >
+                              Delete
+                            </ConfirmSubmitButton>
+                          </form>
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))}
                 </TableBody>
