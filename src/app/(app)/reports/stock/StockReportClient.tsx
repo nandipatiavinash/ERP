@@ -269,46 +269,35 @@ export function StockReportClient({
     return { soldDateMap, customerMap, billMap, orderIdMap };
   }, [salesOrders]);
 
-  // Section 2: Stock (Available fabric rolls)
+  // Section 2: Stock (Available fabric rolls, grouped by department/stage)
   const stockProductData = useMemo(() => {
     const activeRolls = rolls.filter((roll) => {
       if (roll.production_date > to) return false;
       const soldDate = rollDetailsMap.soldDateMap[roll.id];
-      if (roll.status === "available" || (soldDate && soldDate > to)) {
-        return true;
-      }
-      return false;
+      return roll.status === "available" || (soldDate && soldDate > to);
     });
 
-    const totalWeight = activeRolls.reduce((sum, roll) => sum + Number(roll.weight || 0), 0);
-
-    const dailyProduction: Record<string, number> = {};
-    selectedDates.forEach((date) => {
-      dailyProduction[date] = 0;
-    });
-
+    // Group by stage/department
+    const deptGroups: Record<string, { departmentKey: string; departmentLabel: string; totalStock: number }> = {};
     activeRolls.forEach((roll) => {
-      const pDate = roll.production_date;
-      if (pDate >= from && pDate <= to) {
-        dailyProduction[pDate] = (dailyProduction[pDate] ?? 0) + Number(roll.weight || 0);
+      const stage = roll.current_stage || "loom";
+      const deptKey = getStageDeptKey(stage);
+      if (!deptGroups[deptKey]) {
+        deptGroups[deptKey] = {
+          departmentKey: deptKey,
+          departmentLabel: getRmDeptName(deptKey),
+          totalStock: 0,
+        };
       }
+      deptGroups[deptKey].totalStock += Number(roll.weight || 0);
     });
 
-    const dailyRecords = selectedDates.map((date) => ({
-      date,
-      production: Math.floor(dailyProduction[date] || 0),
-    })).filter(r => r.production > 0);
-
-    if (totalWeight === 0) return [];
-
-    return [{
-      id: "all-summed-rolls",
-      departmentLabel: "All Stages",
-      name: "All Summed Rolls",
-      availableStock: Math.floor(totalWeight),
-      dailyRecords,
-    }];
-  }, [rolls, to, from, selectedDates, rollDetailsMap]);
+    const deptOrder = ["fabric", "roto-printing", "lamination", "offset-printing", "finishing"];
+    return Object.values(deptGroups)
+      .filter((d) => d.totalStock > 0)
+      .map((d) => ({ ...d, totalStock: Math.floor(d.totalStock) }))
+      .sort((a, b) => deptOrder.indexOf(a.departmentKey) - deptOrder.indexOf(b.departmentKey));
+  }, [rolls, to, rollDetailsMap]);
 
   // Section 3: Sale (Sales of products in range)
   const saleProductData = useMemo(() => {
@@ -422,7 +411,7 @@ export function StockReportClient({
   }, [rawMaterialData]);
 
   const stockTotals = useMemo(() => {
-    return stockProductData.reduce((sum, r) => sum + r.availableStock, 0);
+    return stockProductData.reduce((sum, r) => sum + r.totalStock, 0);
   }, [stockProductData]);
 
   const saleTotals = useMemo(() => {
@@ -603,7 +592,7 @@ export function StockReportClient({
             </>
           )}
 
-          {/* SECTION 2: Stock (Rolls availability) */}
+          {/* SECTION 2: Stock (department-wise available rolls in KGs) */}
           {activeSection === "stock" && (
             <>
               {stockProductData.length === 0 ? (
@@ -612,86 +601,27 @@ export function StockReportClient({
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-slate-50 border-b border-slate-200">
-                      <TableHead className="w-10"></TableHead>
                       <TableHead className="font-semibold text-slate-700">Department</TableHead>
-                      <TableHead className="font-semibold text-slate-700">Product</TableHead>
                       <TableHead className="font-semibold text-slate-700 text-right w-64">Available Stock (KGs)</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {stockProductData.map((item) => {
-                      const isExpanded = expanded[item.id];
-                      return (
-                        <>
-                          <TableRow
-                            key={item.id}
-                            onClick={() => toggleExpand(item.id)}
-                            className="cursor-pointer hover:bg-slate-50 transition-colors border-b border-slate-200"
-                          >
-                            <TableCell className="py-3 px-4">
-                              {isExpanded ? (
-                                <ChevronDown className="h-4 w-4 text-slate-500" />
-                              ) : (
-                                <ChevronRight className="h-4 w-4 text-slate-500" />
-                              )}
-                            </TableCell>
-                            <TableCell className="text-slate-600 font-medium py-3 capitalize">{item.departmentLabel}</TableCell>
-                            <TableCell className="font-bold text-slate-900 py-3">{item.name}</TableCell>
-                            <TableCell className="text-right text-slate-950 font-bold py-3">
-                              {formatNumber(item.availableStock, 0)}
-                            </TableCell>
-                          </TableRow>
+                    {stockProductData.map((item) => (
+                      <TableRow
+                        key={item.departmentKey}
+                        className="border-b border-slate-200 hover:bg-slate-50 transition-colors"
+                      >
+                        <TableCell className="font-semibold text-slate-800 py-3.5 capitalize">{item.departmentLabel}</TableCell>
+                        <TableCell className="text-right text-slate-950 font-bold py-3.5 font-mono text-sm">
+                          {formatNumber(item.totalStock, 0)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
 
-                          {isExpanded && (
-                            <TableRow className="bg-slate-50 hover:bg-slate-50 border-b border-slate-200">
-                              <TableCell colSpan={4} className="p-4">
-                                <div className="rounded-lg border border-slate-200 bg-white shadow-inner overflow-hidden max-w-2xl mx-auto my-2">
-                                  <div className="bg-slate-100 px-4 py-2 border-b border-slate-200">
-                                    <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-                                      Date-Wise Production logs for {item.name}
-                                    </span>
-                                  </div>
-                                  <Table>
-                                    <TableHeader>
-                                      <TableRow className="bg-slate-50 border-b border-slate-200">
-                                        <TableHead className="text-xs font-semibold text-slate-600">Production Date</TableHead>
-                                        <TableHead className="text-xs font-semibold text-slate-600 text-right">Production (KGs)</TableHead>
-                                      </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                      {item.dailyRecords.length === 0 ? (
-                                        <TableRow>
-                                          <TableCell colSpan={2} className="text-center py-4 text-slate-400 text-xs font-semibold">
-                                            No production records in the selected date range.
-                                          </TableCell>
-                                        </TableRow>
-                                      ) : (
-                                        item.dailyRecords.map((record) => (
-                                          <TableRow key={record.date} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/50">
-                                            <TableCell className="py-2 text-slate-700 font-medium text-xs">
-                                              {record.date}
-                                            </TableCell>
-                                            <TableCell className="py-2 text-right text-slate-900 font-bold text-xs">
-                                              {formatNumber(record.production, 0)}
-                                            </TableCell>
-                                          </TableRow>
-                                        ))
-                                      )}
-                                    </TableBody>
-                                  </Table>
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          )}
-                        </>
-                      );
-                    })}
-
-                    {/* Totals Row */}
+                    {/* Total Row */}
                     <TableRow className="bg-slate-100 font-bold border-t-2 border-slate-300 hover:bg-slate-100">
-                      <TableCell></TableCell>
-                      <TableCell colSpan={2} className="py-3 text-slate-900 font-bold text-right uppercase">Total Available Products</TableCell>
-                      <TableCell className="text-right text-slate-950 py-3">{formatNumber(stockTotals, 0)}</TableCell>
+                      <TableCell className="py-3 text-slate-900 font-bold text-right uppercase">Total Available Stock</TableCell>
+                      <TableCell className="text-right text-slate-950 py-3 font-black font-mono text-sm">{formatNumber(stockTotals, 0)}</TableCell>
                     </TableRow>
                   </TableBody>
                 </Table>
