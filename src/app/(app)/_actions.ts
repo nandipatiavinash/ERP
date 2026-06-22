@@ -637,6 +637,8 @@ export async function saveRoleDetails(formData: FormData) {
     .eq("id", roleId);
   if (error) throw new Error(error.message);
   revalidatePath("/roles");
+  revalidatePath("/admin/permissions");
+  revalidatePath(`/admin/permissions/${roleId}`);
 }
 
 export async function deactivateRole(formData: FormData) {
@@ -667,6 +669,7 @@ export async function saveRolePermissions(formData: FormData) {
   }
   revalidatePath("/roles");
   revalidatePath("/admin/permissions");
+  revalidatePath(`/admin/permissions/${roleId}`);
 }
 
 export async function updateCriticalLevel(formData: FormData) {
