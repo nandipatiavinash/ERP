@@ -149,14 +149,16 @@ export async function saveMaster(moduleKey: string, formData: FormData) {
   const payload = validateMasterPayload(moduleKey, readPayload(formData, config.fields.map((field) => field.name))) as any;
 
   let oldAlias: string | null = null;
+  let oldCustomerName: string | null = null;
   if (moduleKey === "customers" && id) {
     const { data } = await (supabase
       .from("customers") as any)
-      .select("alias, is_internal")
+      .select("customer_name, alias, is_internal")
       .eq("id", id)
       .maybeSingle();
     if (data && data.is_internal === "client a/c") {
       oldAlias = data.alias;
+      oldCustomerName = data.customer_name;
     }
   }
 
@@ -172,6 +174,14 @@ export async function saveMaster(moduleKey: string, formData: FormData) {
   const table = config.table as any;
 
   let finalPayload = { ...payload };
+  if (moduleKey === "customers") {
+    if (finalPayload.customer_name) {
+      finalPayload.customer_name = String(finalPayload.customer_name).toUpperCase().trim();
+    }
+    if (finalPayload.alias) {
+      finalPayload.alias = String(finalPayload.alias).toUpperCase().trim();
+    }
+  }
 
   const buildQuery = (p: Record<string, unknown>) =>
     id
@@ -196,14 +206,20 @@ export async function saveMaster(moduleKey: string, formData: FormData) {
   // Handle client alias account auto-generation
   if (moduleKey === "customers") {
     const isInternal = String(finalPayload.is_internal ?? "");
+    const customerName = String(finalPayload.customer_name ?? "").trim();
     const newAlias = String(finalPayload.alias ?? "").trim();
 
-    if (isInternal === "client a/c" && newAlias) {
-      const aliasAccountName = `${newAlias} A/c`;
-      const oldAliasAccountName = oldAlias ? `${oldAlias} A/c` : null;
+    if (isInternal === "client a/c" && !customerName.toLowerCase().endsWith(" a/c")) {
+      const aliasAccountName = newAlias ? `${newAlias} A/c` : `${customerName} A/c`;
+      let oldAliasAccountName: string | null = null;
+      if (oldCustomerName) {
+        oldAliasAccountName = oldAlias 
+          ? `${oldAlias} A/c` 
+          : (oldCustomerName.toLowerCase().endsWith(" a/c") ? oldCustomerName : `${oldCustomerName} A/c`);
+      }
 
-      if (oldAliasAccountName && oldAliasAccountName !== aliasAccountName) {
-        // Alias was updated, so rename the old associated account if it exists
+      if (oldAliasAccountName && oldAliasAccountName.toLowerCase() !== aliasAccountName.toLowerCase()) {
+        // Alias/name was updated, so rename the old associated account if it exists
         const { data: existingOldAccount } = await (supabase
           .from("customers") as any)
           .select("id")
@@ -217,7 +233,7 @@ export async function saveMaster(moduleKey: string, formData: FormData) {
             .update({ customer_name: aliasAccountName, updated_by: user.id })
             .eq("id", existingOldAccount.id);
         } else {
-          // If the old one didn't exist for some reason, check if the new one exists, otherwise create it
+          // Check if the new one exists, otherwise create it
           const { data: existingNewAccount } = await (supabase
             .from("customers") as any)
             .select("id")
@@ -496,8 +512,8 @@ export async function saveRawMaterialPurchase(formData: FormData) {
   // Auto-generate journal entries for purchase
   try {
     const [purchaseAcResult, supplierAcResult] = await Promise.all([
-      supabase.from("customers").select("id").eq("customer_name", "Purchase A/c").is("deleted_at", null).maybeSingle(),
-      supabase.from("customers").select("id").eq("customer_name", supplier_name).is("deleted_at", null).maybeSingle()
+      supabase.from("customers").select("id, customer_name").ilike("customer_name", "Purchase A/c").is("deleted_at", null).maybeSingle(),
+      supabase.from("customers").select("id, customer_name").ilike("customer_name", supplier_name).is("deleted_at", null).maybeSingle()
     ]);
     const purchaseAc = purchaseAcResult.data as any;
     const supplierAc = supplierAcResult.data as any;
@@ -508,10 +524,10 @@ export async function saveRawMaterialPurchase(formData: FormData) {
         journal_no: journalNo,
         entry_date: purchase_date,
         account_id: purchaseAc?.id ?? null,
-        account_name: "Purchase A/c",
+        account_name: purchaseAc?.customer_name ?? "Purchase A/c",
         entry_type: "debit",
         amount: totalBillValue,
-        description: `${bill_number} (${supplier_name})`,
+        description: `${bill_number} (${supplierAc?.customer_name ?? supplier_name})`,
         created_by: user.id,
         updated_by: user.id,
       },
@@ -519,7 +535,7 @@ export async function saveRawMaterialPurchase(formData: FormData) {
         journal_no: journalNo,
         entry_date: purchase_date,
         account_id: supplierAc?.id ?? null,
-        account_name: supplier_name,
+        account_name: supplierAc?.customer_name ?? supplier_name,
         entry_type: "credit",
         amount: totalBillValue,
         description: bill_number,
@@ -1512,43 +1528,41 @@ export async function saveSalesOrderBilling(formData: FormData) {
   const balance = calculatedTotal - billValue;
 
   const [customerAcResult, salesAcResult] = await Promise.all([
-    supabase.from("customers").select("id").eq("customer_name", customerName).is("deleted_at", null).maybeSingle(),
-    supabase.from("customers").select("id").ilike("customer_name", "Sales A/c").is("deleted_at", null).maybeSingle()
+    supabase.from("customers").select("id, customer_name").ilike("customer_name", customerName).is("deleted_at", null).maybeSingle(),
+    supabase.from("customers").select("id, customer_name").ilike("customer_name", "Sales A/c").is("deleted_at", null).maybeSingle()
   ]);
   const customerAc = customerAcResult.data as any;
   const salesAc = salesAcResult.data as any;
 
   // Resolve or create target client alias account "[Alias] A/c"
   let aliasAcId: string | null = null;
-  let aliasAcName = "";
+  const aliasBase = (clientAlias && clientAlias.trim()) || customerName.trim();
+  const aliasAcName = aliasBase.toLowerCase().endsWith(" a/c") ? aliasBase : `${aliasBase} A/c`;
 
-  if (clientAlias && clientAlias.trim()) {
-    aliasAcName = `${clientAlias.trim()} A/c`;
-    const { data: existingAliasAc } = await (supabase
+  const { data: existingAliasAc } = await (supabase
+    .from("customers") as any)
+    .select("id, customer_name")
+    .ilike("customer_name", aliasAcName)
+    .is("deleted_at", null)
+    .maybeSingle();
+
+  if (existingAliasAc) {
+    aliasAcId = existingAliasAc.id;
+  } else {
+    // Auto-create on the fly
+    const { data: newAliasAc, error: createAliasErr } = await (supabase
       .from("customers") as any)
+      .insert({
+        customer_name: aliasAcName,
+        is_internal: "client a/c",
+        status: "active",
+        created_by: user.id,
+        updated_by: user.id,
+      })
       .select("id")
-      .ilike("customer_name", aliasAcName)
-      .is("deleted_at", null)
-      .maybeSingle();
-
-    if (existingAliasAc) {
-      aliasAcId = existingAliasAc.id;
-    } else {
-      // Auto-create on the fly
-      const { data: newAliasAc, error: createAliasErr } = await (supabase
-        .from("customers") as any)
-        .insert({
-          customer_name: aliasAcName,
-          is_internal: "client a/c",
-          status: "active",
-          created_by: user.id,
-          updated_by: user.id,
-        })
-        .select("id")
-        .single();
-      if (!createAliasErr && newAliasAc) {
-        aliasAcId = newAliasAc.id;
-      }
+      .single();
+    if (!createAliasErr && newAliasAc) {
+      aliasAcId = newAliasAc.id;
     }
   }
 
@@ -1558,7 +1572,7 @@ export async function saveSalesOrderBilling(formData: FormData) {
       journal_no: journalNo,
       entry_date: entryDate,
       account_id: customerAc?.id ?? null,
-      account_name: customerName,
+      account_name: customerAc?.customer_name ?? customerName,
       entry_type: "debit",
       amount: billValue,
       description: billNumber,
@@ -1572,7 +1586,7 @@ export async function saveSalesOrderBilling(formData: FormData) {
       account_name: salesAc?.customer_name ?? "Sales A/c",
       entry_type: "credit",
       amount: billValue,
-      description: `${billNumber} (${customerName})`,
+      description: `${billNumber} (${customerAc?.customer_name ?? customerName})`,
       created_by: user.id,
       updated_by: user.id,
     },
@@ -1601,7 +1615,7 @@ export async function saveSalesOrderBilling(formData: FormData) {
         account_name: salesAc?.customer_name ?? "Sales A/c",
         entry_type: "credit",
         amount: absBalance,
-        description: `Balance adjustment for Bill ${billNumber} (${customerName})`,
+        description: `Balance adjustment for Bill ${billNumber} (${customerAc?.customer_name ?? customerName})`,
         created_by: user.id,
         updated_by: user.id,
       });
@@ -1614,7 +1628,7 @@ export async function saveSalesOrderBilling(formData: FormData) {
         account_name: salesAc?.customer_name ?? "Sales A/c",
         entry_type: "debit",
         amount: absBalance,
-        description: `Balance adjustment for Bill ${billNumber} (${customerName})`,
+        description: `Balance adjustment for Bill ${billNumber} (${customerAc?.customer_name ?? customerName})`,
         created_by: user.id,
         updated_by: user.id,
       });
