@@ -334,11 +334,12 @@ export function ClosingStockReportClient({
       await saveClosingStock(
         date,
         pricesToSave,
-        totals.stockBase,
+        totals.baseTotal,
         totals.wipAmount,
         totals.gstAmount,
         totals.grandTotal
       );
+
       setSubmitted(true);
       router.refresh();
     } catch (err: any) {

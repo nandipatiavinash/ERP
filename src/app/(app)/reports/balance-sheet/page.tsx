@@ -124,7 +124,7 @@ export default async function BalanceSheetPage({
           date={date}
           accounts={accounts || []}
           entries={journalEntries || []}
-          closingStockValue={closingStock.baseTotal}
+          closingStockValue={closingStock.grandTotal}
           netProfit={profitLoss.netProfit || 0}
           netLoss={profitLoss.netLoss || 0}
         />

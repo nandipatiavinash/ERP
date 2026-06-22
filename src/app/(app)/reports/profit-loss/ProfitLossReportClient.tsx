@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatNumber } from "@/lib/utils";
 import { saveProfitLoss } from "@/app/(app)/_actions";
+import { Printer } from "lucide-react";
+
 
 interface PLAccount {
   id: string;
@@ -153,9 +155,14 @@ export function ProfitLossReportClient({
 
   return (
     <div className="space-y-6 pb-12">
+      {/* Print Only Simple Header */}
+      <div className="hidden print:block text-center font-black text-xl mb-8 uppercase tracking-wider text-slate-900 border-b-2 border-slate-900 pb-3">
+        PROFIT &amp; LOSS UPTO THE DATE {formattedDate}
+      </div>
+
       {/* Pre-population/Submission Banner */}
       {submitted && (
-        <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-lg text-sm flex items-center justify-between">
+        <div className="p-4 bg-emerald-50 border border-emerald-200 text-emerald-800 rounded-lg text-sm flex items-center justify-between no-print">
           <span className="font-semibold">✓ Profit & Loss statement for {formattedDate} has been submitted.</span>
           <span className="text-xs text-emerald-600">
             Net: {netProfit > 0 ? `₹${formatNumber(netProfit, 0)} Profit` : `₹${formatNumber(netLoss, 0)} Loss`}
@@ -163,147 +170,154 @@ export function ProfitLossReportClient({
         </div>
       )}
 
-      {/* Two-Column Trading and P&L Layout */}
-      <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+      {/* Header and Print Actions */}
+      <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden no-print">
+        <div className="px-6 py-4 bg-slate-50 flex items-center justify-between">
           <div>
             <h2 className="font-black text-slate-800 text-sm uppercase tracking-wider">
-              Profit &amp; Loss Account Statement
+              PROFIT &amp; LOSS UPTO THE DATE {formattedDate}
             </h2>
-            <p className="text-xs text-slate-500 mt-0.5">For Period Ending {formattedDate}</p>
+            <p className="text-xs text-slate-500 mt-0.5">Financial Statement</p>
           </div>
+          <Button onClick={() => window.print()} variant="outline" size="sm" className="flex items-center gap-1.5 border-slate-200 shadow-none">
+            <Printer className="h-4 w-4" /> Print Statement
+          </Button>
         </div>
+      </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-slate-200">
-          {/* DEBIT / EXPENSES SIDE */}
-          <div className="flex flex-col h-full">
-            <div className="bg-slate-100/50 px-4 py-2 text-xs font-bold text-slate-700 border-b border-slate-200 flex justify-between uppercase">
-              <span>Debit Particulars (Expenses)</span>
-              <span>Amount (₹)</span>
-            </div>
-
-            <div className="flex-1 divide-y divide-slate-100 min-h-[300px]">
-              {debitAccounts.map((acc) => (
-                <div key={acc.id} className="px-4 py-3 flex justify-between items-center text-sm">
-                  <span className="font-medium text-slate-700 capitalize">
-                    {acc.name} {acc.alias ? `(${acc.alias})` : ""}
-                  </span>
-                  <span className="font-bold text-slate-900 font-mono">
-                    ₹{formatNumber(acc.amount, 2)}
-                  </span>
-                </div>
-              ))}
-
-              {/* Manual Expenses entry cell */}
-              <div className="px-4 py-3.5 flex justify-between items-center text-sm bg-slate-50/50">
-                <div className="flex flex-col gap-0.5">
-                  <span className="font-bold text-rose-950">EXPENSES TILL DATE</span>
-                  <span className="text-[10px] text-rose-600 font-semibold uppercase">Manual Entry</span>
-                </div>
-                <div className="relative flex items-center">
-                  <span className="absolute left-2.5 text-muted-foreground text-xs">₹</span>
-                  <Input
-                    type="number"
-                    min="0"
-                    step="any"
-                    value={manualExpensesInput === "0" ? "" : manualExpensesInput}
-                    placeholder="0.00"
-                    onChange={(e) => setManualExpensesInput(e.target.value)}
-                    className="w-36 h-8 pl-6 pr-2 text-right text-sm font-semibold border-slate-300 focus-visible:ring-emerald-500 shadow-none ml-auto"
-                  />
-                </div>
-              </div>
-
-              {/* Net Profit Balancing Line */}
-              {netProfit > 0 && (
-                <div className="px-4 py-3 flex justify-between items-center text-sm bg-emerald-50/20 font-bold border-t border-emerald-100">
-                  <span className="text-emerald-800 uppercase tracking-wide">
-                    Net Profit transferred to Balance Sheet
-                  </span>
-                  <span className="text-emerald-800 font-mono text-base">
-                    ₹{formatNumber(netProfit, 2)}
-                  </span>
-                </div>
-              )}
-            </div>
-
-            {/* Debit Grand Total */}
-            <div className="bg-slate-50 border-t border-slate-200 px-4 py-3 flex justify-between items-center font-black text-sm text-slate-900">
-              <span className="uppercase tracking-wider">Total Dr</span>
-              <span className="font-mono text-base">₹{formatNumber(finalDebitTotal, 2)}</span>
-            </div>
+      {/* Stacked Layout with Gap */}
+      <div className="space-y-8 print:space-y-8">
+        {/* DEBIT / EXPENSES CARD */}
+        <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+          <div className="bg-slate-100/50 px-4 py-2.5 text-xs font-bold text-slate-700 border-b border-slate-200 flex justify-between uppercase">
+            <span>Debit Particulars (Expenses)</span>
+            <span>Amount (₹)</span>
           </div>
 
-          {/* CREDIT / INCOME SIDE */}
-          <div className="flex flex-col h-full">
-            <div className="bg-slate-100/50 px-4 py-2 text-xs font-bold text-slate-700 border-b border-slate-200 flex justify-between uppercase">
-              <span>Credit Particulars (Incomes)</span>
-              <span>Amount (₹)</span>
-            </div>
-
-            <div className="flex-1 divide-y divide-slate-100 min-h-[300px]">
-              {creditAccounts.map((acc) => (
-                <div key={acc.id} className="px-4 py-3 flex justify-between items-center text-sm">
-                  <span className="font-medium text-slate-700 capitalize">
-                    {acc.name} {acc.alias ? `(${acc.alias})` : ""}
-                  </span>
-                  <span className="font-bold text-slate-900 font-mono">
-                    ₹{formatNumber(acc.amount, 2)}
-                  </span>
-                </div>
-              ))}
-
-              {/* Closing Stock Value item */}
-              <div className="px-4 py-3.5 flex justify-between items-center text-sm bg-emerald-50/10 border-b border-slate-100">
-                <div className="flex flex-col gap-0.5">
-                  <span className="font-bold text-emerald-950">CLOSING STOCK VALUE</span>
-                  <span className="text-[10px] text-emerald-600 font-semibold uppercase">Submitted Value</span>
-                </div>
-                <span className="font-bold text-emerald-900 font-mono text-sm">
-                  ₹{formatNumber(closingStockValue, 2)}
+          <div className="divide-y divide-slate-100 min-h-[150px]">
+            {debitAccounts.map((acc) => (
+              <div key={acc.id} className="px-4 py-3 flex justify-between items-center text-sm">
+                <span className="font-medium text-slate-700 capitalize">
+                  {acc.name} {acc.alias ? `(${acc.alias})` : ""}
+                </span>
+                <span className="font-bold text-slate-900 font-mono">
+                  ₹{formatNumber(acc.amount, 2)}
                 </span>
               </div>
+            ))}
 
-              {/* Net Loss Balancing Line */}
-              {netLoss > 0 && (
-                <div className="px-4 py-3 flex justify-between items-center text-sm bg-rose-50/20 font-bold border-t border-rose-100">
-                  <span className="text-rose-800 uppercase tracking-wide">
-                    Net Loss transferred to Balance Sheet
-                  </span>
-                  <span className="text-rose-800 font-mono text-base">
-                    ₹{formatNumber(netLoss, 2)}
-                  </span>
-                </div>
-              )}
+            {/* Manual Expenses entry cell */}
+            <div className="px-4 py-3.5 flex justify-between items-center text-sm bg-slate-50/50">
+              <div className="flex flex-col gap-0.5">
+                <span className="font-bold text-rose-950">EXPENSES TILL DATE</span>
+                <span className="text-[10px] text-rose-600 font-semibold uppercase">Manual Entry</span>
+              </div>
+              <div className="relative flex items-center">
+                <span className="absolute left-2.5 text-muted-foreground text-xs no-print">₹</span>
+                <Input
+                  type="number"
+                  min="0"
+                  step="any"
+                  value={manualExpensesInput === "0" ? "" : manualExpensesInput}
+                  placeholder="0.00"
+                  onChange={(e) => setManualExpensesInput(e.target.value)}
+                  className="w-36 h-8 pl-6 pr-2 text-right text-sm font-semibold border-slate-300 focus-visible:ring-emerald-500 shadow-none ml-auto no-print"
+                />
+                <span className="hidden print:inline font-bold font-mono text-slate-900">
+                  ₹{formatNumber(manualExpenses, 2)}
+                </span>
+              </div>
             </div>
 
-            {/* Credit Grand Total */}
-            <div className="bg-slate-50 border-t border-slate-200 px-4 py-3 flex justify-between items-center font-black text-sm text-slate-900">
-              <span className="uppercase tracking-wider">Total Cr</span>
-              <span className="font-mono text-base">₹{formatNumber(finalCreditTotal, 2)}</span>
-            </div>
+            {/* Net Profit Balancing Line */}
+            {netProfit > 0 && (
+              <div className="px-4 py-3 flex justify-between items-center text-sm bg-emerald-50/20 font-bold border-t border-emerald-100">
+                <span className="text-emerald-800 uppercase tracking-wide">
+                  Net Profit transferred to Balance Sheet
+                </span>
+                <span className="text-emerald-800 font-mono text-base">
+                  ₹{formatNumber(netProfit, 2)}
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Debit Grand Total */}
+          <div className="bg-slate-50 border-t border-slate-200 px-4 py-3 flex justify-between items-center font-black text-sm text-slate-900">
+            <span className="uppercase tracking-wider">Total Dr</span>
+            <span className="font-mono text-base">₹{formatNumber(finalDebitTotal, 2)}</span>
           </div>
         </div>
 
-        {/* Submit Block */}
-        <div className="flex justify-end px-5 py-4 border-t border-slate-200 bg-white">
-          {submitted ? (
-            <div className="flex items-center gap-4">
-              <span className="text-sm font-semibold text-emerald-600">✓ Submitted successfully</span>
-              <Button onClick={handleSubmit} disabled={isSaving} variant="outline" className="px-8 border-slate-200">
-                {isSaving ? "Updating..." : "Update Submission"}
-              </Button>
+        {/* CREDIT / INCOME CARD */}
+        <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+          <div className="bg-slate-100/50 px-4 py-2.5 text-xs font-bold text-slate-700 border-b border-slate-200 flex justify-between uppercase">
+            <span>Credit Particulars (Incomes)</span>
+            <span>Amount (₹)</span>
+          </div>
+
+          <div className="divide-y divide-slate-100 min-h-[150px]">
+            {creditAccounts.map((acc) => (
+              <div key={acc.id} className="px-4 py-3 flex justify-between items-center text-sm">
+                <span className="font-medium text-slate-700 capitalize">
+                  {acc.name} {acc.alias ? `(${acc.alias})` : ""}
+                </span>
+                <span className="font-bold text-slate-900 font-mono">
+                  ₹{formatNumber(acc.amount, 2)}
+                </span>
+              </div>
+            ))}
+
+            {/* Closing Stock Value item */}
+            <div className="px-4 py-3.5 flex justify-between items-center text-sm bg-emerald-50/10 border-b border-slate-100">
+              <div className="flex flex-col gap-0.5">
+                <span className="font-bold text-emerald-950">CLOSING STOCK VALUE</span>
+                <span className="text-[10px] text-emerald-600 font-semibold uppercase">Submitted Value</span>
+              </div>
+              <span className="font-bold text-emerald-900 font-mono text-sm">
+                ₹{formatNumber(closingStockValue, 2)}
+              </span>
             </div>
-          ) : (
-            <Button
-              onClick={handleSubmit}
-              disabled={isSaving}
-              className="px-8"
-            >
-              {isSaving ? "Submitting..." : "Submit"}
-            </Button>
-          )}
+
+            {/* Net Loss Balancing Line */}
+            {netLoss > 0 && (
+              <div className="px-4 py-3 flex justify-between items-center text-sm bg-rose-50/20 font-bold border-t border-rose-100">
+                <span className="text-rose-800 uppercase tracking-wide">
+                  Net Loss transferred to Balance Sheet
+                </span>
+                <span className="text-rose-800 font-mono text-base">
+                  ₹{formatNumber(netLoss, 2)}
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Credit Grand Total */}
+          <div className="bg-slate-50 border-t border-slate-200 px-4 py-3 flex justify-between items-center font-black text-sm text-slate-900">
+            <span className="uppercase tracking-wider">Total Cr</span>
+            <span className="font-mono text-base">₹{formatNumber(finalCreditTotal, 2)}</span>
+          </div>
         </div>
+      </div>
+
+      {/* Submit Block */}
+      <div className="flex justify-end px-5 py-4 border border-slate-200 rounded-lg bg-white no-print shadow-sm">
+        {submitted ? (
+          <div className="flex items-center gap-4">
+            <span className="text-sm font-semibold text-emerald-600">✓ Submitted successfully</span>
+            <Button onClick={handleSubmit} disabled={isSaving} variant="outline" className="px-8 border-slate-200">
+              {isSaving ? "Updating..." : "Update Submission"}
+            </Button>
+          </div>
+        ) : (
+          <Button
+            onClick={handleSubmit}
+            disabled={isSaving}
+            className="px-8"
+          >
+            {isSaving ? "Submitting..." : "Submit"}
+          </Button>
+        )}
       </div>
     </div>
   );

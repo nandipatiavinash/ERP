@@ -98,7 +98,7 @@ export default async function ProfitLossReportPage({
           date={date}
           accounts={plAccounts || []}
           entries={journalEntries || []}
-          closingStockValue={submittedClosingStock.baseTotal}
+          closingStockValue={submittedClosingStock.grandTotal}
           submittedPL={submittedPL}
         />
       </div>
