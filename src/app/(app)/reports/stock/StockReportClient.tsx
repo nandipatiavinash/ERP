@@ -126,8 +126,8 @@ export function StockReportClient({
   const getRmDeptName = (key: string | null | undefined) => {
     if (!key) return "General";
     const mapping: Record<string, string> = {
-      fabric: "Fabric / Loom",
-      loom: "Fabric / Loom",
+      fabric: "Fabric",
+      loom: "Fabric",
       "roto-printing": "Roto Printing",
       roto_printing: "Roto Printing",
       lamination: "Lamination",

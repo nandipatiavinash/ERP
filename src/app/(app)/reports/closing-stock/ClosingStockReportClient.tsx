@@ -248,8 +248,8 @@ export function ClosingStockReportClient({
   const getRmDeptName = (key: string | null | undefined) => {
     if (!key) return "General";
     const mapping: Record<string, string> = {
-      fabric: "Fabric / Loom",
-      loom: "Fabric / Loom",
+      fabric: "Fabric",
+      loom: "Fabric",
       "roto-printing": "Roto Printing",
       roto_printing: "Roto Printing",
       lamination: "Lamination",
@@ -263,7 +263,7 @@ export function ClosingStockReportClient({
 
   const getProdStageName = (key: string) => {
     const mapping: Record<string, string> = {
-      loom: "Loom Products",
+      loom: "Fabric Stock",
       roto_printing: "Roto Printed Products",
       lamination: "Laminated Products",
       offset_printing: "Offset Printed Products",
@@ -446,7 +446,7 @@ export function ClosingStockReportClient({
                           {item.departmentLabel}
                         </TableCell>
                         <TableCell className="py-2.5 text-xs font-bold text-slate-800">
-                          {item.name} {item.isProduct ? "(Rolls Summed)" : ""}
+                          {item.name}
                         </TableCell>
                         <TableCell className="py-2.5 text-right text-xs text-slate-700 font-semibold font-mono">
                           {formatNumber(item.stock, 0)}
