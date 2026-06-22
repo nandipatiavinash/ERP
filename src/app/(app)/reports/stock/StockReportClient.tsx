@@ -55,6 +55,7 @@ interface SalesOrder {
   order_date: string;
   status: string;
   bill_number: string | null;
+  bill_value?: number | null;
   customer_id: string;
   customers: {
     customer_name: string | null;
@@ -90,9 +91,14 @@ export function StockReportClient({
 }: StockReportClientProps) {
   const [activeSection, setActiveSection] = useState<"raw_material" | "stock" | "sale">("raw_material");
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [expandedBills, setExpandedBills] = useState<Record<string, boolean>>({});
 
   const toggleExpand = (id: string) => {
     setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
+  };
+
+  const toggleExpandBill = (billId: string) => {
+    setExpandedBills((prev) => ({ ...prev, [billId]: !prev[billId] }));
   };
 
   const today = todayInIndia();
@@ -272,62 +278,35 @@ export function StockReportClient({
       return false;
     });
 
-    const groups: Record<string, {
-      id: string;
-      stage: string;
-      fabricName: string;
-      stockWeight: number;
-      rolls: FabricRoll[];
-    }> = {};
+    const totalWeight = activeRolls.reduce((sum, roll) => sum + Number(roll.weight || 0), 0);
 
-    activeRolls.forEach((roll) => {
-      const stage = roll.current_stage || "loom";
-      const fabId = roll.fabric_type_id;
-      const key = `${stage}-${fabId}`;
-
-      if (!groups[key]) {
-        const fab = fabricTypes.find((f) => f.id === fabId);
-        groups[key] = {
-          id: key,
-          stage,
-          fabricName: fab?.fabric_name || "Unknown Product",
-          stockWeight: 0,
-          rolls: [],
-        };
-      }
-      groups[key].stockWeight += Number(roll.weight || 0);
-      groups[key].rolls.push(roll);
+    const dailyProduction: Record<string, number> = {};
+    selectedDates.forEach((date) => {
+      dailyProduction[date] = 0;
     });
 
-    return Object.values(groups).map((g) => {
-      const dailyProduction: Record<string, number> = {};
-      selectedDates.forEach((date) => {
-        dailyProduction[date] = 0;
-      });
+    activeRolls.forEach((roll) => {
+      const pDate = roll.production_date;
+      if (pDate >= from && pDate <= to) {
+        dailyProduction[pDate] = (dailyProduction[pDate] ?? 0) + Number(roll.weight || 0);
+      }
+    });
 
-      g.rolls.forEach((roll) => {
-        const pDate = roll.production_date;
-        if (pDate >= from && pDate <= to) {
-          dailyProduction[pDate] = (dailyProduction[pDate] ?? 0) + Number(roll.weight || 0);
-        }
-      });
+    const dailyRecords = selectedDates.map((date) => ({
+      date,
+      production: Math.floor(dailyProduction[date] || 0),
+    })).filter(r => r.production > 0);
 
-      const dailyRecords = selectedDates.map((date) => ({
-        date,
-        production: Math.floor(dailyProduction[date] || 0),
-      })).filter(r => r.production > 0);
+    if (totalWeight === 0) return [];
 
-      const deptKey = getStageDeptKey(g.stage);
-
-      return {
-        id: g.id,
-        departmentLabel: getRmDeptName(deptKey),
-        name: g.fabricName,
-        availableStock: Math.floor(g.stockWeight),
-        dailyRecords,
-      };
-    }).filter(g => g.availableStock > 0);
-  }, [rolls, fabricTypes, to, from, selectedDates, rollDetailsMap]);
+    return [{
+      id: "all-summed-rolls",
+      departmentLabel: "All Stages",
+      name: "All Summed Rolls",
+      availableStock: Math.floor(totalWeight),
+      dailyRecords,
+    }];
+  }, [rolls, to, from, selectedDates, rollDetailsMap]);
 
   // Section 3: Sale (Sales of products in range)
   const saleProductData = useMemo(() => {
@@ -336,76 +315,97 @@ export function StockReportClient({
       return soldDate && soldDate >= from && soldDate <= to;
     });
 
-    const groups: Record<string, {
-      id: string;
-      stage: string;
-      fabricName: string;
-      soldWeight: number;
+    const deptGroups: Record<string, {
+      departmentKey: string;
+      departmentLabel: string;
+      totalSales: number;
       rolls: FabricRoll[];
     }> = {};
 
     soldRolls.forEach((roll) => {
       const stage = roll.current_stage || "loom";
-      const fabId = roll.fabric_type_id;
-      const key = `${stage}-${fabId}`;
+      const deptKey = getStageDeptKey(stage);
 
-      if (!groups[key]) {
-        const fab = fabricTypes.find((f) => f.id === fabId);
-        groups[key] = {
-          id: key,
-          stage,
-          fabricName: fab?.fabric_name || "Unknown Product",
-          soldWeight: 0,
+      if (!deptGroups[deptKey]) {
+        deptGroups[deptKey] = {
+          departmentKey: deptKey,
+          departmentLabel: getRmDeptName(deptKey),
+          totalSales: 0,
           rolls: [],
         };
       }
-      groups[key].soldWeight += Number(roll.weight || 0);
-      groups[key].rolls.push(roll);
+      deptGroups[deptKey].totalSales += Number(roll.weight || 0);
+      deptGroups[deptKey].rolls.push(roll);
     });
 
-    return Object.values(groups).map((g) => {
-      const orderSales: Record<string, {
-        date: string;
-        clientName: string;
-        billNumber: string;
-        weight: number;
-      }> = {};
-
-      g.rolls.forEach((roll) => {
-        const soldDate = rollDetailsMap.soldDateMap[roll.id];
-        const clientName = rollDetailsMap.customerMap[roll.id];
-        const billNumber = rollDetailsMap.billMap[roll.id];
+    return Object.values(deptGroups).map((dept) => {
+      const orderRollsMap: Record<string, FabricRoll[]> = {};
+      dept.rolls.forEach((roll) => {
         const orderId = rollDetailsMap.orderIdMap[roll.id];
-
-        if (!orderSales[orderId]) {
-          orderSales[orderId] = {
-            date: soldDate,
-            clientName,
-            billNumber,
-            weight: 0,
-          };
+        if (orderId) {
+          if (!orderRollsMap[orderId]) {
+            orderRollsMap[orderId] = [];
+          }
+          orderRollsMap[orderId].push(roll);
         }
-        orderSales[orderId].weight += Number(roll.weight || 0);
       });
 
-      const dailyRecords = Object.values(orderSales).map((r) => ({
-        date: r.date,
-        clientName: r.clientName,
-        billNumber: r.billNumber,
-        weight: Math.floor(r.weight),
-      })).sort((a, b) => a.date.localeCompare(b.date));
+      const bills = Object.entries(orderRollsMap).map(([orderId, rollsInOrder]) => {
+        const order = salesOrders.find((o) => o.id === orderId);
+        const billNumber = order?.bill_number || "Draft/None";
+        const clientName = order ? (order.customers?.customer_name ?? "Unknown") : "Unknown";
+        const alias = order?.customers?.alias;
+        const clientDisplay = alias ? `${clientName} (${alias})` : clientName;
+        const billValue = Number(order?.bill_value ?? 0);
 
-      const deptKey = getStageDeptKey(g.stage);
+        const productMap: Record<string, {
+          fabricTypeId: string;
+          productName: string;
+          totalKGs: number;
+          rolls: Array<{ rollNumber: string; weight: number }>;
+        }> = {};
+
+        rollsInOrder.forEach((roll) => {
+          const fabId = roll.fabric_type_id;
+          if (!productMap[fabId]) {
+            const fab = fabricTypes.find((f) => f.id === fabId);
+            productMap[fabId] = {
+              fabricTypeId: fabId,
+              productName: fab?.fabric_name || "Unknown Product",
+              totalKGs: 0,
+              rolls: [],
+            };
+          }
+          productMap[fabId].totalKGs += Number(roll.weight || 0);
+          productMap[fabId].rolls.push({
+            rollNumber: roll.roll_number,
+            weight: Number(roll.weight || 0),
+          });
+        });
+
+        const totalDeptKGsInBill = rollsInOrder.reduce((sum, r) => sum + Number(r.weight || 0), 0);
+
+        return {
+          orderId,
+          billNumber,
+          clientName: clientDisplay,
+          billValue,
+          totalDeptKGsInBill: Math.floor(totalDeptKGsInBill),
+          products: Object.values(productMap).map((p) => ({
+            ...p,
+            totalKGs: Math.floor(p.totalKGs),
+          })),
+        };
+      }).sort((a, b) => a.billNumber.localeCompare(b.billNumber));
 
       return {
-        id: g.id,
-        departmentLabel: getRmDeptName(deptKey),
-        name: g.fabricName,
-        totalSales: Math.floor(g.soldWeight),
-        dailyRecords,
+        id: dept.departmentKey,
+        departmentLabel: dept.departmentLabel,
+        totalSales: Math.floor(dept.totalSales),
+        bills,
       };
-    }).filter(g => g.totalSales > 0);
-  }, [rolls, fabricTypes, from, to, rollDetailsMap]);
+    }).filter(d => d.totalSales > 0);
+  }, [rolls, fabricTypes, from, to, rollDetailsMap, salesOrders]);
 
   // -------------------------------------------------------------
   // Totals calculations
@@ -704,7 +704,6 @@ export function StockReportClient({
                     <TableRow className="bg-slate-50 border-b border-slate-200">
                       <TableHead className="w-10"></TableHead>
                       <TableHead className="font-semibold text-slate-700">Department</TableHead>
-                      <TableHead className="font-semibold text-slate-700">Product</TableHead>
                       <TableHead className="font-semibold text-slate-700 text-right w-64">Total Sales (KGs)</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -725,8 +724,7 @@ export function StockReportClient({
                                 <ChevronRight className="h-4 w-4 text-slate-500" />
                               )}
                             </TableCell>
-                            <TableCell className="text-slate-600 font-medium py-3 capitalize">{item.departmentLabel}</TableCell>
-                            <TableCell className="font-bold text-slate-900 py-3">{item.name}</TableCell>
+                            <TableCell className="font-bold text-slate-900 py-3 capitalize">{item.departmentLabel}</TableCell>
                             <TableCell className="text-right text-slate-950 font-bold py-3">
                               {formatNumber(item.totalSales, 0)}
                             </TableCell>
@@ -734,46 +732,101 @@ export function StockReportClient({
 
                           {isExpanded && (
                             <TableRow className="bg-slate-50 hover:bg-slate-50 border-b border-slate-200">
-                              <TableCell colSpan={4} className="p-4">
-                                <div className="rounded-lg border border-slate-200 bg-white shadow-inner overflow-hidden max-w-3xl mx-auto my-2">
+                              <TableCell colSpan={3} className="p-4">
+                                <div className="rounded-lg border border-slate-200 bg-white shadow-inner overflow-hidden max-w-4xl mx-auto my-2">
                                   <div className="bg-slate-100 px-4 py-2 border-b border-slate-200">
                                     <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-                                      Detailed Invoice Sales for {item.name}
+                                      Sales Bills for {item.departmentLabel}
                                     </span>
                                   </div>
                                   <Table>
                                     <TableHeader>
                                       <TableRow className="bg-slate-50 border-b border-slate-200">
-                                        <TableHead className="text-xs font-semibold text-slate-600">Date</TableHead>
-                                        <TableHead className="text-xs font-semibold text-slate-600">Client Name</TableHead>
+                                        <TableHead className="w-10"></TableHead>
                                         <TableHead className="text-xs font-semibold text-slate-600">Bill Number</TableHead>
-                                        <TableHead className="text-xs font-semibold text-slate-600 text-right">Total KGs</TableHead>
+                                        <TableHead className="text-xs font-semibold text-slate-600">Client</TableHead>
+                                        <TableHead className="text-xs font-semibold text-slate-600 text-right">Dept Weight (KGs)</TableHead>
+                                        <TableHead className="text-xs font-semibold text-slate-600 text-right">Bill Value</TableHead>
                                       </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                      {item.dailyRecords.length === 0 ? (
+                                      {item.bills.length === 0 ? (
                                         <TableRow>
-                                          <TableCell colSpan={4} className="text-center py-4 text-slate-400 text-xs font-semibold">
-                                            No sales recorded.
+                                          <TableCell colSpan={5} className="text-center py-4 text-slate-400 text-xs font-semibold">
+                                            No sales bills found in range.
                                           </TableCell>
                                         </TableRow>
                                       ) : (
-                                        item.dailyRecords.map((record, index) => (
-                                          <TableRow key={`record-${index}`} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/50">
-                                            <TableCell className="py-2 text-slate-700 font-medium text-xs">
-                                              {record.date}
-                                            </TableCell>
-                                            <TableCell className="py-2 text-slate-800 font-bold text-xs">
-                                              {record.clientName}
-                                            </TableCell>
-                                            <TableCell className="py-2 text-slate-600 font-semibold text-xs">
-                                              {record.billNumber}
-                                            </TableCell>
-                                            <TableCell className="py-2 text-right text-slate-900 font-bold text-xs">
-                                              {formatNumber(record.weight, 0)}
-                                            </TableCell>
-                                          </TableRow>
-                                        ))
+                                        item.bills.map((bill) => {
+                                          const isBillExpanded = expandedBills[bill.orderId];
+                                          return (
+                                            <>
+                                              <TableRow
+                                                key={bill.orderId}
+                                                onClick={() => toggleExpandBill(bill.orderId)}
+                                                className="cursor-pointer hover:bg-slate-50 border-b border-slate-100 last:border-0"
+                                              >
+                                                <TableCell className="py-2 px-3">
+                                                  {isBillExpanded ? (
+                                                    <ChevronDown className="h-3.5 w-3.5 text-slate-550" />
+                                                  ) : (
+                                                    <ChevronRight className="h-3.5 w-3.5 text-slate-550" />
+                                                  )}
+                                                </TableCell>
+                                                <TableCell className="py-2 text-slate-800 font-bold text-xs">
+                                                  {bill.billNumber}
+                                                </TableCell>
+                                                <TableCell className="py-2 text-slate-700 font-semibold text-xs">
+                                                  {bill.clientName}
+                                                </TableCell>
+                                                <TableCell className="py-2 text-right text-slate-600 text-xs font-medium">
+                                                  {formatNumber(bill.totalDeptKGsInBill, 0)} KGs
+                                                </TableCell>
+                                                <TableCell className="py-2 text-right text-slate-900 font-black text-xs hover:text-primary transition-colors">
+                                                  ₹{formatNumber(bill.billValue, 2)}
+                                                </TableCell>
+                                              </TableRow>
+
+                                              {isBillExpanded && (
+                                                <TableRow className="bg-slate-50/50 hover:bg-slate-50/50">
+                                                  <TableCell colSpan={5} className="p-3">
+                                                    <div className="rounded border border-slate-200 bg-slate-50/20 shadow-sm overflow-hidden max-w-2xl mx-auto my-1">
+                                                      <div className="bg-slate-100/70 px-3 py-1.5 border-b border-slate-200">
+                                                        <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">
+                                                          Bill Roll Details (Dept: {item.departmentLabel})
+                                                        </span>
+                                                      </div>
+                                                      <Table>
+                                                        <TableHeader>
+                                                          <TableRow className="bg-white border-b border-slate-150">
+                                                            <TableHead className="text-[10px] py-1.5 font-semibold text-slate-500">Product</TableHead>
+                                                            <TableHead className="text-[10px] py-1.5 font-semibold text-slate-500">Rolls</TableHead>
+                                                            <TableHead className="text-[10px] py-1.5 font-semibold text-slate-500 text-right">Weight (KGs)</TableHead>
+                                                          </TableRow>
+                                                        </TableHeader>
+                                                        <TableBody>
+                                                          {bill.products.map((p) => (
+                                                            <TableRow key={p.fabricTypeId} className="border-b border-slate-100 last:border-0 hover:bg-white/40">
+                                                              <TableCell className="py-1 text-[11px] font-bold text-slate-800">
+                                                                {p.productName}
+                                                              </TableCell>
+                                                              <TableCell className="py-1 text-[10px] text-slate-600 font-mono break-all max-w-xs">
+                                                                {p.rolls.map((r) => `${r.rollNumber} (${r.weight} kg)`).join(", ")}
+                                                              </TableCell>
+                                                              <TableCell className="py-1 text-right text-[11px] font-bold text-slate-900">
+                                                                {formatNumber(p.totalKGs, 0)} KGs
+                                                              </TableCell>
+                                                            </TableRow>
+                                                          ))}
+                                                        </TableBody>
+                                                      </Table>
+                                                    </div>
+                                                  </TableCell>
+                                                </TableRow>
+                                              )}
+                                            </>
+                                          );
+                                        })
                                       )}
                                     </TableBody>
                                   </Table>
@@ -788,7 +841,7 @@ export function StockReportClient({
                     {/* Totals Row */}
                     <TableRow className="bg-slate-100 font-bold border-t-2 border-slate-300 hover:bg-slate-100">
                       <TableCell></TableCell>
-                      <TableCell colSpan={2} className="py-3 text-slate-900 font-bold text-right uppercase">Total Product Sales</TableCell>
+                      <TableCell className="py-3 text-slate-900 font-bold text-right uppercase">Total Sales</TableCell>
                       <TableCell className="text-right text-slate-950 py-3">{formatNumber(saleTotals, 0)}</TableCell>
                     </TableRow>
                   </TableBody>

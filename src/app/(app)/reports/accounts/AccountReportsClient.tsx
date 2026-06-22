@@ -156,8 +156,8 @@ export function AccountReportsClient({
     const accountSums: Record<string, { dr: number; cr: number; account: Account }> = {};
     accounts.forEach((acc) => {
       accountSums[acc.id] = {
-        dr: 0,
-        cr: 0,
+        dr: Number(acc.opening_debit ?? 0),
+        cr: Number(acc.opening_credit ?? 0),
         account: acc,
       };
     });
@@ -175,8 +175,8 @@ export function AccountReportsClient({
       } else {
         const match = accounts.find(
           (acc) =>
-            acc.customer_name.toLowerCase().trim() === entry.account_name.toLowerCase().trim() ||
-            (acc.alias && acc.alias.toLowerCase().trim() === entry.account_name.toLowerCase().trim())
+             acc.customer_name.toLowerCase().trim() === entry.account_name.toLowerCase().trim() ||
+             (acc.alias && acc.alias.toLowerCase().trim() === entry.account_name.toLowerCase().trim())
         );
         if (match) {
           if (entry.entry_type === "debit") {
@@ -231,24 +231,26 @@ export function AccountReportsClient({
 
     accounts.forEach((acc) => {
       const sums = accountSums[acc.id];
-      if (sums.dr > 0 || sums.cr > 0) {
+      const net = sums.dr - sums.cr;
+      if (net !== 0) {
         const catLabel = mapCategoryLabel(acc.is_internal);
         groups[catLabel].push({
           name: acc.customer_name,
           alias: acc.alias,
-          dr: sums.dr,
-          cr: sums.cr,
+          dr: net > 0 ? net : 0,
+          cr: net < 0 ? Math.abs(net) : 0,
         });
       }
     });
 
     Object.values(otherSums).forEach((other) => {
-      if (other.dr > 0 || other.cr > 0) {
+      const net = other.dr - other.cr;
+      if (net !== 0) {
         groups["Other Accounts"].push({
           name: other.name,
           alias: null,
-          dr: other.dr,
-          cr: other.cr,
+          dr: net > 0 ? net : 0,
+          cr: net < 0 ? Math.abs(net) : 0,
         });
       }
     });

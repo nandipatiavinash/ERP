@@ -51,7 +51,7 @@ export default async function StockReportPage({ searchParams }: { searchParams: 
       .is("deleted_at", null),
     supabase
       .from("sales_orders")
-      .select("id, order_date, status, bill_number, customer_id, customers(customer_name, alias), sales_order_items(selected_roll_ids)")
+      .select("id, order_date, status, bill_number, bill_value, customer_id, customers(customer_name, alias), sales_order_items(selected_roll_ids)")
       .is("deleted_at", null)
   ]);
 

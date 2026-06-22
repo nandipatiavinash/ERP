@@ -44,11 +44,10 @@ export default async function AccountReportsPage({ searchParams }: { searchParam
 
     journalEntries = entries || [];
   } else {
-    // If nothing selected, fetch all journal entries in the range
+    // If nothing selected, fetch all journal entries up to the 'to' date
     const { data: entries } = await supabase
       .from("accounts_journal")
       .select("*, customers(customer_name, alias)")
-      .gte("entry_date", from)
       .lte("entry_date", to)
       .is("deleted_at", null)
       .order("entry_date", { ascending: true })

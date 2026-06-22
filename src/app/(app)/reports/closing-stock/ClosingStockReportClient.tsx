@@ -86,9 +86,14 @@ export function ClosingStockReportClient({
   salesOrders,
 }: ClosingStockReportClientProps) {
   const router = useRouter();
-  const [wasteInput, setWasteInput] = useState<string>("0");
   const [customPrices, setCustomPrices] = useState<Record<string, string>>({});
   const today = todayInIndia();
+
+  const autoWaste = useMemo(() => {
+    return materialSales
+      .filter((s) => s.type === "waste" && s.sale_date <= date)
+      .reduce((sum, s) => sum + Number(s.quantity), 0);
+  }, [materialSales, date]);
 
   const handleDateChange = (newDate: string) => {
     router.push(`/reports/closing-stock?date=${newDate}` as any);
@@ -203,8 +208,6 @@ export function ClosingStockReportClient({
 
   // WIP calculations using correct material balance equation
   const wipData = useMemo(() => {
-    const waste = Number(wasteInput) || 0;
-
     // Total raw material purchases up to date D
     const totalPurchasesQty = purchases
       .filter((p) => p.purchase_date <= date)
@@ -217,26 +220,18 @@ export function ClosingStockReportClient({
     // Total raw material stock balances at D
     const totalRmStock = rmClosingData.reduce((sum, mat) => sum + mat.stock, 0);
 
-    // Total fabric rolls sold up to date D
-    const totalSalesRollsWeight = rolls
-      .filter((roll) => {
-        const soldDate = rollIdToSoldDate[roll.id];
-        return soldDate && soldDate <= date;
-      })
-      .reduce((sum, roll) => sum + Number(roll.weight || 0), 0);
-
     // Total raw materials sold up to date D
     const totalMaterialSalesQty = materialSales
       .filter((s) => s.type === "raw_material" && s.sale_date <= date)
       .reduce((sum, s) => sum + Number(s.quantity), 0);
 
-    // Total waste sold up to date D
-    const totalWasteSalesQty = materialSales
-      .filter((s) => s.type === "waste" && s.sale_date <= date)
-      .reduce((sum, s) => sum + Number(s.quantity), 0);
+    // Total fabric rolls produced up to date D (conversion from raw material)
+    const totalProductionWeight = rolls
+      .filter((r) => r.production_date <= date)
+      .reduce((sum, r) => sum + Number(r.weight || 0), 0);
 
-    // WIP Stock Kgs = Purchases - (RM Stock + Waste + Fabric Sales + Material Sales + Waste Sales)
-    const wipKgs = Math.max(0, totalPurchasesQty - (totalRmStock + waste + totalSalesRollsWeight + totalMaterialSalesQty + totalWasteSalesQty));
+    // WIP Stock Kgs = Purchases - (RM Stock + Waste + Total Production + Material Sales)
+    const wipKgs = Math.max(0, totalPurchasesQty - (totalRmStock + autoWaste + totalProductionWeight + totalMaterialSalesQty));
 
     // WIP Price = Weighted average rate of purchases
     const wipPrice = totalPurchasesQty > 0 ? totalPurchasesAmount / totalPurchasesQty : 0;
@@ -247,7 +242,7 @@ export function ClosingStockReportClient({
       price: wipPrice,
       amount: wipAmount,
     };
-  }, [purchases, rmClosingData, wasteInput, date, rolls, rollIdToSoldDate, materialSales]);
+  }, [purchases, rmClosingData, autoWaste, date, rolls, materialSales]);
 
   // Helper to map stage/department keys to readable names
   const getRmDeptName = (key: string | null | undefined) => {
@@ -404,11 +399,9 @@ export function ClosingStockReportClient({
           <Input
             id="waste-select"
             type="number"
-            min="0"
-            placeholder="0"
-            value={wasteInput}
-            onChange={(e) => setWasteInput(e.target.value)}
-            className="w-32 h-9 text-sm border-slate-200 shadow-sm text-right"
+            disabled
+            value={autoWaste}
+            className="w-32 h-9 text-sm border-slate-200 shadow-sm text-right bg-slate-100 font-mono font-bold"
           />
         </div>
       </div>
