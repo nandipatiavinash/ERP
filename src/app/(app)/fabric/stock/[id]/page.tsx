@@ -15,7 +15,7 @@ export default async function FabricStockDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requirePermission("rolls.view");
+  await requirePermission("fabric.stock");
   const { id } = await params;
   const supabase = await createClient();
 

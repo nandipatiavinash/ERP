@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 type Params = { search?: string; page?: string; sort?: string; direction?: "asc" | "desc" };
 
 export default async function RawMaterialsAdminPage({ searchParams }: { searchParams: Promise<Params> }) {
-  await requirePermission("raw_materials.view");
+  await requirePermission("admin.raw_materials");
   const supabase = await createClient();
   const params = await searchParams;
   const result = await fetchMasterRows({

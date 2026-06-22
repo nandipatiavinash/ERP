@@ -14,7 +14,7 @@ export default async function ProfitLossReportPage({
 }: {
   searchParams: Promise<{ date?: string }>;
 }) {
-  await requirePermission("reports.view");
+  await requirePermission("reports.profit_loss");
   const params = await searchParams;
   const date = params.date || todayInIndia();
 

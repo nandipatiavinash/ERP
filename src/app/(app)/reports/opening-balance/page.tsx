@@ -4,7 +4,7 @@ import { OpeningBalanceClient } from "./OpeningBalanceClient";
 
 export default async function OpeningBalancePage() {
   await requireRole(["admin"]);
-  await requirePermission("reports.view");
+  await requirePermission("reports.opening_balance");
 
   const supabase = await createClient();
 

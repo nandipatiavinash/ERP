@@ -8,7 +8,7 @@ import { createClient } from "@/lib/supabase/server";
 import { formatNumber } from "@/lib/utils";
 
 export default async function FabricStockPage() {
-  await requirePermission("rolls.view");
+  await requirePermission("fabric.stock");
   const supabase = await createClient();
 
   const { data: stock } = await (supabase as any).rpc("get_fabric_stock_summary");

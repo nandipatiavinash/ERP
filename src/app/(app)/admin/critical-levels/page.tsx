@@ -19,7 +19,7 @@ const departmentLabels: Record<string, string> = {
 };
 
 export default async function CriticalLevelsPage() {
-  await requirePermission("raw_materials.view");
+  await requirePermission("admin.critical_levels");
   const supabase = await createClient();
   
   const { data, error } = await supabase

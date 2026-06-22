@@ -6,7 +6,7 @@ import { AccountReportsClient } from "./AccountReportsClient";
 type Params = { from?: string; to?: string; accountId?: string };
 
 export default async function AccountReportsPage({ searchParams }: { searchParams: Promise<Params> }) {
-  await requirePermission("reports.view");
+  await requirePermission("reports.accounts");
   const params = await searchParams;
   const today = todayInIndia();
   const from = params.from || (today.slice(0, 8) + "01"); // Default to start of month

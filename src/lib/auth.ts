@@ -41,43 +41,49 @@ export async function requireRole(roles: RoleName[]) {
   return user;
 }
 
+/** All page-level permission keys available in the system */
+export const ALL_PAGE_PERMISSIONS: string[] = [
+  // Admin
+  "admin.credentials", "admin.permissions", "admin.raw_materials", "admin.products",
+  "admin.clients", "admin.looms", "admin.colors", "admin.critical_levels",
+  "admin.employees", "admin.attendance", "admin.reset",
+  // Fabric
+  "fabric.production", "fabric.consumption", "fabric.stock",
+  // Roto Printing
+  "roto_printing.production", "roto_printing.consumption", "roto_printing.stock",
+  // Lamination
+  "lamination.production", "lamination.consumption", "lamination.stock",
+  // Offset Printing
+  "offset_printing.production", "offset_printing.consumption", "offset_printing.stock",
+  // Finishing
+  "finishing.production", "finishing.consumption", "finishing.stock",
+  // Sales
+  "sales.order_confirmation", "sales.delivery_entry",
+  // Accounts
+  "accounts.journal", "accounts.purchase", "accounts.sales", "accounts.material",
+  // Reports
+  "reports.sales_confirmation", "reports.accounts", "reports.opening_balance",
+  "reports.stock", "reports.closing_stock", "reports.profit_loss", "reports.balance_sheet",
+  // Dashboard
+  "dashboard.view",
+];
+
 export function fallbackPermissions(role: RoleName | undefined) {
-  if (role === "admin") return navGroups.flatMap((group) => group.items.map((item) => item.permission)).concat([
-    "users.create", "users.edit", "users.delete",
-    "roles.create", "roles.edit", "roles.delete",
-    "employees.create", "employees.edit", "employees.delete",
-    "attendance.create", "attendance.edit",
-    "looms.create", "looms.edit", "looms.delete",
-    "fabric_types.create", "fabric_types.edit", "fabric_types.delete",
-    "raw_materials.create", "raw_materials.edit", "raw_materials.delete",
-    "customers.create", "customers.edit", "customers.delete",
-    "roto_colors.create", "roto_colors.edit", "roto_colors.delete",
-    "production.create", "production.edit",
-    "sales.create", "sales.edit",
-    "reports.export",
-  ]);
-  if (role === "operator") return ["dashboard.view", "production.view", "production.create", "production.edit", "rolls.view", "reports.view"];
+  if (role === "admin") return ALL_PAGE_PERMISSIONS;
+  if (role === "operator") return [
+    "dashboard.view",
+    "fabric.production", "fabric.consumption", "fabric.stock",
+    "roto_printing.production", "roto_printing.consumption", "roto_printing.stock",
+    "lamination.production", "lamination.consumption", "lamination.stock",
+    "offset_printing.production", "offset_printing.consumption", "offset_printing.stock",
+    "finishing.production", "finishing.consumption", "finishing.stock",
+    "reports.stock", "reports.closing_stock",
+  ];
   return [];
 }
 
 const getPermissionsForRole = cache(async function getPermissionsForRole(roleId: string, role: RoleName | undefined) {
-  if (role === "admin") {
-    const modulesList = [
-      "users", "roles", "employees", "attendance", "looms", "fabric_types", "fabric-types",
-      "raw_materials", "raw-materials", "customers", "colors", "roto_colors", "roto-colors",
-      "roto_products", "roto-products", "offset_products", "offset-products",
-      "production", "sales", "reports", "rolls", "dashboard"
-    ];
-    const actionsList = ["view", "create", "edit", "delete", "export"];
-    const allPerms = [];
-    for (const m of modulesList) {
-      for (const a of actionsList) {
-        allPerms.push(`${m}.${a}`);
-        allPerms.push(`${m.replace("-", "_")}.${a}`);
-      }
-    }
-    return allPerms;
-  }
+  if (role === "admin") return ALL_PAGE_PERMISSIONS;
 
   const supabase = await createClient();
   const { data, error } = await (supabase

@@ -15,7 +15,7 @@ export default async function RotoPrintingConsumptionPage({
 }: {
   searchParams: Promise<{ date?: string }>;
 }) {
-  await requirePermission("production.view");
+  await requirePermission("roto_printing.consumption");
   const supabase = await createClient();
   const params = await searchParams;
   const date = params.date || todayInIndia();

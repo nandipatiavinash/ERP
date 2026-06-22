@@ -3,7 +3,7 @@ import { ResetClient } from "./ResetClient";
 
 export default async function SystemResetPage() {
   // Enforce users.view / global admin view permissions
-  await requirePermission("users.view");
+  await requirePermission("admin.reset");
 
   return <ResetClient />;
 }

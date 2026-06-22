@@ -10,7 +10,7 @@ export default async function MaterialSalesPage({
 }: {
   searchParams: Promise<{ date?: string }>;
 }) {
-  await requirePermission("sales.view");
+  await requirePermission("accounts.material");
   const supabase = await createClient();
   const params = await searchParams;
   const date = params.date || todayInIndia();

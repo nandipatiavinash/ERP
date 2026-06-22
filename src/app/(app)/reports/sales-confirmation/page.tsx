@@ -10,7 +10,7 @@ export default async function SalesConfirmationReportPage({
 }: {
   searchParams: Promise<{ date?: string }>;
 }) {
-  await requirePermission("reports.view");
+  await requirePermission("reports.sales_confirmation");
   const supabase = await createClient();
   const params = await searchParams;
   const date = params.date || todayInIndia();

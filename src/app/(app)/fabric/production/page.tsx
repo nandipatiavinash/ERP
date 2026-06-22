@@ -11,7 +11,7 @@ import { createClient } from "@/lib/supabase/server";
 import { formatDate, formatNumber } from "@/lib/utils";
 
 export default async function FabricProductionPage() {
-  const user = await requirePermission("production.view");
+  const user = await requirePermission("fabric.production");
   const admin = isAdmin(user);
   const supabase = await createClient();
   const today = new Intl.DateTimeFormat("en-CA", {

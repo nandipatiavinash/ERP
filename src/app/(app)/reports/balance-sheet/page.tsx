@@ -14,7 +14,7 @@ export default async function BalanceSheetPage({
 }: {
   searchParams: Promise<{ date?: string }>;
 }) {
-  await requirePermission("reports.view");
+  await requirePermission("reports.balance_sheet");
   const params = await searchParams;
   const date = params.date || todayInIndia();
 

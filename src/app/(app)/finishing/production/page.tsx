@@ -10,7 +10,7 @@ import { createClient } from "@/lib/supabase/server";
 import { formatDate } from "@/lib/utils";
 
 export default async function FinishingProductionPage() {
-  await requirePermission("production.view");
+  await requirePermission("finishing.production");
   const supabase = await createClient();
 
   const [{ data: activeRolls }, { data: stageEntries }] = await Promise.all([

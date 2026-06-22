@@ -11,7 +11,7 @@ export default async function OrderWorkspacePage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requirePermission("sales.view");
+  await requirePermission("sales.delivery_entry");
   const { id } = await params;
   const supabase = await createClient();
   const [

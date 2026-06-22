@@ -15,7 +15,7 @@ export default async function FabricConsumptionPage({
 }: {
   searchParams: Promise<{ date?: string }>;
 }) {
-  await requirePermission("production.view");
+  await requirePermission("fabric.consumption");
   const supabase = await createClient();
   const params = await searchParams;
   const date = params.date || todayInIndia();

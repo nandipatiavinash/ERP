@@ -13,7 +13,7 @@ import { DateFilter } from "@/components/app/date-filter";
 type Params = { page?: string; date?: string };
 
 export default async function OrderConfirmationPage({ searchParams }: { searchParams: Promise<Params> }) {
-  await requirePermission("sales.view");
+  await requirePermission("sales.delivery_entry");
   const supabase = await createClient();
   const params = await searchParams;
   const page = Math.max(Number(params.page ?? 1) || 1, 1);

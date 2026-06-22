@@ -6,7 +6,7 @@ import { ClosingStockReportClient } from "./ClosingStockReportClient";
 type Params = { date?: string };
 
 export default async function ClosingStockReportPage({ searchParams }: { searchParams: Promise<Params> }) {
-  await requirePermission("reports.view");
+  await requirePermission("reports.closing_stock");
   const params = await searchParams;
   const date = params.date || todayInIndia();
 

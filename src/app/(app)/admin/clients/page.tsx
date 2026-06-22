@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 type Params = { search?: string; page?: string; sort?: string; direction?: "asc" | "desc" };
 
 export default async function ClientsPage({ searchParams }: { searchParams: Promise<Params> }) {
-  await requirePermission("customers.view");
+  await requirePermission("admin.clients");
   const supabase = await createClient();
   const params = await searchParams;
   const result = await fetchMasterRows({ supabase, config: modules.customers, select: "id, customer_name, alias, phone, gst_number, address, is_internal, status", params, defaultSort: "customer_name" });

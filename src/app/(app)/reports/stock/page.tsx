@@ -6,7 +6,7 @@ import { StockReportClient } from "./StockReportClient";
 type Params = { from?: string; to?: string };
 
 export default async function StockReportPage({ searchParams }: { searchParams: Promise<Params> }) {
-  await requirePermission("reports.view");
+  await requirePermission("reports.stock");
   const params = await searchParams;
   const from = params.from || todayInIndia();
   const to = params.to || todayInIndia();

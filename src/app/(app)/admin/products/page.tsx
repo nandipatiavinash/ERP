@@ -40,7 +40,7 @@ function ProductPager({ tab, page, totalRows, shownRows }: { tab: string; page: 
 }
 
 export default async function ProductsAdminPage({ searchParams }: { searchParams: Promise<Params> }) {
-  await requirePermission("fabric_types.view");
+  await requirePermission("admin.products");
   const params = await searchParams;
   const tab = params.tab || "fabric";
   const supabase = await createClient();

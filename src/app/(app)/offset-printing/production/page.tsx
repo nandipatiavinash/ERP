@@ -10,7 +10,7 @@ import { createClient } from "@/lib/supabase/server";
 import { formatDate } from "@/lib/utils";
 
 export default async function OffsetPrintingProductionPage() {
-  await requirePermission("production.view");
+  await requirePermission("offset_printing.production");
   const supabase = await createClient();
 
   const [

@@ -18,7 +18,7 @@ export default async function PurchaseEntryPage({
 }: {
   searchParams: Promise<{ date?: string }>;
 }) {
-  await requirePermission("sales.view"); // Matches navGroups permission for this page
+  await requirePermission("accounts.purchase"); // Matches navGroups permission for this page
   const supabase = await createClient();
   const params = await searchParams;
   const date = params.date || todayInIndia();

@@ -10,7 +10,7 @@ import { requirePermission } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function CredentialsPage() {
-  await requirePermission("users.view");
+  await requirePermission("admin.credentials");
   const supabase = await createClient();
   const [{ data }, { data: roles }, { data: employees }] = await Promise.all([
     supabase.from("users").select("*, roles(name)").is("deleted_at", null).order("full_name", { ascending: true }),

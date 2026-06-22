@@ -76,7 +76,7 @@ function reportCell(column: string, value: unknown, row: Record<string, unknown>
 }
 
 export default async function ReportsPage({ searchParams }: { searchParams: Promise<Params> }) {
-  await requirePermission("reports.view");
+  await requirePermission("reports.stock");
   const params = await searchParams;
   const from = params.from || new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10);
   const to = params.to || new Date().toISOString().slice(0, 10);

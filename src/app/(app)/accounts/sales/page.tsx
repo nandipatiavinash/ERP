@@ -14,7 +14,7 @@ export default async function AccountsSalesPage({
 }: {
   searchParams: Promise<{ date?: string }>;
 }) {
-  await requirePermission("sales.view");
+  await requirePermission("accounts.sales");
   const supabase = await createClient();
   const params = await searchParams;
   const date = params.date || todayInIndia();

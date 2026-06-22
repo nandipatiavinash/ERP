@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 type Params = { search?: string; page?: string; sort?: string; direction?: "asc" | "desc" };
 
 export default async function LoomsAdminPage({ searchParams }: { searchParams: Promise<Params> }) {
-  await requirePermission("looms.view");
+  await requirePermission("admin.looms");
   const supabase = await createClient();
   const params = await searchParams;
   const result = await fetchMasterRows({ supabase, config: modules.looms, select: "id, loom_number, description, status", params, defaultSort: "loom_number" });

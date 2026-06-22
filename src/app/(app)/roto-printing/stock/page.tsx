@@ -8,7 +8,7 @@ import { createClient } from "@/lib/supabase/server";
 import { formatDate, formatNumber } from "@/lib/utils";
 
 export default async function RotoPrintingStockPage() {
-  await requirePermission("rolls.view");
+  await requirePermission("roto_printing.stock");
   const supabase = await createClient();
 
   const { data: rolls } = await supabase

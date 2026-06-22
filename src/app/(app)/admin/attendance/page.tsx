@@ -88,7 +88,7 @@ function attendanceStatus(row: any) {
 }
 
 export default async function AttendanceAdminPage() {
-  const user = await requirePermission("attendance.view");
+  const user = await requirePermission("admin.attendance");
   const permissions = await getSessionPermissions(user);
   const canManageAllAttendance = permissions.includes("employees.view") || permissions.includes("users.view");
   const supabase = await createClient();

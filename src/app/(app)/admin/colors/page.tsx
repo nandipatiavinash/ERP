@@ -7,7 +7,7 @@ import { createClient } from "@/lib/supabase/server";
 type Params = { search?: string; page?: string; sort?: string; direction?: "asc" | "desc" };
 
 export default async function ColorsPage({ searchParams }: { searchParams: Promise<Params> }) {
-  await requirePermission("fabric_types.view"); // Using existing permission, or colors permission if custom
+  await requirePermission("admin.colors"); // Using existing permission, or colors permission if custom
   const supabase = await createClient();
   const params = await searchParams;
   const result = await fetchMasterRows({ supabase, config: modules["roto-colors"], select: "id, color_name, description, status", params, defaultSort: "color_name" });

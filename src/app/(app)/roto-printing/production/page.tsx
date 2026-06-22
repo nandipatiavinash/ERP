@@ -10,7 +10,7 @@ import { createClient } from "@/lib/supabase/server";
 import { formatDate } from "@/lib/utils";
 
 export default async function RotoPrintingProductionPage() {
-  await requirePermission("production.view");
+  await requirePermission("roto_printing.production");
   const supabase = await createClient();
 
   const [

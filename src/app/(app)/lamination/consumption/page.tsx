@@ -15,7 +15,7 @@ export default async function LaminationConsumptionPage({
 }: {
   searchParams: Promise<{ date?: string }>;
 }) {
-  await requirePermission("production.view");
+  await requirePermission("lamination.consumption");
   const supabase = await createClient();
   const params = await searchParams;
   const date = params.date || todayInIndia();

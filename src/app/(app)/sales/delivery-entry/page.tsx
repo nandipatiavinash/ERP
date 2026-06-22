@@ -15,7 +15,7 @@ export default async function DeliveryEntryPage({
 }: {
   searchParams: Promise<{ date?: string }>;
 }) {
-  await requirePermission("sales.view");
+  await requirePermission("sales.order_confirmation");
   const supabase = await createClient();
   const params = await searchParams;
   const date = params.date || todayInIndia();
