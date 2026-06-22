@@ -28,12 +28,19 @@ interface Consumption {
   quantity: string | number;
 }
 
+interface Sale {
+  raw_material_id: string;
+  sale_date: string;
+  quantity: string | number;
+}
+
 interface StockReportClientProps {
   from: string;
   to: string;
   rawMaterials: RawMaterial[];
   purchases: Purchase[];
   consumptions: Consumption[];
+  sales: Sale[];
 }
 
 export function StockReportClient({
@@ -42,6 +49,7 @@ export function StockReportClient({
   rawMaterials,
   purchases,
   consumptions,
+  sales,
 }: StockReportClientProps) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
@@ -77,17 +85,20 @@ export function StockReportClient({
       const matId = material.id;
       const currentStock = Number(material.current_stock ?? 0);
 
-      // Filter purchases & consumptions for this material
+      // Filter purchases, consumptions & sales for this material
       const matPurchases = purchases.filter((p) => p.raw_material_id === matId);
       const matConsumptions = consumptions.filter((c) => c.raw_material_id === matId);
+      const matSales = sales.filter((s) => s.raw_material_id === matId);
 
       // Total in the selected [from, to] range
       let totalPurchaseInRange = 0;
       let totalConsumptionInRange = 0;
+      let totalSaleInRange = 0;
 
-      // Group purchases/consumptions by date for daily details
+      // Group purchases/consumptions/sales by date for daily details
       const purchasesByDate: Record<string, number> = {};
       const consumptionsByDate: Record<string, number> = {};
+      const salesByDate: Record<string, number> = {};
 
       matPurchases.forEach((p) => {
         const qty = Number(p.quantity);
@@ -107,6 +118,15 @@ export function StockReportClient({
         consumptionsByDate[date] = (consumptionsByDate[date] ?? 0) + qty;
       });
 
+      matSales.forEach((s) => {
+        const qty = Number(s.quantity);
+        const date = s.sale_date;
+        if (date >= from && date <= to) {
+          totalSaleInRange += qty;
+        }
+        salesByDate[date] = (salesByDate[date] ?? 0) + qty;
+      });
+
       // Backtrack to compute daily running available balance
       // We need to backtrack from today down to 'from'
       const backtrackStart = from > today ? today : from;
@@ -121,7 +141,8 @@ export function StockReportClient({
         availableByDate[d] = runningStock;
         const p = purchasesByDate[d] ?? 0;
         const c = consumptionsByDate[d] ?? 0;
-        runningStock = runningStock - p + c;
+        const s = salesByDate[d] ?? 0;
+        runningStock = runningStock - p + c + s;
       }
 
       // Available stock at the end of the 'to' date
@@ -134,12 +155,14 @@ export function StockReportClient({
       const dailyRecords = selectedDates.map((date) => {
         const p = purchasesByDate[date] ?? 0;
         const c = consumptionsByDate[date] ?? 0;
+        const s = salesByDate[date] ?? 0;
         const a = availableByDate[date] !== undefined ? availableByDate[date] : (date > today ? currentStock : runningStock);
 
         return {
           date,
           purchase: Math.floor(p),
           consumption: Math.floor(c),
+          sale: Math.floor(s),
           available: Math.floor(a),
         };
       });
@@ -148,11 +171,12 @@ export function StockReportClient({
         ...material,
         totalPurchase: Math.floor(totalPurchaseInRange),
         totalConsumption: Math.floor(totalConsumptionInRange),
+        totalSale: Math.floor(totalSaleInRange),
         available: Math.floor(availableAtTo),
         dailyRecords,
       };
     });
-  }, [rawMaterials, purchases, consumptions, from, to, selectedDates, today]);
+  }, [rawMaterials, purchases, consumptions, sales, from, to, selectedDates, today]);
 
   return (
     <div className="space-y-6">
@@ -177,6 +201,7 @@ export function StockReportClient({
                   <TableHead className="font-semibold text-slate-700">Raw Material ID</TableHead>
                   <TableHead className="font-semibold text-slate-700 text-right">Total Purchase</TableHead>
                   <TableHead className="font-semibold text-slate-700 text-right">Total Consumption</TableHead>
+                  <TableHead className="font-semibold text-slate-700 text-right">Total Sale</TableHead>
                   <TableHead className="font-semibold text-slate-700 text-right">Available</TableHead>
                 </TableRow>
               </TableHeader>
@@ -204,6 +229,9 @@ export function StockReportClient({
                         <TableCell className="text-right text-slate-950 font-medium py-3">
                           {material.totalConsumption}
                         </TableCell>
+                        <TableCell className="text-right text-slate-950 font-medium py-3">
+                          {material.totalSale}
+                        </TableCell>
                         <TableCell className="text-right text-slate-950 font-bold py-3">
                           {material.available}
                         </TableCell>
@@ -215,22 +243,23 @@ export function StockReportClient({
                             <div className="rounded-lg border border-slate-200 bg-white shadow-inner overflow-hidden max-w-4xl mx-auto my-2">
                               <div className="bg-slate-100 px-4 py-2 border-b border-slate-200">
                                 <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-                                  Daily Ledger (P - C - A) for {material.material_name}
+                                  Ledger for {material.material_name}
                                 </span>
                               </div>
                               <Table>
                                 <TableHeader>
                                   <TableRow className="bg-slate-50 border-b border-slate-200">
                                     <TableHead className="text-xs font-semibold text-slate-600">Date</TableHead>
-                                    <TableHead className="text-xs font-semibold text-slate-600 text-right">Purchase (P)</TableHead>
-                                    <TableHead className="text-xs font-semibold text-slate-600 text-right">Consumption (C)</TableHead>
-                                    <TableHead className="text-xs font-semibold text-slate-600 text-right">Available (A)</TableHead>
+                                    <TableHead className="text-xs font-semibold text-slate-600 text-right">Purchase</TableHead>
+                                    <TableHead className="text-xs font-semibold text-slate-600 text-right">Consumption</TableHead>
+                                    <TableHead className="text-xs font-semibold text-slate-600 text-right">Sale</TableHead>
+                                    <TableHead className="text-xs font-semibold text-slate-600 text-right">Available</TableHead>
                                   </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                   {material.dailyRecords.length === 0 ? (
                                     <TableRow>
-                                      <TableCell colSpan={4} className="text-center py-4 text-slate-400 text-sm">
+                                      <TableCell colSpan={5} className="text-center py-4 text-slate-400 text-sm">
                                         No records in selected date range.
                                       </TableCell>
                                     </TableRow>
@@ -241,10 +270,13 @@ export function StockReportClient({
                                           {record.date}
                                         </TableCell>
                                         <TableCell className="py-2 text-right text-slate-900 text-xs">
-                                          {record.purchase > 0 ? record.purchase : "-"}
+                                          {record.purchase}
                                         </TableCell>
                                         <TableCell className="py-2 text-right text-slate-900 text-xs">
-                                          {record.consumption > 0 ? record.consumption : "-"}
+                                          {record.consumption}
+                                        </TableCell>
+                                        <TableCell className="py-2 text-right text-slate-900 text-xs">
+                                          {record.sale}
                                         </TableCell>
                                         <TableCell className="py-2 text-right text-slate-900 font-bold text-xs">
                                           {record.available}

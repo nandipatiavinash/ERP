@@ -12,11 +12,12 @@ export default async function ClosingStockReportPage({ searchParams }: { searchP
 
   const supabase = await createClient();
 
-  // Fetch raw materials, purchases, and consumptions
+  // Fetch raw materials, purchases, consumptions, and material sales
   const [
     { data: rawMaterials },
     { data: purchases },
     { data: consumptions },
+    { data: materialSales },
     { data: fabricTypes },
     { data: rolls },
     { data: salesOrders },
@@ -35,6 +36,11 @@ export default async function ClosingStockReportPage({ searchParams }: { searchP
       .select("raw_material_id, consumption_date, quantity")
       .is("deleted_at", null)
       .order("consumption_date", { ascending: true }),
+    (supabase.from("material_sales") as any)
+      .select("raw_material_id, sale_date, quantity")
+      .eq("type", "raw_material")
+      .is("deleted_at", null)
+      .order("sale_date", { ascending: true }),
     supabase
       .from("fabric_types")
       .select("id, fabric_name, selling_price")
@@ -56,6 +62,7 @@ export default async function ClosingStockReportPage({ searchParams }: { searchP
       rawMaterials={(rawMaterials ?? []) as any[]}
       purchases={(purchases ?? []) as any[]}
       consumptions={(consumptions ?? []) as any[]}
+      materialSales={(materialSales ?? []) as any[]}
       fabricTypes={(fabricTypes ?? []) as any[]}
       rolls={(rolls ?? []) as any[]}
       salesOrders={(salesOrders ?? []) as any[]}

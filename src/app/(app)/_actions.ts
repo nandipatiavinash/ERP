@@ -146,7 +146,20 @@ export async function saveMaster(moduleKey: string, formData: FormData) {
 
   const config = modules[moduleKey];
   const supabase = await createClient();
-  const payload = validateMasterPayload(moduleKey, readPayload(formData, config.fields.map((field) => field.name))) as Record<string, unknown>;
+  const payload = validateMasterPayload(moduleKey, readPayload(formData, config.fields.map((field) => field.name))) as any;
+
+  let oldAlias: string | null = null;
+  if (moduleKey === "customers" && id) {
+    const { data } = await (supabase
+      .from("customers") as any)
+      .select("alias, is_internal")
+      .eq("id", id)
+      .maybeSingle();
+    if (data && data.is_internal === "client a/c") {
+      oldAlias = data.alias;
+    }
+  }
+
   if (moduleKey === "fabric-types" && !id) {
     payload.width = 1;
     payload.gsm = 1;
@@ -179,6 +192,71 @@ export async function saveMaster(moduleKey: string, formData: FormData) {
     console.error('saveMaster error for module', moduleKey, ':', error);
     throw new Error(`Failed to save ${moduleKey}: ${error.message}`);
   }
+
+  // Handle client alias account auto-generation
+  if (moduleKey === "customers") {
+    const isInternal = String(finalPayload.is_internal ?? "");
+    const newAlias = String(finalPayload.alias ?? "").trim();
+
+    if (isInternal === "client a/c" && newAlias) {
+      const aliasAccountName = `${newAlias} A/c`;
+      const oldAliasAccountName = oldAlias ? `${oldAlias} A/c` : null;
+
+      if (oldAliasAccountName && oldAliasAccountName !== aliasAccountName) {
+        // Alias was updated, so rename the old associated account if it exists
+        const { data: existingOldAccount } = await (supabase
+          .from("customers") as any)
+          .select("id")
+          .eq("customer_name", oldAliasAccountName)
+          .is("deleted_at", null)
+          .maybeSingle();
+
+        if (existingOldAccount) {
+          await (supabase
+            .from("customers") as any)
+            .update({ customer_name: aliasAccountName, updated_by: user.id })
+            .eq("id", existingOldAccount.id);
+        } else {
+          // If the old one didn't exist for some reason, check if the new one exists, otherwise create it
+          const { data: existingNewAccount } = await (supabase
+            .from("customers") as any)
+            .select("id")
+            .eq("customer_name", aliasAccountName)
+            .is("deleted_at", null)
+            .maybeSingle();
+
+          if (!existingNewAccount) {
+            await (supabase.from("customers") as any).insert({
+              customer_name: aliasAccountName,
+              is_internal: "client a/c",
+              status: "active",
+              created_by: user.id,
+              updated_by: user.id,
+            });
+          }
+        }
+      } else {
+        // Create the new alias account if it doesn't exist
+        const { data: existingNewAccount } = await (supabase
+          .from("customers") as any)
+          .select("id")
+          .eq("customer_name", aliasAccountName)
+          .is("deleted_at", null)
+          .maybeSingle();
+
+        if (!existingNewAccount) {
+          await (supabase.from("customers") as any).insert({
+            customer_name: aliasAccountName,
+            is_internal: "client a/c",
+            status: "active",
+            created_by: user.id,
+            updated_by: user.id,
+          });
+        }
+      }
+    }
+  }
+
   revalidatePath(config.path);
 }
 
@@ -1349,16 +1427,31 @@ export async function saveSalesOrderBilling(formData: FormData) {
 
   const supabase = await createClient();
 
-  // Fetch the order with customer name
+  // Fetch the order with items, customers, and their alias/short name
   const { data: order, error: orderError } = await (supabase
     .from("sales_orders") as any)
-    .select("id, customer_id, order_date, customers(customer_name)")
+    .select(`
+      id,
+      customer_id,
+      order_date,
+      gst_rate,
+      customers(customer_name, alias),
+      sales_order_items(
+        id,
+        department,
+        product_id,
+        quantity,
+        price,
+        selected_roll_ids
+      )
+    `)
     .eq("id", orderId)
     .single();
 
   if (orderError || !order) throw new Error("Sales order not found.");
 
   const customerName = (order as any).customers?.customer_name ?? "Unknown";
+  const clientAlias = (order as any).customers?.alias;
   const entryDate = (order as any).order_date ?? todayInIndia();
 
   // Update sales order with billing info
@@ -1373,12 +1466,85 @@ export async function saveSalesOrderBilling(formData: FormData) {
 
   if (updateError) throw new Error(updateError.message);
 
+  // Fetch items and resolve roll weights to calculate calculatedTotal
+  const items = (order as any).sales_order_items ?? [];
+  const allRollIds: string[] = [];
+  items.forEach((item: any) => {
+    if (item.department === "fabric" && item.selected_roll_ids) {
+      allRollIds.push(...item.selected_roll_ids);
+    }
+  });
+
+  let rollWeights: Record<string, number> = {};
+  if (allRollIds.length > 0) {
+    const { data: rollsData } = await supabase
+      .from("fabric_rolls")
+      .select("id, weight")
+      .in("id", allRollIds);
+    (rollsData ?? []).forEach((r: any) => {
+      rollWeights[r.id] = Number(r.weight ?? 0);
+    });
+  }
+
+  let baseTotal = 0;
+  items.forEach((item: any) => {
+    let qty = 0;
+    if (item.department === "fabric") {
+      const selectedIds = item.selected_roll_ids || [];
+      selectedIds.forEach((rid: string) => {
+        qty += rollWeights[rid] ?? 0;
+      });
+    } else {
+      qty = Number(item.quantity ?? 0);
+    }
+    const price = Number(item.price ?? 0);
+    baseTotal += qty * price;
+  });
+
+  const gstPct = Number((order as any).gst_rate ?? 18);
+  const calculatedTotal = baseTotal + (baseTotal * gstPct / 100);
+  const balance = calculatedTotal - billValue;
+
   const [customerAcResult, salesAcResult] = await Promise.all([
     supabase.from("customers").select("id").eq("customer_name", customerName).is("deleted_at", null).maybeSingle(),
-    supabase.from("customers").select("id").eq("customer_name", "Sales A/c").is("deleted_at", null).maybeSingle()
+    supabase.from("customers").select("id").ilike("customer_name", "Sales A/c").is("deleted_at", null).maybeSingle()
   ]);
   const customerAc = customerAcResult.data as any;
   const salesAc = salesAcResult.data as any;
+
+  // Resolve or create target client alias account "[Alias] A/c"
+  let aliasAcId: string | null = null;
+  let aliasAcName = "";
+
+  if (clientAlias && clientAlias.trim()) {
+    aliasAcName = `${clientAlias.trim()} A/c`;
+    const { data: existingAliasAc } = await (supabase
+      .from("customers") as any)
+      .select("id")
+      .ilike("customer_name", aliasAcName)
+      .is("deleted_at", null)
+      .maybeSingle();
+
+    if (existingAliasAc) {
+      aliasAcId = existingAliasAc.id;
+    } else {
+      // Auto-create on the fly
+      const { data: newAliasAc, error: createAliasErr } = await (supabase
+        .from("customers") as any)
+        .insert({
+          customer_name: aliasAcName,
+          is_internal: "client a/c",
+          status: "active",
+          created_by: user.id,
+          updated_by: user.id,
+        })
+        .select("id")
+        .single();
+      if (!createAliasErr && newAliasAc) {
+        aliasAcId = newAliasAc.id;
+      }
+    }
+  }
 
   const journalNo = await generateNextJournalNo(supabase);
   const journalInserts = [
@@ -1397,7 +1563,7 @@ export async function saveSalesOrderBilling(formData: FormData) {
       journal_no: journalNo,
       entry_date: entryDate,
       account_id: salesAc?.id ?? null,
-      account_name: "Sales A/c",
+      account_name: salesAc?.customer_name ?? "Sales A/c",
       entry_type: "credit",
       amount: billValue,
       description: `${billNumber} (${customerName})`,
@@ -1405,6 +1571,60 @@ export async function saveSalesOrderBilling(formData: FormData) {
       updated_by: user.id,
     },
   ];
+
+  // If the balance exceeds +/- 100, generate additional balance adjustments
+  if (Math.abs(balance) > 100 && aliasAcId) {
+    const absBalance = Math.abs(balance);
+    if (balance > 100) {
+      // Positive balance (underpaid): CLIENT Alias A/c Dr. & SALES A/c Cr.
+      journalInserts.push({
+        journal_no: journalNo,
+        entry_date: entryDate,
+        account_id: aliasAcId,
+        account_name: aliasAcName,
+        entry_type: "debit",
+        amount: absBalance,
+        description: `Balance adjustment for Bill ${billNumber}`,
+        created_by: user.id,
+        updated_by: user.id,
+      });
+      journalInserts.push({
+        journal_no: journalNo,
+        entry_date: entryDate,
+        account_id: salesAc?.id ?? null,
+        account_name: salesAc?.customer_name ?? "Sales A/c",
+        entry_type: "credit",
+        amount: absBalance,
+        description: `Balance adjustment for Bill ${billNumber} (${customerName})`,
+        created_by: user.id,
+        updated_by: user.id,
+      });
+    } else {
+      // Negative balance (overpaid): SALES A/c Dr. & CLIENT Alias A/c Cr.
+      journalInserts.push({
+        journal_no: journalNo,
+        entry_date: entryDate,
+        account_id: salesAc?.id ?? null,
+        account_name: salesAc?.customer_name ?? "Sales A/c",
+        entry_type: "debit",
+        amount: absBalance,
+        description: `Balance adjustment for Bill ${billNumber} (${customerName})`,
+        created_by: user.id,
+        updated_by: user.id,
+      });
+      journalInserts.push({
+        journal_no: journalNo,
+        entry_date: entryDate,
+        account_id: aliasAcId,
+        account_name: aliasAcName,
+        entry_type: "credit",
+        amount: absBalance,
+        description: `Balance adjustment for Bill ${billNumber}`,
+        created_by: user.id,
+        updated_by: user.id,
+      });
+    }
+  }
 
   const { error: journalError } = await (supabase.from("accounts_journal") as any).insert(journalInserts);
   if (journalError) throw new Error(journalError.message);
@@ -1596,6 +1816,21 @@ export async function saveMaterialSalesEntry(formData: FormData) {
 
   const supabase = await createClient();
 
+  if (type === "raw_material" && raw_material_id) {
+    const { data: rmData, error: rmErr } = await (supabase
+      .from("raw_materials") as any)
+      .select("current_stock, material_name")
+      .eq("id", raw_material_id)
+      .single();
+    if (rmErr || !rmData) {
+      throw new Error("Raw material not found.");
+    }
+    const currentStock = Number(rmData.current_stock ?? 0);
+    if (quantity > currentStock) {
+      throw new Error(`Cannot sell ${quantity}. Only ${currentStock} is available in stock.`);
+    }
+  }
+
   // Retrieve customer info
   const { data: customerResult, error: customerErr } = await (supabase
     .from("customers") as any)
@@ -1718,4 +1953,101 @@ export async function deleteMaterialSalesEntry(formData: FormData) {
   revalidatePath("/reports");
   revalidatePath("/reports/stock");
   revalidatePath("/reports/closing-stock");
+}
+
+export async function clearSystemTransactions() {
+  const user = await requirePermission("users.view");
+
+  const supabase = await createClient();
+
+  // 1. Delete transactions in order of dependency constraints
+  const tablesToDelete = [
+    "material_sales",
+    "raw_material_purchases",
+    "raw_material_consumptions",
+    "accounts_journal",
+    "sales_order_items",
+    "sales_orders",
+    "stage_production_entries",
+  ];
+
+  for (const table of tablesToDelete) {
+    const { error } = await (supabase.from(table) as any).delete().neq("id", "00000000-0000-0000-0000-000000000000");
+    if (error) {
+      console.error(`Failed to clear table ${table}:`, error);
+      throw new Error(`Failed to clear table ${table}: ${error.message}`);
+    }
+  }
+
+  // 2. Reset fabric_rolls status to 'available'
+  const { error: rollResetErr } = await (supabase
+    .from("fabric_rolls") as any)
+    .update({ status: "available", current_stage: "loom", updated_by: user.id } as any)
+    .neq("id", "00000000-0000-0000-0000-000000000000");
+
+  if (rollResetErr) {
+    console.error("Failed to reset fabric rolls status:", rollResetErr);
+    throw new Error(`Failed to reset fabric rolls: ${rollResetErr.message}`);
+  }
+
+  // 3. Reset raw materials stock level back to opening_stock
+  const { data: rawMaterials, error: fetchRmErr } = await (supabase
+    .from("raw_materials") as any)
+    .select("id, opening_stock")
+    .is("deleted_at", null);
+
+  if (fetchRmErr) {
+    throw new Error(`Failed to fetch raw materials: ${fetchRmErr.message}`);
+  }
+
+  for (const rm of (rawMaterials ?? [])) {
+    const { error: rmResetErr } = await (supabase
+      .from("raw_materials") as any)
+      .update({ current_stock: rm.opening_stock, updated_by: user.id })
+      .eq("id", rm.id);
+
+    if (rmResetErr) {
+      throw new Error(`Failed to reset raw material stock for ${rm.id}: ${rmResetErr.message}`);
+    }
+  }
+
+  // 4. Create alias accounts for existing clients who have aliases but no "[Alias] A/c" yet
+  const { data: activeClients } = await (supabase.from("customers") as any)
+    .select("id, customer_name, alias")
+    .eq("is_internal", "client a/c")
+    .is("deleted_at", null);
+
+  for (const client of activeClients ?? []) {
+    const alias = String(client.alias ?? "").trim();
+    if (alias && !client.customer_name.endsWith(" A/c")) {
+      const aliasName = `${alias} A/c`;
+      const { data: existing } = await (supabase.from("customers") as any)
+        .select("id")
+        .eq("customer_name", aliasName)
+        .is("deleted_at", null)
+        .maybeSingle();
+
+      if (!existing) {
+        await (supabase.from("customers") as any).insert({
+          customer_name: aliasName,
+          is_internal: "client a/c",
+          status: "active",
+          created_by: user.id,
+          updated_by: user.id,
+        });
+      }
+    }
+  }
+
+  // Revalidate paths to clear caches
+  revalidatePath("/admin/raw-materials");
+  revalidatePath("/fabric/stock");
+  revalidatePath("/accounts/sales");
+  revalidatePath("/accounts/purchase");
+  revalidatePath("/accounts/consumption");
+  revalidatePath("/accounts/journal");
+  revalidatePath("/reports/stock");
+  revalidatePath("/reports/closing-stock");
+  revalidatePath("/reports/accounts");
+  revalidatePath("/dashboard");
 }

@@ -46,7 +46,7 @@ export default async function PurchaseEntryPage({
   ]);
 
   const activeMaterials = (materials ?? []).filter((m: any) => m.status === "active");
-  const customerList = (customers ?? []) as any[];
+  const customerList = ((customers ?? []) as any[]).filter((c) => !c.customer_name.endsWith(" A/c"));
   const purchaseRows = (purchases ?? []) as any[];
 
   return (

@@ -34,6 +34,14 @@ export default async function StockReportPage({ searchParams }: { searchParams: 
     .gte("consumption_date", from)
     .is("deleted_at", null);
 
+  // Query material sales since the from date
+  const { data: sales } = await (supabase
+    .from("material_sales") as any)
+    .select("raw_material_id, sale_date, quantity")
+    .eq("type", "raw_material")
+    .gte("sale_date", from)
+    .is("deleted_at", null);
+
   return (
     <StockReportClient
       from={from}
@@ -41,6 +49,7 @@ export default async function StockReportPage({ searchParams }: { searchParams: 
       rawMaterials={(rawMaterials ?? []) as any[]}
       purchases={(purchases ?? []) as any[]}
       consumptions={(consumptions ?? []) as any[]}
+      sales={(sales ?? []) as any[]}
     />
   );
 }

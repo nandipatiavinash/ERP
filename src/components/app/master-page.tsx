@@ -1,6 +1,9 @@
+"use client";
+
 import Link from "next/link";
 import { Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
@@ -168,14 +171,31 @@ export function MasterPage({
                         </TableCell>
                       ))}
                       <TableCell className="text-center">
-                        <details className="space-y-3" name={`${config.key}-accordion`}>
-                          <summary className="cursor-pointer text-sm font-medium text-primary inline-block">Edit</summary>
-                          <RecordForm config={config} row={row} isEdit={true} />
-                        </details>
-                        <form action={deactivateMaster.bind(null, config.key)} className="mt-3">
-                          <input type="hidden" name="id" value={row.id} />
-                          <ConfirmSubmitButton size="sm" variant="outline" confirmTitle="Delete this record?" confirmDescription="This record will be deleted from active workflows.">Delete</ConfirmSubmitButton>
-                        </form>
+                        <div className="flex items-center justify-center gap-2">
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <Button size="sm" variant="outline" className="text-xs font-semibold h-8">
+                                Edit
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                              <DialogHeader>
+                                <DialogTitle>Edit {config.title.replace("Management", "").trim()}</DialogTitle>
+                                <DialogDescription>Modify the fields below to update the record details.</DialogDescription>
+                              </DialogHeader>
+                              <div className="mt-2">
+                                <RecordForm config={config} row={row} />
+                              </div>
+                            </DialogContent>
+                          </Dialog>
+
+                          <form action={deactivateMaster.bind(null, config.key)}>
+                            <input type="hidden" name="id" value={row.id} />
+                            <ConfirmSubmitButton size="sm" variant="outline" className="h-8" confirmTitle="Delete this record?" confirmDescription="This record will be deleted from active workflows.">
+                              Delete
+                            </ConfirmSubmitButton>
+                          </form>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}

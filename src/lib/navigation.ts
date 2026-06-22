@@ -25,6 +25,7 @@ export const navGroups: NavGroup[] = [
       { href: "/admin/critical-levels", label: "Raw Material Critical Levels", roles: ["admin"], permission: "raw_materials.view" },
       { href: "/admin/employees", label: "Employees", roles: ["admin"], permission: "employees.view" },
       { href: "/admin/attendance", label: "Attendance", roles: ["admin"], permission: "attendance.view" },
+      { href: "/admin/reset", label: "System Reset", roles: ["admin"], permission: "users.view" },
     ],
   },
   {

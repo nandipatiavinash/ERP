@@ -13,7 +13,7 @@ import { ConfirmSubmitButton } from "@/components/app/confirm-submit-button";
 import { formatNumber } from "@/lib/utils";
 
 type ClientOption = { id: string; customer_name: string; alias?: string | null };
-type MaterialOption = { id: string; material_name: string; department: string; unit: string };
+type MaterialOption = { id: string; material_name: string; department: string; unit: string; current_stock: string | number };
 
 type MaterialSalesFormProps = {
   clients: ClientOption[];
@@ -58,6 +58,14 @@ export function MaterialSalesForm({
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (isSaving) return;
+
+    if (type === "raw_material" && selectedMaterial) {
+      const availStock = Number(selectedMaterial.current_stock ?? 0);
+      if (parsedQty > availStock) {
+        setErrorText(`Cannot sell ${parsedQty}. Only ${availStock} is available in stock.`);
+        return;
+      }
+    }
 
     setIsSaving(true);
     setErrorText(null);
@@ -208,7 +216,6 @@ export function MaterialSalesForm({
               </div>
             )}
 
-            {/* Quantity, Price, and GST Options */}
             <div className="grid gap-4 sm:grid-cols-4 items-end">
               <div className="space-y-2">
                 <Label htmlFor="quantity">
@@ -225,6 +232,18 @@ export function MaterialSalesForm({
                   value={qty}
                   onChange={(e) => setQty(e.target.value)}
                 />
+                {type === "raw_material" && selectedMaterial && (
+                  <div className="space-y-1">
+                    <div className="text-xs text-muted-foreground">
+                      Available: <span className="font-semibold text-slate-800">{formatNumber(selectedMaterial.current_stock, 3)}</span> {selectedMaterial.unit !== "-" ? selectedMaterial.unit : ""}
+                    </div>
+                    {parsedQty > Number(selectedMaterial.current_stock ?? 0) && (
+                      <div className="text-xs text-destructive font-semibold">
+                        Quantity exceeds available stock!
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2">

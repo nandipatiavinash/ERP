@@ -57,11 +57,18 @@ interface SalesOrder {
   }> | null;
 }
 
+interface MaterialSale {
+  raw_material_id: string;
+  sale_date: string;
+  quantity: string | number;
+}
+
 interface ClosingStockReportClientProps {
   date: string;
   rawMaterials: RawMaterial[];
   purchases: Purchase[];
   consumptions: Consumption[];
+  materialSales: MaterialSale[];
   fabricTypes: FabricType[];
   rolls: FabricRoll[];
   salesOrders: SalesOrder[];
@@ -72,6 +79,7 @@ export function ClosingStockReportClient({
   rawMaterials,
   purchases,
   consumptions,
+  materialSales,
   fabricTypes,
   rolls,
   salesOrders,
@@ -88,18 +96,22 @@ export function ClosingStockReportClient({
   const getRmStockAtD = (materialId: string, currentStock: number) => {
     if (date >= today) return currentStock;
 
-    // Filter purchases/consumptions after selected date
+    // Filter purchases/consumptions/sales after selected date
     const purchasesAfter = purchases.filter(
       (p) => p.raw_material_id === materialId && p.purchase_date > date
     );
     const consumptionsAfter = consumptions.filter(
       (c) => c.raw_material_id === materialId && c.consumption_date > date
     );
+    const salesAfter = materialSales.filter(
+      (s) => s.raw_material_id === materialId && s.sale_date > date
+    );
 
     const sumPurchasesAfter = purchasesAfter.reduce((sum, p) => sum + Number(p.quantity), 0);
     const sumConsumptionsAfter = consumptionsAfter.reduce((sum, c) => sum + Number(c.quantity), 0);
+    const sumSalesAfter = salesAfter.reduce((sum, s) => sum + Number(s.quantity), 0);
 
-    return currentStock - sumPurchasesAfter + sumConsumptionsAfter;
+    return currentStock - sumPurchasesAfter + sumConsumptionsAfter + sumSalesAfter;
   };
 
   // Helper to get raw material price at date D (latest purchase rate on or before D)

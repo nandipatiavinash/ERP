@@ -26,7 +26,7 @@ export default async function MaterialSalesPage({
       .order("customer_name"),
     supabase
       .from("raw_materials")
-      .select("id, material_name, department, unit")
+      .select("id, material_name, department, unit, current_stock")
       .eq("status", "active")
       .is("deleted_at", null)
       .order("material_name"),
@@ -52,7 +52,7 @@ export default async function MaterialSalesPage({
       .order("created_at", { ascending: false }),
   ]);
 
-  const clients = (clientsRes.data ?? []) as any[];
+  const clients = ((clientsRes.data ?? []) as any[]).filter((c) => !c.customer_name.endsWith(" A/c"));
   const rawMaterials = (materialsRes.data ?? []) as any[];
   const sales = (salesRes.data ?? []) as any[];
 

@@ -35,7 +35,9 @@ export default async function DeliveryEntryPage({
       .limit(100),
   ]);
 
-  const customerRows = ((customers ?? []) as any[]).map((c) => ({ id: c.id, name: c.customer_name, alias: c.alias }));
+  const customerRows = ((customers ?? []) as any[])
+    .filter((c) => !c.customer_name.endsWith(" A/c"))
+    .map((c) => ({ id: c.id, name: c.customer_name, alias: c.alias }));
   const fabricOptions = ((fabrics ?? []) as any[]).map((f) => ({ id: f.id, label: f.fabric_name }));
   const rotoOptions = ((roto ?? []) as any[]).map((r) => ({ id: r.id, label: `${r.brand} (${r.width}x${r.height} in)` }));
   const offsetOptions = ((offset ?? []) as any[]).map((o) => ({ id: o.id, label: `${o.brand} (${o.width}x${o.height} in)` }));
