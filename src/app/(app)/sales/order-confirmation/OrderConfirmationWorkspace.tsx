@@ -476,20 +476,18 @@ export function OrderConfirmationWorkspace({
                       {selectedOrder.customers?.alias && ` (${selectedOrder.customers.alias})`}
                     </p>
                   </div>
-                  <div className="flex items-end gap-3">
-                    <div className="flex flex-col gap-1">
-                      <Label htmlFor="remaining-action" className="text-xs text-muted-foreground font-semibold">
-                        On Remaining Items:
+                  <div className="flex items-center gap-4 flex-wrap">
+                    <div className="flex items-center gap-2 h-9">
+                      <input
+                        type="checkbox"
+                        id="partial-order-checkbox"
+                        checked={remainingAction === "backorder"}
+                        onChange={(e) => setRemainingAction(e.target.checked ? "backorder" : "close")}
+                        className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary cursor-pointer"
+                      />
+                      <Label htmlFor="partial-order-checkbox" className="text-sm font-semibold text-emerald-950 cursor-pointer select-none">
+                        Create Partial Order (Remaining KGs will go into a new bill)
                       </Label>
-                      <select
-                        id="remaining-action"
-                        value={remainingAction}
-                        onChange={(e) => setRemainingAction(e.target.value as any)}
-                        className="h-9 rounded-md border border-slate-200 bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-1 focus:ring-primary font-semibold"
-                      >
-                        <option value="close">Close Order (Fully Delivered)</option>
-                        <option value="backorder">Partial Order (Create Backorder)</option>
-                      </select>
                     </div>
                     <button
                       type="button"
