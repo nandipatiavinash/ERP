@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { ChevronDown, ChevronRight, Percent, Check } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -52,6 +53,7 @@ export function SalesConfirmationReportClient({
   offsetProducts,
   rolls,
 }: SalesConfirmationReportClientProps) {
+  const router = useRouter();
   // Collapsible states
   const [expandedOrders, setExpandedOrders] = useState<Record<string, boolean>>({});
 
@@ -157,6 +159,7 @@ export function SalesConfirmationReportClient({
       const gstRate = Number(gstRates[orderId] ?? 18);
 
       await saveSalesConfirmationRates(orderId, itemPrices, gstRate);
+      router.refresh();
 
       setSuccessOrders((prev) => ({ ...prev, [orderId]: true }));
       setTimeout(() => {

@@ -1473,7 +1473,6 @@ export async function saveSalesOrderBilling(formData: FormData) {
   if (orderError || !order) throw new Error("Sales order not found.");
 
   const customerName = (order as any).customers?.customer_name ?? "Unknown";
-  const clientAlias = (order as any).customers?.alias;
   const entryDate = (order as any).order_date ?? todayInIndia();
 
   // Update sales order with billing info
@@ -1488,83 +1487,12 @@ export async function saveSalesOrderBilling(formData: FormData) {
 
   if (updateError) throw new Error(updateError.message);
 
-  // Fetch items and resolve roll weights to calculate calculatedTotal
-  const items = (order as any).sales_order_items ?? [];
-  const allRollIds: string[] = [];
-  items.forEach((item: any) => {
-    if (item.department === "fabric" && item.selected_roll_ids) {
-      allRollIds.push(...item.selected_roll_ids);
-    }
-  });
-
-  let rollWeights: Record<string, number> = {};
-  if (allRollIds.length > 0) {
-    const { data: rollsData } = await supabase
-      .from("fabric_rolls")
-      .select("id, weight")
-      .in("id", allRollIds);
-    (rollsData ?? []).forEach((r: any) => {
-      rollWeights[r.id] = Number(r.weight ?? 0);
-    });
-  }
-
-  let baseTotal = 0;
-  items.forEach((item: any) => {
-    let qty = 0;
-    if (item.department === "fabric") {
-      const selectedIds = item.selected_roll_ids || [];
-      selectedIds.forEach((rid: string) => {
-        qty += rollWeights[rid] ?? 0;
-      });
-    } else {
-      qty = Number(item.quantity ?? 0);
-    }
-    const price = Number(item.price ?? 0);
-    baseTotal += qty * price;
-  });
-
-  const gstPct = Number((order as any).gst_rate ?? 18);
-  const calculatedTotal = baseTotal + (baseTotal * gstPct / 100);
-  const balance = calculatedTotal - billValue;
-
   const [customerAcResult, salesAcResult] = await Promise.all([
     supabase.from("customers").select("id, customer_name").ilike("customer_name", customerName).is("deleted_at", null).maybeSingle(),
     supabase.from("customers").select("id, customer_name").ilike("customer_name", "Sales A/c").is("deleted_at", null).maybeSingle()
   ]);
   const customerAc = customerAcResult.data as any;
   const salesAc = salesAcResult.data as any;
-
-  // Resolve or create target client alias account "[Alias] A/c"
-  let aliasAcId: string | null = null;
-  const aliasBase = (clientAlias && clientAlias.trim()) || customerName.trim();
-  const aliasAcName = aliasBase.toLowerCase().endsWith(" a/c") ? aliasBase : `${aliasBase} A/c`;
-
-  const { data: existingAliasAc } = await (supabase
-    .from("customers") as any)
-    .select("id, customer_name")
-    .ilike("customer_name", aliasAcName)
-    .is("deleted_at", null)
-    .maybeSingle();
-
-  if (existingAliasAc) {
-    aliasAcId = existingAliasAc.id;
-  } else {
-    // Auto-create on the fly
-    const { data: newAliasAc, error: createAliasErr } = await (supabase
-      .from("customers") as any)
-      .insert({
-        customer_name: aliasAcName,
-        is_internal: "client a/c",
-        status: "active",
-        created_by: user.id,
-        updated_by: user.id,
-      })
-      .select("id")
-      .single();
-    if (!createAliasErr && newAliasAc) {
-      aliasAcId = newAliasAc.id;
-    }
-  }
 
   const journalNo = await generateNextJournalNo(supabase);
   const journalInserts = [
@@ -1591,60 +1519,6 @@ export async function saveSalesOrderBilling(formData: FormData) {
       updated_by: user.id,
     },
   ];
-
-  // If the balance exceeds +/- 100, generate additional balance adjustments
-  if (Math.abs(balance) > 100 && aliasAcId) {
-    const absBalance = Math.abs(balance);
-    if (balance > 100) {
-      // Positive balance (underpaid): CLIENT Alias A/c Dr. & SALES A/c Cr.
-      journalInserts.push({
-        journal_no: journalNo,
-        entry_date: entryDate,
-        account_id: aliasAcId,
-        account_name: aliasAcName,
-        entry_type: "debit",
-        amount: absBalance,
-        description: `Balance adjustment for Bill ${billNumber}`,
-        created_by: user.id,
-        updated_by: user.id,
-      });
-      journalInserts.push({
-        journal_no: journalNo,
-        entry_date: entryDate,
-        account_id: salesAc?.id ?? null,
-        account_name: salesAc?.customer_name ?? "Sales A/c",
-        entry_type: "credit",
-        amount: absBalance,
-        description: `Balance adjustment for Bill ${billNumber} (${customerAc?.customer_name ?? customerName})`,
-        created_by: user.id,
-        updated_by: user.id,
-      });
-    } else {
-      // Negative balance (overpaid): SALES A/c Dr. & CLIENT Alias A/c Cr.
-      journalInserts.push({
-        journal_no: journalNo,
-        entry_date: entryDate,
-        account_id: salesAc?.id ?? null,
-        account_name: salesAc?.customer_name ?? "Sales A/c",
-        entry_type: "debit",
-        amount: absBalance,
-        description: `Balance adjustment for Bill ${billNumber} (${customerAc?.customer_name ?? customerName})`,
-        created_by: user.id,
-        updated_by: user.id,
-      });
-      journalInserts.push({
-        journal_no: journalNo,
-        entry_date: entryDate,
-        account_id: aliasAcId,
-        account_name: aliasAcName,
-        entry_type: "credit",
-        amount: absBalance,
-        description: `Balance adjustment for Bill ${billNumber}`,
-        created_by: user.id,
-        updated_by: user.id,
-      });
-    }
-  }
 
   const { error: journalError } = await (supabase.from("accounts_journal") as any).insert(journalInserts);
   if (journalError) throw new Error(journalError.message);
@@ -1741,6 +1615,17 @@ export async function saveSalesConfirmationRates(
   const user = await requirePermission("sales.edit");
   const supabase = await createClient();
 
+  // 1. Fetch sales order with customer details
+  const { data: order, error: orderFetchError } = await (supabase
+    .from("sales_orders") as any)
+    .select("*, customers(*), sales_order_items(*)")
+    .eq("id", orderId)
+    .single();
+
+  if (orderFetchError || !order) {
+    throw new Error(orderFetchError?.message || "Order not found.");
+  }
+
   // Update sales order GST rate
   const { error: orderError } = await (supabase
     .from("sales_orders") as any)
@@ -1766,7 +1651,162 @@ export async function saveSalesConfirmationRates(
     }
   }
 
+  // 2. Fetch fabric rolls for weight calculations
+  const items = (order.sales_order_items || []) as any[];
+  const allRollIds: string[] = [];
+  items.forEach((item: any) => {
+    if (item.department === "fabric" && item.selected_roll_ids) {
+      allRollIds.push(...item.selected_roll_ids);
+    }
+  });
+
+  const rollsData: Record<string, number> = {};
+  if (allRollIds.length > 0) {
+    const { data: rollData } = await supabase
+      .from("fabric_rolls")
+      .select("id, weight")
+      .in("id", allRollIds)
+      .is("deleted_at", null);
+    
+    (rollData || []).forEach((r: any) => {
+      rollsData[r.id] = Number(r.weight || 0);
+    });
+  }
+
+  // 3. Calculate actual calculatedTotal
+  let baseTotal = 0;
+  for (const item of items) {
+    let qty = 0;
+    if (item.department === "fabric") {
+      const selectedIds = item.selected_roll_ids || [];
+      selectedIds.forEach((rid: string) => {
+        qty += rollsData[rid] || 0;
+      });
+    } else {
+      qty = Number(item.quantity || 0);
+    }
+    const price = Number(itemPrices[item.id] ?? 0);
+    baseTotal += qty * price;
+  }
+
+  const calculatedTotal = baseTotal + (baseTotal * gstRate / 100);
+  const billValue = Number(order.bill_value ?? 0);
+  const balance = calculatedTotal - billValue;
+
+  const billNumber = order.bill_number;
+  if (billNumber) {
+    // Delete any existing balance adjustments for this bill to prevent duplication
+    await (supabase
+      .from("accounts_journal") as any)
+      .delete()
+      .or(`description.eq."Balance adjustment for Bill ${billNumber}",description.like."Balance adjustment for Bill ${billNumber} (%)"`);
+  }
+
+  // 4. Auto-generate journal entry if balance is > +/- 100
+  if (Math.abs(balance) > 100 && billNumber) {
+    const customerName = order.customers?.customer_name ?? "Unknown";
+    const clientAlias = order.customers?.alias;
+
+    // Resolve or create Client Alias A/c
+    let aliasAcId: string | null = null;
+    const aliasBase = (clientAlias && clientAlias.trim()) || customerName.trim();
+    const aliasAcName = aliasBase.toLowerCase().endsWith(" a/c") ? aliasBase : `${aliasBase} A/c`;
+
+    const { data: existingAliasAc } = await (supabase
+      .from("customers") as any)
+      .select("id, customer_name")
+      .ilike("customer_name", aliasAcName)
+      .is("deleted_at", null)
+      .maybeSingle();
+
+    if (existingAliasAc) {
+      aliasAcId = existingAliasAc.id;
+    } else {
+      const { data: newAliasAc, error: createAliasErr } = await (supabase
+        .from("customers") as any)
+        .insert({
+          customer_name: aliasAcName,
+          is_internal: "client a/c",
+          status: "active",
+          created_by: user.id,
+          updated_by: user.id,
+        })
+        .select("id")
+        .single();
+      if (!createAliasErr && newAliasAc) {
+        aliasAcId = newAliasAc.id;
+      }
+    }
+
+    const { data: salesAcData } = await (supabase
+      .from("customers") as any)
+      .select("id, customer_name")
+      .ilike("customer_name", "Sales A/c")
+      .is("deleted_at", null)
+      .maybeSingle();
+    const salesAc = salesAcData as any;
+
+    const journalNo = await generateNextJournalNo(supabase);
+    const journalInserts = [];
+    const absBalance = Math.abs(balance);
+
+    if (balance > 100) {
+      // Positive balance (underpaid): CLIENT Alias A/c Dr. & SALES A/c Cr.
+      journalInserts.push({
+        journal_no: journalNo,
+        entry_date: order.order_date ?? todayInIndia(),
+        account_id: aliasAcId,
+        account_name: aliasAcName,
+        entry_type: "debit",
+        amount: absBalance,
+        description: `Balance adjustment for Bill ${billNumber}`,
+        created_by: user.id,
+        updated_by: user.id,
+      });
+      journalInserts.push({
+        journal_no: journalNo,
+        entry_date: order.order_date ?? todayInIndia(),
+        account_id: salesAc?.id ?? null,
+        account_name: salesAc?.customer_name ?? "Sales A/c",
+        entry_type: "credit",
+        amount: absBalance,
+        description: `Balance adjustment for Bill ${billNumber} (${customerName})`,
+        created_by: user.id,
+        updated_by: user.id,
+      });
+    } else {
+      // Negative balance (overpaid): SALES A/c Dr. & CLIENT Alias A/c Cr.
+      journalInserts.push({
+        journal_no: journalNo,
+        entry_date: order.order_date ?? todayInIndia(),
+        account_id: salesAc?.id ?? null,
+        account_name: salesAc?.customer_name ?? "Sales A/c",
+        entry_type: "debit",
+        amount: absBalance,
+        description: `Balance adjustment for Bill ${billNumber} (${customerName})`,
+        created_by: user.id,
+        updated_by: user.id,
+      });
+      journalInserts.push({
+        journal_no: journalNo,
+        entry_date: order.order_date ?? todayInIndia(),
+        account_id: aliasAcId,
+        account_name: aliasAcName,
+        entry_type: "credit",
+        amount: absBalance,
+        description: `Balance adjustment for Bill ${billNumber}`,
+        created_by: user.id,
+        updated_by: user.id,
+      });
+    }
+
+    const { error: journalError } = await (supabase.from("accounts_journal") as any).insert(journalInserts);
+    if (journalError) throw new Error(journalError.message);
+  }
+
   revalidatePath("/reports/sales-confirmation");
+  revalidatePath("/accounts/journal");
+  revalidatePath("/reports/accounts");
 }
 
 export async function saveAccountOpeningBalance(formData: FormData) {
