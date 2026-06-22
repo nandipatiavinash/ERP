@@ -200,7 +200,7 @@ export function MaterialSalesForm({
                     <option value="">Select raw material</option>
                     {filteredMaterials.map((m) => (
                       <option key={m.id} value={m.id}>
-                        {m.material_name} ({m.unit})
+                        {m.material_name} {m.unit && m.unit !== "-" ? `(${m.unit})` : ""}
                       </option>
                     ))}
                   </select>
@@ -212,7 +212,7 @@ export function MaterialSalesForm({
             <div className="grid gap-4 sm:grid-cols-4 items-end">
               <div className="space-y-2">
                 <Label htmlFor="quantity">
-                  Quantity {selectedMaterial ? `(${selectedMaterial.unit})` : ""}
+                  Quantity {selectedMaterial && selectedMaterial.unit !== "-" ? `(${selectedMaterial.unit})` : ""}
                 </Label>
                 <Input
                   id="quantity"
@@ -321,7 +321,8 @@ export function MaterialSalesForm({
                     const clientName = sale.customers?.customer_name ?? "-";
                     const clientAlias = sale.customers?.alias;
                     const materialName = sale.raw_materials?.material_name ?? "-";
-                    const materialUnit = sale.raw_materials?.unit ?? "";
+                    const rawUnit = sale.raw_materials?.unit;
+                    const materialUnit = rawUnit && rawUnit !== "-" ? rawUnit : "";
 
                     return (
                       <TableRow key={sale.id}>

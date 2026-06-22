@@ -1610,19 +1610,16 @@ export async function saveMaterialSalesEntry(formData: FormData) {
   const customer = customerResult as any;
   const customerName = customer.customer_name;
 
-  // Retrieve Sales A/c info
+  // Retrieve Sales A/c info (case-insensitive)
   const { data: salesAcResult, error: salesAcErr } = await (supabase
     .from("customers") as any)
-    .select("id")
-    .eq("customer_name", "Sales A/c")
+    .select("id, customer_name")
+    .ilike("customer_name", "sales a/c")
     .is("deleted_at", null)
     .maybeSingle();
 
-  if (salesAcErr || !salesAcResult) {
-    throw new Error("Sales A/c account not found in customers list.");
-  }
-
   const salesAc = salesAcResult as any;
+  const salesAcName = salesAc?.customer_name ?? "Sales A/c";
 
   // Generate journal number
   const journalNo = await generateNextJournalNo(supabase);
@@ -1643,8 +1640,8 @@ export async function saveMaterialSalesEntry(formData: FormData) {
     {
       journal_no: journalNo,
       entry_date: sale_date,
-      account_id: salesAc.id,
-      account_name: "Sales A/c",
+      account_id: salesAc?.id ?? null,
+      account_name: salesAcName,
       entry_type: "credit",
       amount: amount,
       description: `Bill ${bill_number} (${customerName})`,
