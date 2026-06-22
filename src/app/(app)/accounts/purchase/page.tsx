@@ -5,16 +5,23 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { requirePermission } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { formatDate, formatNumber } from "@/lib/utils";
+import { formatDate, formatNumber, todayInIndia } from "@/lib/utils";
+import { DateFilter } from "@/components/app/date-filter";
 
 function getEnteredBillValue(remarks: string | null, fallback: string | number) {
   const match = remarks?.match(/\[TOTAL_BILL_VALUE:([0-9]+(?:\.[0-9]+)?)\]/);
   return match ? Number(match[1]) : Number(fallback);
 }
 
-export default async function PurchaseEntryPage() {
+export default async function PurchaseEntryPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ date?: string }>;
+}) {
   await requirePermission("sales.view"); // Matches navGroups permission for this page
   const supabase = await createClient();
+  const params = await searchParams;
+  const date = params.date || todayInIndia();
 
   const [{ data: materials }, { data: customers }, { data: purchases }] = await Promise.all([
     supabase
@@ -33,9 +40,9 @@ export default async function PurchaseEntryPage() {
     supabase
       .from("raw_material_purchases")
       .select("id, purchase_date, supplier_name, bill_number, quantity, rate, total_amount, remarks, raw_materials(material_name, unit)")
+      .eq("purchase_date", date)
       .is("deleted_at", null)
-      .order("created_at", { ascending: false })
-      .limit(50),
+      .order("created_at", { ascending: false }),
   ]);
 
   const activeMaterials = (materials ?? []).filter((m: any) => m.status === "active");
@@ -62,8 +69,9 @@ export default async function PurchaseEntryPage() {
       </Card>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
           <CardTitle>Recent Purchases</CardTitle>
+          <DateFilter date={date} baseUrl="/accounts/purchase" />
         </CardHeader>
         <CardContent>
           {purchaseRows.length === 0 ? (

@@ -24,7 +24,6 @@ export default async function AccountsSalesPage({
     (supabase.from("sales_orders") as any)
       .select("id, order_number, order_date, customer_id, status, bill_number, bill_value, customers(customer_name, alias, phone, address, gst_number), sales_order_items(id, department, product_id, quantity, selected_roll_ids)")
       .eq("status", "confirmed")
-      .eq("order_date", date)
       .is("bill_number", null)
       .is("deleted_at", null)
       .order("order_date", { ascending: false }),

@@ -1559,3 +1559,166 @@ export async function saveAccountOpeningBalance(formData: FormData) {
   revalidatePath("/reports/opening-balance");
   revalidatePath("/reports/accounts");
 }
+
+export async function saveMaterialSalesEntry(formData: FormData) {
+  const user = await requirePermission("sales.create");
+
+  const sale_date = String(formData.get("sale_date") ?? todayInIndia());
+  const bill_number = String(formData.get("bill_number") ?? "").trim();
+  const customer_id = String(formData.get("customer_id") ?? "");
+  const type = String(formData.get("type") ?? "");
+  const quantity = Number(formData.get("quantity") ?? 0);
+  const price = Number(formData.get("price") ?? 0);
+  const inc_gst = formData.get("inc_gst") === "true";
+
+  let department: string | null = null;
+  let raw_material_id: string | null = null;
+
+  if (type === "raw_material") {
+    department = String(formData.get("department") ?? "");
+    raw_material_id = String(formData.get("raw_material_id") ?? "");
+    if (!department || !raw_material_id) {
+      throw new Error("Department and Raw Material ID are required for raw material sales.");
+    }
+  }
+
+  if (!bill_number || !customer_id || !type) {
+    throw new Error("Bill number, client customer, and sale type are required.");
+  }
+
+  if (quantity <= 0 || price <= 0) {
+    throw new Error("Quantity and price must be greater than zero.");
+  }
+
+  // Calculate amount
+  const baseAmount = quantity * price;
+  const amount = inc_gst ? baseAmount : baseAmount * 1.18;
+
+  const supabase = await createClient();
+
+  // Retrieve customer info
+  const { data: customerResult, error: customerErr } = await (supabase
+    .from("customers") as any)
+    .select("customer_name")
+    .eq("id", customer_id)
+    .single();
+
+  if (customerErr || !customerResult) {
+    throw new Error("Customer not found.");
+  }
+
+  const customer = customerResult as any;
+  const customerName = customer.customer_name;
+
+  // Retrieve Sales A/c info
+  const { data: salesAcResult, error: salesAcErr } = await (supabase
+    .from("customers") as any)
+    .select("id")
+    .eq("customer_name", "Sales A/c")
+    .is("deleted_at", null)
+    .maybeSingle();
+
+  if (salesAcErr || !salesAcResult) {
+    throw new Error("Sales A/c account not found in customers list.");
+  }
+
+  const salesAc = salesAcResult as any;
+
+  // Generate journal number
+  const journalNo = await generateNextJournalNo(supabase);
+
+  // Insert double entries into accounts_journal
+  const journalInserts = [
+    {
+      journal_no: journalNo,
+      entry_date: sale_date,
+      account_id: customer_id,
+      account_name: customerName,
+      entry_type: "debit",
+      amount: amount,
+      description: `Bill ${bill_number} (${type === "raw_material" ? "Raw Material" : "Waste"})`,
+      created_by: user.id,
+      updated_by: user.id,
+    },
+    {
+      journal_no: journalNo,
+      entry_date: sale_date,
+      account_id: salesAc.id,
+      account_name: "Sales A/c",
+      entry_type: "credit",
+      amount: amount,
+      description: `Bill ${bill_number} (${customerName})`,
+      created_by: user.id,
+      updated_by: user.id,
+    },
+  ];
+
+  const { error: journalErr } = await (supabase.from("accounts_journal") as any).insert(journalInserts);
+  if (journalErr) {
+    throw new Error(`Failed to create journal entries: ${journalErr.message}`);
+  }
+
+  // Insert material sale entry
+  const { error: saleErr } = await (supabase.from("material_sales") as any).insert({
+    sale_date,
+    bill_number,
+    customer_id,
+    type,
+    department: department || null,
+    raw_material_id: raw_material_id || null,
+    quantity,
+    price,
+    inc_gst,
+    amount,
+    journal_no: journalNo,
+    created_by: user.id,
+    updated_by: user.id,
+  });
+
+  if (saleErr) {
+    // Attempt rollback of journal entries
+    await (supabase.from("accounts_journal") as any).delete().eq("journal_no", journalNo);
+    throw new Error(`Failed to save material sale: ${saleErr.message}`);
+  }
+
+  revalidatePath("/accounts/material");
+  revalidatePath("/accounts/journal");
+  revalidatePath("/reports");
+  revalidatePath("/reports/stock");
+  revalidatePath("/reports/closing-stock");
+}
+
+export async function deleteMaterialSalesEntry(formData: FormData) {
+  const user = await requirePermission("sales.edit");
+  const id = String(formData.get("id") ?? "");
+  const journalNo = String(formData.get("journal_no") ?? "");
+
+  if (!id) throw new Error("Material sale ID is required.");
+
+  const supabase = await createClient();
+
+  // Delete material sale
+  const { error: saleErr } = await (supabase
+    .from("material_sales") as any)
+    .delete()
+    .eq("id", id);
+
+  if (saleErr) throw new Error(`Failed to delete material sale: ${saleErr.message}`);
+
+  // Delete journal entries if journalNo was generated
+  if (journalNo) {
+    const { error: journalErr } = await (supabase
+      .from("accounts_journal") as any)
+      .delete()
+      .eq("journal_no", journalNo);
+    if (journalErr) {
+      console.error(`Failed to delete journal entries for material sale: ${journalErr.message}`);
+    }
+  }
+
+  revalidatePath("/accounts/material");
+  revalidatePath("/accounts/journal");
+  revalidatePath("/reports");
+  revalidatePath("/reports/stock");
+  revalidatePath("/reports/closing-stock");
+}

@@ -28,7 +28,7 @@ export default async function DeliveryEntryPage({
     supabase
       .from("sales_orders")
       .select("*, customers(customer_name, alias), sales_order_items(id, department, quantity)")
-      .eq("order_date", date)
+      .or(`order_date.eq.${date},status.eq.draft`)
       .is("deleted_at", null)
       .order("order_date", { ascending: true })
       .order("order_number", { ascending: true })
