@@ -287,7 +287,17 @@ export function ClosingStockReportClient({
 
     const wipDefaultPrice = totalPurchaseQty > 0 ? totalPurchaseAmt / totalPurchaseQty : 0;
 
-    return { stock: Math.floor(wipKgs), defaultPrice: wipDefaultPrice };
+    return {
+      stock: Math.floor(wipKgs),
+      defaultPrice: wipDefaultPrice,
+      breakdown: {
+        purchases: Math.floor(totalPurchaseQty),
+        sales: Math.floor(soldRollWeightsUpToD),
+        stock: Math.floor(totalStock),
+        waste: Math.floor(wasteSaleQty),
+        rmSales: Math.floor(rmSaleQty),
+      }
+    };
   }, [purchases, rolls, rmRows, activeRollsAtD, materialSales, date, rollIdToSoldDate]);
 
   const allRows = useMemo(() => [...rmRows, ...productRows], [rmRows, productRows]);
@@ -476,12 +486,7 @@ export function ClosingStockReportClient({
             <TableRow className="border-b border-slate-200 hover:bg-slate-50/50">
               <TableCell className="py-2.5 pl-8 text-xs text-slate-500">WIP</TableCell>
               <TableCell className="py-2.5 text-sm font-semibold text-slate-800">
-                <div className="flex flex-col">
-                  <span>Work In Progress</span>
-                  <span className="text-[10px] text-slate-500 font-medium uppercase mt-0.5 no-print">
-                    Formula: Purchases − Sales Entry − Stock − Waste − RM Sale
-                  </span>
-                </div>
+                Work In Progress
               </TableCell>
               <TableCell className="py-2.5 text-right text-sm font-semibold text-slate-900">
                 {formatNumber(wipData.stock, 0)}
@@ -506,6 +511,53 @@ export function ClosingStockReportClient({
               <TableCell className="py-2.5 text-right text-sm font-semibold text-slate-900">
                 {totals.wipAmount > 0 ? `₹${formatNumber(totals.wipAmount, 0)}` : "—"}
               </TableCell>
+            </TableRow>
+
+            {/* WIP Breakdown Rows */}
+            <TableRow className="bg-slate-50/30 text-[11px] hover:bg-slate-50/30 border-b border-slate-100/50">
+              <TableCell className="py-1.5 pl-10 text-slate-500 font-medium" colSpan={2}>
+                (+) Total Purchases
+              </TableCell>
+              <TableCell className="py-1.5 text-right text-slate-600 font-mono">
+                {formatNumber(wipData.breakdown.purchases, 0)} Kgs
+              </TableCell>
+              <TableCell colSpan={2}></TableCell>
+            </TableRow>
+            <TableRow className="bg-slate-50/30 text-[11px] hover:bg-slate-50/30 border-b border-slate-100/50">
+              <TableCell className="py-1.5 pl-10 text-slate-500 font-medium" colSpan={2}>
+                (−) Sales Delivery (Sold Rolls)
+              </TableCell>
+              <TableCell className="py-1.5 text-right text-slate-600 font-mono">
+                {formatNumber(wipData.breakdown.sales, 0)} Kgs
+              </TableCell>
+              <TableCell colSpan={2}></TableCell>
+            </TableRow>
+            <TableRow className="bg-slate-50/30 text-[11px] hover:bg-slate-50/30 border-b border-slate-100/50">
+              <TableCell className="py-1.5 pl-10 text-slate-500 font-medium" colSpan={2}>
+                (−) Current Stock (RM &amp; Products)
+              </TableCell>
+              <TableCell className="py-1.5 text-right text-slate-600 font-mono">
+                {formatNumber(wipData.breakdown.stock, 0)} Kgs
+              </TableCell>
+              <TableCell colSpan={2}></TableCell>
+            </TableRow>
+            <TableRow className="bg-slate-50/30 text-[11px] hover:bg-slate-50/30 border-b border-slate-100/50">
+              <TableCell className="py-1.5 pl-10 text-slate-500 font-medium" colSpan={2}>
+                (−) Waste Sales
+              </TableCell>
+              <TableCell className="py-1.5 text-right text-slate-600 font-mono">
+                {formatNumber(wipData.breakdown.waste, 0)} Kgs
+              </TableCell>
+              <TableCell colSpan={2}></TableCell>
+            </TableRow>
+            <TableRow className="bg-slate-50/30 text-[11px] hover:bg-slate-50/30 border-b border-slate-100/50">
+              <TableCell className="py-1.5 pl-10 text-slate-500 font-medium" colSpan={2}>
+                (−) RM Sales
+              </TableCell>
+              <TableCell className="py-1.5 text-right text-slate-600 font-mono">
+                {formatNumber(wipData.breakdown.rmSales, 0)} Kgs
+              </TableCell>
+              <TableCell colSpan={2}></TableCell>
             </TableRow>
 
             {/* Base Total */}
