@@ -64,7 +64,7 @@ export default async function PermissionsPage() {
             const pct = totalPermissions > 0 ? Math.round((assignedCount / totalPermissions) * 100) : 0;
 
             return (
-              <Link key={role.id} href={`/admin/permissions/${role.id}`} className="group block">
+              <Link key={role.id} href={`/admin/permissions/${role.id}` as any} className="group block">
                 <Card className="h-full transition-all duration-200 hover:shadow-md hover:border-primary/40 group-hover:bg-muted/20">
                   <CardContent className="p-5">
                     <div className="flex items-start justify-between gap-3">
