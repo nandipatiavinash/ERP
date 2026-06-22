@@ -13,7 +13,6 @@ export default async function StockReportPage({ searchParams }: { searchParams: 
 
   const supabase = await createClient();
 
-  // Query all necessary data for Raw Materials, Stocks, and Sales sections
   const [
     { data: rawMaterials },
     { data: purchases },
@@ -21,7 +20,8 @@ export default async function StockReportPage({ searchParams }: { searchParams: 
     { data: sales },
     { data: fabricTypes },
     { data: rolls },
-    { data: salesOrders }
+    { data: salesOrders },
+    { data: materialSales },
   ] = await Promise.all([
     supabase
       .from("raw_materials")
@@ -52,7 +52,13 @@ export default async function StockReportPage({ searchParams }: { searchParams: 
     supabase
       .from("sales_orders")
       .select("id, order_date, status, bill_number, bill_value, customer_id, customers(customer_name, alias), sales_order_items(selected_roll_ids)")
-      .is("deleted_at", null)
+      .is("deleted_at", null),
+    // All material sales (raw_material + waste) for the Sale section
+    (supabase.from("material_sales") as any)
+      .select("id, type, department, raw_material_id, sale_date, quantity, bill_number, customers(customer_name, alias)")
+      .gte("sale_date", from)
+      .lte("sale_date", to)
+      .is("deleted_at", null),
   ]);
 
   return (
@@ -66,6 +72,8 @@ export default async function StockReportPage({ searchParams }: { searchParams: 
       fabricTypes={(fabricTypes ?? []) as any[]}
       rolls={(rolls ?? []) as any[]}
       salesOrders={(salesOrders ?? []) as any[]}
+      materialSales={(materialSales ?? []) as any[]}
     />
   );
 }
+

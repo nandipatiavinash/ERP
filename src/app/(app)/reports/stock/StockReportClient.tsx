@@ -35,6 +35,17 @@ interface Sale {
   quantity: string | number;
 }
 
+interface MaterialSale {
+  id: string;
+  type: string; // 'raw_material' | 'waste'
+  department: string | null;
+  raw_material_id: string | null;
+  sale_date: string;
+  quantity: string | number;
+  bill_number: string | null;
+  customers: { customer_name: string | null; alias: string | null } | null;
+}
+
 interface FabricType {
   id: string;
   fabric_name: string;
@@ -76,6 +87,7 @@ interface StockReportClientProps {
   fabricTypes: FabricType[];
   rolls: FabricRoll[];
   salesOrders: SalesOrder[];
+  materialSales: MaterialSale[];
 }
 
 export function StockReportClient({
@@ -88,6 +100,7 @@ export function StockReportClient({
   fabricTypes,
   rolls,
   salesOrders,
+  materialSales,
 }: StockReportClientProps) {
   const [activeSection, setActiveSection] = useState<"raw_material" | "stock" | "sale">("raw_material");
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
@@ -398,6 +411,53 @@ export function StockReportClient({
     }).filter(d => d.totalSales > 0);
   }, [rolls, fabricTypes, from, to, rollDetailsMap, salesOrders]);
 
+  // Material Sales grouped: RM sales by dept + Waste as own dept
+  const materialSaleData = useMemo(() => {
+    const DEPT_ORDER_MAT = ["fabric", "roto-printing", "lamination", "offset-printing", "finishing", "general", "__waste__"];
+
+    const groups: Record<string, {
+      id: string;
+      departmentLabel: string;
+      isWaste: boolean;
+      totalQty: number;
+      entries: Array<{ id: string; bill_number: string | null; clientName: string; qty: number; date: string }>;
+    }> = {};
+
+    materialSales.forEach((ms) => {
+      const qty = Number(ms.quantity || 0);
+      const clientName = ms.customers
+        ? (ms.customers.alias
+          ? `${ms.customers.customer_name} (${ms.customers.alias})`
+          : ms.customers.customer_name ?? "Unknown")
+        : "Unknown";
+
+      if (ms.type === "waste") {
+        if (!groups["__waste__"]) {
+          groups["__waste__"] = { id: "__waste__", departmentLabel: "Waste", isWaste: true, totalQty: 0, entries: [] };
+        }
+        groups["__waste__"].totalQty += qty;
+        groups["__waste__"].entries.push({ id: ms.id, bill_number: ms.bill_number, clientName, qty: Math.floor(qty), date: ms.sale_date });
+      } else if (ms.type === "raw_material") {
+        const deptKey = ms.department ? getRmDeptName(ms.department) : "General";
+        const groupKey = `rm-dept-${deptKey}`;
+        if (!groups[groupKey]) {
+          groups[groupKey] = { id: groupKey, departmentLabel: `${deptKey} (RM Sale)`, isWaste: false, totalQty: 0, entries: [] };
+        }
+        groups[groupKey].totalQty += qty;
+        groups[groupKey].entries.push({ id: ms.id, bill_number: ms.bill_number, clientName, qty: Math.floor(qty), date: ms.sale_date });
+      }
+    });
+
+    return Object.values(groups)
+      .filter((g) => g.totalQty > 0)
+      .map((g) => ({ ...g, totalQty: Math.floor(g.totalQty) }))
+      .sort((a, b) => {
+        const ka = a.isWaste ? "__waste__" : a.id;
+        const kb = b.isWaste ? "__waste__" : b.id;
+        return DEPT_ORDER_MAT.indexOf(ka) - DEPT_ORDER_MAT.indexOf(kb);
+      });
+  }, [materialSales]);
+
   // -------------------------------------------------------------
   // Totals calculations
   // -------------------------------------------------------------
@@ -415,8 +475,10 @@ export function StockReportClient({
   }, [stockProductData]);
 
   const saleTotals = useMemo(() => {
-    return saleProductData.reduce((sum, r) => sum + r.totalSales, 0);
-  }, [saleProductData]);
+    const productTotal = saleProductData.reduce((sum, r) => sum + r.totalSales, 0);
+    const materialTotal = materialSaleData.reduce((sum, r) => sum + r.totalQty, 0);
+    return productTotal + materialTotal;
+  }, [saleProductData, materialSaleData]);
 
   return (
     <div className="space-y-6">
@@ -629,21 +691,30 @@ export function StockReportClient({
             </>
           )}
 
-          {/* SECTION 3: Sale (Sales logs) */}
+          {/* SECTION 3: Sale (Product sales + Material sales) */}
           {activeSection === "sale" && (
             <>
-              {saleProductData.length === 0 ? (
+              {saleProductData.length === 0 && materialSaleData.length === 0 ? (
                 <EmptyState title="No Sales Recorded" description="No sales invoices were submitted in this date range." />
               ) : (
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-slate-50 border-b border-slate-200">
                       <TableHead className="w-10"></TableHead>
-                      <TableHead className="font-semibold text-slate-700">Department</TableHead>
+                      <TableHead className="font-semibold text-slate-700">Department / Type</TableHead>
                       <TableHead className="font-semibold text-slate-700 text-right w-64">Total Sales (KGs)</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
+
+                    {/* ── Product Sales (Fabric Rolls) ── */}
+                    {saleProductData.length > 0 && (
+                      <TableRow className="bg-slate-100/60 hover:bg-slate-100/60 border-b border-slate-200">
+                        <TableCell colSpan={3} className="py-1.5 px-4 text-[10px] font-black uppercase tracking-wider text-slate-500">
+                          Product Sales (Rolls)
+                        </TableCell>
+                      </TableRow>
+                    )}
                     {saleProductData.map((item) => {
                       const isExpanded = expanded[item.id];
                       return (
@@ -660,7 +731,7 @@ export function StockReportClient({
                                 <ChevronRight className="h-4 w-4 text-slate-500" />
                               )}
                             </TableCell>
-                            <TableCell className="font-bold text-slate-900 py-3 capitalize">{item.departmentLabel}</TableCell>
+                            <TableCell className="font-bold text-slate-900 py-3 capitalize pl-8">{item.departmentLabel}</TableCell>
                             <TableCell className="text-right text-slate-950 font-bold py-3">
                               {formatNumber(item.totalSales, 0)}
                             </TableCell>
@@ -686,84 +757,63 @@ export function StockReportClient({
                                       </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                      {item.bills.length === 0 ? (
-                                        <TableRow>
-                                          <TableCell colSpan={5} className="text-center py-4 text-slate-400 text-xs font-semibold">
-                                            No sales bills found in range.
-                                          </TableCell>
-                                        </TableRow>
-                                      ) : (
-                                        item.bills.map((bill) => {
-                                          const isBillExpanded = expandedBills[bill.orderId];
-                                          return (
-                                            <>
-                                              <TableRow
-                                                key={bill.orderId}
-                                                onClick={() => toggleExpandBill(bill.orderId)}
-                                                className="cursor-pointer hover:bg-slate-50 border-b border-slate-100 last:border-0"
-                                              >
-                                                <TableCell className="py-2 px-3">
-                                                  {isBillExpanded ? (
-                                                    <ChevronDown className="h-3.5 w-3.5 text-slate-550" />
-                                                  ) : (
-                                                    <ChevronRight className="h-3.5 w-3.5 text-slate-550" />
-                                                  )}
-                                                </TableCell>
-                                                <TableCell className="py-2 text-slate-800 font-bold text-xs">
-                                                  {bill.billNumber}
-                                                </TableCell>
-                                                <TableCell className="py-2 text-slate-700 font-semibold text-xs">
-                                                  {bill.clientName}
-                                                </TableCell>
-                                                <TableCell className="py-2 text-right text-slate-600 text-xs font-medium">
-                                                  {formatNumber(bill.totalDeptKGsInBill, 0)} KGs
-                                                </TableCell>
-                                                <TableCell className="py-2 text-right text-slate-900 font-black text-xs hover:text-primary transition-colors">
-                                                  ₹{formatNumber(bill.billValue, 2)}
+                                      {item.bills.map((bill) => {
+                                        const isBillExpanded = expandedBills[bill.orderId];
+                                        return (
+                                          <>
+                                            <TableRow
+                                              key={bill.orderId}
+                                              onClick={() => toggleExpandBill(bill.orderId)}
+                                              className="cursor-pointer hover:bg-slate-50 border-b border-slate-100 last:border-0"
+                                            >
+                                              <TableCell className="py-2 px-3">
+                                                {isBillExpanded ? (
+                                                  <ChevronDown className="h-3.5 w-3.5 text-slate-550" />
+                                                ) : (
+                                                  <ChevronRight className="h-3.5 w-3.5 text-slate-550" />
+                                                )}
+                                              </TableCell>
+                                              <TableCell className="py-2 text-slate-800 font-bold text-xs">{bill.billNumber}</TableCell>
+                                              <TableCell className="py-2 text-slate-700 font-semibold text-xs">{bill.clientName}</TableCell>
+                                              <TableCell className="py-2 text-right text-slate-600 text-xs font-medium">{formatNumber(bill.totalDeptKGsInBill, 0)} KGs</TableCell>
+                                              <TableCell className="py-2 text-right text-slate-900 font-black text-xs">₹{formatNumber(bill.billValue, 2)}</TableCell>
+                                            </TableRow>
+                                            {isBillExpanded && (
+                                              <TableRow className="bg-slate-50/50 hover:bg-slate-50/50">
+                                                <TableCell colSpan={5} className="p-3">
+                                                  <div className="rounded border border-slate-200 bg-white overflow-hidden max-w-2xl mx-auto my-1">
+                                                    <div className="bg-slate-100/70 px-3 py-1.5 border-b border-slate-200">
+                                                      <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">
+                                                        Bill Roll Details ({item.departmentLabel})
+                                                      </span>
+                                                    </div>
+                                                    <Table>
+                                                      <TableHeader>
+                                                        <TableRow className="bg-white border-b border-slate-150">
+                                                          <TableHead className="text-[10px] py-1.5 font-semibold text-slate-500">Product</TableHead>
+                                                          <TableHead className="text-[10px] py-1.5 font-semibold text-slate-500">Rolls</TableHead>
+                                                          <TableHead className="text-[10px] py-1.5 font-semibold text-slate-500 text-right">Weight (KGs)</TableHead>
+                                                        </TableRow>
+                                                      </TableHeader>
+                                                      <TableBody>
+                                                        {bill.products.map((p) => (
+                                                          <TableRow key={p.fabricTypeId} className="border-b border-slate-100 last:border-0 hover:bg-white/40">
+                                                            <TableCell className="py-1 text-[11px] font-bold text-slate-800">{p.productName}</TableCell>
+                                                            <TableCell className="py-1 text-[10px] text-slate-600 break-all max-w-xs">
+                                                              {p.rolls.map((r) => `${r.rollNumber} (${r.weight} kg)`).join(", ")}
+                                                            </TableCell>
+                                                            <TableCell className="py-1 text-right text-[11px] font-bold text-slate-900">{formatNumber(p.totalKGs, 0)} KGs</TableCell>
+                                                          </TableRow>
+                                                        ))}
+                                                      </TableBody>
+                                                    </Table>
+                                                  </div>
                                                 </TableCell>
                                               </TableRow>
-
-                                              {isBillExpanded && (
-                                                <TableRow className="bg-slate-50/50 hover:bg-slate-50/50">
-                                                  <TableCell colSpan={5} className="p-3">
-                                                    <div className="rounded border border-slate-200 bg-slate-50/20 shadow-sm overflow-hidden max-w-2xl mx-auto my-1">
-                                                      <div className="bg-slate-100/70 px-3 py-1.5 border-b border-slate-200">
-                                                        <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">
-                                                          Bill Roll Details (Dept: {item.departmentLabel})
-                                                        </span>
-                                                      </div>
-                                                      <Table>
-                                                        <TableHeader>
-                                                          <TableRow className="bg-white border-b border-slate-150">
-                                                            <TableHead className="text-[10px] py-1.5 font-semibold text-slate-500">Product</TableHead>
-                                                            <TableHead className="text-[10px] py-1.5 font-semibold text-slate-500">Rolls</TableHead>
-                                                            <TableHead className="text-[10px] py-1.5 font-semibold text-slate-500 text-right">Weight (KGs)</TableHead>
-                                                          </TableRow>
-                                                        </TableHeader>
-                                                        <TableBody>
-                                                          {bill.products.map((p) => (
-                                                            <TableRow key={p.fabricTypeId} className="border-b border-slate-100 last:border-0 hover:bg-white/40">
-                                                              <TableCell className="py-1 text-[11px] font-bold text-slate-800">
-                                                                {p.productName}
-                                                              </TableCell>
-                                                              <TableCell className="py-1 text-[10px] text-slate-600 font-mono break-all max-w-xs">
-                                                                {p.rolls.map((r) => `${r.rollNumber} (${r.weight} kg)`).join(", ")}
-                                                              </TableCell>
-                                                              <TableCell className="py-1 text-right text-[11px] font-bold text-slate-900">
-                                                                {formatNumber(p.totalKGs, 0)} KGs
-                                                              </TableCell>
-                                                            </TableRow>
-                                                          ))}
-                                                        </TableBody>
-                                                      </Table>
-                                                    </div>
-                                                  </TableCell>
-                                                </TableRow>
-                                              )}
-                                            </>
-                                          );
-                                        })
-                                      )}
+                                            )}
+                                          </>
+                                        );
+                                      })}
                                     </TableBody>
                                   </Table>
                                 </div>
@@ -774,7 +824,81 @@ export function StockReportClient({
                       );
                     })}
 
-                    {/* Totals Row */}
+                    {/* ── Material Sales (RM by dept + Waste) ── */}
+                    {materialSaleData.length > 0 && (
+                      <TableRow className="bg-slate-100/60 hover:bg-slate-100/60 border-b border-slate-200">
+                        <TableCell colSpan={3} className="py-1.5 px-4 text-[10px] font-black uppercase tracking-wider text-slate-500">
+                          Material Sales (Raw Material &amp; Waste)
+                        </TableCell>
+                      </TableRow>
+                    )}
+                    {materialSaleData.map((group) => {
+                      const isExpanded = expanded[group.id];
+                      const rowBg = group.isWaste ? "bg-rose-50/30" : "";
+                      return (
+                        <>
+                          <TableRow
+                            key={group.id}
+                            onClick={() => toggleExpand(group.id)}
+                            className={`cursor-pointer hover:bg-slate-50 transition-colors border-b border-slate-200 ${rowBg}`}
+                          >
+                            <TableCell className="py-3 px-4">
+                              {isExpanded ? (
+                                <ChevronDown className="h-4 w-4 text-slate-500" />
+                              ) : (
+                                <ChevronRight className="h-4 w-4 text-slate-500" />
+                              )}
+                            </TableCell>
+                            <TableCell className={`font-bold py-3 pl-8 ${
+                              group.isWaste ? "text-rose-700" : "text-slate-900"
+                            }`}>
+                              {group.departmentLabel}
+                            </TableCell>
+                            <TableCell className={`text-right font-bold py-3 ${
+                              group.isWaste ? "text-rose-700" : "text-slate-950"
+                            }`}>
+                              {formatNumber(group.totalQty, 0)}
+                            </TableCell>
+                          </TableRow>
+
+                          {isExpanded && (
+                            <TableRow className="bg-slate-50 hover:bg-slate-50 border-b border-slate-200">
+                              <TableCell colSpan={3} className="p-4">
+                                <div className="rounded-lg border border-slate-200 bg-white shadow-inner overflow-hidden max-w-3xl mx-auto my-2">
+                                  <div className="bg-slate-100 px-4 py-2 border-b border-slate-200">
+                                    <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                                      {group.departmentLabel} — Entries
+                                    </span>
+                                  </div>
+                                  <Table>
+                                    <TableHeader>
+                                      <TableRow className="bg-slate-50 border-b border-slate-200">
+                                        <TableHead className="text-xs font-semibold text-slate-600">Date</TableHead>
+                                        <TableHead className="text-xs font-semibold text-slate-600">Bill No.</TableHead>
+                                        <TableHead className="text-xs font-semibold text-slate-600">Client</TableHead>
+                                        <TableHead className="text-xs font-semibold text-slate-600 text-right">Qty (KGs)</TableHead>
+                                      </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                      {group.entries.map((entry) => (
+                                        <TableRow key={entry.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/50">
+                                          <TableCell className="py-2 text-xs text-slate-600">{entry.date}</TableCell>
+                                          <TableCell className="py-2 text-xs font-bold text-slate-800">{entry.bill_number ?? "—"}</TableCell>
+                                          <TableCell className="py-2 text-xs text-slate-700">{entry.clientName}</TableCell>
+                                          <TableCell className="py-2 text-right text-xs font-bold text-slate-900">{formatNumber(entry.qty, 0)}</TableCell>
+                                        </TableRow>
+                                      ))}
+                                    </TableBody>
+                                  </Table>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </>
+                      );
+                    })}
+
+                    {/* Grand Total */}
                     <TableRow className="bg-slate-100 font-bold border-t-2 border-slate-300 hover:bg-slate-100">
                       <TableCell></TableCell>
                       <TableCell className="py-3 text-slate-900 font-bold text-right uppercase">Total Sales</TableCell>
