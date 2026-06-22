@@ -177,7 +177,7 @@ export function SalesPrintView({ order, rollsByProduct }: SalesPrintViewProps) {
                 <thead>
                   <tr className="border-b-2 border-gray-300 bg-gray-50 text-left text-[10px] font-semibold uppercase tracking-wider text-gray-500">
                     <th className="border border-gray-200 px-3 py-2 text-center">
-                      S. No
+                      Roll No
                     </th>
                     <th className="border border-gray-200 px-3 py-2 text-right">
                       Gross W8
@@ -203,7 +203,7 @@ export function SalesPrintView({ order, rollsByProduct }: SalesPrintViewProps) {
                       className={idx % 2 === 0 ? "bg-white" : "bg-gray-50/60"}
                     >
                       <td className="border border-gray-200 px-3 py-1.5 text-center text-gray-600">
-                        {idx + 1}
+                        {roll.roll_number}
                       </td>
                       <td className="border border-gray-200 px-3 py-1.5 text-right tabular-nums">
                         {formatNumber(roll.gross_weight)}
