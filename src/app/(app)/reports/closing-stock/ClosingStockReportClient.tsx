@@ -476,7 +476,12 @@ export function ClosingStockReportClient({
             <TableRow className="border-b border-slate-200 hover:bg-slate-50/50">
               <TableCell className="py-2.5 pl-8 text-xs text-slate-500">WIP</TableCell>
               <TableCell className="py-2.5 text-sm font-semibold text-slate-800">
-                Work In Progress (Purchases − Sales Entry − Stock − Waste − RM Sale)
+                <div className="flex flex-col">
+                  <span>Work In Progress</span>
+                  <span className="text-[10px] text-slate-500 font-medium uppercase mt-0.5 no-print">
+                    Formula: Purchases − Sales Entry − Stock − Waste − RM Sale
+                  </span>
+                </div>
               </TableCell>
               <TableCell className="py-2.5 text-right text-sm font-semibold text-slate-900">
                 {formatNumber(wipData.stock, 0)}

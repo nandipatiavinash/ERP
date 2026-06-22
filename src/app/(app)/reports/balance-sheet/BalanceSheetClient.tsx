@@ -159,11 +159,17 @@ export function BalanceSheetClient({
     year: "numeric",
   });
 
+  const difference = Math.abs(totalLiabilities - totalAssets);
+  const isBalanced = difference < 0.01;
+
   return (
     <div className="space-y-6 pb-12">
       {/* Print Only Simple Header */}
-      <div className="hidden print:block text-center font-black text-xl mb-6 uppercase tracking-wider text-slate-900 border-b-2 border-slate-900 pb-3">
-        BALANCE SHEET AS ON {formattedDate}
+      <div className="hidden print:block text-center mb-8">
+        <h1 className="font-black text-2xl uppercase tracking-wider text-slate-900">RK GLOBAL</h1>
+        <h2 className="font-bold text-lg uppercase tracking-wide text-slate-700 mt-1">BALANCE SHEET STATEMENT</h2>
+        <div className="text-sm font-semibold text-slate-600 mt-1">AS ON {formattedDate}</div>
+        <div className="w-full border-b-2 border-slate-900 mt-4"></div>
       </div>
 
       <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
@@ -175,9 +181,15 @@ export function BalanceSheetClient({
             <p className="text-xs text-slate-500 mt-0.5">As on {formattedDate}</p>
           </div>
           <div className="flex items-center gap-3">
-            <span className="text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full">
-              Balanced
-            </span>
+            {isBalanced ? (
+              <span className="text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full">
+                Balanced
+              </span>
+            ) : (
+              <span className="text-xs font-bold text-rose-600 bg-rose-50 border border-rose-200 px-3 py-1 rounded-full">
+                Difference: ₹{formatNumber(difference, 2)}
+              </span>
+            )}
             <Button onClick={() => window.print()} variant="outline" size="sm" className="flex items-center gap-1.5 border-slate-200 shadow-none">
               <Printer className="h-4 w-4" /> Print Statement
             </Button>
@@ -197,7 +209,7 @@ export function BalanceSheetClient({
               <div className="flex flex-col">
                 <button
                   onClick={() => toggleGroup("capitalCr")}
-                  className="w-full px-4 py-3.5 flex justify-between items-center text-left hover:bg-slate-50/50 transition-colors"
+                  className="w-full px-4 py-3.5 flex justify-between items-center print:grid print:grid-cols-[1fr_auto] print:gap-4 print:items-start text-left hover:bg-slate-50/50 transition-colors"
                 >
                   <div className="flex items-center gap-2">
                     {expandedGroups["capitalCr"] ? (
@@ -217,7 +229,7 @@ export function BalanceSheetClient({
                 {expandedGroups["capitalCr"] && sortedCapitalCr.length > 0 && (
                   <div className="bg-slate-50/40 px-8 py-2 divide-y divide-slate-100/80 text-xs">
                     {sortedCapitalCr.map((item) => (
-                      <div key={item.id} className="py-2 flex justify-between text-slate-600">
+                      <div key={item.id} className="py-2 flex justify-between print:grid print:grid-cols-[1fr_auto] print:gap-4 print:items-start text-slate-600">
                         <span className="capitalize">{item.name} {item.alias ? `(${item.alias})` : ""}</span>
                         <span className="font-semibold font-mono">₹{formatNumber(item.amount, 2)}</span>
                       </div>
@@ -227,7 +239,7 @@ export function BalanceSheetClient({
               </div>
 
               {/* 2. PROFIT / LOSS Cr. BALANCE */}
-              <div className="px-4 py-3.5 flex justify-between items-center text-sm">
+              <div className="px-4 py-3.5 flex justify-between items-center print:grid print:grid-cols-[1fr_auto] print:gap-4 print:items-start text-sm">
                 <span className="font-bold text-slate-700 uppercase tracking-wide pl-6">
                   2. Profit &amp; Loss A/c (Net Profit)
                 </span>
@@ -240,7 +252,7 @@ export function BalanceSheetClient({
               <div className="flex flex-col">
                 <button
                   onClick={() => toggleGroup("loanCr")}
-                  className="w-full px-4 py-3.5 flex justify-between items-center text-left hover:bg-slate-50/50 transition-colors"
+                  className="w-full px-4 py-3.5 flex justify-between items-center print:grid print:grid-cols-[1fr_auto] print:gap-4 print:items-start text-left hover:bg-slate-50/50 transition-colors"
                 >
                   <div className="flex items-center gap-2">
                     {expandedGroups["loanCr"] ? (
@@ -260,7 +272,7 @@ export function BalanceSheetClient({
                 {expandedGroups["loanCr"] && sortedLoanCr.length > 0 && (
                   <div className="bg-slate-50/40 px-8 py-2 divide-y divide-slate-100/80 text-xs">
                     {sortedLoanCr.map((item) => (
-                      <div key={item.id} className="py-2 flex justify-between text-slate-600">
+                      <div key={item.id} className="py-2 flex justify-between print:grid print:grid-cols-[1fr_auto] print:gap-4 print:items-start text-slate-600">
                         <span className="capitalize">{item.name} {item.alias ? `(${item.alias})` : ""}</span>
                         <span className="font-semibold font-mono">₹{formatNumber(item.amount, 2)}</span>
                       </div>
@@ -273,7 +285,7 @@ export function BalanceSheetClient({
               <div className="flex flex-col">
                 <button
                   onClick={() => toggleGroup("clientCr")}
-                  className="w-full px-4 py-3.5 flex justify-between items-center text-left hover:bg-slate-50/50 transition-colors"
+                  className="w-full px-4 py-3.5 flex justify-between items-center print:grid print:grid-cols-[1fr_auto] print:gap-4 print:items-start text-left hover:bg-slate-50/50 transition-colors"
                 >
                   <div className="flex items-center gap-2">
                     {expandedGroups["clientCr"] ? (
@@ -293,7 +305,7 @@ export function BalanceSheetClient({
                 {expandedGroups["clientCr"] && sortedClientCr.length > 0 && (
                   <div className="bg-slate-50/40 px-8 py-2 divide-y divide-slate-100/80 text-xs">
                     {sortedClientCr.map((item) => (
-                      <div key={item.id} className="py-2 flex justify-between text-slate-600">
+                      <div key={item.id} className="py-2 flex justify-between print:grid print:grid-cols-[1fr_auto] print:gap-4 print:items-start text-slate-600">
                         <span className="capitalize">{item.name} {item.alias ? `(${item.alias})` : ""}</span>
                         <span className="font-semibold font-mono">₹{formatNumber(item.amount, 2)}</span>
                       </div>
@@ -306,7 +318,7 @@ export function BalanceSheetClient({
               <div className="flex flex-col">
                 <button
                   onClick={() => toggleGroup("otherCr")}
-                  className="w-full px-4 py-3.5 flex justify-between items-center text-left hover:bg-slate-50/50 transition-colors"
+                  className="w-full px-4 py-3.5 flex justify-between items-center print:grid print:grid-cols-[1fr_auto] print:gap-4 print:items-start text-left hover:bg-slate-50/50 transition-colors"
                 >
                   <div className="flex items-center gap-2">
                     {expandedGroups["otherCr"] ? (
@@ -326,7 +338,7 @@ export function BalanceSheetClient({
                 {expandedGroups["otherCr"] && sortedOtherCr.length > 0 && (
                   <div className="bg-slate-50/40 px-8 py-2 divide-y divide-slate-100/80 text-xs">
                     {sortedOtherCr.map((item) => (
-                      <div key={item.id} className="py-2 flex justify-between text-slate-600">
+                      <div key={item.id} className="py-2 flex justify-between print:grid print:grid-cols-[1fr_auto] print:gap-4 print:items-start text-slate-600">
                         <span className="capitalize">{item.name} {item.alias ? `(${item.alias})` : ""}</span>
                         <span className="font-semibold font-mono">₹{formatNumber(item.amount, 2)}</span>
                       </div>
@@ -337,7 +349,7 @@ export function BalanceSheetClient({
             </div>
 
             {/* Liabilities Grand Total */}
-            <div className="bg-slate-50 border-t border-slate-200 px-4 py-3 flex justify-between items-center font-black text-sm text-slate-900">
+            <div className="bg-slate-50 border-t border-slate-200 px-4 py-3 flex justify-between items-center print:grid print:grid-cols-[1fr_auto] print:gap-4 print:items-start font-black text-sm text-slate-900 grand-total-row">
               <span className="uppercase tracking-wider">Total Liabilities</span>
               <span className="font-mono text-base">₹{formatNumber(totalLiabilities, 2)}</span>
             </div>
@@ -352,7 +364,7 @@ export function BalanceSheetClient({
 
             <div className="flex-1 divide-y divide-slate-100 min-h-[350px]">
               {/* 1. CLOSING STOCK VALUE */}
-              <div className="px-4 py-3.5 flex justify-between items-center text-sm">
+              <div className="px-4 py-3.5 flex justify-between items-center print:grid print:grid-cols-[1fr_auto] print:gap-4 print:items-start text-sm">
                 <span className="font-bold text-slate-700 uppercase tracking-wide pl-6">
                   1. Closing Stock Value
                 </span>
@@ -362,7 +374,7 @@ export function BalanceSheetClient({
               </div>
 
               {/* 2. PROFIT / LOSS Dr. BALANCE */}
-              <div className="px-4 py-3.5 flex justify-between items-center text-sm">
+              <div className="px-4 py-3.5 flex justify-between items-center print:grid print:grid-cols-[1fr_auto] print:gap-4 print:items-start text-sm">
                 <span className="font-bold text-slate-700 uppercase tracking-wide pl-6">
                   2. Profit &amp; Loss A/c (Net Loss)
                 </span>
@@ -375,7 +387,7 @@ export function BalanceSheetClient({
               <div className="flex flex-col">
                 <button
                   onClick={() => toggleGroup("loanDr")}
-                  className="w-full px-4 py-3.5 flex justify-between items-center text-left hover:bg-slate-50/50 transition-colors"
+                  className="w-full px-4 py-3.5 flex justify-between items-center print:grid print:grid-cols-[1fr_auto] print:gap-4 print:items-start text-left hover:bg-slate-50/50 transition-colors"
                 >
                   <div className="flex items-center gap-2">
                     {expandedGroups["loanDr"] ? (
@@ -395,7 +407,7 @@ export function BalanceSheetClient({
                 {expandedGroups["loanDr"] && sortedLoanDr.length > 0 && (
                   <div className="bg-slate-50/40 px-8 py-2 divide-y divide-slate-100/80 text-xs">
                     {sortedLoanDr.map((item) => (
-                      <div key={item.id} className="py-2 flex justify-between text-slate-600">
+                      <div key={item.id} className="py-2 flex justify-between print:grid print:grid-cols-[1fr_auto] print:gap-4 print:items-start text-slate-600">
                         <span className="capitalize">{item.name} {item.alias ? `(${item.alias})` : ""}</span>
                         <span className="font-semibold font-mono">₹{formatNumber(item.amount, 2)}</span>
                       </div>
@@ -408,7 +420,7 @@ export function BalanceSheetClient({
               <div className="flex flex-col">
                 <button
                   onClick={() => toggleGroup("clientDr")}
-                  className="w-full px-4 py-3.5 flex justify-between items-center text-left hover:bg-slate-50/50 transition-colors"
+                  className="w-full px-4 py-3.5 flex justify-between items-center print:grid print:grid-cols-[1fr_auto] print:gap-4 print:items-start text-left hover:bg-slate-50/50 transition-colors"
                 >
                   <div className="flex items-center gap-2">
                     {expandedGroups["clientDr"] ? (
@@ -428,7 +440,7 @@ export function BalanceSheetClient({
                 {expandedGroups["clientDr"] && sortedClientDr.length > 0 && (
                   <div className="bg-slate-50/40 px-8 py-2 divide-y divide-slate-100/80 text-xs">
                     {sortedClientDr.map((item) => (
-                      <div key={item.id} className="py-2 flex justify-between text-slate-600">
+                      <div key={item.id} className="py-2 flex justify-between print:grid print:grid-cols-[1fr_auto] print:gap-4 print:items-start text-slate-600">
                         <span className="capitalize">{item.name} {item.alias ? `(${item.alias})` : ""}</span>
                         <span className="font-semibold font-mono">₹{formatNumber(item.amount, 2)}</span>
                       </div>
@@ -441,7 +453,7 @@ export function BalanceSheetClient({
               <div className="flex flex-col">
                 <button
                   onClick={() => toggleGroup("otherDr")}
-                  className="w-full px-4 py-3.5 flex justify-between items-center text-left hover:bg-slate-50/50 transition-colors"
+                  className="w-full px-4 py-3.5 flex justify-between items-center print:grid print:grid-cols-[1fr_auto] print:gap-4 print:items-start text-left hover:bg-slate-50/50 transition-colors"
                 >
                   <div className="flex items-center gap-2">
                     {expandedGroups["otherDr"] ? (
@@ -461,7 +473,7 @@ export function BalanceSheetClient({
                 {expandedGroups["otherDr"] && sortedOtherDr.length > 0 && (
                   <div className="bg-slate-50/40 px-8 py-2 divide-y divide-slate-100/80 text-xs">
                     {sortedOtherDr.map((item) => (
-                      <div key={item.id} className="py-2 flex justify-between text-slate-600">
+                      <div key={item.id} className="py-2 flex justify-between print:grid print:grid-cols-[1fr_auto] print:gap-4 print:items-start text-slate-600">
                         <span className="capitalize">{item.name} {item.alias ? `(${item.alias})` : ""}</span>
                         <span className="font-semibold font-mono">₹{formatNumber(item.amount, 2)}</span>
                       </div>
@@ -472,7 +484,7 @@ export function BalanceSheetClient({
             </div>
 
             {/* Assets Grand Total */}
-            <div className="bg-slate-50 border-t border-slate-200 px-4 py-3 flex justify-between items-center font-black text-sm text-slate-900">
+            <div className="bg-slate-50 border-t border-slate-200 px-4 py-3 flex justify-between items-center print:grid print:grid-cols-[1fr_auto] print:gap-4 print:items-start font-black text-sm text-slate-900 grand-total-row">
               <span className="uppercase tracking-wider">Total Assets</span>
               <span className="font-mono text-base">₹{formatNumber(totalAssets, 2)}</span>
             </div>

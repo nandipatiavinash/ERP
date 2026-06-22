@@ -156,8 +156,11 @@ export function ProfitLossReportClient({
   return (
     <div className="space-y-6 pb-12">
       {/* Print Only Simple Header */}
-      <div className="hidden print:block text-center font-black text-xl mb-8 uppercase tracking-wider text-slate-900 border-b-2 border-slate-900 pb-3">
-        PROFIT &amp; LOSS UPTO THE DATE {formattedDate}
+      <div className="hidden print:block text-center mb-8">
+        <h1 className="font-black text-2xl uppercase tracking-wider text-slate-900">RK GLOBAL</h1>
+        <h2 className="font-bold text-lg uppercase tracking-wide text-slate-700 mt-1">PROFIT &amp; LOSS ACCOUNT</h2>
+        <div className="text-sm font-semibold text-slate-600 mt-1">UPTO THE DATE {formattedDate}</div>
+        <div className="w-full border-b-2 border-slate-900 mt-4"></div>
       </div>
 
       {/* Pre-population/Submission Banner */}
@@ -196,7 +199,7 @@ export function ProfitLossReportClient({
 
           <div className="divide-y divide-slate-100 min-h-[150px]">
             {creditAccounts.map((acc) => (
-              <div key={acc.id} className="px-4 py-3 flex justify-between items-center text-sm">
+              <div key={acc.id} className="px-4 py-3 flex justify-between items-center print:grid print:grid-cols-[1fr_auto] print:gap-4 print:items-start text-sm">
                 <span className="font-medium text-slate-700 capitalize">
                   {acc.name} {acc.alias ? `(${acc.alias})` : ""}
                 </span>
@@ -207,7 +210,7 @@ export function ProfitLossReportClient({
             ))}
 
             {/* Closing Stock Value item */}
-            <div className="px-4 py-3.5 flex justify-between items-center text-sm bg-emerald-50/10 border-b border-slate-100">
+            <div className="px-4 py-3.5 flex justify-between items-center print:grid print:grid-cols-[1fr_auto] print:gap-4 print:items-start text-sm bg-emerald-50/10 border-b border-slate-100">
               <div className="flex flex-col gap-0.5">
                 <span className="font-bold text-emerald-950">CLOSING STOCK VALUE</span>
                 <span className="text-[10px] text-emerald-600 font-semibold uppercase">Submitted Value</span>
@@ -219,7 +222,7 @@ export function ProfitLossReportClient({
 
             {/* Net Loss Balancing Line */}
             {netLoss > 0 && (
-              <div className="px-4 py-3 flex justify-between items-center text-sm bg-rose-50/20 font-bold border-t border-rose-100">
+              <div className="px-4 py-3 flex justify-between items-center print:grid print:grid-cols-[1fr_auto] print:gap-4 print:items-start text-sm bg-rose-50/20 font-bold border-t border-rose-100">
                 <span className="text-rose-800 uppercase tracking-wide">
                   Net Loss transferred to Balance Sheet
                 </span>
@@ -231,7 +234,7 @@ export function ProfitLossReportClient({
           </div>
 
           {/* Credit Grand Total */}
-          <div className="bg-slate-50 border-t border-slate-200 px-4 py-3 flex justify-between items-center font-black text-sm text-slate-900">
+          <div className="bg-slate-50 border-t border-slate-200 px-4 py-3 flex justify-between items-center print:grid print:grid-cols-[1fr_auto] print:gap-4 print:items-start font-black text-sm text-slate-900 grand-total-row">
             <span className="uppercase tracking-wider">Total Cr</span>
             <span className="font-mono text-base">₹{formatNumber(finalCreditTotal, 2)}</span>
           </div>
@@ -246,7 +249,7 @@ export function ProfitLossReportClient({
 
           <div className="divide-y divide-slate-100 min-h-[150px]">
             {debitAccounts.map((acc) => (
-              <div key={acc.id} className="px-4 py-3 flex justify-between items-center text-sm">
+              <div key={acc.id} className="px-4 py-3 flex justify-between items-center print:grid print:grid-cols-[1fr_auto] print:gap-4 print:items-start text-sm">
                 <span className="font-medium text-slate-700 capitalize">
                   {acc.name} {acc.alias ? `(${acc.alias})` : ""}
                 </span>
@@ -257,7 +260,7 @@ export function ProfitLossReportClient({
             ))}
 
             {/* Manual Expenses entry cell */}
-            <div className="px-4 py-3.5 flex justify-between items-center text-sm bg-slate-50/50">
+            <div className="px-4 py-3.5 flex justify-between items-center print:grid print:grid-cols-[1fr_auto] print:gap-4 print:items-start text-sm bg-slate-50/50">
               <div className="flex flex-col gap-0.5">
                 <span className="font-bold text-rose-950">EXPENSES TILL DATE</span>
                 <span className="text-[10px] text-rose-600 font-semibold uppercase">Manual Entry</span>
@@ -281,7 +284,7 @@ export function ProfitLossReportClient({
 
             {/* Net Profit Balancing Line */}
             {netProfit > 0 && (
-              <div className="px-4 py-3 flex justify-between items-center text-sm bg-emerald-50/20 font-bold border-t border-emerald-100">
+              <div className="px-4 py-3 flex justify-between items-center print:grid print:grid-cols-[1fr_auto] print:gap-4 print:items-start text-sm bg-emerald-50/20 font-bold border-t border-emerald-100">
                 <span className="text-emerald-800 uppercase tracking-wide">
                   Net Profit transferred to Balance Sheet
                 </span>
@@ -293,7 +296,7 @@ export function ProfitLossReportClient({
           </div>
 
           {/* Debit Grand Total */}
-          <div className="bg-slate-50 border-t border-slate-200 px-4 py-3 flex justify-between items-center font-black text-sm text-slate-900">
+          <div className="bg-slate-50 border-t border-slate-200 px-4 py-3 flex justify-between items-center print:grid print:grid-cols-[1fr_auto] print:gap-4 print:items-start font-black text-sm text-slate-900 grand-total-row">
             <span className="uppercase tracking-wider">Total Dr</span>
             <span className="font-mono text-base">₹{formatNumber(finalDebitTotal, 2)}</span>
           </div>
