@@ -677,6 +677,8 @@ export async function saveRotoProduct(formData: FormData) {
   const height = Number(formData.get("height") ?? 0);
   const numCylinders = Number(formData.get("num_cylinders") ?? 0);
   const status = String(formData.get("status") ?? "active");
+  const customerIdVal = String(formData.get("customer_id") ?? "").trim();
+  const customer_id = (customerIdVal === "" || customerIdVal === "general") ? null : customerIdVal;
   const file = formData.get("image_file") as File | null;
 
   const supabase = await createClient();
@@ -711,6 +713,7 @@ export async function saveRotoProduct(formData: FormData) {
     num_cylinders: numCylinders,
     image_url: imageUrl || null,
     status,
+    customer_id,
   };
 
   const query = id 
@@ -742,6 +745,8 @@ export async function saveOffsetProduct(formData: FormData) {
   const width = Number(formData.get("width") ?? 0);
   const height = Number(formData.get("height") ?? 0);
   const status = String(formData.get("status") ?? "active");
+  const customerIdVal = String(formData.get("customer_id") ?? "").trim();
+  const customer_id = (customerIdVal === "" || customerIdVal === "general") ? null : customerIdVal;
   const file = formData.get("image_file") as File | null;
 
   const supabase = await createClient();
@@ -775,6 +780,7 @@ export async function saveOffsetProduct(formData: FormData) {
     height,
     image_url: imageUrl || null,
     status,
+    customer_id,
   };
 
   const query = id 

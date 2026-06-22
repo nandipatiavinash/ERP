@@ -150,6 +150,125 @@ export function AccountReportsClient({
     };
   }, [selectedAccount, entries]);
 
+  const categorySummary = useMemo(() => {
+    if (selectedAccount) return null;
+
+    const accountSums: Record<string, { dr: number; cr: number; account: Account }> = {};
+    accounts.forEach((acc) => {
+      accountSums[acc.id] = {
+        dr: 0,
+        cr: 0,
+        account: acc,
+      };
+    });
+
+    const otherSums: Record<string, { dr: number; cr: number; name: string }> = {};
+
+    entries.forEach((entry) => {
+      const amt = Number(entry.amount);
+      if (entry.account_id && accountSums[entry.account_id]) {
+        if (entry.entry_type === "debit") {
+          accountSums[entry.account_id].dr += amt;
+        } else {
+          accountSums[entry.account_id].cr += amt;
+        }
+      } else {
+        const match = accounts.find(
+          (acc) =>
+            acc.customer_name.toLowerCase().trim() === entry.account_name.toLowerCase().trim() ||
+            (acc.alias && acc.alias.toLowerCase().trim() === entry.account_name.toLowerCase().trim())
+        );
+        if (match) {
+          if (entry.entry_type === "debit") {
+            accountSums[match.id].dr += amt;
+          } else {
+            accountSums[match.id].cr += amt;
+          }
+        } else {
+          const nameKey = entry.account_name.trim();
+          if (!otherSums[nameKey]) {
+            otherSums[nameKey] = { dr: 0, cr: 0, name: nameKey };
+          }
+          if (entry.entry_type === "debit") {
+            otherSums[nameKey].dr += amt;
+          } else {
+            otherSums[nameKey].cr += amt;
+          }
+        }
+      }
+    });
+
+    const groups: Record<string, Array<{ name: string; dr: number; cr: number; alias?: string | null }>> = {
+      "Client Accounts": [],
+      "Profit & Loss Accounts": [],
+      "Capital Accounts": [],
+      "Loan Accounts": [],
+      "Balance Sheet Accounts": [],
+      "Other Accounts": [],
+    };
+
+    const mapCategoryLabel = (category: string) => {
+      switch (category?.toLowerCase()) {
+        case "client a/c":
+        case "client":
+          return "Client Accounts";
+        case "profit and loss a/c":
+        case "p&l":
+          return "Profit & Loss Accounts";
+        case "capital a/c":
+        case "capital":
+          return "Capital Accounts";
+        case "loan a/c":
+        case "loan":
+          return "Loan Accounts";
+        case "balance sheet a/c":
+        case "balance sheet":
+          return "Balance Sheet Accounts";
+        default:
+          return "Other Accounts";
+      }
+    };
+
+    accounts.forEach((acc) => {
+      const sums = accountSums[acc.id];
+      if (sums.dr > 0 || sums.cr > 0) {
+        const catLabel = mapCategoryLabel(acc.is_internal);
+        groups[catLabel].push({
+          name: acc.customer_name,
+          alias: acc.alias,
+          dr: sums.dr,
+          cr: sums.cr,
+        });
+      }
+    });
+
+    Object.values(otherSums).forEach((other) => {
+      if (other.dr > 0 || other.cr > 0) {
+        groups["Other Accounts"].push({
+          name: other.name,
+          alias: null,
+          dr: other.dr,
+          cr: other.cr,
+        });
+      }
+    });
+
+    return groups;
+  }, [selectedAccount, entries, accounts]);
+
+  const grandTotals = useMemo(() => {
+    if (!categorySummary) return { dr: 0, cr: 0 };
+    let dr = 0;
+    let cr = 0;
+    Object.values(categorySummary).forEach((list) => {
+      list.forEach((item) => {
+        dr += item.dr;
+        cr += item.cr;
+      });
+    });
+    return { dr, cr };
+  }, [categorySummary]);
+
   const handleAccountChange = (id: string) => {
     router.push(`/reports/accounts?from=${from}&to=${to}&accountId=${id}` as any);
   };
@@ -295,57 +414,78 @@ export function AccountReportsClient({
               </TableBody>
             </Table>
           ) : (
-            // Case B: General Daybook View
+            // Case B: General Daybook Grouped Stacked View
             <Table>
               <TableHeader>
                 <TableRow className="bg-slate-50 border-b border-slate-200">
-                  <TableHead className="font-semibold text-slate-700 w-32">Date</TableHead>
-                  <TableHead className="font-semibold text-slate-700">Client / Account ID</TableHead>
+                  <TableHead className="font-semibold text-slate-700">Account / Client</TableHead>
                   <TableHead className="font-semibold text-slate-700 text-right w-44">Dr. (Debit)</TableHead>
                   <TableHead className="font-semibold text-slate-700 text-right w-44">Cr. (Credit)</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {entries.length === 0 ? (
+                {!categorySummary || Object.values(categorySummary).every((l) => l.length === 0) ? (
                   <TableRow>
-                    <TableCell colSpan={4} className="text-center py-12 text-slate-400 text-sm">
-                      No entries recorded in selected date range.
+                    <TableCell colSpan={3} className="text-center py-12 text-slate-400 text-sm font-semibold">
+                      No transaction activity recorded in selected date range.
                     </TableCell>
                   </TableRow>
                 ) : (
-                  entries.map((entry) => {
-                    const amt = Math.floor(Number(entry.amount));
-                    const clientName = entry.customers?.customer_name ?? entry.account_name;
-                    const alias = entry.customers?.alias;
-                    const displayName = alias ? `${clientName} (${alias})` : clientName;
+                  Object.entries(categorySummary).map(([category, items]) => {
+                    if (items.length === 0) return null;
+                    const subtotalDr = items.reduce((sum, item) => sum + item.dr, 0);
+                    const subtotalCr = items.reduce((sum, item) => sum + item.cr, 0);
 
                     return (
-                      <TableRow key={entry.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/20">
-                        <TableCell className="py-3 text-slate-600 text-sm">{entry.entry_date}</TableCell>
-                        <TableCell className="py-3 text-slate-800 font-medium text-sm">
-                          {displayName}
-                        </TableCell>
-                        <TableCell className="py-3 text-right text-slate-900 text-sm">
-                          {entry.entry_type === "debit" ? formatNumber(amt, 0) : "-"}
-                        </TableCell>
-                        <TableCell className="py-3 text-right text-slate-900 text-sm">
-                          {entry.entry_type === "credit" ? formatNumber(amt, 0) : "-"}
-                        </TableCell>
-                      </TableRow>
+                      <>
+                        {/* Category Heading Row */}
+                        <TableRow key={category} className="bg-slate-100/60 font-bold hover:bg-slate-100/60 border-b border-slate-200">
+                          <TableCell colSpan={3} className="py-2 px-4 text-slate-755 text-xs font-black uppercase tracking-wider">
+                            {category}
+                          </TableCell>
+                        </TableRow>
+
+                        {/* Account Rows */}
+                        {items.map((item) => (
+                          <TableRow key={item.name} className="hover:bg-slate-50/20 border-b border-slate-100 last:border-b-0">
+                            <TableCell className="py-2.5 pl-8 font-medium text-slate-800 text-sm">
+                              {item.name} {item.alias ? `(${item.alias})` : ""}
+                            </TableCell>
+                            <TableCell className="py-2.5 text-right text-slate-900 text-sm font-mono w-44">
+                              {item.dr > 0 ? formatNumber(item.dr, 0) : "-"}
+                            </TableCell>
+                            <TableCell className="py-2.5 text-right text-slate-900 text-sm font-mono w-44">
+                              {item.cr > 0 ? formatNumber(item.cr, 0) : "-"}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+
+                        {/* Subtotal Row */}
+                        <TableRow className="bg-slate-50/40 font-semibold border-b border-slate-250">
+                          <TableCell className="py-2 pl-8 text-slate-650 text-xs font-bold uppercase">
+                            Subtotal {category}
+                          </TableCell>
+                          <TableCell className="py-2 text-right text-slate-950 font-bold text-sm font-mono w-44">
+                            {subtotalDr > 0 ? formatNumber(subtotalDr, 0) : "-"}
+                          </TableCell>
+                          <TableCell className="py-2 text-right text-slate-950 font-bold text-sm font-mono w-44">
+                            {subtotalCr > 0 ? formatNumber(subtotalCr, 0) : "-"}
+                          </TableCell>
+                        </TableRow>
+                      </>
                     );
                   })
                 )}
 
-                {/* Daybook Totals */}
-                {entries.length > 0 && daybookTotals && (
-                  <TableRow className="border-t border-slate-200 bg-slate-50 hover:bg-slate-50">
-                    <TableCell className="py-3"></TableCell>
-                    <TableCell className="py-3 font-bold text-slate-900 text-sm text-right">TOTAL TRANSACTIONS</TableCell>
-                    <TableCell className="py-3 text-right text-slate-950 font-bold text-sm">
-                      {formatNumber(daybookTotals.totalDr, 0)}
+                {/* Grand Totals */}
+                {categorySummary && !Object.values(categorySummary).every((l) => l.length === 0) && (
+                  <TableRow className="bg-slate-100 font-bold border-t-2 border-slate-350 hover:bg-slate-100">
+                    <TableCell className="py-3 font-bold text-slate-900 text-sm text-right uppercase">Grand Total</TableCell>
+                    <TableCell className="py-3 text-right text-slate-950 font-black text-sm font-mono w-44 border-t border-slate-300">
+                      {formatNumber(grandTotals.dr, 0)}
                     </TableCell>
-                    <TableCell className="py-3 text-right text-slate-950 font-bold text-sm">
-                      {formatNumber(daybookTotals.totalCr, 0)}
+                    <TableCell className="py-3 text-right text-slate-950 font-black text-sm font-mono w-44 border-t border-slate-300">
+                      {formatNumber(grandTotals.cr, 0)}
                     </TableCell>
                   </TableRow>
                 )}

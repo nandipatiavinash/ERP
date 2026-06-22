@@ -7,9 +7,10 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { requirePermission } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { formatDate } from "@/lib/utils";
+import { formatDate, todayInIndia } from "@/lib/utils";
+import { DateFilter } from "@/components/app/date-filter";
 
-type Params = { page?: string };
+type Params = { page?: string; date?: string };
 
 export default async function OrderConfirmationPage({ searchParams }: { searchParams: Promise<Params> }) {
   await requirePermission("sales.view");
@@ -18,12 +19,13 @@ export default async function OrderConfirmationPage({ searchParams }: { searchPa
   const page = Math.max(Number(params.page ?? 1) || 1, 1);
   const pageSize = 25;
   const offset = (page - 1) * pageSize;
+  const date = params.date || todayInIndia();
 
-  // Fetch all active orders with customer details and order items
+  // Fetch active orders on selected date OR draft status
   const { data: orders, error: ordersError, count } = await supabase
     .from("sales_orders")
     .select("id, order_number, order_date, status, customers(customer_name, alias), sales_order_items(id)", { count: "exact" })
-    .eq("status", "draft")
+    .or(`order_date.eq.${date},status.eq.draft`)
     .is("deleted_at", null)
     .order("order_date", { ascending: true })
     .order("order_number", { ascending: true })
@@ -44,8 +46,9 @@ export default async function OrderConfirmationPage({ searchParams }: { searchPa
       />
 
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 flex-wrap gap-4">
           <CardTitle>Sales Orders</CardTitle>
+          <DateFilter date={date} baseUrl="/sales/order-confirmation" />
         </CardHeader>
         <CardContent>
           {orderRows.length === 0 ? (

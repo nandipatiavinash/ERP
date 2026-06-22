@@ -37,8 +37,7 @@ export default async function ClosingStockReportPage({ searchParams }: { searchP
       .is("deleted_at", null)
       .order("consumption_date", { ascending: true }),
     (supabase.from("material_sales") as any)
-      .select("raw_material_id, sale_date, quantity")
-      .eq("type", "raw_material")
+      .select("raw_material_id, sale_date, quantity, type")
       .is("deleted_at", null)
       .order("sale_date", { ascending: true }),
     supabase

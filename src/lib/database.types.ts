@@ -265,6 +265,7 @@ export type Database = {
         num_cylinders: number;
         image_url: string | null;
         status: string;
+        customer_id: string | null;
       }>;
       offset_products: Table<{
         id: string;
@@ -273,6 +274,7 @@ export type Database = {
         height: number;
         image_url: string | null;
         status: string;
+        customer_id: string | null;
       }>;
       roto_colors: Table<{
         id: string;

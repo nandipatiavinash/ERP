@@ -13,34 +13,47 @@ export default async function StockReportPage({ searchParams }: { searchParams: 
 
   const supabase = await createClient();
 
-  // Query raw materials
-  const { data: rawMaterials } = await supabase
-    .from("raw_materials")
-    .select("id, material_name, unit, current_stock")
-    .is("deleted_at", null)
-    .order("material_name");
-
-  // Query purchases since the from date
-  const { data: purchases } = await supabase
-    .from("raw_material_purchases")
-    .select("raw_material_id, purchase_date, quantity")
-    .gte("purchase_date", from)
-    .is("deleted_at", null);
-
-  // Query consumptions since the from date
-  const { data: consumptions } = await (supabase
-    .from("raw_material_consumptions") as any)
-    .select("raw_material_id, consumption_date, quantity")
-    .gte("consumption_date", from)
-    .is("deleted_at", null);
-
-  // Query material sales since the from date
-  const { data: sales } = await (supabase
-    .from("material_sales") as any)
-    .select("raw_material_id, sale_date, quantity")
-    .eq("type", "raw_material")
-    .gte("sale_date", from)
-    .is("deleted_at", null);
+  // Query all necessary data for Raw Materials, Stocks, and Sales sections
+  const [
+    { data: rawMaterials },
+    { data: purchases },
+    { data: consumptions },
+    { data: sales },
+    { data: fabricTypes },
+    { data: rolls },
+    { data: salesOrders }
+  ] = await Promise.all([
+    supabase
+      .from("raw_materials")
+      .select("id, material_name, unit, current_stock, department")
+      .is("deleted_at", null)
+      .order("material_name"),
+    supabase
+      .from("raw_material_purchases")
+      .select("raw_material_id, purchase_date, quantity")
+      .gte("purchase_date", from)
+      .is("deleted_at", null),
+    (supabase.from("raw_material_consumptions") as any)
+      .select("raw_material_id, consumption_date, quantity")
+      .gte("consumption_date", from)
+      .is("deleted_at", null),
+    (supabase.from("material_sales") as any)
+      .select("raw_material_id, sale_date, quantity")
+      .eq("type", "raw_material")
+      .gte("sale_date", from)
+      .is("deleted_at", null),
+    supabase
+      .from("fabric_types")
+      .select("id, fabric_name"),
+    supabase
+      .from("fabric_rolls")
+      .select("id, roll_number, fabric_type_id, weight, production_date, status, current_stage")
+      .is("deleted_at", null),
+    supabase
+      .from("sales_orders")
+      .select("id, order_date, status, bill_number, customer_id, customers(customer_name, alias), sales_order_items(selected_roll_ids)")
+      .is("deleted_at", null)
+  ]);
 
   return (
     <StockReportClient
@@ -50,6 +63,9 @@ export default async function StockReportPage({ searchParams }: { searchParams: 
       purchases={(purchases ?? []) as any[]}
       consumptions={(consumptions ?? []) as any[]}
       sales={(sales ?? []) as any[]}
+      fabricTypes={(fabricTypes ?? []) as any[]}
+      rolls={(rolls ?? []) as any[]}
+      salesOrders={(salesOrders ?? []) as any[]}
     />
   );
 }

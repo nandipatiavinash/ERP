@@ -54,6 +54,19 @@ export default async function ProductsAdminPage({ searchParams }: { searchParams
   let offsetTotal = 0;
   const productPage = Math.max(Number(params.page ?? 1) || 1, 1);
 
+  // Fetch customer clients list for selection dropdown
+  const { data: dbCustomers } = await supabase
+    .from("customers")
+    .select("id, customer_name, alias")
+    .eq("status", "active")
+    .eq("is_internal", "client a/c")
+    .is("deleted_at", null)
+    .order("customer_name");
+
+  const clientList = ((dbCustomers ?? []) as any[])
+    .filter((c) => !c.customer_name.endsWith(" A/c"))
+    .map((c) => ({ id: c.id, name: c.customer_name, alias: c.alias }));
+
   if (tab === "fabric") {
     const result = await fetchMasterRows({ supabase, config: modules["fabric-types"], select: "id, fabric_name, description, status", params, defaultSort: "fabric_name" });
     fabricData = result.rows;
@@ -62,7 +75,7 @@ export default async function ProductsAdminPage({ searchParams }: { searchParams
     const offset = (productPage - 1) * 10;
     const { data, count } = await supabase
       .from("roto_products")
-      .select("id, brand, width, height, num_cylinders, image_url, status", { count: "exact" })
+      .select("id, brand, width, height, num_cylinders, image_url, status, customer_id, customers:customer_id(customer_name, alias)", { count: "exact" })
       .order("brand", { ascending: true })
       .range(offset, offset + 9);
     rotoData = data ?? [];
@@ -71,7 +84,7 @@ export default async function ProductsAdminPage({ searchParams }: { searchParams
     const offset = (productPage - 1) * 10;
     const { data, count } = await supabase
       .from("offset_products")
-      .select("id, brand, width, height, image_url, status", { count: "exact" })
+      .select("id, brand, width, height, image_url, status, customer_id, customers:customer_id(customer_name, alias)", { count: "exact" })
       .order("brand", { ascending: true })
       .range(offset, offset + 9);
     offsetData = data ?? [];
@@ -144,6 +157,17 @@ export default async function ProductsAdminPage({ searchParams }: { searchParams
                   <Input id="image_file" name="image_file" type="file" accept="image/*" required />
                 </div>
                 <div className="space-y-2">
+                  <Label htmlFor="customer_id">Client / Customer</Label>
+                  <select name="customer_id" id="customer_id" required className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+                    <option value="general">General (No Client)</option>
+                    {clientList.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name} {c.alias ? `(${c.alias})` : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-2">
                   <Label htmlFor="status">Status</Label>
                   <select name="status" id="status" required className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
                     <option value="active">Active</option>
@@ -151,7 +175,7 @@ export default async function ProductsAdminPage({ searchParams }: { searchParams
                   </select>
                 </div>
                 <div className="flex items-end md:col-span-2 lg:col-span-3">
-                  <ConfirmSubmitButton confirmTitle="Add Roto Product?" confirmDescription="Review product brand, dimensions, cylinders, and image file before adding.">
+                  <ConfirmSubmitButton confirmTitle="Add Roto Product?" confirmDescription="Review product brand, dimensions, cylinders, client, and image file before adding.">
                     Add Product
                   </ConfirmSubmitButton>
                 </div>
@@ -172,6 +196,7 @@ export default async function ProductsAdminPage({ searchParams }: { searchParams
                     <TableHeader>
                       <TableRow>
                         <TableHead>Preview</TableHead>
+                        <TableHead>Client</TableHead>
                         <TableHead>Brand</TableHead>
                         <TableHead>Dimensions</TableHead>
                         <TableHead>Cylinders</TableHead>
@@ -187,6 +212,15 @@ export default async function ProductsAdminPage({ searchParams }: { searchParams
                               <img src={row.image_url} alt={row.brand} className="h-12 w-12 rounded object-cover border" />
                             ) : (
                               <div className="h-12 w-12 rounded bg-muted flex items-center justify-center text-xs text-muted-foreground">No image</div>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {row.customers?.customer_name ? (
+                              <span className="font-semibold text-slate-800">
+                                {row.customers.customer_name} {row.customers.alias ? `(${row.customers.alias})` : ""}
+                              </span>
+                            ) : (
+                              <span className="text-slate-400 italic">General</span>
                             )}
                           </TableCell>
                           <TableCell className="font-semibold">{row.brand}</TableCell>
@@ -218,6 +252,17 @@ export default async function ProductsAdminPage({ searchParams }: { searchParams
                                   <Input name="num_cylinders" type="number" defaultValue={row.num_cylinders} required />
                                 </div>
                                 <div className="space-y-2">
+                                  <Label>Client / Customer</Label>
+                                  <select name="customer_id" defaultValue={row.customer_id || "general"} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+                                    <option value="general">General (No Client)</option>
+                                    {clientList.map((c) => (
+                                      <option key={c.id} value={c.id}>
+                                        {c.name} {c.alias ? `(${c.alias})` : ""}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                                <div className="space-y-2">
                                   <Label>Update Image File</Label>
                                   <Input name="image_file" type="file" accept="image/*" />
                                 </div>
@@ -238,7 +283,7 @@ export default async function ProductsAdminPage({ searchParams }: { searchParams
                             <form action={deactivateRotoProduct} className="mt-3">
                               <input type="hidden" name="id" value={row.id} />
                               <ConfirmSubmitButton size="sm" variant="outline" confirmTitle="Deactivate Roto product?" confirmDescription="Are you sure you want to deactivate this Roto printing product?">
-                                Deactivate
+                                deactivate
                               </ConfirmSubmitButton>
                             </form>
                           </TableCell>
@@ -279,6 +324,17 @@ export default async function ProductsAdminPage({ searchParams }: { searchParams
                   <Input id="image_file" name="image_file" type="file" accept="image/*" required />
                 </div>
                 <div className="space-y-2">
+                  <Label htmlFor="customer_id">Client / Customer</Label>
+                  <select name="customer_id" id="customer_id" required className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+                    <option value="general">General (No Client)</option>
+                    {clientList.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name} {c.alias ? `(${c.alias})` : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-2">
                   <Label htmlFor="status">Status</Label>
                   <select name="status" id="status" required className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
                     <option value="active">Active</option>
@@ -286,7 +342,7 @@ export default async function ProductsAdminPage({ searchParams }: { searchParams
                   </select>
                 </div>
                 <div className="flex items-end md:col-span-2 lg:col-span-3">
-                  <ConfirmSubmitButton confirmTitle="Add Offset Product?" confirmDescription="Review product brand, dimensions, and image file before adding.">
+                  <ConfirmSubmitButton confirmTitle="Add Offset Product?" confirmDescription="Review product brand, dimensions, client, and image file before adding.">
                     Add Product
                   </ConfirmSubmitButton>
                 </div>
@@ -307,6 +363,7 @@ export default async function ProductsAdminPage({ searchParams }: { searchParams
                     <TableHeader>
                       <TableRow>
                         <TableHead>Preview</TableHead>
+                        <TableHead>Client</TableHead>
                         <TableHead>Brand</TableHead>
                         <TableHead>Dimensions</TableHead>
                         <TableHead>Status</TableHead>
@@ -321,6 +378,15 @@ export default async function ProductsAdminPage({ searchParams }: { searchParams
                               <img src={row.image_url} alt={row.brand} className="h-12 w-12 rounded object-cover border" />
                             ) : (
                               <div className="h-12 w-12 rounded bg-muted flex items-center justify-center text-xs text-muted-foreground">No image</div>
+                            )}
+                          </TableCell>
+                          <TableCell>
+                            {row.customers?.customer_name ? (
+                              <span className="font-semibold text-slate-800">
+                                {row.customers.customer_name} {row.customers.alias ? `(${row.customers.alias})` : ""}
+                              </span>
+                            ) : (
+                              <span className="text-slate-400 italic">General</span>
                             )}
                           </TableCell>
                           <TableCell className="font-semibold">{row.brand}</TableCell>
@@ -345,6 +411,17 @@ export default async function ProductsAdminPage({ searchParams }: { searchParams
                                 <div className="space-y-2">
                                   <Label>Height (inches)</Label>
                                   <Input name="height" type="number" step="0.01" defaultValue={row.height} required />
+                                </div>
+                                <div className="space-y-2">
+                                  <Label>Client / Customer</Label>
+                                  <select name="customer_id" defaultValue={row.customer_id || "general"} className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+                                    <option value="general">General (No Client)</option>
+                                    {clientList.map((c) => (
+                                      <option key={c.id} value={c.id}>
+                                        {c.name} {c.alias ? `(${c.alias})` : ""}
+                                      </option>
+                                    ))}
+                                  </select>
                                 </div>
                                 <div className="space-y-2">
                                   <Label>Update Image File</Label>

@@ -7,13 +7,14 @@ import { DateRangeFilter } from "@/components/app/date-range-filter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EmptyState } from "@/components/ui/empty-state";
-import { todayInIndia } from "@/lib/utils";
+import { formatNumber, todayInIndia } from "@/lib/utils";
 
 interface RawMaterial {
   id: string;
   material_name: string;
   unit: string;
   current_stock: string | number;
+  department: string | null;
 }
 
 interface Purchase {
@@ -34,6 +35,36 @@ interface Sale {
   quantity: string | number;
 }
 
+interface FabricType {
+  id: string;
+  fabric_name: string;
+}
+
+interface FabricRoll {
+  id: string;
+  roll_number: string;
+  fabric_type_id: string;
+  weight: string | number;
+  production_date: string;
+  status: string;
+  current_stage: string;
+}
+
+interface SalesOrder {
+  id: string;
+  order_date: string;
+  status: string;
+  bill_number: string | null;
+  customer_id: string;
+  customers: {
+    customer_name: string | null;
+    alias: string | null;
+  } | null;
+  sales_order_items: Array<{
+    selected_roll_ids: string[] | null;
+  }> | null;
+}
+
 interface StockReportClientProps {
   from: string;
   to: string;
@@ -41,6 +72,9 @@ interface StockReportClientProps {
   purchases: Purchase[];
   consumptions: Consumption[];
   sales: Sale[];
+  fabricTypes: FabricType[];
+  rolls: FabricRoll[];
+  salesOrders: SalesOrder[];
 }
 
 export function StockReportClient({
@@ -50,7 +84,11 @@ export function StockReportClient({
   purchases,
   consumptions,
   sales,
+  fabricTypes,
+  rolls,
+  salesOrders,
 }: StockReportClientProps) {
+  const [activeSection, setActiveSection] = useState<"raw_material" | "stock" | "sale">("raw_material");
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
   const toggleExpand = (id: string) => {
@@ -79,23 +117,46 @@ export function StockReportClient({
 
   const selectedDates = useMemo(() => getDatesInRange(from, to), [from, to]);
 
-  // Compute stats for each raw material
-  const materialData = useMemo(() => {
+  const getRmDeptName = (key: string | null | undefined) => {
+    if (!key) return "General";
+    const mapping: Record<string, string> = {
+      fabric: "Fabric / Loom",
+      loom: "Fabric / Loom",
+      "roto-printing": "Roto Printing",
+      roto_printing: "Roto Printing",
+      lamination: "Lamination",
+      "offset-printing": "Offset Printing",
+      offset_printing: "Offset Printing",
+      finishing: "Finishing",
+      general: "General",
+    };
+    return mapping[key] ?? key;
+  };
+
+  const getStageDeptKey = (stage: string) => {
+    if (stage === "loom") return "fabric";
+    if (stage === "roto_printing") return "roto-printing";
+    if (stage === "offset_printing") return "offset-printing";
+    return stage;
+  };
+
+  // -------------------------------------------------------------
+  // Data Processors
+  // -------------------------------------------------------------
+
+  // Section 1: Raw Materials
+  const rawMaterialData = useMemo(() => {
     return rawMaterials.map((material) => {
       const matId = material.id;
       const currentStock = Number(material.current_stock ?? 0);
 
-      // Filter purchases, consumptions & sales for this material
       const matPurchases = purchases.filter((p) => p.raw_material_id === matId);
       const matConsumptions = consumptions.filter((c) => c.raw_material_id === matId);
       const matSales = sales.filter((s) => s.raw_material_id === matId);
 
-      // Total in the selected [from, to] range
       let totalPurchaseInRange = 0;
       let totalConsumptionInRange = 0;
-      let totalSaleInRange = 0;
 
-      // Group purchases/consumptions/sales by date for daily details
       const purchasesByDate: Record<string, number> = {};
       const consumptionsByDate: Record<string, number> = {};
       const salesByDate: Record<string, number> = {};
@@ -121,21 +182,16 @@ export function StockReportClient({
       matSales.forEach((s) => {
         const qty = Number(s.quantity);
         const date = s.sale_date;
-        if (date >= from && date <= to) {
-          totalSaleInRange += qty;
-        }
         salesByDate[date] = (salesByDate[date] ?? 0) + qty;
       });
 
-      // Backtrack to compute daily running available balance
-      // We need to backtrack from today down to 'from'
+      // Backtrack available stock calculations
       const backtrackStart = from > today ? today : from;
       const datesToBacktrack = getDatesInRange(backtrackStart, today);
 
       const availableByDate: Record<string, number> = {};
       let runningStock = currentStock;
 
-      // Go backwards in time
       for (let i = datesToBacktrack.length - 1; i >= 0; i--) {
         const d = datesToBacktrack[i];
         availableByDate[d] = runningStock;
@@ -145,156 +201,600 @@ export function StockReportClient({
         runningStock = runningStock - p + c + s;
       }
 
-      // Available stock at the end of the 'to' date
       let availableAtTo = currentStock;
       if (to < today) {
         availableAtTo = availableByDate[to] !== undefined ? availableByDate[to] : runningStock;
       }
 
-      // Daily records for selection
       const dailyRecords = selectedDates.map((date) => {
         const p = purchasesByDate[date] ?? 0;
         const c = consumptionsByDate[date] ?? 0;
-        const s = salesByDate[date] ?? 0;
         const a = availableByDate[date] !== undefined ? availableByDate[date] : (date > today ? currentStock : runningStock);
 
         return {
           date,
           purchase: Math.floor(p),
           consumption: Math.floor(c),
-          sale: Math.floor(s),
           available: Math.floor(a),
         };
-      });
+      }).filter(r => r.purchase > 0 || r.consumption > 0);
 
       return {
-        ...material,
+        id: material.id,
+        name: material.material_name,
+        department: material.department || "general",
+        departmentLabel: getRmDeptName(material.department),
         totalPurchase: Math.floor(totalPurchaseInRange),
         totalConsumption: Math.floor(totalConsumptionInRange),
-        totalSale: Math.floor(totalSaleInRange),
-        available: Math.floor(availableAtTo),
+        available: Math.max(0, Math.floor(availableAtTo)),
         dailyRecords,
       };
     });
   }, [rawMaterials, purchases, consumptions, sales, from, to, selectedDates, today]);
 
+  // Map Sales Order items for quick lookup (Sold roll details)
+  const rollDetailsMap = useMemo(() => {
+    const soldDateMap: Record<string, string> = {};
+    const customerMap: Record<string, string> = {};
+    const billMap: Record<string, string> = {};
+    const orderIdMap: Record<string, string> = {};
+
+    salesOrders.forEach((order) => {
+      if (order.status === "confirmed" && order.bill_number) {
+        const clientName = order.customers?.customer_name ?? "Unknown";
+        const alias = order.customers?.alias;
+        const displayName = alias ? `${clientName} (${alias})` : clientName;
+
+        order.sales_order_items?.forEach((item) => {
+          if (item.selected_roll_ids) {
+            item.selected_roll_ids.forEach((rollId) => {
+              soldDateMap[rollId] = order.order_date;
+              customerMap[rollId] = displayName;
+              billMap[rollId] = order.bill_number || "-";
+              orderIdMap[rollId] = order.id;
+            });
+          }
+        });
+      }
+    });
+
+    return { soldDateMap, customerMap, billMap, orderIdMap };
+  }, [salesOrders]);
+
+  // Section 2: Stock (Available fabric rolls)
+  const stockProductData = useMemo(() => {
+    const activeRolls = rolls.filter((roll) => {
+      if (roll.production_date > to) return false;
+      const soldDate = rollDetailsMap.soldDateMap[roll.id];
+      if (roll.status === "available" || (soldDate && soldDate > to)) {
+        return true;
+      }
+      return false;
+    });
+
+    const groups: Record<string, {
+      id: string;
+      stage: string;
+      fabricName: string;
+      stockWeight: number;
+      rolls: FabricRoll[];
+    }> = {};
+
+    activeRolls.forEach((roll) => {
+      const stage = roll.current_stage || "loom";
+      const fabId = roll.fabric_type_id;
+      const key = `${stage}-${fabId}`;
+
+      if (!groups[key]) {
+        const fab = fabricTypes.find((f) => f.id === fabId);
+        groups[key] = {
+          id: key,
+          stage,
+          fabricName: fab?.fabric_name || "Unknown Product",
+          stockWeight: 0,
+          rolls: [],
+        };
+      }
+      groups[key].stockWeight += Number(roll.weight || 0);
+      groups[key].rolls.push(roll);
+    });
+
+    return Object.values(groups).map((g) => {
+      const dailyProduction: Record<string, number> = {};
+      selectedDates.forEach((date) => {
+        dailyProduction[date] = 0;
+      });
+
+      g.rolls.forEach((roll) => {
+        const pDate = roll.production_date;
+        if (pDate >= from && pDate <= to) {
+          dailyProduction[pDate] = (dailyProduction[pDate] ?? 0) + Number(roll.weight || 0);
+        }
+      });
+
+      const dailyRecords = selectedDates.map((date) => ({
+        date,
+        production: Math.floor(dailyProduction[date] || 0),
+      })).filter(r => r.production > 0);
+
+      const deptKey = getStageDeptKey(g.stage);
+
+      return {
+        id: g.id,
+        departmentLabel: getRmDeptName(deptKey),
+        name: g.fabricName,
+        availableStock: Math.floor(g.stockWeight),
+        dailyRecords,
+      };
+    }).filter(g => g.availableStock > 0);
+  }, [rolls, fabricTypes, to, from, selectedDates, rollDetailsMap]);
+
+  // Section 3: Sale (Sales of products in range)
+  const saleProductData = useMemo(() => {
+    const soldRolls = rolls.filter((roll) => {
+      const soldDate = rollDetailsMap.soldDateMap[roll.id];
+      return soldDate && soldDate >= from && soldDate <= to;
+    });
+
+    const groups: Record<string, {
+      id: string;
+      stage: string;
+      fabricName: string;
+      soldWeight: number;
+      rolls: FabricRoll[];
+    }> = {};
+
+    soldRolls.forEach((roll) => {
+      const stage = roll.current_stage || "loom";
+      const fabId = roll.fabric_type_id;
+      const key = `${stage}-${fabId}`;
+
+      if (!groups[key]) {
+        const fab = fabricTypes.find((f) => f.id === fabId);
+        groups[key] = {
+          id: key,
+          stage,
+          fabricName: fab?.fabric_name || "Unknown Product",
+          soldWeight: 0,
+          rolls: [],
+        };
+      }
+      groups[key].soldWeight += Number(roll.weight || 0);
+      groups[key].rolls.push(roll);
+    });
+
+    return Object.values(groups).map((g) => {
+      const orderSales: Record<string, {
+        date: string;
+        clientName: string;
+        billNumber: string;
+        weight: number;
+      }> = {};
+
+      g.rolls.forEach((roll) => {
+        const soldDate = rollDetailsMap.soldDateMap[roll.id];
+        const clientName = rollDetailsMap.customerMap[roll.id];
+        const billNumber = rollDetailsMap.billMap[roll.id];
+        const orderId = rollDetailsMap.orderIdMap[roll.id];
+
+        if (!orderSales[orderId]) {
+          orderSales[orderId] = {
+            date: soldDate,
+            clientName,
+            billNumber,
+            weight: 0,
+          };
+        }
+        orderSales[orderId].weight += Number(roll.weight || 0);
+      });
+
+      const dailyRecords = Object.values(orderSales).map((r) => ({
+        date: r.date,
+        clientName: r.clientName,
+        billNumber: r.billNumber,
+        weight: Math.floor(r.weight),
+      })).sort((a, b) => a.date.localeCompare(b.date));
+
+      const deptKey = getStageDeptKey(g.stage);
+
+      return {
+        id: g.id,
+        departmentLabel: getRmDeptName(deptKey),
+        name: g.fabricName,
+        totalSales: Math.floor(g.soldWeight),
+        dailyRecords,
+      };
+    }).filter(g => g.totalSales > 0);
+  }, [rolls, fabricTypes, from, to, rollDetailsMap]);
+
+  // -------------------------------------------------------------
+  // Totals calculations
+  // -------------------------------------------------------------
+
+  const rawMaterialsTotals = useMemo(() => {
+    return {
+      purchases: rawMaterialData.reduce((sum, r) => sum + r.totalPurchase, 0),
+      consumptions: rawMaterialData.reduce((sum, r) => sum + r.totalConsumption, 0),
+      available: rawMaterialData.reduce((sum, r) => sum + r.available, 0),
+    };
+  }, [rawMaterialData]);
+
+  const stockTotals = useMemo(() => {
+    return stockProductData.reduce((sum, r) => sum + r.availableStock, 0);
+  }, [stockProductData]);
+
+  const saleTotals = useMemo(() => {
+    return saleProductData.reduce((sum, r) => sum + r.totalSales, 0);
+  }, [saleProductData]);
+
   return (
     <div className="space-y-6">
       <PageHeader
         title="Stock Report"
-        description="Track raw material inventory flows including purchases, consumptions, and available stock levels."
+        description="Verify raw material ledger transactions, check product available stocks, and review sales logs."
       />
 
-      <div className="flex justify-end">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-50 p-4 rounded-lg border border-slate-200 shadow-sm">
+        {/* Tab Selection */}
+        <div className="flex border border-slate-200 rounded-lg overflow-hidden bg-white p-1">
+          <button
+            onClick={() => {
+              setActiveSection("raw_material");
+              setExpanded({});
+            }}
+            className={`px-4 py-1.5 text-xs font-bold transition-all rounded-md ${
+              activeSection === "raw_material"
+                ? "bg-slate-900 text-white shadow-sm"
+                : "text-slate-600 hover:bg-slate-50"
+            }`}
+          >
+            Raw Material
+          </button>
+          <button
+            onClick={() => {
+              setActiveSection("stock");
+              setExpanded({});
+            }}
+            className={`px-4 py-1.5 text-xs font-bold transition-all rounded-md ${
+              activeSection === "stock"
+                ? "bg-slate-900 text-white shadow-sm"
+                : "text-slate-600 hover:bg-slate-50"
+            }`}
+          >
+            Stock
+          </button>
+          <button
+            onClick={() => {
+              setActiveSection("sale");
+              setExpanded({});
+            }}
+            className={`px-4 py-1.5 text-xs font-bold transition-all rounded-md ${
+              activeSection === "sale"
+                ? "bg-slate-900 text-white shadow-sm"
+                : "text-slate-600 hover:bg-slate-50"
+            }`}
+          >
+            Sale
+          </button>
+        </div>
+
         <DateRangeFilter from={from} to={to} baseUrl="/reports/stock" />
       </div>
 
-      <Card className="border border-slate-200 shadow-sm">
+      <Card className="border border-slate-200 shadow-sm overflow-hidden">
         <CardContent className="p-0">
-          {materialData.length === 0 ? (
-            <EmptyState title="No Raw Materials Found" description="Register raw materials in Admin to view stock logs." />
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-slate-50 border-b border-slate-200">
-                  <TableHead className="w-10"></TableHead>
-                  <TableHead className="font-semibold text-slate-700">Raw Material ID</TableHead>
-                  <TableHead className="font-semibold text-slate-700 text-right">Total Purchase</TableHead>
-                  <TableHead className="font-semibold text-slate-700 text-right">Total Consumption</TableHead>
-                  <TableHead className="font-semibold text-slate-700 text-right">Total Sale</TableHead>
-                  <TableHead className="font-semibold text-slate-700 text-right">Available</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {materialData.map((material) => {
-                  const isExpanded = expanded[material.id];
-                  return (
-                    <>
-                      <TableRow
-                        key={material.id}
-                        onClick={() => toggleExpand(material.id)}
-                        className="cursor-pointer hover:bg-slate-50 transition-colors border-b border-slate-200"
-                      >
-                        <TableCell className="py-3 px-4">
-                          {isExpanded ? (
-                            <ChevronDown className="h-4 w-4 text-slate-500" />
-                          ) : (
-                            <ChevronRight className="h-4 w-4 text-slate-500" />
-                          )}
-                        </TableCell>
-                        <TableCell className="font-medium text-slate-900 py-3">{material.material_name}</TableCell>
-                        <TableCell className="text-right text-slate-950 font-medium py-3">
-                          {material.totalPurchase}
-                        </TableCell>
-                        <TableCell className="text-right text-slate-950 font-medium py-3">
-                          {material.totalConsumption}
-                        </TableCell>
-                        <TableCell className="text-right text-slate-950 font-medium py-3">
-                          {material.totalSale}
-                        </TableCell>
-                        <TableCell className="text-right text-slate-950 font-bold py-3">
-                          {material.available}
-                        </TableCell>
-                      </TableRow>
+          {/* SECTION 1: Raw Materials */}
+          {activeSection === "raw_material" && (
+            <>
+              {rawMaterialData.length === 0 ? (
+                <EmptyState title="No Raw Materials Found" description="Select a date range with transaction activity." />
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-slate-50 border-b border-slate-200">
+                      <TableHead className="w-10"></TableHead>
+                      <TableHead className="font-semibold text-slate-700">Department</TableHead>
+                      <TableHead className="font-semibold text-slate-700">Raw Material</TableHead>
+                      <TableHead className="font-semibold text-slate-700 text-right w-44">Total Purchase (KGs)</TableHead>
+                      <TableHead className="font-semibold text-slate-700 text-right w-44">Total Consumption (KGs)</TableHead>
+                      <TableHead className="font-semibold text-slate-700 text-right w-44">Available (KGs)</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {rawMaterialData.map((material) => {
+                      const isExpanded = expanded[material.id];
+                      return (
+                        <>
+                          <TableRow
+                            key={material.id}
+                            onClick={() => toggleExpand(material.id)}
+                            className="cursor-pointer hover:bg-slate-50 transition-colors border-b border-slate-200"
+                          >
+                            <TableCell className="py-3 px-4">
+                              {isExpanded ? (
+                                <ChevronDown className="h-4 w-4 text-slate-500" />
+                              ) : (
+                                <ChevronRight className="h-4 w-4 text-slate-500" />
+                              )}
+                            </TableCell>
+                            <TableCell className="text-slate-600 font-medium py-3 capitalize">{material.departmentLabel}</TableCell>
+                            <TableCell className="font-bold text-slate-900 py-3">{material.name}</TableCell>
+                            <TableCell className="text-right text-slate-950 font-medium py-3">
+                              {formatNumber(material.totalPurchase, 0)}
+                            </TableCell>
+                            <TableCell className="text-right text-slate-950 font-medium py-3">
+                              {formatNumber(material.totalConsumption, 0)}
+                            </TableCell>
+                            <TableCell className="text-right text-slate-950 font-bold py-3">
+                              {formatNumber(material.available, 0)}
+                            </TableCell>
+                          </TableRow>
 
-                      {isExpanded && (
-                        <TableRow className="bg-slate-50 hover:bg-slate-50 border-b border-slate-200">
-                          <TableCell colSpan={6} className="p-4">
-                            <div className="rounded-lg border border-slate-200 bg-white shadow-inner overflow-hidden max-w-4xl mx-auto my-2">
-                              <div className="bg-slate-100 px-4 py-2 border-b border-slate-200">
-                                <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
-                                  Ledger for {material.material_name}
-                                </span>
-                              </div>
-                              <Table>
-                                <TableHeader>
-                                  <TableRow className="bg-slate-50 border-b border-slate-200">
-                                    <TableHead className="text-xs font-semibold text-slate-600">Date</TableHead>
-                                    <TableHead className="text-xs font-semibold text-slate-600 text-right">Purchase</TableHead>
-                                    <TableHead className="text-xs font-semibold text-slate-600 text-right">Consumption</TableHead>
-                                    <TableHead className="text-xs font-semibold text-slate-600 text-right">Sale</TableHead>
-                                    <TableHead className="text-xs font-semibold text-slate-600 text-right">Available</TableHead>
-                                  </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                  {material.dailyRecords.length === 0 ? (
-                                    <TableRow>
-                                      <TableCell colSpan={5} className="text-center py-4 text-slate-400 text-sm">
-                                        No records in selected date range.
-                                      </TableCell>
-                                    </TableRow>
-                                  ) : (
-                                    material.dailyRecords.map((record) => (
-                                      <TableRow key={record.date} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/50">
-                                        <TableCell className="py-2 text-slate-700 font-medium text-xs">
-                                          {record.date}
-                                        </TableCell>
-                                        <TableCell className="py-2 text-right text-slate-900 text-xs">
-                                          {record.purchase}
-                                        </TableCell>
-                                        <TableCell className="py-2 text-right text-slate-900 text-xs">
-                                          {record.consumption}
-                                        </TableCell>
-                                        <TableCell className="py-2 text-right text-slate-900 text-xs">
-                                          {record.sale}
-                                        </TableCell>
-                                        <TableCell className="py-2 text-right text-slate-900 font-bold text-xs">
-                                          {record.available}
-                                        </TableCell>
+                          {isExpanded && (
+                            <TableRow className="bg-slate-50 hover:bg-slate-50 border-b border-slate-200">
+                              <TableCell colSpan={6} className="p-4">
+                                <div className="rounded-lg border border-slate-200 bg-white shadow-inner overflow-hidden max-w-3xl mx-auto my-2">
+                                  <div className="bg-slate-100 px-4 py-2 border-b border-slate-200">
+                                    <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                                      Ledger: Purchases & Consumptions for {material.name}
+                                    </span>
+                                  </div>
+                                  <Table>
+                                    <TableHeader>
+                                      <TableRow className="bg-slate-50 border-b border-slate-200">
+                                        <TableHead className="text-xs font-semibold text-slate-600">Date</TableHead>
+                                        <TableHead className="text-xs font-semibold text-slate-600 text-right">Purchase (KGs)</TableHead>
+                                        <TableHead className="text-xs font-semibold text-slate-600 text-right">Consumption (KGs)</TableHead>
+                                        <TableHead className="text-xs font-semibold text-slate-600 text-right">Available (KGs)</TableHead>
                                       </TableRow>
-                                    ))
-                                  )}
-                                </TableBody>
-                              </Table>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </>
-                  );
-                })}
-              </TableBody>
-            </Table>
+                                    </TableHeader>
+                                    <TableBody>
+                                      {material.dailyRecords.length === 0 ? (
+                                        <TableRow>
+                                          <TableCell colSpan={4} className="text-center py-4 text-slate-400 text-xs font-semibold">
+                                            No daily transaction history in selected range.
+                                          </TableCell>
+                                        </TableRow>
+                                      ) : (
+                                        material.dailyRecords.map((record) => (
+                                          <TableRow key={record.date} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/50">
+                                            <TableCell className="py-2 text-slate-700 font-medium text-xs">
+                                              {record.date}
+                                            </TableCell>
+                                            <TableCell className="py-2 text-right text-slate-900 text-xs">
+                                              {record.purchase > 0 ? formatNumber(record.purchase, 0) : "-"}
+                                            </TableCell>
+                                            <TableCell className="py-2 text-right text-slate-900 text-xs">
+                                              {record.consumption > 0 ? formatNumber(record.consumption, 0) : "-"}
+                                            </TableCell>
+                                            <TableCell className="py-2 text-right text-slate-900 font-bold text-xs">
+                                              {formatNumber(record.available, 0)}
+                                            </TableCell>
+                                          </TableRow>
+                                        ))
+                                      )}
+                                    </TableBody>
+                                  </Table>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </>
+                      );
+                    })}
+
+                    {/* Totals Row */}
+                    <TableRow className="bg-slate-100 font-bold border-t-2 border-slate-300 hover:bg-slate-100">
+                      <TableCell></TableCell>
+                      <TableCell colSpan={2} className="py-3 text-slate-900 font-bold text-right uppercase">Total Raw Materials</TableCell>
+                      <TableCell className="text-right text-slate-950 py-3">{formatNumber(rawMaterialsTotals.purchases, 0)}</TableCell>
+                      <TableCell className="text-right text-slate-950 py-3">{formatNumber(rawMaterialsTotals.consumptions, 0)}</TableCell>
+                      <TableCell className="text-right text-slate-950 py-3">{formatNumber(rawMaterialsTotals.available, 0)}</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              )}
+            </>
+          )}
+
+          {/* SECTION 2: Stock (Rolls availability) */}
+          {activeSection === "stock" && (
+            <>
+              {stockProductData.length === 0 ? (
+                <EmptyState title="No Available Stocks" description="No products are registered as available for this date." />
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-slate-50 border-b border-slate-200">
+                      <TableHead className="w-10"></TableHead>
+                      <TableHead className="font-semibold text-slate-700">Department</TableHead>
+                      <TableHead className="font-semibold text-slate-700">Product</TableHead>
+                      <TableHead className="font-semibold text-slate-700 text-right w-64">Available Stock (KGs)</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {stockProductData.map((item) => {
+                      const isExpanded = expanded[item.id];
+                      return (
+                        <>
+                          <TableRow
+                            key={item.id}
+                            onClick={() => toggleExpand(item.id)}
+                            className="cursor-pointer hover:bg-slate-50 transition-colors border-b border-slate-200"
+                          >
+                            <TableCell className="py-3 px-4">
+                              {isExpanded ? (
+                                <ChevronDown className="h-4 w-4 text-slate-500" />
+                              ) : (
+                                <ChevronRight className="h-4 w-4 text-slate-500" />
+                              )}
+                            </TableCell>
+                            <TableCell className="text-slate-600 font-medium py-3 capitalize">{item.departmentLabel}</TableCell>
+                            <TableCell className="font-bold text-slate-900 py-3">{item.name}</TableCell>
+                            <TableCell className="text-right text-slate-950 font-bold py-3">
+                              {formatNumber(item.availableStock, 0)}
+                            </TableCell>
+                          </TableRow>
+
+                          {isExpanded && (
+                            <TableRow className="bg-slate-50 hover:bg-slate-50 border-b border-slate-200">
+                              <TableCell colSpan={4} className="p-4">
+                                <div className="rounded-lg border border-slate-200 bg-white shadow-inner overflow-hidden max-w-2xl mx-auto my-2">
+                                  <div className="bg-slate-100 px-4 py-2 border-b border-slate-200">
+                                    <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                                      Date-Wise Production logs for {item.name}
+                                    </span>
+                                  </div>
+                                  <Table>
+                                    <TableHeader>
+                                      <TableRow className="bg-slate-50 border-b border-slate-200">
+                                        <TableHead className="text-xs font-semibold text-slate-600">Production Date</TableHead>
+                                        <TableHead className="text-xs font-semibold text-slate-600 text-right">Production (KGs)</TableHead>
+                                      </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                      {item.dailyRecords.length === 0 ? (
+                                        <TableRow>
+                                          <TableCell colSpan={2} className="text-center py-4 text-slate-400 text-xs font-semibold">
+                                            No production records in the selected date range.
+                                          </TableCell>
+                                        </TableRow>
+                                      ) : (
+                                        item.dailyRecords.map((record) => (
+                                          <TableRow key={record.date} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/50">
+                                            <TableCell className="py-2 text-slate-700 font-medium text-xs">
+                                              {record.date}
+                                            </TableCell>
+                                            <TableCell className="py-2 text-right text-slate-900 font-bold text-xs">
+                                              {formatNumber(record.production, 0)}
+                                            </TableCell>
+                                          </TableRow>
+                                        ))
+                                      )}
+                                    </TableBody>
+                                  </Table>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </>
+                      );
+                    })}
+
+                    {/* Totals Row */}
+                    <TableRow className="bg-slate-100 font-bold border-t-2 border-slate-300 hover:bg-slate-100">
+                      <TableCell></TableCell>
+                      <TableCell colSpan={2} className="py-3 text-slate-900 font-bold text-right uppercase">Total Available Products</TableCell>
+                      <TableCell className="text-right text-slate-950 py-3">{formatNumber(stockTotals, 0)}</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              )}
+            </>
+          )}
+
+          {/* SECTION 3: Sale (Sales logs) */}
+          {activeSection === "sale" && (
+            <>
+              {saleProductData.length === 0 ? (
+                <EmptyState title="No Sales Recorded" description="No sales invoices were submitted in this date range." />
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-slate-50 border-b border-slate-200">
+                      <TableHead className="w-10"></TableHead>
+                      <TableHead className="font-semibold text-slate-700">Department</TableHead>
+                      <TableHead className="font-semibold text-slate-700">Product</TableHead>
+                      <TableHead className="font-semibold text-slate-700 text-right w-64">Total Sales (KGs)</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {saleProductData.map((item) => {
+                      const isExpanded = expanded[item.id];
+                      return (
+                        <>
+                          <TableRow
+                            key={item.id}
+                            onClick={() => toggleExpand(item.id)}
+                            className="cursor-pointer hover:bg-slate-50 transition-colors border-b border-slate-200"
+                          >
+                            <TableCell className="py-3 px-4">
+                              {isExpanded ? (
+                                <ChevronDown className="h-4 w-4 text-slate-500" />
+                              ) : (
+                                <ChevronRight className="h-4 w-4 text-slate-500" />
+                              )}
+                            </TableCell>
+                            <TableCell className="text-slate-600 font-medium py-3 capitalize">{item.departmentLabel}</TableCell>
+                            <TableCell className="font-bold text-slate-900 py-3">{item.name}</TableCell>
+                            <TableCell className="text-right text-slate-950 font-bold py-3">
+                              {formatNumber(item.totalSales, 0)}
+                            </TableCell>
+                          </TableRow>
+
+                          {isExpanded && (
+                            <TableRow className="bg-slate-50 hover:bg-slate-50 border-b border-slate-200">
+                              <TableCell colSpan={4} className="p-4">
+                                <div className="rounded-lg border border-slate-200 bg-white shadow-inner overflow-hidden max-w-3xl mx-auto my-2">
+                                  <div className="bg-slate-100 px-4 py-2 border-b border-slate-200">
+                                    <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                                      Detailed Invoice Sales for {item.name}
+                                    </span>
+                                  </div>
+                                  <Table>
+                                    <TableHeader>
+                                      <TableRow className="bg-slate-50 border-b border-slate-200">
+                                        <TableHead className="text-xs font-semibold text-slate-600">Date</TableHead>
+                                        <TableHead className="text-xs font-semibold text-slate-600">Client Name</TableHead>
+                                        <TableHead className="text-xs font-semibold text-slate-600">Bill Number</TableHead>
+                                        <TableHead className="text-xs font-semibold text-slate-600 text-right">Total KGs</TableHead>
+                                      </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                      {item.dailyRecords.length === 0 ? (
+                                        <TableRow>
+                                          <TableCell colSpan={4} className="text-center py-4 text-slate-400 text-xs font-semibold">
+                                            No sales recorded.
+                                          </TableCell>
+                                        </TableRow>
+                                      ) : (
+                                        item.dailyRecords.map((record, index) => (
+                                          <TableRow key={`record-${index}`} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/50">
+                                            <TableCell className="py-2 text-slate-700 font-medium text-xs">
+                                              {record.date}
+                                            </TableCell>
+                                            <TableCell className="py-2 text-slate-800 font-bold text-xs">
+                                              {record.clientName}
+                                            </TableCell>
+                                            <TableCell className="py-2 text-slate-600 font-semibold text-xs">
+                                              {record.billNumber}
+                                            </TableCell>
+                                            <TableCell className="py-2 text-right text-slate-900 font-bold text-xs">
+                                              {formatNumber(record.weight, 0)}
+                                            </TableCell>
+                                          </TableRow>
+                                        ))
+                                      )}
+                                    </TableBody>
+                                  </Table>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </>
+                      );
+                    })}
+
+                    {/* Totals Row */}
+                    <TableRow className="bg-slate-100 font-bold border-t-2 border-slate-300 hover:bg-slate-100">
+                      <TableCell></TableCell>
+                      <TableCell colSpan={2} className="py-3 text-slate-900 font-bold text-right uppercase">Total Product Sales</TableCell>
+                      <TableCell className="text-right text-slate-950 py-3">{formatNumber(saleTotals, 0)}</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              )}
+            </>
           )}
         </CardContent>
       </Card>

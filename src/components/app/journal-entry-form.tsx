@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { todayInIndia } from "@/lib/utils";
 
 
 
@@ -43,7 +44,7 @@ export function JournalEntryForm({
   const isEditing = !!editJournalNo;
   const [journalNo] = useState(isEditing ? editJournalNo : nextJournalNo);
   const [entryDate, setEntryDate] = useState(
-    isEditing ? editJournalDate : new Date().toISOString().slice(0, 10)
+    isEditing ? editJournalDate : todayInIndia()
   );
 
   // Initialize rows: loaded edit rows, or prefill from 'row' prop, or two empty rows

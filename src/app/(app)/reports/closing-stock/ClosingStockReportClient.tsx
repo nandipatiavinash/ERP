@@ -61,6 +61,7 @@ interface MaterialSale {
   raw_material_id: string;
   sale_date: string;
   quantity: string | number;
+  type: string;
 }
 
 interface ClosingStockReportClientProps {
@@ -86,6 +87,7 @@ export function ClosingStockReportClient({
 }: ClosingStockReportClientProps) {
   const router = useRouter();
   const [wasteInput, setWasteInput] = useState<string>("0");
+  const [customPrices, setCustomPrices] = useState<Record<string, string>>({});
   const today = todayInIndia();
 
   const handleDateChange = (newDate: string) => {
@@ -104,7 +106,7 @@ export function ClosingStockReportClient({
       (c) => c.raw_material_id === materialId && c.consumption_date > date
     );
     const salesAfter = materialSales.filter(
-      (s) => s.raw_material_id === materialId && s.sale_date > date
+      (s) => s.raw_material_id === materialId && s.type === "raw_material" && s.sale_date > date
     );
 
     const sumPurchasesAfter = purchasesAfter.reduce((sum, p) => sum + Number(p.quantity), 0);
@@ -120,7 +122,6 @@ export function ClosingStockReportClient({
       (p) => p.raw_material_id === materialId && p.purchase_date <= date
     );
     if (matPurchases.length === 0) return 0;
-    // ordered ascending in server component, so the last is the latest
     const latest = matPurchases[matPurchases.length - 1];
     return Number(latest.rate ?? 0);
   };
@@ -147,7 +148,6 @@ export function ClosingStockReportClient({
     return rolls.filter((roll) => {
       if (roll.production_date > date) return false;
       const soldDate = rollIdToSoldDate[roll.id];
-      // Either still available today or was sold in the future relative to D
       if (roll.status === "available" || (soldDate && soldDate > date)) {
         return true;
       }
@@ -164,59 +164,44 @@ export function ClosingStockReportClient({
       return {
         id: mat.id,
         name: mat.material_name,
-        department: mat.department || "General",
+        department: mat.department || "general",
         stock,
         price,
         amount,
       };
     });
-  }, [rawMaterials, date, purchases, consumptions]);
+  }, [rawMaterials, date, purchases, consumptions, materialSales]);
 
-  // Format Products closing stocks grouped by department (stage)
+  // Format Products closing stocks grouped and summed by department (stage)
   const productClosingData = useMemo(() => {
-    const groups: Record<string, Array<{ name: string; stock: number; price: number; amount: number }>> = {
-      loom: [],
-      roto_printing: [],
-      lamination: [],
-      offset_printing: [],
-      finishing: [],
-    };
-
-    // Group active rolls by stage and fabric type
-    const rollWeights: Record<string, Record<string, number>> = {
-      loom: {},
-      roto_printing: {},
-      lamination: {},
-      offset_printing: {},
-      finishing: {},
+    const stageWeights: Record<string, number> = {
+      loom: 0,
+      roto_printing: 0,
+      lamination: 0,
+      offset_printing: 0,
+      finishing: 0,
     };
 
     activeRollsAtD.forEach((roll) => {
       const stage = roll.current_stage || "loom";
-      const fabId = roll.fabric_type_id;
       const weight = Number(roll.weight || 0);
-
-      if (!rollWeights[stage]) rollWeights[stage] = {};
-      rollWeights[stage][fabId] = (rollWeights[stage][fabId] ?? 0) + weight;
+      if (stageWeights[stage] !== undefined) {
+        stageWeights[stage] += weight;
+      }
     });
 
-    // Populate the product arrays
-    Object.keys(rollWeights).forEach((stage) => {
-      Object.keys(rollWeights[stage]).forEach((fabId) => {
-        const fab = fabricTypes.find((f) => f.id === fabId);
-        const name = fab?.fabric_name || "Unknown Product";
-        const price = Number(fab?.selling_price || 0);
-        const stock = rollWeights[stage][fabId];
-        const amount = stock * price;
+    return stageWeights;
+  }, [activeRollsAtD]);
 
-        groups[stage].push({ name, stock, price, amount });
-      });
-    });
+  // Helper to resolve template selling price for the first roll in a stage
+  const getStageDefaultPrice = (stage: string) => {
+    const firstRoll = activeRollsAtD.find((r) => (r.current_stage || "loom") === stage);
+    if (!firstRoll) return 0;
+    const fab = fabricTypes.find((f) => f.id === firstRoll.fabric_type_id);
+    return Number(fab?.selling_price || 0);
+  };
 
-    return groups;
-  }, [activeRollsAtD, fabricTypes]);
-
-  // WIP calculations
+  // WIP calculations using correct material balance equation
   const wipData = useMemo(() => {
     const waste = Number(wasteInput) || 0;
 
@@ -232,8 +217,26 @@ export function ClosingStockReportClient({
     // Total raw material stock balances at D
     const totalRmStock = rmClosingData.reduce((sum, mat) => sum + mat.stock, 0);
 
-    // WIP Stock Kgs = Purchases - (RM Stock + Waste)
-    const wipKgs = Math.max(0, totalPurchasesQty - (totalRmStock + waste));
+    // Total fabric rolls sold up to date D
+    const totalSalesRollsWeight = rolls
+      .filter((roll) => {
+        const soldDate = rollIdToSoldDate[roll.id];
+        return soldDate && soldDate <= date;
+      })
+      .reduce((sum, roll) => sum + Number(roll.weight || 0), 0);
+
+    // Total raw materials sold up to date D
+    const totalMaterialSalesQty = materialSales
+      .filter((s) => s.type === "raw_material" && s.sale_date <= date)
+      .reduce((sum, s) => sum + Number(s.quantity), 0);
+
+    // Total waste sold up to date D
+    const totalWasteSalesQty = materialSales
+      .filter((s) => s.type === "waste" && s.sale_date <= date)
+      .reduce((sum, s) => sum + Number(s.quantity), 0);
+
+    // WIP Stock Kgs = Purchases - (RM Stock + Waste + Fabric Sales + Material Sales + Waste Sales)
+    const wipKgs = Math.max(0, totalPurchasesQty - (totalRmStock + waste + totalSalesRollsWeight + totalMaterialSalesQty + totalWasteSalesQty));
 
     // WIP Price = Weighted average rate of purchases
     const wipPrice = totalPurchasesQty > 0 ? totalPurchasesAmount / totalPurchasesQty : 0;
@@ -244,45 +247,21 @@ export function ClosingStockReportClient({
       price: wipPrice,
       amount: wipAmount,
     };
-  }, [purchases, rmClosingData, wasteInput, date]);
+  }, [purchases, rmClosingData, wasteInput, date, rolls, rollIdToSoldDate, materialSales]);
 
-  // Grand totals
-  const totals = useMemo(() => {
-    let baseTotal = 0;
-
-    // Sum Raw Materials
-    rmClosingData.forEach((mat) => {
-      baseTotal += mat.amount;
-    });
-
-    // Sum Products
-    Object.values(productClosingData).forEach((list) => {
-      list.forEach((prod) => {
-        baseTotal += prod.amount;
-      });
-    });
-
-    // Sum WIP
-    baseTotal += wipData.amount;
-
-    const gstAmount = baseTotal * 0.18;
-    const netTotal = baseTotal * 1.18;
-
-    return {
-      baseTotal: Math.floor(baseTotal),
-      gstAmount: Math.floor(gstAmount),
-      netTotal: Math.floor(netTotal),
-    };
-  }, [rmClosingData, productClosingData, wipData]);
-
-  // Helper to map department keys to human-readable names
-  const getRmDeptName = (key: string) => {
+  // Helper to map stage/department keys to readable names
+  const getRmDeptName = (key: string | null | undefined) => {
+    if (!key) return "General";
     const mapping: Record<string, string> = {
-      fabric: "Fabric RM",
-      "roto-printing": "Roto Printing RM",
-      lamination: "Lamination RM",
-      "offset-printing": "Offset Printing RM",
-      finishing: "Finishing RM",
+      fabric: "Fabric / Loom",
+      loom: "Fabric / Loom",
+      "roto-printing": "Roto Printing",
+      roto_printing: "Roto Printing",
+      lamination: "Lamination",
+      "offset-printing": "Offset Printing",
+      offset_printing: "Offset Printing",
+      finishing: "Finishing",
+      general: "General",
     };
     return mapping[key] ?? key;
   };
@@ -297,6 +276,105 @@ export function ClosingStockReportClient({
     };
     return mapping[key] ?? key;
   };
+
+  const getStageDeptKey = (stage: string) => {
+    if (stage === "loom") return "fabric";
+    if (stage === "roto_printing") return "roto-printing";
+    if (stage === "offset_printing") return "offset-printing";
+    return stage;
+  };
+
+  // Group both Raw Materials and Products by Department for listing
+  const consolidatedItems = useMemo(() => {
+    const items: Array<{
+      key: string;
+      departmentKey: string;
+      departmentLabel: string;
+      name: string;
+      stock: number;
+      defaultPrice: number;
+      isProduct: boolean;
+    }> = [];
+
+    // Add Raw Materials
+    rmClosingData.forEach((mat) => {
+      if (mat.stock > 0) {
+        const deptKey = mat.department || "general";
+        const deptLabel = getRmDeptName(deptKey);
+        items.push({
+          key: `rm-${mat.id}`,
+          departmentKey: deptKey,
+          departmentLabel: deptLabel,
+          name: mat.name,
+          stock: mat.stock,
+          defaultPrice: mat.price,
+          isProduct: false,
+        });
+      }
+    });
+
+    // Add Products grouped/summed by stage
+    Object.entries(productClosingData).forEach(([stage, totalWeight]) => {
+      if (totalWeight > 0) {
+        const deptKey = getStageDeptKey(stage);
+        const deptLabel = getRmDeptName(deptKey);
+        const name = getProdStageName(stage);
+        const defaultPrice = getStageDefaultPrice(stage);
+
+        items.push({
+          key: `prod-${stage}`,
+          departmentKey: deptKey,
+          departmentLabel: deptLabel,
+          name: name,
+          stock: totalWeight,
+          defaultPrice: defaultPrice,
+          isProduct: true,
+        });
+      }
+    });
+
+    // Sort by department priority
+    const deptOrder = ["fabric", "roto-printing", "lamination", "offset-printing", "finishing", "general"];
+    items.sort((a, b) => {
+      const idxA = deptOrder.indexOf(a.departmentKey);
+      const idxB = deptOrder.indexOf(b.departmentKey);
+      if (idxA !== idxB) return idxA - idxB;
+      if (a.isProduct !== b.isProduct) return a.isProduct ? 1 : -1;
+      return a.name.localeCompare(b.name);
+    });
+
+    return items;
+  }, [rmClosingData, productClosingData, fabricTypes, activeRollsAtD]);
+
+  // Grand totals recalculations with live price inputs
+  const totals = useMemo(() => {
+    let baseTotal = 0;
+
+    consolidatedItems.forEach((item) => {
+      const priceKey = item.key;
+      const currentPrice = customPrices[priceKey] !== undefined
+        ? Number(customPrices[priceKey] || 0)
+        : item.defaultPrice;
+      baseTotal += item.stock * currentPrice;
+    });
+
+    const wipPrice = customPrices["wip"] !== undefined
+      ? Number(customPrices["wip"] || 0)
+      : wipData.price;
+    const wipVal = wipData.stock * wipPrice;
+
+    baseTotal += wipVal;
+
+    const gstAmount = baseTotal * 0.18;
+    const netTotal = baseTotal * 1.18;
+
+    return {
+      baseTotal,
+      wipAmount: wipVal,
+      gstAmount,
+      netTotal,
+    };
+  }, [consolidatedItems, customPrices, wipData]);
 
   return (
     <div className="space-y-6">
@@ -347,67 +425,59 @@ export function ClosingStockReportClient({
               <TableHeader>
                 <TableRow className="bg-slate-100/50 border-b border-slate-200">
                   <TableHead className="font-bold text-slate-700 text-xs">Department</TableHead>
-                  <TableHead className="font-bold text-slate-700 text-xs">RM & Product ID</TableHead>
+                  <TableHead className="font-bold text-slate-700 text-xs">RM & Product</TableHead>
                   <TableHead className="font-bold text-slate-700 text-xs text-right w-36">Stock (Kgs / Nos)</TableHead>
                   <TableHead className="font-bold text-slate-700 text-xs text-right w-32">Price (₹)</TableHead>
                   <TableHead className="font-bold text-slate-700 text-xs text-right w-36">Amount (₹)</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {/* 1. Raw Materials Rows */}
-                <TableRow className="bg-slate-200/30 border-b border-slate-200 hover:bg-slate-200/30">
-                  <TableCell colSpan={5} className="py-2 text-[10px] font-black text-slate-500 uppercase tracking-wider">
-                    Raw Materials
-                  </TableCell>
-                </TableRow>
-                {rmClosingData.filter(m => m.stock > 0).map((mat) => (
-                  <TableRow key={`rm-${mat.id}`} className="border-b border-slate-100 hover:bg-slate-50/30">
-                    <TableCell className="py-2.5 text-xs text-slate-500 font-medium capitalize">
-                      {getRmDeptName(mat.department)}
-                    </TableCell>
-                    <TableCell className="py-2.5 text-xs font-bold text-slate-800">
-                      {mat.name}
-                    </TableCell>
-                    <TableCell className="py-2.5 text-right text-xs text-slate-700 font-semibold">
-                      {formatNumber(Math.floor(mat.stock), 0)}
-                    </TableCell>
-                    <TableCell className="py-2.5 text-right text-xs text-slate-700">
-                      {formatNumber(mat.price, 2)}
-                    </TableCell>
-                    <TableCell className="py-2.5 text-right text-xs font-bold text-slate-900">
-                      {formatNumber(Math.floor(mat.amount), 0)}
+                {consolidatedItems.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-8 text-slate-400 text-sm font-semibold">
+                      No stock items found for this date.
                     </TableCell>
                   </TableRow>
-                ))}
+                ) : (
+                  consolidatedItems.map((item) => {
+                    const priceKey = item.key;
+                    const defaultPrice = item.defaultPrice;
+                    const currentPrice = customPrices[priceKey] !== undefined
+                      ? Number(customPrices[priceKey] || 0)
+                      : defaultPrice;
+                    const amount = item.stock * currentPrice;
 
-                {/* 2. Finished/Stage Products Rows */}
-                <TableRow className="bg-slate-200/30 border-b border-slate-200 hover:bg-slate-200/30">
-                  <TableCell colSpan={5} className="py-2 text-[10px] font-black text-slate-500 uppercase tracking-wider">
-                    Finished & Stage Products
-                  </TableCell>
-                </TableRow>
-                {Object.keys(productClosingData).map((stage) => {
-                  const stageList = productClosingData[stage];
-                  return stageList.map((prod, idx) => (
-                    <TableRow key={`prod-${stage}-${idx}`} className="border-b border-slate-100 hover:bg-slate-50/30">
-                      <TableCell className="py-2.5 text-xs text-slate-500 font-medium">
-                        {getProdStageName(stage)}
-                      </TableCell>
-                      <TableCell className="py-2.5 text-xs font-bold text-slate-800">
-                        {prod.name}
-                      </TableCell>
-                      <TableCell className="py-2.5 text-right text-xs text-slate-700 font-semibold">
-                        {formatNumber(Math.floor(prod.stock), 0)}
-                      </TableCell>
-                      <TableCell className="py-2.5 text-right text-xs text-slate-700">
-                        {formatNumber(prod.price, 2)}
-                      </TableCell>
-                      <TableCell className="py-2.5 text-right text-xs font-bold text-slate-900">
-                        {formatNumber(Math.floor(prod.amount), 0)}
-                      </TableCell>
-                    </TableRow>
-                  ));
-                })}
+                    return (
+                      <TableRow key={item.key} className="border-b border-slate-100 hover:bg-slate-50/30">
+                        <TableCell className="py-2.5 text-xs text-slate-600 font-medium capitalize">
+                          {item.departmentLabel}
+                        </TableCell>
+                        <TableCell className="py-2.5 text-xs font-bold text-slate-800">
+                          {item.name} {item.isProduct ? "(Rolls Summed)" : ""}
+                        </TableCell>
+                        <TableCell className="py-2.5 text-right text-xs text-slate-700 font-semibold font-mono">
+                          {formatNumber(item.stock, 0)}
+                        </TableCell>
+                        <TableCell className="py-2.5 text-right text-xs text-slate-700">
+                          <Input
+                            type="number"
+                            min="0"
+                            step="any"
+                            className="w-24 h-7 text-right text-xs py-0 px-1 border border-slate-200 focus:border-emerald-500 rounded bg-white shadow-none font-semibold ml-auto font-mono"
+                            value={customPrices[priceKey] !== undefined ? customPrices[priceKey] : defaultPrice.toFixed(2)}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setCustomPrices((prev) => ({ ...prev, [priceKey]: val }));
+                            }}
+                          />
+                        </TableCell>
+                        <TableCell className="py-2.5 text-right text-xs font-black text-slate-900 font-mono">
+                          ₹{formatNumber(amount, 0)}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                )}
 
                 {/* 3. WIP Row */}
                 <TableRow className="bg-slate-200/30 border-b border-slate-200 hover:bg-slate-200/30">
@@ -416,20 +486,30 @@ export function ClosingStockReportClient({
                   </TableCell>
                 </TableRow>
                 <TableRow className="border-b border-slate-200 bg-amber-50/20 hover:bg-amber-50/20">
-                  <TableCell className="py-3 text-xs text-slate-500 font-medium">
+                  <TableCell className="py-3 text-xs text-slate-550 font-medium">
                     WIP
                   </TableCell>
                   <TableCell className="py-3 text-xs font-black text-amber-900">
-                    WORK IN PROGRESS
+                    WORK IN PROGRESS (Purchases - RM - Waste - Sales - Material Sales)
                   </TableCell>
-                  <TableCell className="py-3 text-right text-xs text-amber-950 font-bold">
-                    {formatNumber(Math.floor(wipData.stock), 0)}
+                  <TableCell className="py-3 text-right text-xs text-amber-955 font-bold font-mono">
+                    {formatNumber(wipData.stock, 0)}
                   </TableCell>
                   <TableCell className="py-3 text-right text-xs text-slate-700">
-                    {formatNumber(wipData.price, 2)}
+                    <Input
+                      type="number"
+                      min="0"
+                      step="any"
+                      className="w-24 h-7 text-right text-xs py-0 px-1 border border-slate-200 focus:border-amber-500 rounded bg-white shadow-none font-semibold ml-auto font-mono"
+                      value={customPrices["wip"] !== undefined ? customPrices["wip"] : wipData.price.toFixed(2)}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setCustomPrices((prev) => ({ ...prev, wip: val }));
+                      }}
+                    />
                   </TableCell>
-                  <TableCell className="py-3 text-right text-xs font-black text-amber-955">
-                    {formatNumber(Math.floor(wipData.amount), 0)}
+                  <TableCell className="py-3 text-right text-xs font-black text-amber-955 font-mono">
+                    ₹{formatNumber(totals.wipAmount, 0)}
                   </TableCell>
                 </TableRow>
               </TableBody>
@@ -444,22 +524,22 @@ export function ClosingStockReportClient({
               Closing Stock Valuation
             </CardTitle>
           </CardHeader>
-          <CardContent className="p-5 space-y-4 bg-slate-50/50">
+          <CardContent className="p-5 space-y-4 bg-slate-50/50 font-mono">
             <div className="flex justify-between items-center text-xs pb-2 border-b border-slate-200">
-              <span className="text-slate-500 font-semibold uppercase">Base Stock Value</span>
+              <span className="text-slate-500 font-semibold uppercase font-sans">Base Stock Value</span>
               <span className="font-bold text-slate-800 text-sm">₹{formatNumber(totals.baseTotal, 0)}</span>
             </div>
             <div className="flex justify-between items-center text-xs pb-2 border-b border-slate-200">
-              <span className="text-slate-500 font-semibold uppercase">GST Component (18%)</span>
+              <span className="text-slate-500 font-semibold uppercase font-sans">GST Component (18%)</span>
               <span className="font-bold text-slate-800 text-sm">₹{formatNumber(totals.gstAmount, 0)}</span>
             </div>
             <div className="flex justify-between items-center pt-2">
-              <span className="text-slate-700 font-black uppercase text-sm">Grand Total (Incl. GST)</span>
+              <span className="text-slate-700 font-black uppercase text-sm font-sans">Grand Total (Incl. GST)</span>
               <span className="font-black text-emerald-700 text-lg">₹{formatNumber(totals.netTotal, 0)}</span>
             </div>
-            <div className="rounded-lg bg-emerald-50 border border-emerald-100 p-3 mt-4 text-[10px] text-emerald-800 leading-normal">
+            <div className="rounded-lg bg-emerald-50 border border-emerald-100 p-3 mt-4 text-[10px] text-emerald-800 leading-normal font-sans">
               <span className="font-bold block uppercase mb-1">Accounting Note:</span>
-              Valuations are calculated using the latest historical purchase prices for raw materials, template selling prices for products, and weighted average cost for WIP. Grand total is computed as (Base Total * 1.18).
+              Valuations are calculated using the latest historical purchase prices for raw materials, stage product sums, and WIP. Price values can be customized in the inputs above. Grand total is computed as (Base Total * 1.18).
             </div>
           </CardContent>
         </Card>
