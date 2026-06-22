@@ -59,11 +59,78 @@
 }
 
 @media print {
-  .no-print {
+  /* Hide interactive/navigation elements */
+  .no-print,
+  aside,
+  header,
+  nav,
+  button,
+  .button,
+  .badge,
+  form,
+  .alert,
+  [role="alert"] {
     display: none !important;
+  }
+
+  /* Reset body and document shell */
+  body, html {
+    background: #fff !important;
+    color: #000 !important;
+    width: 100% !important;
+    height: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    font-size: 12px !important;
+  }
+
+  /* Remove padding from layout wrapper */
+  .lg\:pl-64 {
+    padding-left: 0 !important;
   }
 
   main {
     padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+  }
+
+  /* Ensure cards take full width, look clean and don't break across pages */
+  .bg-white {
+    background-color: #fff !important;
+    border: 1px solid #cbd5e1 !important;
+    box-shadow: none !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* Compact row paddings on print */
+  .px-4.py-3,
+  .px-4.py-3\.5,
+  .px-6.py-4,
+  .p-4,
+  .p-6,
+  .py-2\.5,
+  .py-3\.5 {
+    padding-top: 6px !important;
+    padding-bottom: 6px !important;
+  }
+
+  .min-h-\[150px\],
+  .min-h-\[350px\] {
+    min-height: 0 !important;
+  }
+
+  /* Space utilities adjustment */
+  .space-y-8 > :not([hidden]) ~ :not([hidden]) {
+    margin-top: 12px !important;
+  }
+  .space-y-6 > :not([hidden]) ~ :not([hidden]) {
+    margin-top: 8px !important;
+  }
+
+  @page {
+    size: portrait;
+    margin: 6mm 8mm;
   }
 }

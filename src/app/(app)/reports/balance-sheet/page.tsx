@@ -110,13 +110,15 @@ export default async function BalanceSheetPage({
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Balance Sheet"
-        description="Company balance sheet statement of liabilities and assets."
-      />
+      <div className="no-print">
+        <PageHeader
+          title="Balance Sheet"
+          description="Company balance sheet statement of liabilities and assets."
+        />
+      </div>
 
       <div className="flex flex-col gap-4">
-        <div className="flex justify-end">
+        <div className="flex justify-end no-print">
           <DateFilter date={date} baseUrl="/reports/balance-sheet" />
         </div>
 

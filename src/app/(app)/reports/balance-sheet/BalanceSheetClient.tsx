@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight, Printer } from "lucide-react";
 import { formatNumber } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
 
 interface BSAccount {
   id: string;
@@ -160,20 +161,30 @@ export function BalanceSheetClient({
 
   return (
     <div className="space-y-6 pb-12">
+      {/* Print Only Simple Header */}
+      <div className="hidden print:block text-center font-black text-xl mb-6 uppercase tracking-wider text-slate-900 border-b-2 border-slate-900 pb-3">
+        BALANCE SHEET AS ON {formattedDate}
+      </div>
+
       <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between">
+        <div className="px-6 py-4 border-b border-slate-200 bg-slate-50 flex items-center justify-between no-print">
           <div>
             <h2 className="font-black text-slate-800 text-sm uppercase tracking-wider">
               Balance Sheet Statement
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">As on {formattedDate}</p>
           </div>
-          <span className="text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full">
-            Balanced
-          </span>
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-bold text-emerald-600 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full">
+              Balanced
+            </span>
+            <Button onClick={() => window.print()} variant="outline" size="sm" className="flex items-center gap-1.5 border-slate-200 shadow-none">
+              <Printer className="h-4 w-4" /> Print Statement
+            </Button>
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-slate-200">
+        <div className="grid grid-cols-1 md:grid-cols-2 print:grid-cols-2 divide-y md:divide-y-0 md:divide-x print:divide-y-0 print:divide-x divide-slate-200">
           {/* LIABILITIES SIDE */}
           <div className="flex flex-col h-full">
             <div className="bg-slate-100/50 px-4 py-2.5 text-xs font-bold text-slate-700 border-b border-slate-200 flex justify-between uppercase">

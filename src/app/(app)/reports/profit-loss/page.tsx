@@ -84,13 +84,15 @@ export default async function ProfitLossReportPage({
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Profit & Loss Account"
-        description="View company financial performance statements."
-      />
+      <div className="no-print">
+        <PageHeader
+          title="Profit & Loss Account"
+          description="View company financial performance statements."
+        />
+      </div>
 
       <div className="flex flex-col gap-4">
-        <div className="flex justify-end">
+        <div className="flex justify-end no-print">
           <DateFilter date={date} baseUrl="/reports/profit-loss" />
         </div>
 

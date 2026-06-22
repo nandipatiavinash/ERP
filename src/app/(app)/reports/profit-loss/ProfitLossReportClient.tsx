@@ -187,6 +187,56 @@ export function ProfitLossReportClient({
 
       {/* Stacked Layout with Gap */}
       <div className="space-y-8 print:space-y-8">
+        {/* CREDIT / INCOME CARD */}
+        <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+          <div className="bg-slate-100/50 px-4 py-2.5 text-xs font-bold text-slate-700 border-b border-slate-200 flex justify-between uppercase">
+            <span>Credit Particulars (Incomes)</span>
+            <span>Amount (₹)</span>
+          </div>
+
+          <div className="divide-y divide-slate-100 min-h-[150px]">
+            {creditAccounts.map((acc) => (
+              <div key={acc.id} className="px-4 py-3 flex justify-between items-center text-sm">
+                <span className="font-medium text-slate-700 capitalize">
+                  {acc.name} {acc.alias ? `(${acc.alias})` : ""}
+                </span>
+                <span className="font-bold text-slate-900 font-mono">
+                  ₹{formatNumber(acc.amount, 2)}
+                </span>
+              </div>
+            ))}
+
+            {/* Closing Stock Value item */}
+            <div className="px-4 py-3.5 flex justify-between items-center text-sm bg-emerald-50/10 border-b border-slate-100">
+              <div className="flex flex-col gap-0.5">
+                <span className="font-bold text-emerald-950">CLOSING STOCK VALUE</span>
+                <span className="text-[10px] text-emerald-600 font-semibold uppercase">Submitted Value</span>
+              </div>
+              <span className="font-bold text-emerald-900 font-mono text-sm">
+                ₹{formatNumber(closingStockValue, 2)}
+              </span>
+            </div>
+
+            {/* Net Loss Balancing Line */}
+            {netLoss > 0 && (
+              <div className="px-4 py-3 flex justify-between items-center text-sm bg-rose-50/20 font-bold border-t border-rose-100">
+                <span className="text-rose-800 uppercase tracking-wide">
+                  Net Loss transferred to Balance Sheet
+                </span>
+                <span className="text-rose-800 font-mono text-base">
+                  ₹{formatNumber(netLoss, 2)}
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Credit Grand Total */}
+          <div className="bg-slate-50 border-t border-slate-200 px-4 py-3 flex justify-between items-center font-black text-sm text-slate-900">
+            <span className="uppercase tracking-wider">Total Cr</span>
+            <span className="font-mono text-base">₹{formatNumber(finalCreditTotal, 2)}</span>
+          </div>
+        </div>
+
         {/* DEBIT / EXPENSES CARD */}
         <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden flex flex-col">
           <div className="bg-slate-100/50 px-4 py-2.5 text-xs font-bold text-slate-700 border-b border-slate-200 flex justify-between uppercase">
@@ -246,56 +296,6 @@ export function ProfitLossReportClient({
           <div className="bg-slate-50 border-t border-slate-200 px-4 py-3 flex justify-between items-center font-black text-sm text-slate-900">
             <span className="uppercase tracking-wider">Total Dr</span>
             <span className="font-mono text-base">₹{formatNumber(finalDebitTotal, 2)}</span>
-          </div>
-        </div>
-
-        {/* CREDIT / INCOME CARD */}
-        <div className="bg-white rounded-lg border border-slate-200 shadow-sm overflow-hidden flex flex-col">
-          <div className="bg-slate-100/50 px-4 py-2.5 text-xs font-bold text-slate-700 border-b border-slate-200 flex justify-between uppercase">
-            <span>Credit Particulars (Incomes)</span>
-            <span>Amount (₹)</span>
-          </div>
-
-          <div className="divide-y divide-slate-100 min-h-[150px]">
-            {creditAccounts.map((acc) => (
-              <div key={acc.id} className="px-4 py-3 flex justify-between items-center text-sm">
-                <span className="font-medium text-slate-700 capitalize">
-                  {acc.name} {acc.alias ? `(${acc.alias})` : ""}
-                </span>
-                <span className="font-bold text-slate-900 font-mono">
-                  ₹{formatNumber(acc.amount, 2)}
-                </span>
-              </div>
-            ))}
-
-            {/* Closing Stock Value item */}
-            <div className="px-4 py-3.5 flex justify-between items-center text-sm bg-emerald-50/10 border-b border-slate-100">
-              <div className="flex flex-col gap-0.5">
-                <span className="font-bold text-emerald-950">CLOSING STOCK VALUE</span>
-                <span className="text-[10px] text-emerald-600 font-semibold uppercase">Submitted Value</span>
-              </div>
-              <span className="font-bold text-emerald-900 font-mono text-sm">
-                ₹{formatNumber(closingStockValue, 2)}
-              </span>
-            </div>
-
-            {/* Net Loss Balancing Line */}
-            {netLoss > 0 && (
-              <div className="px-4 py-3 flex justify-between items-center text-sm bg-rose-50/20 font-bold border-t border-rose-100">
-                <span className="text-rose-800 uppercase tracking-wide">
-                  Net Loss transferred to Balance Sheet
-                </span>
-                <span className="text-rose-800 font-mono text-base">
-                  ₹{formatNumber(netLoss, 2)}
-                </span>
-              </div>
-            )}
-          </div>
-
-          {/* Credit Grand Total */}
-          <div className="bg-slate-50 border-t border-slate-200 px-4 py-3 flex justify-between items-center font-black text-sm text-slate-900">
-            <span className="uppercase tracking-wider">Total Cr</span>
-            <span className="font-mono text-base">₹{formatNumber(finalCreditTotal, 2)}</span>
           </div>
         </div>
       </div>
