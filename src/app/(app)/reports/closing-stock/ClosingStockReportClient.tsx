@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/app/page-header";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { formatNumber, todayInIndia } from "@/lib/utils";
+import { saveClosingStock } from "@/app/(app)/_actions";
 
 interface RawMaterial {
   id: string;
@@ -73,6 +74,7 @@ interface ClosingStockReportClientProps {
   fabricTypes: FabricType[];
   rolls: FabricRoll[];
   salesOrders: SalesOrder[];
+  submittedStock: any;
 }
 
 const DEPT_ORDER = ["fabric", "roto-printing", "lamination", "offset-printing", "finishing", "general"];
@@ -120,11 +122,21 @@ export function ClosingStockReportClient({
   fabricTypes,
   rolls,
   salesOrders,
+  submittedStock,
 }: ClosingStockReportClientProps) {
   const router = useRouter();
-  const [customPrices, setCustomPrices] = useState<Record<string, string>>({});
-  const [submitted, setSubmitted] = useState(false);
+  const [customPrices, setCustomPrices] = useState<Record<string, string>>(() => {
+    return submittedStock?.customPrices ? submittedStock.customPrices : {};
+  });
+  const [submitted, setSubmitted] = useState(() => !!submittedStock);
+  const [isSaving, setIsSaving] = useState(false);
   const today = todayInIndia();
+
+  useEffect(() => {
+    setCustomPrices(submittedStock?.customPrices ? submittedStock.customPrices : {});
+    setSubmitted(!!submittedStock);
+  }, [submittedStock]);
+
 
   const handleDateChange = (newDate: string) => {
     router.push(`/reports/closing-stock?date=${newDate}` as any);
@@ -310,7 +322,34 @@ export function ClosingStockReportClient({
     year: "numeric",
   });
 
+  const handleSubmit = async () => {
+    setIsSaving(true);
+    try {
+      const pricesToSave: Record<string, number> = {};
+      allRows.forEach((row) => {
+        pricesToSave[row.key] = getPrice(row.key, row.defaultPrice);
+      });
+      pricesToSave["wip"] = getPrice("wip", wipData.defaultPrice);
+
+      await saveClosingStock(
+        date,
+        pricesToSave,
+        totals.stockBase,
+        totals.wipAmount,
+        totals.gstAmount,
+        totals.grandTotal
+      );
+      setSubmitted(true);
+      router.refresh();
+    } catch (err: any) {
+      alert("Failed to submit closing stock: " + err.message);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
+
     <div className="space-y-6 pb-10">
       <PageHeader
         title="Closing Stock"
@@ -498,16 +537,23 @@ export function ClosingStockReportClient({
         {/* Submit Button */}
         <div className="flex justify-end px-5 py-4 border-t border-slate-200 bg-white">
           {submitted ? (
-            <span className="text-sm font-semibold text-emerald-600">✓ Submitted successfully</span>
+            <div className="flex items-center gap-4">
+              <span className="text-sm font-semibold text-emerald-600">✓ Submitted successfully</span>
+              <Button onClick={handleSubmit} disabled={isSaving} variant="outline" className="px-8 border-slate-200">
+                {isSaving ? "Updating..." : "Update Submission"}
+              </Button>
+            </div>
           ) : (
             <Button
-              onClick={() => setSubmitted(true)}
+              onClick={handleSubmit}
+              disabled={isSaving}
               className="px-8"
             >
-              Submit
+              {isSaving ? "Submitting..." : "Submit"}
             </Button>
           )}
         </div>
+
       </div>
     </div>
   );

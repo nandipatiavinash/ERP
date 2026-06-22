@@ -27,6 +27,19 @@ export default async function SalesConfirmationReportPage({
 
   const billedOrders = (orders ?? []) as any[];
 
+  // Fetch the 20 most recent confirmed orders with a bill number (any date, sorted by date/created_at descending)
+  const { data: recentOrders } = await supabase
+    .from("sales_orders")
+    .select("*, customers(*), sales_order_items(*)")
+    .eq("status", "confirmed")
+    .not("bill_number", "is", null)
+    .is("deleted_at", null)
+    .order("order_date", { ascending: false })
+    .order("created_at", { ascending: false })
+    .limit(20);
+
+  const billedRecentOrders = (recentOrders ?? []) as any[];
+
   // Fetch product definitions for resolving names
   const [{ data: fabrics }, { data: roto }, { data: offset }] = await Promise.all([
     supabase.from("fabric_types").select("id, fabric_name, selling_price"),
@@ -36,7 +49,8 @@ export default async function SalesConfirmationReportPage({
 
   // Extract selected roll IDs
   const allRollIds: string[] = [];
-  billedOrders.forEach((order) => {
+  const combinedOrders = [...billedOrders, ...billedRecentOrders];
+  combinedOrders.forEach((order) => {
     order.sales_order_items?.forEach((item: any) => {
       if (item.selected_roll_ids) {
         allRollIds.push(...item.selected_roll_ids);
@@ -70,6 +84,7 @@ export default async function SalesConfirmationReportPage({
 
         <SalesConfirmationReportClient
           orders={billedOrders}
+          recentOrders={billedRecentOrders}
           fabrics={fabrics || []}
           rotoProducts={roto || []}
           offsetProducts={offset || []}
@@ -79,3 +94,4 @@ export default async function SalesConfirmationReportPage({
     </div>
   );
 }
+

@@ -55,6 +55,15 @@ export default async function ClosingStockReportPage({ searchParams }: { searchP
       .is("deleted_at", null),
   ]);
 
+  // Fetch existing closing stock submission for this date
+  const { data: closingStockSetting } = await supabase
+    .from("settings")
+    .select("value")
+    .eq("key", `closing_stock_${date}`)
+    .maybeSingle();
+
+  const submittedClosingStock = (closingStockSetting as any)?.value || null;
+
   return (
     <ClosingStockReportClient
       date={date}
@@ -65,6 +74,8 @@ export default async function ClosingStockReportPage({ searchParams }: { searchP
       fabricTypes={(fabricTypes ?? []) as any[]}
       rolls={(rolls ?? []) as any[]}
       salesOrders={(salesOrders ?? []) as any[]}
+      submittedStock={submittedClosingStock}
     />
   );
 }
+

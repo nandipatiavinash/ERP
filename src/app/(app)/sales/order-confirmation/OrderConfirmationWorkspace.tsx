@@ -101,7 +101,8 @@ export function OrderConfirmationWorkspace({
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
 
   const [deleteItemId, setDeleteItemId] = useState<string | null>(null);
-  const [remainingAction, setRemainingAction] = useState<"close" | "backorder">("close");
+  const [itemRemainingActions, setItemRemainingActions] = useState<Record<string, "backorder" | "close">>({});
+
 
   // Calculate sum of weights of all currently selected rolls across all items
   const totalSelectedWeight = useMemo(() => {
@@ -149,16 +150,20 @@ export function OrderConfirmationWorkspace({
     setSuccessMsg(null);
     const initialAlloc: Record<string, string[]> = {};
     const initialExpand: Record<string, boolean> = {};
+    const initialRemaining: Record<string, "backorder" | "close"> = {};
 
     order.sales_order_items?.forEach((item) => {
       initialAlloc[item.id] = item.selected_roll_ids || [];
       // Expand fabric item roll list by default if there are rolls allocated, or if it's fabric
       initialExpand[item.id] = item.department === "fabric";
+      initialRemaining[item.id] = "close";
     });
 
     setAllocation(initialAlloc);
     setExpandedItems(initialExpand);
+    setItemRemainingActions(initialRemaining);
   };
+
 
   // Toggle roll selection
   const toggleRoll = (itemId: string, rollId: string) => {
@@ -195,12 +200,13 @@ export function OrderConfirmationWorkspace({
 
     startTransition(async () => {
       try {
-        await confirmSalesDelivery(selectedOrder.id, allocation, remainingAction);
+        await confirmSalesDelivery(selectedOrder.id, allocation, itemRemainingActions);
         setSuccessMsg("Order allocations saved and delivery status confirmed successfully!");
       } catch (err: any) {
         setErrorMsg(err.message || "Failed to save order confirmation.");
       }
     });
+
   };
 
   const handleDeleteItem = (itemId: string) => {
@@ -477,18 +483,6 @@ export function OrderConfirmationWorkspace({
                     </p>
                   </div>
                   <div className="flex items-center gap-4 flex-wrap">
-                    <div className="flex items-center gap-2 h-9">
-                      <input
-                        type="checkbox"
-                        id="partial-order-checkbox"
-                        checked={remainingAction === "backorder"}
-                        onChange={(e) => setRemainingAction(e.target.checked ? "backorder" : "close")}
-                        className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary cursor-pointer"
-                      />
-                      <Label htmlFor="partial-order-checkbox" className="text-sm font-semibold text-emerald-950 cursor-pointer select-none">
-                        Create Partial Order (Remaining KGs will go into a new bill)
-                      </Label>
-                    </div>
                     <button
                       type="button"
                       onClick={handleSave}
@@ -498,6 +492,7 @@ export function OrderConfirmationWorkspace({
                       {isPending ? "Confirming..." : "Confirm & Save"}
                     </button>
                   </div>
+
                 </CardHeader>
 
                 <CardContent className="p-5 space-y-6">
@@ -616,8 +611,33 @@ export function OrderConfirmationWorkspace({
                                   </div>
                                 </div>
 
+                                {/* Partial Order Checkbox for this item */}
+                                {item.department === "fabric" && totalWeight < item.quantity && (
+                                  <div className="flex items-center gap-2 bg-amber-50/50 border border-amber-200/60 p-3 rounded-lg">
+                                    <input
+                                      type="checkbox"
+                                      id={`partial-order-checkbox-${item.id}`}
+                                      checked={(itemRemainingActions[item.id] ?? "close") === "backorder"}
+                                      onChange={(e) => {
+                                        setItemRemainingActions((prev) => ({
+                                          ...prev,
+                                          [item.id]: e.target.checked ? "backorder" : "close",
+                                        }));
+                                      }}
+                                      className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary cursor-pointer"
+                                    />
+                                    <Label
+                                      htmlFor={`partial-order-checkbox-${item.id}`}
+                                      className="text-xs font-semibold text-emerald-950 cursor-pointer select-none"
+                                    >
+                                      Create Partial Order for this item (Remaining {formatNumber(item.quantity - totalWeight, 2)} kg will go into a new bill)
+                                    </Label>
+                                  </div>
+                                )}
+
                                 {/* Rolls Selection (Row Format) */}
                                 {item.department !== "fabric" ? (
+
                                   <div className="text-sm text-muted-foreground py-4 text-center border border-dashed rounded-lg">
                                     Dynamic roll tracking is only available for Fabric department. Delivery confirmation will mark this item ready.
                                   </div>

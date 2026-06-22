@@ -234,19 +234,30 @@ export default async function AccountsJournalPage(props: {
                               Edit
                             </Link>
                           )}
-                          <form action={softDeleteJournalEntryGroup}>
-                            <input type="hidden" name="journal_no" value={entry.journal_no} />
-                            <ConfirmSubmitButton
-                              size="sm"
-                              variant="outline"
-                              confirmTitle="Delete journal entry?"
-                              confirmDescription={`This will soft-delete the entire transaction (${entry.journal_no}) and all its lines.`}
-                            >
-                              Delete
-                            </ConfirmSubmitButton>
-                          </form>
+                          {!entry.lines.some((line: any) => {
+                            const desc = (line.description || "").toLowerCase();
+                            return (
+                              desc.startsWith("balance adjustment for bill") ||
+                              desc.startsWith("billing for sales order") ||
+                              desc.startsWith("raw material purchase") ||
+                              desc.startsWith("purchase invoice")
+                            );
+                          }) && (
+                            <form action={softDeleteJournalEntryGroup}>
+                              <input type="hidden" name="journal_no" value={entry.journal_no} />
+                              <ConfirmSubmitButton
+                                size="sm"
+                                variant="outline"
+                                confirmTitle="Delete journal entry?"
+                                confirmDescription={`This will soft-delete the entire transaction (${entry.journal_no}) and all its lines.`}
+                              >
+                                Delete
+                              </ConfirmSubmitButton>
+                            </form>
+                          )}
                         </div>
                       </TableCell>
+
                     </TableRow>
                   ))}
                 </TableBody>
