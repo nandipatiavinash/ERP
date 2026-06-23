@@ -16,6 +16,7 @@ export function ProductionForm({
   nextSerials,
   isAdmin,
   row,
+  onSaved,
 }: {
   fabrics: Option[];
   looms: Option[];
@@ -23,6 +24,7 @@ export function ProductionForm({
   nextSerials?: Record<string, string>;
   isAdmin: boolean;
   row?: Record<string, any>;
+  onSaved?: () => void;
 }) {
   const defaultFabric = row?.fabric_type_id ?? "";
   const defaultLoom = row?.loom_id ?? "";
@@ -89,6 +91,9 @@ export function ProductionForm({
         setEndMeters("");
         setInitialMetersInput("");
       }
+
+      // Notify parent (e.g. dialog) that save succeeded
+      onSaved?.();
     } catch (err: any) {
       setErrorText(err.message || "Failed to save production entry.");
     } finally {

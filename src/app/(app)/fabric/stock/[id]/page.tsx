@@ -1,14 +1,10 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { EmptyState } from "@/components/ui/empty-state";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { PageHeader } from "@/components/app/page-header";
-import { StatusBadge } from "@/components/app/status-badge";
 import { requirePermission } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { formatDate, formatNumber } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { StockRollsClient } from "./StockRollsClient";
 
 export default async function FabricStockDetailPage({
   params,
@@ -58,62 +54,6 @@ export default async function FabricStockDetailPage({
   const fabric = fabricData as { fabric_name: string } | null;
   const fabricName = fabric?.fabric_name ?? "Fabric";
 
-  const sortRolls = (rolls: any[]) =>
-    rolls.sort((a, b) => {
-      const dateA = new Date(a.production_date || 0).getTime();
-      const dateB = new Date(b.production_date || 0).getTime();
-      if (dateA !== dateB) return dateA - dateB;
-      return (a.roll_number || "").localeCompare(b.roll_number || "", undefined, { numeric: true });
-    });
-
-  const sortedAvailable = sortRolls((availableRolls ?? []) as any[]);
-  const sortedSold = sortRolls((soldRolls ?? []) as any[]);
-
-  const RollsTable = ({ rolls }: { rolls: any[] }) => (
-    <div className="overflow-x-auto">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>S.No</TableHead>
-            <TableHead className="text-right">Net W8</TableHead>
-            <TableHead className="text-right">Core W8</TableHead>
-            <TableHead className="text-right">Gross W8</TableHead>
-            <TableHead className="text-right">Mtrs</TableHead>
-            <TableHead className="text-right">Avg Mtrs</TableHead>
-            <TableHead>Loom</TableHead>
-            <TableHead>Prod Date</TableHead>
-            <TableHead>Dispatch Date</TableHead>
-            <TableHead>Client Name</TableHead>
-            <TableHead>Status</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {rolls.map((roll) => {
-            const lpe = roll.loom_production_entries;
-            const allocation = rollAllocationMap[roll.id];
-            return (
-              <TableRow key={roll.id} className="hover:bg-muted/30">
-                <TableCell className="font-bold text-emerald-950">{roll.roll_number}</TableCell>
-                <TableCell className="text-right font-medium text-emerald-900">{formatNumber(lpe?.net_weight, 2)}</TableCell>
-                <TableCell className="text-right text-muted-foreground">{formatNumber(lpe?.core_weight, 2)}</TableCell>
-                <TableCell className="text-right text-muted-foreground">{formatNumber(lpe?.gross_weight, 2)}</TableCell>
-                <TableCell className="text-right font-medium text-emerald-900">{formatNumber(Math.floor(lpe?.net_meters ?? 0), 0)}</TableCell>
-                <TableCell className="text-right text-muted-foreground">{formatNumber(Math.floor(lpe?.average_meter_weight ?? 0), 0)}</TableCell>
-                <TableCell className="font-medium">{roll.looms?.loom_number ?? "N/A"}</TableCell>
-                <TableCell className="whitespace-nowrap">{formatDate(roll.production_date)}</TableCell>
-                <TableCell className="whitespace-nowrap">{allocation ? formatDate(allocation.dispatchDate) : "-"}</TableCell>
-                <TableCell className="font-medium">{allocation ? allocation.clientName : "-"}</TableCell>
-                <TableCell>
-                  <StatusBadge value={roll.status} />
-                </TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
-    </div>
-  );
-
   return (
     <>
       <div className="mb-4">
@@ -125,56 +65,16 @@ export default async function FabricStockDetailPage({
       </div>
 
       <PageHeader
-        title={`Rolls - ${fabricName}`}
+        title={`Rolls — ${fabricName}`}
         description={`Detailed view of fabric rolls registered under type ${fabricName}.`}
       />
 
-      {/* Available Rolls */}
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>
-            Fabric Rolls — Available ({sortedAvailable.length})
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {sortedAvailable.length === 0 ? (
-            <EmptyState
-              title="No available rolls"
-              description={`All rolls for ${fabricName} have been sold or there are none yet.`}
-            />
-          ) : (
-            <RollsTable rolls={sortedAvailable} />
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Sold Rolls – collapsible */}
-      <details className="group">
-        <summary className="flex cursor-pointer select-none items-center gap-3 rounded-xl border border-slate-200 bg-white px-5 py-4 shadow-sm transition hover:bg-slate-50">
-          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 text-slate-500 text-xs font-bold transition group-open:rotate-90">
-            ▶
-          </span>
-          <span className="font-semibold text-slate-700">
-            Sold Rolls ({sortedSold.length})
-          </span>
-          <span className="ml-auto text-xs text-muted-foreground">Click to expand</span>
-        </summary>
-
-        <div className="mt-3">
-          <Card className="border-slate-200">
-            <CardContent className="pt-4">
-              {sortedSold.length === 0 ? (
-                <EmptyState
-                  title="No sold rolls"
-                  description={`No rolls for ${fabricName} have been sold yet.`}
-                />
-              ) : (
-                <RollsTable rolls={sortedSold} />
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      </details>
+      <StockRollsClient
+        availableRolls={(availableRolls ?? []) as any[]}
+        soldRolls={(soldRolls ?? []) as any[]}
+        rollAllocationMap={rollAllocationMap}
+        fabricName={fabricName}
+      />
     </>
   );
 }

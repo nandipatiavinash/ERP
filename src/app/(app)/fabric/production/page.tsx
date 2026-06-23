@@ -4,6 +4,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { PageHeader } from "@/components/app/page-header";
 import { ProductionForm } from "@/components/app/production-form";
+import { ProductionEditDialog } from "@/components/app/production-edit-dialog";
 import { StatusBadge } from "@/components/app/status-badge";
 import { softDeleteProduction } from "@/app/(app)/_actions";
 import { isAdmin, requirePermission } from "@/lib/auth";
@@ -109,24 +110,21 @@ export default async function FabricProductionPage() {
                       <TableCell>{formatNumber(row.net_weight, 2)}</TableCell>
                       <TableCell>{formatNumber(Math.floor(row.net_meters), 0)}</TableCell>
                       <TableCell>{row.average_meter_weight == null ? "-" : formatNumber(Math.floor(Number(row.average_meter_weight)), 0)}</TableCell>
-                      <TableCell className="min-w-96">
-                        <details name="production-accordion">
-                          <summary className="cursor-pointer text-sm font-medium text-primary">Edit</summary>
-                          <div className="mt-3">
-                            <ProductionForm
-                              row={row}
-                              fabrics={((fabrics ?? []) as any[]).map((fabric) => ({ id: fabric.id, label: fabric.fabric_name }))}
-                              looms={((looms ?? []) as any[]).map((loom) => ({ id: loom.id, label: loom.loom_number }))}
-                              lastMeters={lastMeters}
-                              nextSerials={nextSerials}
-                              isAdmin={admin}
-                            />
-                          </div>
-                        </details>
-                        <form action={softDeleteProduction} className="mt-3">
-                          <input type="hidden" name="id" value={row.id} />
-                          <ConfirmSubmitButton variant="outline" size="sm" confirmTitle="Delete production entry?" confirmDescription="This will delete the production entry and update related views.">Delete</ConfirmSubmitButton>
-                        </form>
+                      <TableCell className="min-w-[200px]">
+                        <div className="flex flex-col gap-2">
+                          <ProductionEditDialog
+                            row={row}
+                            fabrics={((fabrics ?? []) as any[]).map((fabric) => ({ id: fabric.id, label: fabric.fabric_name }))}
+                            looms={((looms ?? []) as any[]).map((loom) => ({ id: loom.id, label: loom.loom_number }))}
+                            lastMeters={lastMeters}
+                            nextSerials={nextSerials}
+                            isAdmin={admin}
+                          />
+                          <form action={softDeleteProduction}>
+                            <input type="hidden" name="id" value={row.id} />
+                            <ConfirmSubmitButton variant="outline" size="sm" confirmTitle="Delete production entry?" confirmDescription="This will delete the production entry and update related views.">Delete</ConfirmSubmitButton>
+                          </form>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
