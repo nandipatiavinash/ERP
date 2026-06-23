@@ -131,6 +131,7 @@ export function SalesEntryClient({ pendingOrders, billedOrders, rolls, fabricTyp
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [printOrderId, setPrintOrderId] = useState<string | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<{ orderId: string } | null>(null);
 
   const toggleExpand = (orderId: string) => {
     setExpandedOrderId((prev) => (prev === orderId ? null : orderId));
@@ -155,8 +156,22 @@ export function SalesEntryClient({ pendingOrders, billedOrders, rolls, fabricTyp
       return;
     }
 
+    // If bill number is "0", ask for confirmation before proceeding
+    if (inputs.bill_number.trim() === "0") {
+      setConfirmDialog({ orderId });
+      return;
+    }
+
+    doSubmitBilling(orderId, false);
+  };
+
+  const doSubmitBilling = (orderId: string, skipJournal: boolean) => {
+    const inputs = billInputs[orderId];
+    const billValue = parseFloat(inputs.bill_value);
+
     setErrorMsg(null);
     setSuccessMsg(null);
+    setConfirmDialog(null);
 
     startTransition(async () => {
       try {
@@ -164,8 +179,13 @@ export function SalesEntryClient({ pendingOrders, billedOrders, rolls, fabricTyp
         fd.append("order_id", orderId);
         fd.append("bill_number", inputs.bill_number.trim());
         fd.append("bill_value", String(billValue));
+        if (skipJournal) fd.append("skip_journal", "1");
         await saveSalesOrderBilling(fd);
-        setSuccessMsg("Sales billing saved and journal entries generated!");
+        setSuccessMsg(
+          skipJournal
+            ? "Sales billing saved (bill number 0 — no journal entry recorded)."
+            : "Sales billing saved and journal entries generated!"
+        );
         setBillInputs((prev) => {
           const copy = { ...prev };
           delete copy[orderId];
@@ -201,6 +221,37 @@ export function SalesEntryClient({ pendingOrders, billedOrders, rolls, fabricTyp
 
   return (
     <div className="space-y-6">
+      {/* Confirmation Dialog for Bill Number 0 */}
+      {confirmDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl border border-amber-200 max-w-sm w-full mx-4 p-6">
+            <div className="flex items-center gap-3 mb-3">
+              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 text-amber-600 text-xl font-bold shrink-0">!</span>
+              <h2 className="text-base font-semibold text-slate-800">Bill Number is Zero</h2>
+            </div>
+            <p className="text-sm text-slate-600 mb-5">
+              You entered <span className="font-mono font-bold text-amber-700">0</span> as the bill number.
+              This entry will be <strong>saved</strong> but <strong>no journal entry</strong> will be recorded.
+              Are you sure you want to continue?
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                className="px-4 py-2 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 transition-colors"
+                onClick={() => setConfirmDialog(null)}
+              >
+                Cancel
+              </button>
+              <button
+                className="px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium transition-colors"
+                onClick={() => doSubmitBilling(confirmDialog.orderId, true)}
+              >
+                Yes, Save Without Journal
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Status messages */}
       {errorMsg && (
         <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">{errorMsg}</div>

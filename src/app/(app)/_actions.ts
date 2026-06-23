@@ -1469,6 +1469,7 @@ export async function saveSalesOrderBilling(formData: FormData) {
   const orderId = String(formData.get("order_id") ?? "");
   const billNumber = String(formData.get("bill_number") ?? "").trim();
   const billValue = Number(formData.get("bill_value") ?? 0);
+  const skipJournal = formData.get("skip_journal") === "1" && billNumber === "0";
 
   if (!orderId || !billNumber) {
     throw new Error("Order ID and Bill Number are required.");
@@ -1516,6 +1517,15 @@ export async function saveSalesOrderBilling(formData: FormData) {
     .eq("id", orderId);
 
   if (updateError) throw new Error(updateError.message);
+
+  // If bill number is "0" and skip_journal flag is set, skip journal entries
+  if (skipJournal) {
+    revalidatePath("/accounts/sales");
+    revalidatePath("/accounts/journal");
+    revalidatePath("/sales/order-confirmation");
+    revalidatePath("/reports");
+    return;
+  }
 
   const [customerAcResult, salesAcResult] = await Promise.all([
     supabase.from("customers").select("id, customer_name").ilike("customer_name", customerName).is("deleted_at", null).maybeSingle(),
