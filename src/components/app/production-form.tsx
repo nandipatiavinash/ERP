@@ -25,7 +25,7 @@ export function ProductionForm({
   row?: Record<string, any>;
 }) {
   const defaultFabric = row?.fabric_type_id ?? "";
-  const defaultLoom = row?.loom_id ?? looms[0]?.id ?? "";
+  const defaultLoom = row?.loom_id ?? "";
   const [fabricId, setFabricId] = useState(defaultFabric);
   const [loomId, setLoomId] = useState(defaultLoom);
 
@@ -83,7 +83,7 @@ export function ProductionForm({
       // Reset the form state upon successful submission (only for creating new records)
       if (!row?.id) {
         setFabricId("");
-        setLoomId(looms[0]?.id ?? "");
+        setLoomId("");
         setGross("");
         setCore("");
         setEndMeters("");
