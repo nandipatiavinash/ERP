@@ -96,7 +96,7 @@ export default async function OffsetPrintingProductionPage() {
                     <TableRow key={row.id}>
                       <TableCell>{formatDate(row.entry_date)}</TableCell>
                       <TableCell className="font-mono font-bold text-emerald-950">{row.roll_id}</TableCell>
-                      <TableCell className="font-semibold text-xs">{row.offset_type}</TableCell>
+                      <TableCell className="font-semibold text-xs">{row.offset_type?.replace(/_/g, "/")}</TableCell>
                       <TableCell>{row.offset_products?.brand ?? "-"}</TableCell>
                       <TableCell className="text-xs">{row.fabric_types?.fabric_name ?? "-"}</TableCell>
                       <TableCell className="font-mono text-xs">{row.lamination_rolls?.roll_id ?? "-"}</TableCell>

@@ -137,7 +137,7 @@ export function FinishingProductionForm({
             <SelectContent>
               <SelectItem value="PLAIN">PLAIN</SelectItem>
               <SelectItem value="LAMINATED">LAMINATED</SelectItem>
-              <SelectItem value="NW">NW (Non-Woven)</SelectItem>
+              <SelectItem value="NW">NW</SelectItem>
             </SelectContent>
           </Select>
         </div>

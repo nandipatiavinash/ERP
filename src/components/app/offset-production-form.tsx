@@ -166,9 +166,9 @@ export function OffsetProductionForm({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="FABRIC">Fabric Roll</SelectItem>
-              <SelectItem value="NW">NW (Non-Woven Roll)</SelectItem>
-              <SelectItem value="NW_LAM">NW LAM (Laminated NW)</SelectItem>
-              <SelectItem value="PLAIN_LAM">PLAIN LAM (Laminated Plain)</SelectItem>
+              <SelectItem value="NW">NW</SelectItem>
+              <SelectItem value="NW_LAM">NW/LAM</SelectItem>
+              <SelectItem value="PLAIN_LAM">PLAIN/LAM</SelectItem>
             </SelectContent>
           </Select>
         </div>

@@ -154,9 +154,9 @@ export function LaminationProductionForm({
             <SelectContent>
               <SelectItem value="PLAIN">PLAIN</SelectItem>
               <SelectItem value="BOX">BOX</SelectItem>
-              <SelectItem value="F_S">F_S (Front & Back)</SelectItem>
-              <SelectItem value="H_S">H_S (Half Lamination)</SelectItem>
-              <SelectItem value="NW">NW (Non-Woven)</SelectItem>
+              <SelectItem value="F_S">F/S</SelectItem>
+              <SelectItem value="H_S">H/S</SelectItem>
+              <SelectItem value="NW">NW</SelectItem>
             </SelectContent>
           </Select>
         </div>

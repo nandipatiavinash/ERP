@@ -59,7 +59,7 @@ export default async function FinishingStockPage() {
                   {stockRows.map((bundle) => (
                     <TableRow key={bundle.id}>
                       <TableCell className="font-mono font-bold text-emerald-950">{bundle.bundle_id}</TableCell>
-                      <TableCell className="font-semibold text-xs">{bundle.finish_type}</TableCell>
+                      <TableCell className="font-semibold text-xs">{bundle.finish_type?.replace(/_/g, "/")}</TableCell>
                       <TableCell className="text-right font-mono">{formatNumber(bundle.num_bags, 0)}</TableCell>
                       <TableCell className="text-right font-mono">{formatNumber(bundle.weight_kg, 2)}</TableCell>
                       <TableCell>{formatDate(bundle.entry_date)}</TableCell>

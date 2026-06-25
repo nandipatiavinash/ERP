@@ -98,7 +98,7 @@ export default async function LaminationProductionPage() {
                     <TableRow key={row.id}>
                       <TableCell>{formatDate(row.entry_date)}</TableCell>
                       <TableCell className="font-mono font-bold text-emerald-950">{row.roll_id}</TableCell>
-                      <TableCell className="font-semibold text-xs">{row.lam_type}</TableCell>
+                      <TableCell className="font-semibold text-xs">{row.lam_type?.replace(/_/g, "/")}</TableCell>
                       <TableCell className="text-xs">{row.fabric_types?.fabric_name ?? "-"}</TableCell>
                       <TableCell className="font-mono text-xs">{row.roto_metallic_rolls?.roll_id ?? "-"}</TableCell>
                       <TableCell className="text-xs">{row.raw_materials?.material_name ?? "-"}</TableCell>

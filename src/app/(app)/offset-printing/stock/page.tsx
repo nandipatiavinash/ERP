@@ -59,7 +59,7 @@ export default async function OffsetPrintingStockPage() {
                   {stockRows.map((roll) => (
                     <TableRow key={roll.id}>
                       <TableCell className="font-mono font-bold text-emerald-950">{roll.roll_id}</TableCell>
-                      <TableCell className="font-semibold text-xs">{roll.offset_type}</TableCell>
+                      <TableCell className="font-semibold text-xs">{roll.offset_type?.replace(/_/g, "/")}</TableCell>
                       <TableCell>{roll.offset_products?.brand ?? "-"}</TableCell>
                       <TableCell className="text-right font-mono">{formatNumber(roll.weight_kg, 2)}</TableCell>
                       <TableCell>{formatDate(roll.entry_date)}</TableCell>

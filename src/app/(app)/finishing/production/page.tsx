@@ -95,7 +95,7 @@ export default async function FinishingProductionPage() {
                     <TableRow key={row.id}>
                       <TableCell>{formatDate(row.entry_date)}</TableCell>
                       <TableCell className="font-mono font-bold text-emerald-950">{row.bundle_id}</TableCell>
-                      <TableCell className="font-semibold text-xs">{row.finish_type}</TableCell>
+                      <TableCell className="font-semibold text-xs">{row.finish_type?.replace(/_/g, "/")}</TableCell>
                       <TableCell className="text-right font-mono">{row.num_bags}</TableCell>
                       <TableCell className="text-right font-mono">{row.weight_kg}</TableCell>
                       <TableCell className="text-center">
