@@ -57,82 +57,76 @@ export default async function LaminationProductionPage() {
         description="Log lamination output using a fabric type, metallic film roll, or raw NW material."
       />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-1">
-          <Card>
-            <CardHeader>
-              <CardTitle>Submit Lamination Production</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <LaminationProductionForm
-                fabricTypes={fabricTypes}
-                filmRolls={metallicRolls}
-                rawMaterials={rawMaterials}
-              />
-            </CardContent>
-          </Card>
-        </div>
+      <Card className="mb-5">
+        <CardHeader>
+          <CardTitle>Submit Lamination Production</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <LaminationProductionForm
+            fabricTypes={fabricTypes}
+            filmRolls={metallicRolls}
+            rawMaterials={rawMaterials}
+          />
+        </CardContent>
+      </Card>
 
-        <div className="lg:col-span-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>Recent Lamination Production Entries</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {laminationRows.length === 0 ? (
-                <EmptyState title="No entries found" description="Laminated rolls produced will appear here." />
-              ) : (
-                <div className="overflow-x-auto rounded-lg border border-slate-100">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-slate-50/50">
-                        <TableHead>Date</TableHead>
-                        <TableHead>Laminated Roll ID</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead>Fabric Type</TableHead>
-                        <TableHead>Source Film (Metallic)</TableHead>
-                        <TableHead>NW Material</TableHead>
-                        <TableHead className="text-right">KGs</TableHead>
-                        <TableHead className="text-right">Meters</TableHead>
-                        <TableHead className="text-center">Action</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {laminationRows.map((row) => (
-                        <TableRow key={row.id}>
-                          <TableCell>{formatDate(row.entry_date)}</TableCell>
-                          <TableCell className="font-mono font-bold text-emerald-950">{row.roll_id}</TableCell>
-                          <TableCell className="font-semibold text-xs">{row.lam_type}</TableCell>
-                          <TableCell className="text-xs">{row.fabric_types?.fabric_name ?? "-"}</TableCell>
-                          <TableCell className="font-mono text-xs">{row.roto_metallic_rolls?.roll_id ?? "-"}</TableCell>
-                          <TableCell className="text-xs">{row.raw_materials?.material_name ?? "-"}</TableCell>
-                          <TableCell className="text-right font-mono">{row.weight_kg}</TableCell>
-                          <TableCell className="text-right font-mono">{row.meters}</TableCell>
-                          <TableCell className="text-center">
-                            <form action={async (fd) => {
-                              "use server";
-                              await deleteLaminationProduction(row.id);
-                            }}>
-                              <ConfirmSubmitButton
-                                size="sm"
-                                variant="destructive"
-                                confirmTitle="Delete lamination entry?"
-                                confirmDescription="This will delete this roll and revert any metallic roll back to available stock."
-                              >
-                                Delete
-                              </ConfirmSubmitButton>
-                            </form>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Recent Lamination Production Entries</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {laminationRows.length === 0 ? (
+            <EmptyState title="No entries found" description="Laminated rolls produced will appear here." />
+          ) : (
+            <div className="overflow-x-auto rounded-lg border border-slate-100">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-slate-50/50">
+                    <TableHead>Date</TableHead>
+                    <TableHead>Laminated Roll ID</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Fabric Type</TableHead>
+                    <TableHead>Source Film (Metallic)</TableHead>
+                    <TableHead>NW Material</TableHead>
+                    <TableHead className="text-right">KGs</TableHead>
+                    <TableHead className="text-right">Meters</TableHead>
+                    <TableHead className="text-center">Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {laminationRows.map((row) => (
+                    <TableRow key={row.id}>
+                      <TableCell>{formatDate(row.entry_date)}</TableCell>
+                      <TableCell className="font-mono font-bold text-emerald-950">{row.roll_id}</TableCell>
+                      <TableCell className="font-semibold text-xs">{row.lam_type}</TableCell>
+                      <TableCell className="text-xs">{row.fabric_types?.fabric_name ?? "-"}</TableCell>
+                      <TableCell className="font-mono text-xs">{row.roto_metallic_rolls?.roll_id ?? "-"}</TableCell>
+                      <TableCell className="text-xs">{row.raw_materials?.material_name ?? "-"}</TableCell>
+                      <TableCell className="text-right font-mono">{row.weight_kg}</TableCell>
+                      <TableCell className="text-right font-mono">{row.meters}</TableCell>
+                      <TableCell className="text-center">
+                        <form action={async (fd) => {
+                          "use server";
+                          await deleteLaminationProduction(row.id);
+                        }}>
+                          <ConfirmSubmitButton
+                            size="sm"
+                            variant="destructive"
+                            confirmTitle="Delete lamination entry?"
+                            confirmDescription="This will delete this roll and revert any metallic roll back to available stock."
+                          >
+                            Delete
+                          </ConfirmSubmitButton>
+                        </form>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

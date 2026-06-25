@@ -12,7 +12,7 @@ export default async function LaminationStockPage() {
 
   const { data: rolls, error } = await supabase
     .from("lamination_rolls")
-    .select("*, fabric_rolls(roll_number), roto_metallic_rolls(roll_id), raw_materials(material_name)")
+    .select("*, fabric_types(fabric_name), roto_metallic_rolls(roll_id), raw_materials(material_name)")
     .eq("status", "available")
     .is("deleted_at", null)
     .order("created_at", { ascending: false });
@@ -64,7 +64,7 @@ export default async function LaminationStockPage() {
                     <TableRow key={roll.id}>
                       <TableCell className="font-mono font-bold text-emerald-950">{roll.roll_id}</TableCell>
                       <TableCell className="font-semibold text-xs">{roll.lam_type}</TableCell>
-                      <TableCell className="font-mono text-xs">{roll.fabric_rolls?.roll_number ?? "-"}</TableCell>
+                      <TableCell className="font-mono text-xs">{roll.fabric_types?.fabric_name ?? "-"}</TableCell>
                       <TableCell className="font-mono text-xs">{roll.roto_metallic_rolls?.roll_id ?? "-"}</TableCell>
                       <TableCell className="text-xs">{roll.raw_materials?.material_name ?? "-"}</TableCell>
                       <TableCell className="text-right font-mono">{formatNumber(roll.weight_kg, 2)}</TableCell>

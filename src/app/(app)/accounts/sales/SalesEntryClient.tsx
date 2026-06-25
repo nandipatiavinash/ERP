@@ -321,58 +321,7 @@ export function SalesEntryClient({ pendingOrders, billedOrders, rolls, fabricTyp
         <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm">{successMsg}</div>
       )}
 
-      {/* Multi-Select Billing Form */}
-      {selectedItemIds.length > 0 && (
-        <Card className="border border-emerald-200 bg-emerald-50/20 shadow-md">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold text-emerald-950">
-              Billing Information for {selectedItemIds.length} Selected Item(s)
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap items-end gap-3">
-              <div className="flex-1 min-w-[160px]">
-                <Label className="text-xs text-muted-foreground mb-1">Bill Number</Label>
-                <Input
-                  placeholder="e.g. INV-001"
-                  value={billNumber}
-                  onChange={(e) => setBillNumber(e.target.value)}
-                  className="h-9 text-sm border-slate-300"
-                />
-              </div>
-              <div className="flex-1 min-w-[140px]">
-                <Label className="text-xs text-muted-foreground mb-1">Bill Value (₹)</Label>
-                <Input
-                  type="number"
-                  placeholder="0.00"
-                  value={billValue}
-                  onChange={(e) => setBillValue(e.target.value)}
-                  className="h-9 text-sm font-mono border-slate-300"
-                />
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  className="h-9 bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5"
-                  onClick={handleSubmitBilling}
-                  disabled={isPending}
-                >
-                  <Receipt className="h-3.5 w-3.5" />
-                  {isPending ? "Saving..." : "Submit Billing"}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => setSelectedItemIds([])}
-                  className="h-9 text-xs"
-                >
-                  Cancel
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+
 
       {/* Section 1: Pending Sales Grouped by Customer */}
       <Card className="border-0 shadow-lg bg-gradient-to-br from-white to-amber-50/30">
@@ -555,6 +504,59 @@ export function SalesEntryClient({ pendingOrders, billedOrders, rolls, fabricTyp
           )}
         </CardContent>
       </Card>
+
+      {/* Multi-Select Billing Form */}
+      {selectedItemIds.length > 0 && (
+        <Card className="border border-emerald-200 bg-emerald-50/20 shadow-md">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold text-emerald-950">
+              Billing Information for {selectedItemIds.length} Selected Item(s)
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap items-end gap-3">
+              <div className="flex-1 min-w-[160px]">
+                <Label className="text-xs text-muted-foreground mb-1">Bill Number</Label>
+                <Input
+                  placeholder="e.g. INV-001"
+                  value={billNumber}
+                  onChange={(e) => setBillNumber(e.target.value)}
+                  className="h-9 text-sm border-slate-300"
+                />
+              </div>
+              <div className="flex-1 min-w-[140px]">
+                <Label className="text-xs text-muted-foreground mb-1">Bill Value (₹)</Label>
+                <Input
+                  type="number"
+                  placeholder="0.00"
+                  value={billValue}
+                  onChange={(e) => setBillValue(e.target.value)}
+                  className="h-9 text-sm font-mono border-slate-300"
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  className="h-9 bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5"
+                  onClick={handleSubmitBilling}
+                  disabled={isPending}
+                >
+                  <Receipt className="h-3.5 w-3.5" />
+                  {isPending ? "Saving..." : "Submit Billing"}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setSelectedItemIds([])}
+                  className="h-9 text-xs"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Section 2: Billed Sales */}
       <Card className="border-0 shadow-lg bg-gradient-to-br from-white to-emerald-50/30">

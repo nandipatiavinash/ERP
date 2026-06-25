@@ -57,76 +57,70 @@ export default async function FinishingProductionPage() {
         description="Log finishing bundles of bags from laminated rolls, plain fabric types, or NW raw materials."
       />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-1">
-          <Card>
-            <CardHeader>
-              <CardTitle>Submit Finishing Production</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <FinishingProductionForm
-                laminationRolls={laminationRolls}
-                fabricTypes={fabricTypes}
-                rawMaterials={rawMaterials}
-              />
-            </CardContent>
-          </Card>
-        </div>
+      <Card className="mb-5">
+        <CardHeader>
+          <CardTitle>Submit Finishing Production</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <FinishingProductionForm
+            laminationRolls={laminationRolls}
+            fabricTypes={fabricTypes}
+            rawMaterials={rawMaterials}
+          />
+        </CardContent>
+      </Card>
 
-        <div className="lg:col-span-2">
-          <Card>
-            <CardHeader>
-              <CardTitle>Recent Finishing Production Entries</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {finishingRows.length === 0 ? (
-                <EmptyState title="No entries found" description="Finishing bundles logged will appear here." />
-              ) : (
-                <div className="overflow-x-auto rounded-lg border border-slate-100">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-slate-50/50">
-                        <TableHead>Date</TableHead>
-                        <TableHead>Bundle ID (Source)</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead className="text-right">No. of Bags</TableHead>
-                        <TableHead className="text-right">Weight (kg)</TableHead>
-                        <TableHead className="text-center">Action</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {finishingRows.map((row) => (
-                        <TableRow key={row.id}>
-                          <TableCell>{formatDate(row.entry_date)}</TableCell>
-                          <TableCell className="font-mono font-bold text-emerald-950">{row.bundle_id}</TableCell>
-                          <TableCell className="font-semibold text-xs">{row.finish_type}</TableCell>
-                          <TableCell className="text-right font-mono">{row.num_bags}</TableCell>
-                          <TableCell className="text-right font-mono">{row.weight_kg}</TableCell>
-                          <TableCell className="text-center">
-                            <form action={async (fd) => {
-                              "use server";
-                              await deleteFinishingBundle(row.id);
-                            }}>
-                              <ConfirmSubmitButton
-                                size="sm"
-                                variant="destructive"
-                                confirmTitle="Delete finishing entry?"
-                                confirmDescription="This will delete this bundle and restore any source lamination roll back to available stock."
-                              >
-                                Delete
-                              </ConfirmSubmitButton>
-                            </form>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Recent Finishing Production Entries</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {finishingRows.length === 0 ? (
+            <EmptyState title="No entries found" description="Finishing bundles logged will appear here." />
+          ) : (
+            <div className="overflow-x-auto rounded-lg border border-slate-100">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-slate-50/50">
+                    <TableHead>Date</TableHead>
+                    <TableHead>Bundle ID (Source)</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead className="text-right">No. of Bags</TableHead>
+                    <TableHead className="text-right">Weight (kg)</TableHead>
+                    <TableHead className="text-center">Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {finishingRows.map((row) => (
+                    <TableRow key={row.id}>
+                      <TableCell>{formatDate(row.entry_date)}</TableCell>
+                      <TableCell className="font-mono font-bold text-emerald-950">{row.bundle_id}</TableCell>
+                      <TableCell className="font-semibold text-xs">{row.finish_type}</TableCell>
+                      <TableCell className="text-right font-mono">{row.num_bags}</TableCell>
+                      <TableCell className="text-right font-mono">{row.weight_kg}</TableCell>
+                      <TableCell className="text-center">
+                        <form action={async (fd) => {
+                          "use server";
+                          await deleteFinishingBundle(row.id);
+                        }}>
+                          <ConfirmSubmitButton
+                            size="sm"
+                            variant="destructive"
+                            confirmTitle="Delete finishing entry?"
+                            confirmDescription="This will delete this bundle and restore any source lamination roll back to available stock."
+                          >
+                            Delete
+                          </ConfirmSubmitButton>
+                        </form>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

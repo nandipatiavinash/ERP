@@ -47,7 +47,7 @@ export async function fetchMasterRows({
 
   if (
     response.error &&
-    /deleted_at.*does not exist|column .*deleted_at.*does not exist/i.test(response.error.message)
+    (response.error.code === "42703" || /deleted_at.*does not exist|column .*deleted_at.*does not exist/i.test(response.error.message))
   ) {
     let fallbackQuery = supabase
       .from(config.table)
