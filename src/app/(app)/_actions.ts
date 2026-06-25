@@ -1738,6 +1738,7 @@ export async function deleteSalesOrderCompletely(orderId: string) {
   revalidatePath("/reports");
 }
 
+
 export async function saveSalesConfirmationRates(
   orderId: string,
   itemPrices: Record<string, number>,
@@ -1757,11 +1758,31 @@ export async function saveSalesConfirmationRates(
     throw new Error(orderFetchError?.message || "Order not found.");
   }
 
-  // Update sales order GST rate
+  const billNumber = order.bill_number;
+  const customerId = order.customer_id;
+
+  // Fetch all sibling orders sharing this bill number and customer ID to update and consolidate them
+  let siblingOrders = [order];
+  if (billNumber) {
+    const { data: siblings } = await (supabase
+      .from("sales_orders") as any)
+      .select("*, customers(*), sales_order_items(*)")
+      .eq("bill_number", billNumber)
+      .eq("customer_id", customerId)
+      .eq("status", "confirmed")
+      .is("deleted_at", null);
+    if (siblings && siblings.length > 0) {
+      siblingOrders = siblings;
+    }
+  }
+
+  const siblingIds = siblingOrders.map(o => o.id);
+
+  // Update GST rate across all sibling orders
   const { error: orderError } = await (supabase
     .from("sales_orders") as any)
     .update({ gst_rate: gstRate, updated_by: user.id } as any)
-    .eq("id", orderId);
+    .in("id", siblingIds);
 
   if (orderError) {
     throw new Error(orderError.message);
@@ -1782,8 +1803,8 @@ export async function saveSalesConfirmationRates(
     }
   }
 
-  // 2. Fetch fabric rolls for weight calculations
-  const items = (order.sales_order_items || []) as any[];
+  // 2. Fetch fabric rolls for weight calculations across all sibling orders
+  const items = siblingOrders.flatMap(o => o.sales_order_items || []) as any[];
   const allRollIds: string[] = [];
   items.forEach((item: any) => {
     if (item.department === "fabric" && item.selected_roll_ids) {
@@ -1804,7 +1825,7 @@ export async function saveSalesConfirmationRates(
     });
   }
 
-  // 3. Calculate actual calculatedTotal
+  // 3. Calculate actual calculatedTotal combined across all sibling orders combined
   let baseTotal = 0;
   for (const item of items) {
     let qty = 0;
@@ -1816,15 +1837,14 @@ export async function saveSalesConfirmationRates(
     } else {
       qty = Number(item.quantity || 0);
     }
-    const price = Number(itemPrices[item.id] ?? 0);
+    const price = Number(itemPrices[item.id] ?? item.price ?? 0);
     baseTotal += qty * price;
   }
 
   const calculatedTotal = baseTotal + (baseTotal * gstRate / 100);
-  const billValue = Number(order.bill_value ?? 0);
-  const balance = calculatedTotal - billValue;
+  const combinedBillValue = siblingOrders.reduce((sum, o) => sum + Number(o.bill_value ?? 0), 0);
+  const balance = calculatedTotal - combinedBillValue;
 
-  const billNumber = order.bill_number;
   if (billNumber) {
     // Delete any existing balance adjustments for this bill to prevent duplication
     await (supabase
@@ -1833,7 +1853,7 @@ export async function saveSalesConfirmationRates(
       .or(`description.eq."Balance adjustment for Bill ${billNumber}",description.like."Balance adjustment for Bill ${billNumber} (%)"`);
   }
 
-  // 4. Auto-generate journal entry if balance is > +/- 100
+  // 4. Auto-generate a single consolidated journal entry if combined balance is > +/- 100
   if (Math.abs(balance) > 100 && billNumber) {
     const customerName = order.customers?.customer_name ?? "Unknown";
     const clientAlias = order.customers?.alias;

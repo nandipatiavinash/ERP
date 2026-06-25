@@ -300,10 +300,53 @@ export function SalesEntryClient({ pendingOrders, billedOrders, rolls, fabricTyp
     });
   };
 
+  // Group billed orders by bill number
+  const groupedBilledOrders = useMemo(() => {
+    const groups: Record<string, any> = {};
+    for (const order of billedOrders) {
+      const billNo = order.bill_number;
+      if (!billNo) continue;
+      if (!groups[billNo]) {
+        groups[billNo] = {
+          ...order,
+          bill_value: order.bill_value ?? 0,
+          order_ids: [order.id],
+          order_number: order.order_number,
+          order_numbers: [order.order_number],
+          sales_order_items: [...(order.sales_order_items ?? [])],
+        };
+      } else {
+        groups[billNo].order_ids.push(order.id);
+        groups[billNo].order_numbers.push(order.order_number);
+        groups[billNo].sales_order_items.push(...(order.sales_order_items ?? []));
+        groups[billNo].bill_value += (order.bill_value ?? 0);
+        if (!groups[billNo].order_numbers.includes(order.order_number)) {
+          groups[billNo].order_number = groups[billNo].order_numbers.join(", ");
+        }
+      }
+    }
+    return Object.values(groups);
+  }, [billedOrders]);
+
   // Build product groups for print view
-  const printOrder = printOrderId
-    ? [...pendingOrders, ...billedOrders].find((o) => o.id === printOrderId)
-    : null;
+  const printOrder = useMemo(() => {
+    if (!printOrderId) return null;
+    const pending = pendingOrders.find((o) => o.id === printOrderId);
+    if (pending) return pending;
+
+    const billed = billedOrders.find((o) => o.id === printOrderId);
+    if (billed && billed.bill_number) {
+      const siblings = billedOrders.filter((o) => o.bill_number === billed.bill_number);
+      return {
+        ...billed,
+        order_number: Array.from(new Set(siblings.map((o) => o.order_number))).join(", "),
+        bill_value: siblings.reduce((sum, o) => sum + (o.bill_value ?? 0), 0),
+        sales_order_items: siblings.flatMap((o) => o.sales_order_items ?? []),
+      };
+    }
+    return billed;
+  }, [printOrderId, pendingOrders, billedOrders]);
+
   const printGroups = printOrder ? buildProductGroups(printOrder, rolls, fabricTypes) : [];
   const printRollsByProduct: Record<string, any[]> = {};
   for (const g of printGroups) {
@@ -626,13 +669,13 @@ export function SalesEntryClient({ pendingOrders, billedOrders, rolls, fabricTyp
             <FileText className="h-5 w-5 text-emerald-600" />
             Billed Sales
             <Badge className="ml-2 bg-emerald-50 text-emerald-700 border-emerald-200">
-              {billedOrders.length}
+              {groupedBilledOrders.length}
             </Badge>
           </CardTitle>
           <p className="text-sm text-muted-foreground">Sales with bill number and value, with journal entries auto-generated.</p>
         </CardHeader>
         <CardContent>
-          {billedOrders.length === 0 ? (
+          {groupedBilledOrders.length === 0 ? (
             <EmptyState
               title="No billed sales yet"
               description="Once you submit billing for pending deliveries, they will appear here."
@@ -651,7 +694,7 @@ export function SalesEntryClient({ pendingOrders, billedOrders, rolls, fabricTyp
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {billedOrders.map((order) => {
+                  {groupedBilledOrders.map((order) => {
                     const groups = buildProductGroups(order, rolls, fabricTypes);
                     return (
                       <TableRow key={order.id} className="hover:bg-white/60">

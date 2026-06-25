@@ -140,18 +140,6 @@ export function RotoFilmProductionForm({
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Date Field */}
-        <div className="space-y-1 md:col-span-1">
-          <Label htmlFor="entry_date" className="text-xs font-semibold text-slate-700">Production Date</Label>
-          <Input
-            id="entry_date"
-            type="date"
-            value={entryDate}
-            onChange={(e) => setEntryDate(e.target.value)}
-            className="h-10 text-sm border-slate-200 focus:border-emerald-500 focus:ring-emerald-500"
-          />
-        </div>
-
         {/* Brand/Product */}
         <div className="space-y-1">
           <Label className="text-xs font-semibold text-slate-700">Brand Name</Label>
@@ -236,7 +224,7 @@ export function RotoFilmProductionForm({
 
       <Button
         type="submit"
-        className="w-full h-10 bg-emerald-600 hover:bg-emerald-700 text-white font-medium transition-colors"
+        className="w-fit px-6 h-9 bg-emerald-600 hover:bg-emerald-700 text-white font-medium transition-colors"
         disabled={isPending}
       >
         {isPending ? "Submitting..." : "Submit Production"}

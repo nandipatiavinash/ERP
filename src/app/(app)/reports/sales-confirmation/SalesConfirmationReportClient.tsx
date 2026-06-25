@@ -74,12 +74,39 @@ export function SalesConfirmationReportClient({
   const [saving, setSaving] = useState<Record<string, boolean>>({});
   const [successOrders, setSuccessOrders] = useState<Record<string, boolean>>({});
   const [errorText, setErrorText] = useState<Record<string, string | null>>({});
-
   const displayedOrders = activeTab === "date" ? orders : recentOrders;
+
+  // Group displayed orders by bill number
+  const groupedOrders = useMemo(() => {
+    const groups: Record<string, any> = {};
+    for (const order of displayedOrders) {
+      const billNo = order.bill_number;
+      if (!billNo) continue;
+      if (!groups[billNo]) {
+        groups[billNo] = {
+          ...order,
+          bill_value: order.bill_value ?? 0,
+          order_ids: [order.id],
+          order_number: order.order_number,
+          order_numbers: [order.order_number],
+          sales_order_items: [...(order.sales_order_items ?? [])],
+        };
+      } else {
+        groups[billNo].order_ids.push(order.id);
+        groups[billNo].order_numbers.push(order.order_number);
+        groups[billNo].sales_order_items.push(...(order.sales_order_items ?? []));
+        groups[billNo].bill_value += (order.bill_value ?? 0);
+        if (!groups[billNo].order_numbers.includes(order.order_number)) {
+          groups[billNo].order_number = groups[billNo].order_numbers.join(", ");
+        }
+      }
+    }
+    return Object.values(groups);
+  }, [displayedOrders]);
 
   // Sort orders flat: order_date (ascending for date tab, descending for recent tab), then bill_number (ascending)
   const sortedOrders = useMemo(() => {
-    return [...displayedOrders].sort((a, b) => {
+    return [...groupedOrders].sort((a, b) => {
       if (a.order_date !== b.order_date) {
         return activeTab === "date"
           ? a.order_date.localeCompare(b.order_date)
@@ -87,8 +114,7 @@ export function SalesConfirmationReportClient({
       }
       return (a.bill_number || "").localeCompare(b.bill_number || "");
     });
-  }, [displayedOrders, activeTab]);
-
+  }, [groupedOrders, activeTab]);
   useEffect(() => {
     const initialPrices: Record<string, number> = {};
     const initialGst: Record<string, number> = {};
@@ -237,7 +263,7 @@ export function SalesConfirmationReportClient({
             const clientName = order.customers?.customer_name ?? "Unknown Customer";
             const clientAlias = order.customers?.alias;
 
-            const itemsWithCalcs = order.sales_order_items?.map((item) => {
+            const itemsWithCalcs = order.sales_order_items?.map((item: any) => {
               const qty = Number(getItemQuantity(item));
               const price = Number(prices[item.id] ?? 0);
               const amount = qty * price;
@@ -251,7 +277,7 @@ export function SalesConfirmationReportClient({
               };
             }) || [];
 
-            const baseTotal = itemsWithCalcs.reduce((s, item) => s + item.amount, 0);
+            const baseTotal = itemsWithCalcs.reduce((s: number, item: any) => s + item.amount, 0);
             const gstAmount = baseTotal * (gstPct / 100);
             const calculatedTotal = baseTotal + gstAmount;
             const billValue = Number(order.bill_value ?? 0);
@@ -334,7 +360,7 @@ export function SalesConfirmationReportClient({
                           </TableRow>
                         </TableHeader>
                         <TableBody>
-                          {itemsWithCalcs.map((item) => (
+                          {itemsWithCalcs.map((item: any) => (
                             <TableRow key={item.id} className="hover:bg-slate-50/50 border-b border-slate-100 last:border-b-0">
                               <TableCell className="text-xs capitalize font-medium text-slate-600">
                                 {item.department}
