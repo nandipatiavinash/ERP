@@ -10,6 +10,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatNumber, formatDate } from "@/lib/utils";
 import { saveSalesConfirmationRates } from "@/app/(app)/_actions";
+import { DateFilter } from "@/components/app/date-filter";
 
 type OrderItem = {
   id: string;
@@ -40,7 +41,8 @@ type SalesOrder = {
 
 interface SalesConfirmationReportClientProps {
   orders: SalesOrder[];
-  recentOrders?: SalesOrder[];
+  pendingOrders: SalesOrder[];
+  date: string;
   fabrics: Array<{ id: string; fabric_name: string; selling_price: number }>;
   rotoProducts: Array<{ id: string; brand: string; width: number; height: number }>;
   offsetProducts: Array<{ id: string; brand: string; width: number; height: number }>;
@@ -49,7 +51,8 @@ interface SalesConfirmationReportClientProps {
 
 export function SalesConfirmationReportClient({
   orders,
-  recentOrders = [],
+  pendingOrders,
+  date,
   fabrics,
   rotoProducts,
   offsetProducts,
@@ -57,8 +60,8 @@ export function SalesConfirmationReportClient({
 }: SalesConfirmationReportClientProps) {
   const router = useRouter();
   
-  // Tabs: "date" or "recent"
-  const [activeTab, setActiveTab] = useState<"date" | "recent">("date");
+  // Tabs: "pending" or "completed"
+  const [activeTab, setActiveTab] = useState<"pending" | "completed">("pending");
 
   // Collapsible states
   const [expandedOrders, setExpandedOrders] = useState<Record<string, boolean>>({});
@@ -74,7 +77,16 @@ export function SalesConfirmationReportClient({
   const [saving, setSaving] = useState<Record<string, boolean>>({});
   const [successOrders, setSuccessOrders] = useState<Record<string, boolean>>({});
   const [errorText, setErrorText] = useState<Record<string, string | null>>({});
-  const displayedOrders = activeTab === "date" ? orders : recentOrders;
+
+  // Helper to determine if an order has all rates/prices confirmed in database
+  const isOrderRatesConfirmed = (order: SalesOrder) => {
+    if (!order.sales_order_items || order.sales_order_items.length === 0) return false;
+    return order.sales_order_items.every(
+      (item: any) => item.price != null && Number(item.price) > 0
+    );
+  };
+
+  const displayedOrders = activeTab === "pending" ? pendingOrders : orders;
 
   // Group displayed orders by bill number
   const groupedOrders = useMemo(() => {
@@ -104,22 +116,45 @@ export function SalesConfirmationReportClient({
     return Object.values(groups);
   }, [displayedOrders]);
 
-  // Sort orders flat: order_date (ascending for date tab, descending for recent tab), then bill_number (ascending)
+  // Sort and filter orders
   const sortedOrders = useMemo(() => {
-    return [...groupedOrders].sort((a, b) => {
+    const sorted = [...groupedOrders].sort((a, b) => {
       if (a.order_date !== b.order_date) {
-        return activeTab === "date"
-          ? a.order_date.localeCompare(b.order_date)
-          : b.order_date.localeCompare(a.order_date);
+        return activeTab === "completed"
+          ? b.order_date.localeCompare(a.order_date)
+          : a.order_date.localeCompare(b.order_date);
       }
       return (a.bill_number || "").localeCompare(b.bill_number || "");
     });
+
+    return sorted.filter((group) => {
+      const confirmed = isOrderRatesConfirmed(group);
+      return activeTab === "completed" ? confirmed : !confirmed;
+    });
   }, [groupedOrders, activeTab]);
+
+  const completedGroupCount = useMemo(() => {
+    const groups: Record<string, any> = {};
+    for (const order of orders) {
+      const billNo = order.bill_number;
+      if (!billNo) continue;
+      if (!groups[billNo]) {
+        groups[billNo] = {
+          ...order,
+          sales_order_items: [...(order.sales_order_items ?? [])],
+        };
+      } else {
+        groups[billNo].sales_order_items.push(...(order.sales_order_items ?? []));
+      }
+    }
+    return Object.values(groups).filter(isOrderRatesConfirmed).length;
+  }, [orders]);
+
   useEffect(() => {
     const initialPrices: Record<string, number> = {};
     const initialGst: Record<string, number> = {};
 
-    const allOrders = [...orders, ...recentOrders];
+    const allOrders = [...orders, ...pendingOrders];
     allOrders.forEach((order) => {
       initialGst[order.id] = Number(order.gst_rate ?? 18);
       order.sales_order_items?.forEach((item) => {
@@ -136,7 +171,7 @@ export function SalesConfirmationReportClient({
 
     setPrices((prev) => ({ ...initialPrices, ...prev }));
     setGstRates((prev) => ({ ...initialGst, ...prev }));
-  }, [orders, recentOrders, fabrics]);
+  }, [orders, pendingOrders, fabrics]);
 
   const toggleOrder = (orderId: string) => {
     setExpandedOrders((prev) => ({ ...prev, [orderId]: !prev[orderId] }));
@@ -216,44 +251,44 @@ export function SalesConfirmationReportClient({
     }
   };
 
-  // Helper to determine if an order has all rates/prices confirmed in database
-  const isOrderRatesConfirmed = (order: SalesOrder) => {
-    if (!order.sales_order_items || order.sales_order_items.length === 0) return false;
-    return order.sales_order_items.every(
-      (item) => item.price != null && Number(item.price) > 0
-    );
-  };
-
   return (
     <div className="space-y-6">
       {/* Premium Tab Switcher */}
-      <div className="flex border-b border-slate-200">
-        <button
-          onClick={() => setActiveTab("date")}
-          className={`px-5 py-2.5 font-bold text-sm border-b-2 transition-all ${
-            activeTab === "date"
-              ? "border-emerald-600 text-emerald-600"
-              : "border-transparent text-slate-500 hover:text-slate-700"
-          }`}
-        >
-          Orders on Selected Date
-        </button>
-        <button
-          onClick={() => setActiveTab("recent")}
-          className={`px-5 py-2.5 font-bold text-sm border-b-2 transition-all ${
-            activeTab === "recent"
-              ? "border-emerald-600 text-emerald-600"
-              : "border-transparent text-slate-500 hover:text-slate-700"
-          }`}
-        >
-          Recent Confirmations (Last 20)
-        </button>
+      <div className="flex items-center justify-between border-b border-slate-200">
+        <div className="flex">
+          <button
+            onClick={() => setActiveTab("pending")}
+            className={`px-5 py-2.5 font-bold text-sm border-b-2 transition-all ${
+              activeTab === "pending"
+                ? "border-emerald-600 text-emerald-600"
+                : "border-transparent text-slate-500 hover:text-slate-700"
+            }`}
+          >
+            Pending Confirmation ({sortedOrders.length})
+          </button>
+          <button
+            onClick={() => setActiveTab("completed")}
+            className={`px-5 py-2.5 font-bold text-sm border-b-2 transition-all ${
+              activeTab === "completed"
+                ? "border-emerald-600 text-emerald-600"
+                : "border-transparent text-slate-500 hover:text-slate-700"
+            }`}
+          >
+            Completed Deliveries ({completedGroupCount})
+          </button>
+        </div>
+
+        {activeTab === "completed" && (
+          <div className="pb-1">
+            <DateFilter date={date} baseUrl="/reports/sales-confirmation" />
+          </div>
+        )}
       </div>
 
       {sortedOrders.length === 0 ? (
         <EmptyState
-          title={activeTab === "date" ? "No billed sales on this date" : "No recent confirmations"}
-          description="Billed sales orders from Sales Entry will appear here."
+          title={activeTab === "completed" ? "No billed sales on this date" : "No pending confirmations"}
+          description={activeTab === "completed" ? "Billed sales orders from Sales Entry will appear here." : "All sales confirmations have rates fully defined."}
         />
       ) : (
         <div className="space-y-4">

@@ -27,18 +27,27 @@ export default async function SalesConfirmationReportPage({
 
   const billedOrders = (orders ?? []) as any[];
 
-  // Fetch the 20 most recent confirmed orders with a bill number (any date, sorted by date/created_at descending)
-  const { data: recentOrders } = await supabase
-    .from("sales_orders")
-    .select("*, customers(*), sales_order_items(*)")
-    .eq("status", "confirmed")
-    .not("bill_number", "is", null)
-    .is("deleted_at", null)
-    .order("order_date", { ascending: false })
-    .order("created_at", { ascending: false })
-    .limit(20);
+  // 1. Fetch pending items (price is 0 or null)
+  const { data: pendingItems } = await supabase
+    .from("sales_order_items")
+    .select("sales_order_id")
+    .or("price.eq.0,price.is.null");
 
-  const billedRecentOrders = (recentOrders ?? []) as any[];
+  const pendingOrderIds = Array.from(new Set(((pendingItems ?? []) as any[]).map(item => item.sales_order_id)));
+
+  // 2. Fetch pending orders (all dates)
+  let pendingOrders: any[] = [];
+  if (pendingOrderIds.length > 0) {
+    const { data: pendingRes } = await supabase
+      .from("sales_orders")
+      .select("*, customers(*), sales_order_items(*)")
+      .eq("status", "confirmed")
+      .not("bill_number", "is", null)
+      .in("id", pendingOrderIds)
+      .is("deleted_at", null)
+      .order("order_date", { ascending: false });
+    pendingOrders = pendingRes || [];
+  }
 
   // Fetch product definitions for resolving names
   const [{ data: fabrics }, { data: roto }, { data: offset }] = await Promise.all([
@@ -49,7 +58,7 @@ export default async function SalesConfirmationReportPage({
 
   // Extract selected roll IDs
   const allRollIds: string[] = [];
-  const combinedOrders = [...billedOrders, ...billedRecentOrders];
+  const combinedOrders = [...billedOrders, ...pendingOrders];
   combinedOrders.forEach((order) => {
     order.sales_order_items?.forEach((item: any) => {
       if (item.selected_roll_ids) {
@@ -78,13 +87,10 @@ export default async function SalesConfirmationReportPage({
       />
 
       <div className="flex flex-col gap-4">
-        <div className="flex justify-end">
-          <DateFilter date={date} baseUrl="/reports/sales-confirmation" />
-        </div>
-
         <SalesConfirmationReportClient
           orders={billedOrders}
-          recentOrders={billedRecentOrders}
+          pendingOrders={pendingOrders}
+          date={date}
           fabrics={fabrics || []}
           rotoProducts={roto || []}
           offsetProducts={offset || []}
