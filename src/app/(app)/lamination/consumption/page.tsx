@@ -1,23 +1,9 @@
-import { ConsumptionForm } from "@/components/app/consumption-form";
-import { ConfirmSubmitButton } from "@/components/app/confirm-submit-button";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { EmptyState } from "@/components/ui/empty-state";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { PageHeader } from "@/components/app/page-header";
 import { DateFilter } from "@/components/app/date-filter";
-import {
-  softDeleteRawMaterialConsumption,
-  consumeFabricRoll,
-  revertFabricRollConsumption,
-  consumeMetallicRoll,
-  revertMetallicRollConsumption
-} from "@/app/(app)/_actions";
 import { requirePermission } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { formatDate, formatNumber, todayInIndia } from "@/lib/utils";
-import { revalidatePath } from "next/cache";
+import { todayInIndia } from "@/lib/utils";
+import { LaminationConsumptionClient } from "./LaminationConsumptionClient";
 
 export default async function LaminationConsumptionPage({
   searchParams,
@@ -92,7 +78,7 @@ export default async function LaminationConsumptionPage({
   const consumedFilm = (consumedFilmRes.data ?? []) as any[];
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <PageHeader
         title="Lamination Consumption"
         description="Log and review consumed raw materials, fabric rolls, and printed film rolls in lamination."
@@ -102,247 +88,16 @@ export default async function LaminationConsumptionPage({
         <DateFilter date={date} baseUrl="/lamination/consumption" />
       </div>
 
-      {!isToday && (
-        <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-lg p-4 text-sm font-medium">
-          Viewing historical records. Logging and deleting are only allowed on the current day.
-        </div>
-      )}
-
-      {/* SECTION A: Raw Materials Consumption */}
-      <Card className="border-0 shadow-lg bg-gradient-to-br from-white to-amber-50/20">
-        <CardHeader>
-          <CardTitle className="text-lg">Raw Materials Consumption</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {isToday && (
-            <div className="bg-slate-50/50 p-4 rounded-xl border border-slate-100">
-              <h4 className="text-sm font-semibold text-slate-800 mb-3">Log Raw Materials</h4>
-              <ConsumptionForm department="lamination" materials={materials} />
-            </div>
-          )}
-          <div className="space-y-3">
-            <h4 className="text-sm font-semibold text-slate-800">Raw Materials Consumed on {formatDate(date)}</h4>
-            {rawRows.length === 0 ? (
-              <EmptyState title="No logs found" description="Consumed chemicals and materials will show here." />
-            ) : (
-              <div className="overflow-x-auto rounded-lg border border-slate-100 bg-white">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-slate-50/50">
-                      <TableHead>Material</TableHead>
-                      <TableHead className="text-right">Quantity</TableHead>
-                      <TableHead>Remarks</TableHead>
-                      {isToday && <TableHead className="text-center">Action</TableHead>}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {rawRows.map((row: any) => (
-                      <TableRow key={row.id}>
-                        <TableCell className="font-medium">{row.raw_materials?.material_name ?? "-"}</TableCell>
-                        <TableCell className="text-right font-mono">
-                          {formatNumber(row.quantity, 2)} {row.raw_materials?.unit ?? ""}
-                        </TableCell>
-                        <TableCell>{row.remarks ?? "-"}</TableCell>
-                        {isToday && (
-                          <TableCell className="text-center">
-                            <form action={softDeleteRawMaterialConsumption}>
-                              <input type="hidden" name="id" value={row.id} />
-                              <ConfirmSubmitButton
-                                size="sm"
-                                variant="destructive"
-                                confirmTitle="Delete consumption log?"
-                                confirmDescription="This will restore the material stock."
-                              >
-                                Delete
-                              </ConfirmSubmitButton>
-                            </form>
-                          </TableCell>
-                        )}
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* SECTION B: Fabric Rolls Consumption */}
-      <Card className="border-0 shadow-lg bg-gradient-to-br from-white to-blue-50/20">
-        <CardHeader>
-          <CardTitle className="text-lg">Fabric Rolls Consumption</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {isToday && (
-            <div className="bg-slate-50/50 p-4 rounded-xl border border-slate-100">
-              <h4 className="text-sm font-semibold text-slate-800 mb-3">Consume Fabric Roll</h4>
-              <form
-                action={async (fd) => {
-                  "use server";
-                  const rollId = String(fd.get("roll_id") ?? "");
-                  if (rollId) {
-                    await consumeFabricRoll(rollId, "lamination_consumption");
-                  }
-                }}
-                className="flex flex-wrap items-end gap-4"
-              >
-                <div className="flex-1 min-w-[280px] space-y-1">
-                  <Label className="text-xs font-semibold text-slate-700">Fabric Roll</Label>
-                  <select
-                    name="roll_id"
-                    className="w-full h-10 rounded-lg border border-slate-200 px-3 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500 font-mono"
-                    required
-                  >
-                    <option value="">Select available roll</option>
-                    {availableFabric.map((r) => (
-                      <option key={r.id} value={r.id}>
-                        {r.roll_number} ({r.weight}kg · {r.meters}m)
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <Button type="submit" className="bg-emerald-600 hover:bg-emerald-700 text-white px-6">
-                  Mark Fabric Roll Consumed
-                </Button>
-              </form>
-            </div>
-          )}
-          <div className="space-y-3">
-            <h4 className="text-sm font-semibold text-slate-800">Fabric Rolls Consumed in Lamination</h4>
-            {consumedFabric.length === 0 ? (
-              <EmptyState title="No consumed rolls" description="Fabric rolls marked as consumed in lamination will show here." />
-            ) : (
-              <div className="overflow-x-auto rounded-lg border border-slate-100 bg-white">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-slate-50/50">
-                      <TableHead>Roll Number</TableHead>
-                      <TableHead className="text-right">Weight (kg)</TableHead>
-                      <TableHead className="text-right">Meters</TableHead>
-                      {isToday && <TableHead className="text-center">Action</TableHead>}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {consumedFabric.map((roll) => (
-                      <TableRow key={roll.id}>
-                        <TableCell className="font-mono font-bold text-emerald-950">{roll.roll_number}</TableCell>
-                        <TableCell className="text-right font-mono">{formatNumber(roll.weight, 2)}</TableCell>
-                        <TableCell className="text-right font-mono">{formatNumber(roll.meters, 0)}</TableCell>
-                        {isToday && (
-                          <TableCell className="text-center">
-                            <form action={async () => {
-                              "use server";
-                              await revertFabricRollConsumption(roll.id);
-                            }}>
-                              <ConfirmSubmitButton
-                                size="sm"
-                                variant="destructive"
-                                confirmTitle="Revert fabric roll consumption?"
-                                confirmDescription="This will restore the roll back to available loom stock."
-                              >
-                                Revert
-                              </ConfirmSubmitButton>
-                            </form>
-                          </TableCell>
-                        )}
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* SECTION C: Metallic Film Rolls Consumption */}
-      <Card className="border-0 shadow-lg bg-gradient-to-br from-white to-emerald-50/20">
-        <CardHeader>
-          <CardTitle className="text-lg">Metallic Film Rolls Consumption</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {isToday && (
-            <div className="bg-slate-50/50 p-4 rounded-xl border border-slate-100">
-              <h4 className="text-sm font-semibold text-slate-800 mb-3">Consume Metallic Film Roll</h4>
-              <form
-                action={async (fd) => {
-                  "use server";
-                  const rollId = String(fd.get("roll_id") ?? "");
-                  if (rollId) {
-                    await consumeMetallicRoll(rollId);
-                  }
-                }}
-                className="flex flex-wrap items-end gap-4"
-              >
-                <div className="flex-1 min-w-[280px] space-y-1">
-                  <Label className="text-xs font-semibold text-slate-700">Metallic Roll</Label>
-                  <select
-                    name="roll_id"
-                    className="w-full h-10 rounded-lg border border-slate-200 px-3 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500 font-mono"
-                    required
-                  >
-                    <option value="">Select available metallic roll</option>
-                    {availableFilm.map((f) => (
-                      <option key={f.id} value={f.id}>
-                        {f.roll_id} ({f.weight_kg}kg · {f.meters}m)
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <Button type="submit" className="bg-emerald-600 hover:bg-emerald-700 text-white px-6">
-                  Mark Metallic Roll Consumed
-                </Button>
-              </form>
-            </div>
-          )}
-          <div className="space-y-3">
-            <h4 className="text-sm font-semibold text-slate-800">Metallic Film Rolls Consumed</h4>
-            {consumedFilm.length === 0 ? (
-              <EmptyState title="No consumed film rolls" description="Metallic film rolls marked as consumed will show here." />
-            ) : (
-              <div className="overflow-x-auto rounded-lg border border-slate-100 bg-white">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-slate-50/50">
-                      <TableHead>Roll ID</TableHead>
-                      <TableHead className="text-right">Weight (kg)</TableHead>
-                      <TableHead className="text-right">Meters</TableHead>
-                      {isToday && <TableHead className="text-center">Action</TableHead>}
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {consumedFilm.map((roll) => (
-                      <TableRow key={roll.id}>
-                        <TableCell className="font-mono font-bold text-emerald-950">{roll.roll_id}</TableCell>
-                        <TableCell className="text-right font-mono">{formatNumber(roll.weight_kg, 2)}</TableCell>
-                        <TableCell className="text-right font-mono">{formatNumber(roll.meters, 0)}</TableCell>
-                        {isToday && (
-                          <TableCell className="text-center">
-                            <form action={async () => {
-                              "use server";
-                              await revertMetallicRollConsumption(roll.id);
-                            }}>
-                              <ConfirmSubmitButton
-                                size="sm"
-                                variant="destructive"
-                                confirmTitle="Revert metallic film roll consumption?"
-                                confirmDescription="This will restore the roll back to available stock."
-                              >
-                                Revert
-                              </ConfirmSubmitButton>
-                            </form>
-                          </TableCell>
-                        )}
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+      <LaminationConsumptionClient
+        date={date}
+        isToday={isToday}
+        materials={materials}
+        rawRows={rawRows}
+        availableFabric={availableFabric}
+        consumedFabric={consumedFabric}
+        availableFilm={availableFilm}
+        consumedFilm={consumedFilm}
+      />
     </div>
   );
 }

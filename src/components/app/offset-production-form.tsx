@@ -148,7 +148,7 @@ export function OffsetProductionForm({
   const isLamRequired = ["NW_LAM", "PLAIN_LAM"].includes(offsetType);
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 max-w-xl bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+    <form onSubmit={handleSubmit} className="space-y-4 w-full bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
       {errorMsg && (
         <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">{errorMsg}</div>
       )}
@@ -156,9 +156,9 @@ export function OffsetProductionForm({
         <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm">{successMsg}</div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Date Field */}
-        <div className="space-y-1 md:col-span-2">
+        <div className="space-y-1 md:col-span-1">
           <Label htmlFor="entry_date" className="text-xs font-semibold text-slate-700">Production Date</Label>
           <Input
             id="entry_date"
@@ -243,7 +243,7 @@ export function OffsetProductionForm({
         </div>
 
         {/* KGs */}
-        <div className="space-y-1 md:col-span-2">
+        <div className="space-y-1 md:col-span-1">
           <Label htmlFor="weight_kg" className="text-xs font-semibold text-slate-700">Offset Roll KGs</Label>
           <Input
             id="weight_kg"

@@ -91,7 +91,7 @@ export function RotoMetallicProductionForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 max-w-xl bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
+    <form onSubmit={handleSubmit} className="space-y-4 w-full bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
       {errorMsg && (
         <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-red-700 text-sm">{errorMsg}</div>
       )}
@@ -99,9 +99,9 @@ export function RotoMetallicProductionForm({
         <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm">{successMsg}</div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Date Field */}
-        <div className="space-y-1 md:col-span-2">
+        <div className="space-y-1 md:col-span-1">
           <Label htmlFor="entry_date" className="text-xs font-semibold text-slate-700">Production Date</Label>
           <Input
             id="entry_date"
@@ -158,7 +158,7 @@ export function RotoMetallicProductionForm({
         </div>
 
         {/* Checkbox for Split Roll */}
-        <div className="md:col-span-2 flex items-start gap-2 bg-slate-50 p-3 rounded-lg border border-slate-100">
+        <div className="md:col-span-3 flex items-start gap-2 bg-slate-50 p-3 rounded-lg border border-slate-100">
           <input
             id="is_split"
             type="checkbox"

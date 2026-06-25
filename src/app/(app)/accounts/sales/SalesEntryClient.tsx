@@ -131,6 +131,48 @@ export function SalesEntryClient({ pendingOrders, billedOrders, rolls, fabricTyp
   const [printOrderId, setPrintOrderId] = useState<string | null>(null);
   const [confirmDialog, setConfirmDialog] = useState<{ itemIds: string[] } | null>(null);
 
+  // Details of currently selected items to list in the billing card
+  const selectedItemsDetails = useMemo(() => {
+    const list: {
+      itemId: string;
+      productName: string;
+      department: string;
+      rollCount: number;
+      weight: number;
+      meters: number;
+      orderNumber: string;
+    }[] = [];
+    for (const order of pendingOrders) {
+      for (const item of (order.sales_order_items ?? [])) {
+        if (selectedItemIds.includes(item.id)) {
+          const rollsData = (item.selected_roll_ids ?? []).map((rollId) => {
+            const roll = rolls.find((r) => r.id === rollId);
+            if (!roll) return null;
+            const prod = roll.loom_production_entries;
+            return {
+              net_weight: prod?.net_weight ?? (roll.weight ?? 0),
+              net_meters: prod?.net_meters ?? (roll.meters ?? 0),
+            };
+          }).filter(Boolean);
+
+          const totalWeight = rollsData.reduce((s, r) => s + r!.net_weight, 0);
+          const totalMeters = rollsData.reduce((s, r) => s + r!.net_meters, 0);
+
+          list.push({
+            itemId: item.id,
+            productName: getProductName(item.product_id, fabricTypes),
+            department: item.department,
+            rollCount: item.selected_roll_ids?.length ?? 0,
+            weight: totalWeight,
+            meters: totalMeters,
+            orderNumber: order.order_number,
+          });
+        }
+      }
+    }
+    return list;
+  }, [selectedItemIds, pendingOrders, rolls, fabricTypes]);
+
   const toggleExpand = (orderId: string) => {
     setExpandedOrderId((prev) => (prev === orderId ? null : orderId));
   };
@@ -514,6 +556,25 @@ export function SalesEntryClient({ pendingOrders, billedOrders, rolls, fabricTyp
             </CardTitle>
           </CardHeader>
           <CardContent>
+            {/* Selected items list */}
+            <div className="mb-4 space-y-2">
+              <div className="text-xs font-semibold text-emerald-800 uppercase tracking-wider">Selected Items:</div>
+              <div className="grid grid-cols-1 gap-2 max-h-40 overflow-y-auto pr-1">
+                {selectedItemsDetails.map((item) => (
+                  <div key={item.itemId} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 sm:gap-4 text-xs bg-white/80 border border-emerald-100 p-2.5 rounded-lg">
+                    <div className="min-w-0">
+                      <span className="font-semibold text-slate-800 block sm:inline">{item.productName}</span>
+                      <span className="text-slate-500 ml-1 capitalize">({item.department})</span>
+                      <span className="text-muted-foreground ml-0 sm:ml-2 block sm:inline">Order #{item.orderNumber}</span>
+                    </div>
+                    <div className="font-mono text-slate-700 sm:text-right shrink-0">
+                      {item.rollCount} Roll{item.rollCount !== 1 ? 's' : ''} · {formatNumber(item.weight, 1)} kg
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
             <div className="flex flex-wrap items-end gap-3">
               <div className="flex-1 min-w-[160px]">
                 <Label className="text-xs text-muted-foreground mb-1">Bill Number</Label>
