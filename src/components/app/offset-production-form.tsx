@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useMemo } from "react";
 import { saveOffsetProduction } from "@/app/(app)/_actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,10 +8,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 
-type FabricRoll = {
+type FabricType = {
   id: string;
-  roll_number: string;
-  weight: number;
+  fabric_name: string;
 };
 
 type LaminationRoll = {
@@ -19,8 +18,8 @@ type LaminationRoll = {
   roll_id: string;
   lam_type: string;
   weight_kg: number;
-  fabric_rolls?: {
-    roll_number: string;
+  fabric_types?: {
+    fabric_name: string;
   } | null;
 };
 
@@ -30,21 +29,21 @@ type OffsetProduct = {
 };
 
 interface OffsetProductionFormProps {
-  fabricRolls: FabricRoll[];
+  fabricTypes: FabricType[];
   laminationRolls: LaminationRoll[];
   offsetProducts: OffsetProduct[];
   onSuccess?: (newRollInfo: { rollId: string; weight: number }) => void;
 }
 
 export function OffsetProductionForm({
-  fabricRolls,
+  fabricTypes,
   laminationRolls,
   offsetProducts,
   onSuccess,
 }: OffsetProductionFormProps) {
   const [isPending, startTransition] = useTransition();
   const [offsetType, setOffsetType] = useState<string>("FABRIC");
-  const [selectedFabricId, setSelectedFabricId] = useState<string>("");
+  const [selectedFabricTypeId, setSelectedFabricTypeId] = useState<string>("");
   const [selectedLamId, setSelectedLamId] = useState<string>("");
   const [selectedBrandId, setSelectedBrandId] = useState<string>("");
   const [weightKg, setWeightKg] = useState<string>("");
@@ -70,30 +69,26 @@ export function OffsetProductionForm({
     const brand = offsetProducts.find((p) => p.id === selectedBrandId);
     const brandName = brand ? brand.brand : "BRAND";
 
-    let fabricNo = "FABRIC-ROLL";
+    let fabricName = "FABRIC-TYPE";
     if (offsetType === "FABRIC") {
-      const fab = fabricRolls.find((r) => r.id === selectedFabricId);
-      if (fab) fabricNo = fab.roll_number;
+      const fab = fabricTypes.find((t) => t.id === selectedFabricTypeId);
+      if (fab) fabricName = fab.fabric_name;
     } else if (["NW_LAM", "PLAIN_LAM"].includes(offsetType)) {
       const lam = laminationRolls.find((r) => r.id === selectedLamId);
-      if (lam && lam.fabric_rolls) fabricNo = lam.fabric_rolls.roll_number;
+      if (lam && lam.fabric_types) fabricName = lam.fabric_types.fabric_name;
     }
 
     if (offsetType === "NW") {
       return `${brandName}(NW)`;
     } else if (offsetType === "NW_LAM") {
-      return `${brandName}(NW-LAM-${fabricNo})`;
+      return `${brandName}(NW-LAM-${fabricName})`;
     } else if (offsetType === "PLAIN_LAM") {
-      return `${brandName}(${fabricNo}-P)`;
+      return `${brandName}(${fabricName}-P)`;
     } else if (offsetType === "FABRIC") {
-      return `${brandName}(${fabricNo})`;
+      return `${brandName}(${fabricName})`;
     }
     return "";
-  }, [offsetType, selectedFabricId, selectedLamId, selectedBrandId, fabricRolls, laminationRolls, offsetProducts]);
-
-  function useMemo<T>(factory: () => T, deps: any[]): T {
-    return factory();
-  }
+  }, [offsetType, selectedFabricTypeId, selectedLamId, selectedBrandId, fabricTypes, laminationRolls, offsetProducts]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -104,8 +99,8 @@ export function OffsetProductionForm({
       setErrorMsg("Brand is required.");
       return;
     }
-    if (offsetType === "FABRIC" && !selectedFabricId) {
-      setErrorMsg("Fabric Roll is required for FABRIC type.");
+    if (offsetType === "FABRIC" && !selectedFabricTypeId) {
+      setErrorMsg("Fabric Type is required for FABRIC type.");
       return;
     }
     if (["NW_LAM", "PLAIN_LAM"].includes(offsetType) && !selectedLamId) {
@@ -124,7 +119,7 @@ export function OffsetProductionForm({
         fd.append("offset_type", offsetType);
         fd.append("brand_id", selectedBrandId);
         if (offsetType === "FABRIC") {
-          fd.append("source_fabric_roll_id", selectedFabricId);
+          fd.append("fabric_type_id", selectedFabricTypeId);
         }
         if (["NW_LAM", "PLAIN_LAM"].includes(offsetType)) {
           fd.append("source_lam_roll_id", selectedLamId);
@@ -140,7 +135,7 @@ export function OffsetProductionForm({
         }
 
         // Reset
-        setSelectedFabricId("");
+        setSelectedFabricTypeId("");
         setSelectedLamId("");
         setWeightKg("");
       } catch (err: any) {
@@ -177,7 +172,7 @@ export function OffsetProductionForm({
         {/* Type Select */}
         <div className="space-y-1">
           <Label className="text-xs font-semibold text-slate-700">Offset Type</Label>
-          <Select value={offsetType} onValueChange={(val) => { setOffsetType(val); setSelectedFabricId(""); setSelectedLamId(""); }}>
+          <Select value={offsetType} onValueChange={(val) => { setOffsetType(val); setSelectedFabricTypeId(""); setSelectedLamId(""); }}>
             <SelectTrigger className="h-10 border-slate-200">
               <SelectValue />
             </SelectTrigger>
@@ -205,21 +200,21 @@ export function OffsetProductionForm({
           </Select>
         </div>
 
-        {/* Fabric Roll (FABRIC type only) */}
+        {/* Fabric Type (FABRIC type only) */}
         <div className="space-y-1">
-          <Label className="text-xs font-semibold text-slate-700">Fabric Roll (For FABRIC Type)</Label>
+          <Label className="text-xs font-semibold text-slate-700">Fabric Type (For FABRIC Type)</Label>
           <Select
-            value={selectedFabricId}
-            onValueChange={setSelectedFabricId}
+            value={selectedFabricTypeId}
+            onValueChange={setSelectedFabricTypeId}
             disabled={!isFabricRequired}
           >
-            <SelectTrigger className="h-10 border-slate-200 font-mono text-xs disabled:opacity-50">
-              <SelectValue placeholder={isFabricRequired ? "Select fabric roll" : "Disabled"} />
+            <SelectTrigger className="h-10 border-slate-200 text-xs disabled:opacity-50">
+              <SelectValue placeholder={isFabricRequired ? "Select fabric type" : "Disabled"} />
             </SelectTrigger>
             <SelectContent>
-              {fabricRolls.map((r) => (
-                <SelectItem key={r.id} value={r.id} className="font-mono text-xs">
-                  {r.roll_number} ({r.weight}kg)
+              {fabricTypes.map((t) => (
+                <SelectItem key={t.id} value={t.id} className="text-xs">
+                  {t.fabric_name}
                 </SelectItem>
               ))}
             </SelectContent>

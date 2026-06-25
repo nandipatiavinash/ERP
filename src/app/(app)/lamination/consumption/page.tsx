@@ -114,7 +114,7 @@ export default async function LaminationConsumptionPage({
           {isToday && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">A — Log Raw Materials</CardTitle>
+                <CardTitle className="text-base">Log Raw Materials</CardTitle>
               </CardHeader>
               <CardContent>
                 <ConsumptionForm department="lamination" materials={materials} />
@@ -183,7 +183,7 @@ export default async function LaminationConsumptionPage({
           {isToday && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">B — Consume Fabric Roll</CardTitle>
+                <CardTitle className="text-base">Consume Fabric Roll</CardTitle>
               </CardHeader>
               <CardContent>
                 <form
@@ -280,7 +280,7 @@ export default async function LaminationConsumptionPage({
           {isToday && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">C — Consume Metallic Film Roll</CardTitle>
+                <CardTitle className="text-base">Consume Metallic Film Roll</CardTitle>
               </CardHeader>
               <CardContent>
                 <form

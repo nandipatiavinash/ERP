@@ -127,7 +127,7 @@ export default async function FinishingConsumptionPage({
           {isToday && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">A — Log Raw Materials</CardTitle>
+                <CardTitle className="text-base">Log Raw Materials</CardTitle>
               </CardHeader>
               <CardContent>
                 <ConsumptionForm department="finishing" materials={materials} />
@@ -196,7 +196,7 @@ export default async function FinishingConsumptionPage({
           {isToday && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">B — Consume Fabric Roll</CardTitle>
+                <CardTitle className="text-base">Consume Fabric Roll</CardTitle>
               </CardHeader>
               <CardContent>
                 <form
@@ -293,7 +293,7 @@ export default async function FinishingConsumptionPage({
           {isToday && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">C — Consume Laminated Roll</CardTitle>
+                <CardTitle className="text-base">Consume Laminated Roll</CardTitle>
               </CardHeader>
               <CardContent>
                 <form
@@ -390,7 +390,7 @@ export default async function FinishingConsumptionPage({
           {isToday && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">D — Consume Offset Roll</CardTitle>
+                <CardTitle className="text-base">Consume Offset Roll</CardTitle>
               </CardHeader>
               <CardContent>
                 <form

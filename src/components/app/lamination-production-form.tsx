@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useMemo } from "react";
 import { saveLaminationProduction } from "@/app/(app)/_actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,11 +8,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 
-type FabricRoll = {
+type FabricType = {
   id: string;
-  roll_number: string;
-  weight: number;
-  meters: number;
+  fabric_name: string;
 };
 
 type FilmRoll = {
@@ -28,21 +26,21 @@ type RawMaterial = {
 };
 
 interface LaminationProductionFormProps {
-  fabricRolls: FabricRoll[];
+  fabricTypes: FabricType[];
   filmRolls: FilmRoll[];
   rawMaterials: RawMaterial[];
   onSuccess?: (newRollInfo: { rollId: string; weight: number; meters: number }) => void;
 }
 
 export function LaminationProductionForm({
-  fabricRolls,
+  fabricTypes,
   filmRolls,
   rawMaterials,
   onSuccess,
 }: LaminationProductionFormProps) {
   const [isPending, startTransition] = useTransition();
   const [lamType, setLamType] = useState<string>("PLAIN");
-  const [selectedFabricId, setSelectedFabricId] = useState<string>("");
+  const [selectedFabricTypeId, setSelectedFabricTypeId] = useState<string>("");
   const [selectedFilmId, setSelectedFilmId] = useState<string>("");
   const [selectedRawMaterialId, setSelectedRawMaterialId] = useState<string>("");
   const [weightKg, setWeightKg] = useState<string>("");
@@ -55,37 +53,33 @@ export function LaminationProductionForm({
 
   // Compute live preview of lamination roll_id
   const livePreviewId = useMemo(() => {
-    const fabRoll = fabricRolls.find((r) => r.id === selectedFabricId);
-    const fabNo = fabRoll ? fabRoll.roll_number : "FABRIC-ROLL";
+    const fabType = fabricTypes.find((t) => t.id === selectedFabricTypeId);
+    const fabName = fabType ? fabType.fabric_name : "FABRIC-TYPE";
 
     const filmRoll = filmRolls.find((r) => r.id === selectedFilmId);
     const filmId = filmRoll ? filmRoll.roll_id : "FILM-ROLL";
 
     if (lamType === "BOX") {
-      return `${filmId}(${fabNo})(B)`;
+      return `${filmId}(${fabName})(B)`;
     } else if (lamType === "F_S") {
-      return `${filmId}(${fabNo})(F/S)`;
+      return `${filmId}(${fabName})(F/S)`;
     } else if (lamType === "H_S") {
-      return `${filmId}(${fabNo})(H/S)`;
+      return `${filmId}(${fabName})(H/S)`;
     } else if (lamType === "NW") {
-      return `(${fabNo})(NW)`;
+      return `(${fabName})(NW)`;
     } else if (lamType === "PLAIN") {
-      return `(${fabNo})(P)`;
+      return `(${fabName})(P)`;
     }
     return "";
-  }, [lamType, selectedFabricId, selectedFilmId, fabricRolls, filmRolls]);
-
-  function useMemo<T>(factory: () => T, deps: any[]): T {
-    return factory();
-  }
+  }, [lamType, selectedFabricTypeId, selectedFilmId, fabricTypes, filmRolls]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
     setSuccessMsg(null);
 
-    if (!selectedFabricId) {
-      setErrorMsg("Fabric Roll is required.");
+    if (!selectedFabricTypeId) {
+      setErrorMsg("Fabric Type is required.");
       return;
     }
     if (["BOX", "F_S", "H_S"].includes(lamType) && !selectedFilmId) {
@@ -107,7 +101,7 @@ export function LaminationProductionForm({
       try {
         const fd = new FormData();
         fd.append("lam_type", lamType);
-        fd.append("fabric_roll_id", selectedFabricId);
+        fd.append("fabric_type_id", selectedFabricTypeId);
         if (["BOX", "F_S", "H_S"].includes(lamType)) {
           fd.append("film_roll_id", selectedFilmId);
         }
@@ -126,7 +120,7 @@ export function LaminationProductionForm({
         }
 
         // Reset
-        setSelectedFabricId("");
+        setSelectedFabricTypeId("");
         setSelectedFilmId("");
         setSelectedRawMaterialId("");
         setWeightKg("");
@@ -165,7 +159,7 @@ export function LaminationProductionForm({
         {/* Lamination Type */}
         <div className="space-y-1">
           <Label className="text-xs font-semibold text-slate-700">Lamination Type</Label>
-          <Select value={lamType} onValueChange={(val) => { setLamType(val); setSelectedFabricId(""); setSelectedFilmId(""); setSelectedRawMaterialId(""); }}>
+          <Select value={lamType} onValueChange={(val) => { setLamType(val); setSelectedFabricTypeId(""); setSelectedFilmId(""); setSelectedRawMaterialId(""); }}>
             <SelectTrigger className="h-10 border-slate-200">
               <SelectValue />
             </SelectTrigger>
@@ -179,17 +173,17 @@ export function LaminationProductionForm({
           </Select>
         </div>
 
-        {/* Fabric Roll */}
+        {/* Fabric Type */}
         <div className="space-y-1">
-          <Label className="text-xs font-semibold text-slate-700">Select Fabric Roll</Label>
-          <Select value={selectedFabricId} onValueChange={setSelectedFabricId}>
-            <SelectTrigger className="h-10 border-slate-200 font-mono text-xs">
-              <SelectValue placeholder="Select fabric roll" />
+          <Label className="text-xs font-semibold text-slate-700">Select Fabric Type</Label>
+          <Select value={selectedFabricTypeId} onValueChange={setSelectedFabricTypeId}>
+            <SelectTrigger className="h-10 border-slate-200 text-xs">
+              <SelectValue placeholder="Select fabric type" />
             </SelectTrigger>
             <SelectContent>
-              {fabricRolls.map((r) => (
-                <SelectItem key={r.id} value={r.id} className="font-mono text-xs">
-                  {r.roll_number} ({r.weight}kg · {r.meters}m)
+              {fabricTypes.map((t) => (
+                <SelectItem key={t.id} value={t.id} className="text-xs">
+                  {t.fabric_name}
                 </SelectItem>
               ))}
             </SelectContent>

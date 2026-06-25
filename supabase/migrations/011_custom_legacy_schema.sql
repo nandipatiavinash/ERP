@@ -27,9 +27,11 @@ CREATE TABLE IF NOT EXISTS public.roto_products (
 -- Enable RLS for roto_products
 ALTER TABLE public.roto_products ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Allow read access to authenticated users on roto_products" ON public.roto_products;
 CREATE POLICY "Allow read access to authenticated users on roto_products" 
 ON public.roto_products FOR SELECT TO authenticated USING (true);
 
+DROP POLICY IF EXISTS "Allow write access to admins on roto_products" ON public.roto_products;
 CREATE POLICY "Allow write access to admins on roto_products" 
 ON public.roto_products FOR ALL TO authenticated 
 USING (auth.uid() IN (SELECT u.id FROM public.users u JOIN public.roles r ON u.role_id = r.id WHERE r.name = 'admin'));
@@ -47,9 +49,11 @@ CREATE TABLE IF NOT EXISTS public.offset_products (
 -- Enable RLS for offset_products
 ALTER TABLE public.offset_products ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Allow read access to authenticated users on offset_products" ON public.offset_products;
 CREATE POLICY "Allow read access to authenticated users on offset_products" 
 ON public.offset_products FOR SELECT TO authenticated USING (true);
 
+DROP POLICY IF EXISTS "Allow write access to admins on offset_products" ON public.offset_products;
 CREATE POLICY "Allow write access to admins on offset_products" 
 ON public.offset_products FOR ALL TO authenticated 
 USING (auth.uid() IN (SELECT u.id FROM public.users u JOIN public.roles r ON u.role_id = r.id WHERE r.name = 'admin'));
@@ -65,9 +69,11 @@ CREATE TABLE IF NOT EXISTS public.roto_colors (
 -- Enable RLS for roto_colors
 ALTER TABLE public.roto_colors ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Allow read access to authenticated users on roto_colors" ON public.roto_colors;
 CREATE POLICY "Allow read access to authenticated users on roto_colors" 
 ON public.roto_colors FOR SELECT TO authenticated USING (true);
 
+DROP POLICY IF EXISTS "Allow write access to admins on roto_colors" ON public.roto_colors;
 CREATE POLICY "Allow write access to admins on roto_colors" 
 ON public.roto_colors FOR ALL TO authenticated 
 USING (auth.uid() IN (SELECT u.id FROM public.users u JOIN public.roles r ON u.role_id = r.id WHERE r.name = 'admin'));
@@ -85,6 +91,7 @@ CREATE TABLE IF NOT EXISTS public.sales_order_items (
 -- Enable RLS for sales_order_items
 ALTER TABLE public.sales_order_items ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Allow read access to authenticated users on sales_order_items" ON public.sales_order_items;
 CREATE POLICY "Allow read access to authenticated users on sales_order_items" 
 ON public.sales_order_items FOR SELECT TO authenticated
 USING (
@@ -94,6 +101,7 @@ USING (
   OR public.is_admin()
 );
 
+DROP POLICY IF EXISTS "Allow write access to authenticated users on sales_order_items" ON public.sales_order_items;
 CREATE POLICY "Allow write access to authenticated users on sales_order_items" 
 ON public.sales_order_items FOR ALL TO authenticated
 USING (

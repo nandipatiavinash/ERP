@@ -37,7 +37,7 @@ export function RotoProductionClient({
           onClick={() => setActiveTab("film")}
           className={`px-5 py-2.5 font-bold text-sm border-b-2 transition-all ${
             activeTab === "film"
-              ? "border-emerald-600 text-emerald-600 animate-fade-in"
+              ? "border-emerald-600 text-emerald-600"
               : "border-transparent text-slate-500 hover:text-slate-700"
           }`}
         >
@@ -47,7 +47,7 @@ export function RotoProductionClient({
           onClick={() => setActiveTab("metallic")}
           className={`px-5 py-2.5 font-bold text-sm border-b-2 transition-all ${
             activeTab === "metallic"
-              ? "border-emerald-600 text-emerald-600 animate-fade-in"
+              ? "border-emerald-600 text-emerald-600"
               : "border-transparent text-slate-500 hover:text-slate-700"
           }`}
         >
@@ -56,140 +56,148 @@ export function RotoProductionClient({
       </div>
 
       {activeTab === "film" ? (
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Log Film Production Roll</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <RotoFilmProductionForm
-                rotoProducts={rotoProducts}
-                customers={customers}
-                rotoColors={rotoColors}
-              />
-            </CardContent>
-          </Card>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-1">
+            <Card>
+              <CardHeader>
+                <CardTitle>Submit Film Production</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <RotoFilmProductionForm
+                  rotoProducts={rotoProducts}
+                  customers={customers}
+                  rotoColors={rotoColors}
+                />
+              </CardContent>
+            </Card>
+          </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Recent Film Production Entries</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {filmRows.length === 0 ? (
-                <EmptyState title="No entries found" description="Film rolls logged will appear here." />
-              ) : (
-                <div className="overflow-x-auto rounded-lg border border-slate-100">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-slate-50/50">
-                        <TableHead>Date</TableHead>
-                        <TableHead>Roll ID</TableHead>
-                        <TableHead>Brand</TableHead>
-                        <TableHead>Film Type</TableHead>
-                        <TableHead>Color</TableHead>
-                        <TableHead className="text-right">KGs</TableHead>
-                        <TableHead className="text-right">Meters</TableHead>
-                        <TableHead className="text-center">Action</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filmRows.map((row) => (
-                        <TableRow key={row.id}>
-                          <TableCell>{formatDate(row.entry_date)}</TableCell>
-                          <TableCell className="font-mono font-bold text-emerald-950">{row.roll_id}</TableCell>
-                          <TableCell>{row.roto_products?.brand ?? "-"}</TableCell>
-                          <TableCell className="capitalize">{row.film_type}</TableCell>
-                          <TableCell>{row.roto_colors?.color_name ?? "-"}</TableCell>
-                          <TableCell className="text-right font-mono">{row.weight_kg}</TableCell>
-                          <TableCell className="text-right font-mono">{row.meters}</TableCell>
-                          <TableCell className="text-center">
-                            <form action={async () => {
-                              await deleteRotoFilmProduction(row.id);
-                            }}>
-                              <ConfirmSubmitButton
-                                size="sm"
-                                variant="destructive"
-                                confirmTitle="Delete film production entry?"
-                                confirmDescription="This will delete the roll and free up any downstream items."
-                              >
-                                Delete
-                              </ConfirmSubmitButton>
-                            </form>
-                          </TableCell>
+          <div className="lg:col-span-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Recent Film Production Entries</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {filmRows.length === 0 ? (
+                  <EmptyState title="No entries found" description="Film rolls logged will appear here." />
+                ) : (
+                  <div className="overflow-x-auto rounded-lg border border-slate-100">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-slate-50/50">
+                          <TableHead>Date</TableHead>
+                          <TableHead>Roll ID</TableHead>
+                          <TableHead>Brand</TableHead>
+                          <TableHead>Film Type</TableHead>
+                          <TableHead>Color</TableHead>
+                          <TableHead className="text-right">KGs</TableHead>
+                          <TableHead className="text-right">Meters</TableHead>
+                          <TableHead className="text-center">Action</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                      </TableHeader>
+                      <TableBody>
+                        {filmRows.map((row) => (
+                          <TableRow key={row.id}>
+                            <TableCell>{formatDate(row.entry_date)}</TableCell>
+                            <TableCell className="font-mono font-bold text-emerald-950">{row.roll_id}</TableCell>
+                            <TableCell>{row.roto_products?.brand ?? "-"}</TableCell>
+                            <TableCell className="capitalize">{row.film_type}</TableCell>
+                            <TableCell>{row.roto_colors?.color_name ?? "-"}</TableCell>
+                            <TableCell className="text-right font-mono">{row.weight_kg}</TableCell>
+                            <TableCell className="text-right font-mono">{row.meters}</TableCell>
+                            <TableCell className="text-center">
+                              <form action={async () => {
+                                await deleteRotoFilmProduction(row.id);
+                              }}>
+                                <ConfirmSubmitButton
+                                  size="sm"
+                                  variant="destructive"
+                                  confirmTitle="Delete film production entry?"
+                                  confirmDescription="This will delete the roll and free up any downstream items."
+                                >
+                                  Delete
+                                </ConfirmSubmitButton>
+                              </form>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </div>
       ) : (
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Log Metallic Production Roll</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <RotoMetallicProductionForm
-                filmRolls={filmRolls}
-              />
-            </CardContent>
-          </Card>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-1">
+            <Card>
+              <CardHeader>
+                <CardTitle>Submit Metallic Production</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <RotoMetallicProductionForm
+                  filmRolls={filmRolls}
+                />
+              </CardContent>
+            </Card>
+          </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Recent Metallic Production Entries</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {metallicRows.length === 0 ? (
-                <EmptyState title="No entries found" description="Metallic rolls logged will appear here." />
-              ) : (
-                <div className="overflow-x-auto rounded-lg border border-slate-100">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-slate-50/50">
-                        <TableHead>Date</TableHead>
-                        <TableHead>Roll ID</TableHead>
-                        <TableHead>Source Film Roll</TableHead>
-                        <TableHead className="text-center">Split Wind?</TableHead>
-                        <TableHead className="text-right">KGs</TableHead>
-                        <TableHead className="text-right">Meters</TableHead>
-                        <TableHead className="text-center">Action</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {metallicRows.map((row) => (
-                        <TableRow key={row.id}>
-                          <TableCell>{formatDate(row.entry_date)}</TableCell>
-                          <TableCell className="font-mono font-bold text-emerald-950">{row.roll_id}</TableCell>
-                          <TableCell className="font-mono text-xs">{row.roto_film_rolls?.roll_id ?? "-"}</TableCell>
-                          <TableCell className="text-center">{row.is_split ? "Yes" : "No"}</TableCell>
-                          <TableCell className="text-right font-mono">{row.weight_kg}</TableCell>
-                          <TableCell className="text-right font-mono">{row.meters}</TableCell>
-                          <TableCell className="text-center">
-                            <form action={async () => {
-                              await deleteRotoMetallicProduction(row.id);
-                            }}>
-                              <ConfirmSubmitButton
-                                size="sm"
-                                variant="destructive"
-                                confirmTitle="Delete metallic production entry?"
-                                confirmDescription="This will delete the roll and restore the source film roll if it was fully consumed."
-                              >
-                                Delete
-                              </ConfirmSubmitButton>
-                            </form>
-                          </TableCell>
+          <div className="lg:col-span-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Recent Metallic Production Entries</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {metallicRows.length === 0 ? (
+                  <EmptyState title="No entries found" description="Metallic rolls logged will appear here." />
+                ) : (
+                  <div className="overflow-x-auto rounded-lg border border-slate-100">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-slate-50/50">
+                          <TableHead>Date</TableHead>
+                          <TableHead>Roll ID</TableHead>
+                          <TableHead>Source Film Roll</TableHead>
+                          <TableHead className="text-center">Split Wind?</TableHead>
+                          <TableHead className="text-right">KGs</TableHead>
+                          <TableHead className="text-right">Meters</TableHead>
+                          <TableHead className="text-center">Action</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                      </TableHeader>
+                      <TableBody>
+                        {metallicRows.map((row) => (
+                          <TableRow key={row.id}>
+                            <TableCell>{formatDate(row.entry_date)}</TableCell>
+                            <TableCell className="font-mono font-bold text-emerald-950">{row.roll_id}</TableCell>
+                            <TableCell className="font-mono text-xs">{row.roto_film_rolls?.roll_id ?? "-"}</TableCell>
+                            <TableCell className="text-center">{row.is_split ? "Yes" : "No"}</TableCell>
+                            <TableCell className="text-right font-mono">{row.weight_kg}</TableCell>
+                            <TableCell className="text-right font-mono">{row.meters}</TableCell>
+                            <TableCell className="text-center">
+                              <form action={async () => {
+                                  await deleteRotoMetallicProduction(row.id);
+                              }}>
+                                <ConfirmSubmitButton
+                                  size="sm"
+                                  variant="destructive"
+                                  confirmTitle="Delete metallic production entry?"
+                                  confirmDescription="This will delete the roll and restore the source film roll if it was fully consumed."
+                                >
+                                  Delete
+                                </ConfirmSubmitButton>
+                              </form>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </div>
       )}
     </div>

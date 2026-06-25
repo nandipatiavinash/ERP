@@ -109,7 +109,7 @@ export default async function OffsetPrintingConsumptionPage({
           {isToday && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">A — Log Raw Materials</CardTitle>
+                <CardTitle className="text-base">Log Raw Materials</CardTitle>
               </CardHeader>
               <CardContent>
                 <ConsumptionForm department="offset-printing" materials={materials} />
@@ -178,7 +178,7 @@ export default async function OffsetPrintingConsumptionPage({
           {isToday && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">B — Consume Fabric Roll</CardTitle>
+                <CardTitle className="text-base">Consume Fabric Roll</CardTitle>
               </CardHeader>
               <CardContent>
                 <form
@@ -275,7 +275,7 @@ export default async function OffsetPrintingConsumptionPage({
           {isToday && (
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">C — Consume Laminated Roll</CardTitle>
+                <CardTitle className="text-base">Consume Laminated Roll</CardTitle>
               </CardHeader>
               <CardContent>
                 <form

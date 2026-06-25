@@ -121,7 +121,7 @@ function buildProductGroups(order: SalesOrder, rolls: Roll[], fabricTypes: { id:
 
 export function SalesEntryClient({ pendingOrders, billedOrders, rolls, fabricTypes }: SalesEntryClientProps) {
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
-  const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
+  const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
   const [billNumber, setBillNumber] = useState("");
   const [billValue, setBillValue] = useState("");
 
@@ -129,16 +129,10 @@ export function SalesEntryClient({ pendingOrders, billedOrders, rolls, fabricTyp
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [printOrderId, setPrintOrderId] = useState<string | null>(null);
-  const [confirmDialog, setConfirmDialog] = useState<{ orderIds: string[] } | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<{ itemIds: string[] } | null>(null);
 
   const toggleExpand = (orderId: string) => {
     setExpandedOrderId((prev) => (prev === orderId ? null : orderId));
-  };
-
-  const toggleSelectOrder = (orderId: string) => {
-    setSelectedOrderIds((prev) =>
-      prev.includes(orderId) ? prev.filter((id) => id !== orderId) : [...prev, orderId]
-    );
   };
 
   // Group pending orders by customer (firm)
@@ -159,29 +153,51 @@ export function SalesEntryClient({ pendingOrders, billedOrders, rolls, fabricTyp
     }));
   }, [pendingOrders]);
 
-  // Determine active customer ID from currently selected orders
+  // Determine active customer ID from currently selected items
   const activeCustomerId = useMemo(() => {
-    if (selectedOrderIds.length === 0) return null;
-    const firstSelected = pendingOrders.find((o) => o.id === selectedOrderIds[0]);
-    return firstSelected ? firstSelected.customer_id : null;
-  }, [selectedOrderIds, pendingOrders]);
+    if (selectedItemIds.length === 0) return null;
+    for (const order of pendingOrders) {
+      for (const item of (order.sales_order_items ?? [])) {
+        if (selectedItemIds.includes(item.id)) {
+          return order.customer_id;
+        }
+      }
+    }
+    return null;
+  }, [selectedItemIds, pendingOrders]);
 
   const toggleSelectCustomerAll = (customerId: string, customerOrders: SalesOrder[]) => {
-    const customerOrderIds = customerOrders.map((o) => o.id);
-    const allSelected = customerOrderIds.every((id) => selectedOrderIds.includes(id));
+    const customerItemIds = customerOrders.flatMap((o) => (o.sales_order_items ?? []).map((i) => i.id));
+    const allSelected = customerItemIds.length > 0 && customerItemIds.every((id) => selectedItemIds.includes(id));
 
     if (allSelected) {
       // Deselect all for this customer
-      setSelectedOrderIds((prev) => prev.filter((id) => !customerOrderIds.includes(id)));
+      setSelectedItemIds((prev) => prev.filter((id) => !customerItemIds.includes(id)));
     } else {
       // Select all for this customer, overriding any other selection
-      setSelectedOrderIds(customerOrderIds);
+      setSelectedItemIds(customerItemIds);
+    }
+  };
+
+  const toggleSelectOrder = (order: SalesOrder) => {
+    const ids = (order.sales_order_items ?? []).map((i) => i.id);
+    const allSel = ids.every((id) => selectedItemIds.includes(id));
+    if (allSel) {
+      setSelectedItemIds((prev) => prev.filter((id) => !ids.includes(id)));
+    } else {
+      setSelectedItemIds((prev) => {
+        const filtered = prev.filter(id => {
+          const itemOrder = pendingOrders.find(o => (o.sales_order_items ?? []).some(i => i.id === id));
+          return itemOrder?.customer_id === order.customer_id;
+        });
+        return [...new Set([...filtered, ...ids])];
+      });
     }
   };
 
   const handleSubmitBilling = () => {
-    if (selectedOrderIds.length === 0) {
-      setErrorMsg("Please select at least one order to bill.");
+    if (selectedItemIds.length === 0) {
+      setErrorMsg("Please select at least one item to bill.");
       return;
     }
     if (!billNumber.trim()) {
@@ -194,24 +210,26 @@ export function SalesEntryClient({ pendingOrders, billedOrders, rolls, fabricTyp
       return;
     }
 
-    // Verify all selected orders belong to the same customer
-    const selectedOrders = pendingOrders.filter((o) => selectedOrderIds.includes(o.id));
+    // Verify all selected items belong to the same customer
+    const selectedOrders = pendingOrders.filter((o) =>
+      (o.sales_order_items ?? []).some((i) => selectedItemIds.includes(i.id))
+    );
     const customerNames = Array.from(new Set(selectedOrders.map((o) => o.customers?.customer_name)));
     if (customerNames.length > 1) {
-      setErrorMsg("All selected orders must belong to the same customer to be billed together.");
+      setErrorMsg("All selected items must belong to the same customer to be billed together.");
       return;
     }
 
     // If bill number is "0", ask for confirmation before proceeding
     if (billNumber.trim() === "0") {
-      setConfirmDialog({ orderIds: selectedOrderIds });
+      setConfirmDialog({ itemIds: selectedItemIds });
       return;
     }
 
-    doSubmitBilling(selectedOrderIds, false);
+    doSubmitBilling(selectedItemIds, false);
   };
 
-  const doSubmitBilling = (orderIds: string[], skipJournal: boolean) => {
+  const doSubmitBilling = (itemIds: string[], skipJournal: boolean) => {
     const val = parseFloat(billValue);
 
     setErrorMsg(null);
@@ -221,7 +239,7 @@ export function SalesEntryClient({ pendingOrders, billedOrders, rolls, fabricTyp
     startTransition(async () => {
       try {
         const fd = new FormData();
-        fd.append("order_ids", orderIds.join(","));
+        fd.append("item_ids", itemIds.join(","));
         fd.append("bill_number", billNumber.trim());
         fd.append("bill_value", String(val));
         if (skipJournal) fd.append("skip_journal", "1");
@@ -233,7 +251,7 @@ export function SalesEntryClient({ pendingOrders, billedOrders, rolls, fabricTyp
         );
         setBillNumber("");
         setBillValue("");
-        setSelectedOrderIds([]);
+        setSelectedItemIds([]);
       } catch (err: any) {
         setErrorMsg(err.message ?? "Failed to save billing.");
       }
@@ -286,7 +304,7 @@ export function SalesEntryClient({ pendingOrders, billedOrders, rolls, fabricTyp
               </button>
               <button
                 className="px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium transition-colors"
-                onClick={() => doSubmitBilling(confirmDialog.orderIds, true)}
+                onClick={() => doSubmitBilling(confirmDialog.itemIds, true)}
               >
                 Yes, Save Without Journal
               </button>
@@ -304,11 +322,11 @@ export function SalesEntryClient({ pendingOrders, billedOrders, rolls, fabricTyp
       )}
 
       {/* Multi-Select Billing Form */}
-      {selectedOrderIds.length > 0 && (
+      {selectedItemIds.length > 0 && (
         <Card className="border border-emerald-200 bg-emerald-50/20 shadow-md">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-semibold text-emerald-950">
-              Billing Information for {selectedOrderIds.length} Selected Order(s)
+              Billing Information for {selectedItemIds.length} Selected Item(s)
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -345,7 +363,7 @@ export function SalesEntryClient({ pendingOrders, billedOrders, rolls, fabricTyp
                 <Button
                   size="sm"
                   variant="ghost"
-                  onClick={() => setSelectedOrderIds([])}
+                  onClick={() => setSelectedItemIds([])}
                   className="h-9 text-xs"
                 >
                   Cancel
@@ -366,7 +384,7 @@ export function SalesEntryClient({ pendingOrders, billedOrders, rolls, fabricTyp
               {pendingOrders.length}
             </Badge>
           </CardTitle>
-          <p className="text-sm text-muted-foreground mt-1">Select orders from a customer to bill them together as a single bill.</p>
+          <p className="text-sm text-muted-foreground mt-1">Select items from a customer to bill them together. Unselected items will remain as a separate pending order.</p>
         </CardHeader>
         <CardContent>
           {pendingOrdersByCustomer.length === 0 ? (
@@ -377,10 +395,10 @@ export function SalesEntryClient({ pendingOrders, billedOrders, rolls, fabricTyp
           ) : (
             <div className="space-y-6">
               {pendingOrdersByCustomer.map((customerGroup) => {
-                // Determine if this customer's group checkboxes are disabled (since another customer has selected orders)
+                // Determine if this customer's group checkboxes are disabled (since another customer has selected items)
                 const isGroupDisabled = activeCustomerId !== null && activeCustomerId !== customerGroup.customerId;
-                const customerOrderIds = customerGroup.orders.map((o) => o.id);
-                const allSelected = customerOrderIds.every((id) => selectedOrderIds.includes(id));
+                const customerItemIds = customerGroup.orders.flatMap((o) => (o.sales_order_items ?? []).map((i) => i.id));
+                const allSelected = customerItemIds.length > 0 && customerItemIds.every((id) => selectedItemIds.includes(id));
 
                 return (
                   <div key={customerGroup.customerId} className="space-y-2 border-l-2 border-slate-200 pl-4 py-1">
@@ -410,6 +428,9 @@ export function SalesEntryClient({ pendingOrders, billedOrders, rolls, fabricTyp
                         const groups = buildProductGroups(order, rolls, fabricTypes);
                         const grandTotalKg = groups.reduce((s, g) => s + g.totalNetWeight, 0);
 
+                        const orderItemIds = (order.sales_order_items ?? []).map((i) => i.id);
+                        const orderAllSelected = orderItemIds.every((id) => selectedItemIds.includes(id));
+
                         return (
                           <div
                             key={order.id}
@@ -419,8 +440,8 @@ export function SalesEntryClient({ pendingOrders, billedOrders, rolls, fabricTyp
                             <div className="w-full flex items-center gap-3 px-4 py-3 border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
                               <input
                                 type="checkbox"
-                                checked={selectedOrderIds.includes(order.id)}
-                                onChange={() => toggleSelectOrder(order.id)}
+                                checked={orderAllSelected}
+                                onChange={() => toggleSelectOrder(order)}
                                 disabled={isGroupDisabled}
                                 className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer disabled:opacity-50"
                               />
@@ -463,6 +484,7 @@ export function SalesEntryClient({ pendingOrders, billedOrders, rolls, fabricTyp
                                   <Table>
                                     <TableHeader>
                                       <TableRow className="bg-slate-100/60">
+                                        <TableHead className="w-10"></TableHead>
                                         <TableHead className="text-xs font-semibold">Department</TableHead>
                                         <TableHead className="text-xs font-semibold">Product</TableHead>
                                         <TableHead className="text-xs font-semibold text-right">Rolls</TableHead>
@@ -471,15 +493,39 @@ export function SalesEntryClient({ pendingOrders, billedOrders, rolls, fabricTyp
                                       </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                      {groups.map((g) => (
-                                        <TableRow key={g.itemId} className="hover:bg-white/60">
-                                          <TableCell className="text-sm capitalize">{g.department}</TableCell>
-                                          <TableCell className="text-sm font-mono font-medium">{g.productName}</TableCell>
-                                          <TableCell className="text-sm text-right">{g.rolls.length}</TableCell>
-                                          <TableCell className="text-sm text-right font-mono">{formatNumber(g.totalNetWeight, 1)}</TableCell>
-                                          <TableCell className="text-sm text-right font-mono">{formatNumber(Math.floor(g.totalMeters), 0)}</TableCell>
-                                        </TableRow>
-                                      ))}
+                                      {groups.map((g) => {
+                                        const isItemChecked = selectedItemIds.includes(g.itemId);
+                                        return (
+                                          <TableRow key={g.itemId} className="hover:bg-white/60">
+                                            <TableCell className="w-10">
+                                              <input
+                                                type="checkbox"
+                                                checked={isItemChecked}
+                                                onChange={() => {
+                                                  setSelectedItemIds((prev) => {
+                                                    if (prev.includes(g.itemId)) {
+                                                      return prev.filter((id) => id !== g.itemId);
+                                                    } else {
+                                                      const filtered = prev.filter((id) => {
+                                                        const itemOrder = pendingOrders.find((o) => (o.sales_order_items ?? []).some((i) => i.id === id));
+                                                        return itemOrder?.customer_id === order.customer_id;
+                                                      });
+                                                      return [...filtered, g.itemId];
+                                                    }
+                                                  });
+                                                }}
+                                                disabled={isGroupDisabled}
+                                                className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer disabled:opacity-50"
+                                              />
+                                            </TableCell>
+                                            <TableCell className="text-sm capitalize">{g.department}</TableCell>
+                                            <TableCell className="text-sm font-mono font-medium">{g.productName}</TableCell>
+                                            <TableCell className="text-sm text-right">{g.rolls.length}</TableCell>
+                                            <TableCell className="text-sm text-right font-mono">{formatNumber(g.totalNetWeight, 1)}</TableCell>
+                                            <TableCell className="text-sm text-right font-mono">{formatNumber(Math.floor(g.totalMeters), 0)}</TableCell>
+                                          </TableRow>
+                                        );
+                                      })}
                                     </TableBody>
                                   </Table>
                                 </div>
@@ -557,10 +603,10 @@ export function SalesEntryClient({ pendingOrders, billedOrders, rolls, fabricTyp
                         </TableCell>
                         <TableCell className="text-center">
                           <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-7 text-xs gap-1"
-                            onClick={() => setPrintOrderId(order.id)}
+                              size="sm"
+                              variant="outline"
+                              className="h-7 text-xs gap-1"
+                              onClick={() => setPrintOrderId(order.id)}
                           >
                             <Printer className="h-3 w-3" />
                             Print

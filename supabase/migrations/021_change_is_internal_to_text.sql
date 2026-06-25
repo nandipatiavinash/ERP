@@ -3,6 +3,6 @@ ALTER TABLE public.customers ALTER COLUMN is_internal DROP DEFAULT;
 
 ALTER TABLE public.customers 
   ALTER COLUMN is_internal TYPE TEXT 
-  USING (CASE WHEN is_internal = true THEN 'profit and loss a/c' ELSE 'client a/c' END);
+  USING (CASE WHEN is_internal::text = 'true' THEN 'profit and loss a/c' ELSE 'client a/c' END);
 
 ALTER TABLE public.customers ALTER COLUMN is_internal SET DEFAULT 'client a/c';

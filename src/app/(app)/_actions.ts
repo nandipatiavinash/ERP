@@ -1466,19 +1466,16 @@ async function generateNextJournalNo(supabase: any): Promise<string> {
 
 export async function saveSalesOrderBilling(formData: FormData) {
   const user = await requirePermission("sales.edit");
-  const orderId = String(formData.get("order_id") ?? "");
-  const orderIdsStr = String(formData.get("order_ids") ?? "");
+  const itemIdsStr = String(formData.get("item_ids") ?? "");
   const billNumber = String(formData.get("bill_number") ?? "").trim();
   const billValue = Number(formData.get("bill_value") ?? 0);
 
-  const orderIds = orderIdsStr
-    ? orderIdsStr.split(",").map(id => id.trim()).filter(Boolean)
-    : orderId
-      ? [orderId]
-      : [];
+  const itemIds = itemIdsStr
+    ? itemIdsStr.split(",").map(id => id.trim()).filter(Boolean)
+    : [];
 
-  if (orderIds.length === 0 || !billNumber) {
-    throw new Error("Order ID and Bill Number are required.");
+  if (itemIds.length === 0 || !billNumber) {
+    throw new Error("Item IDs and Bill Number are required.");
   }
   if (!Number.isFinite(billValue) || billValue < 0) {
     throw new Error("Bill Value must be a non-negative amount.");
@@ -1488,52 +1485,128 @@ export async function saveSalesOrderBilling(formData: FormData) {
 
   const supabase = await createClient();
 
-  // Fetch the orders with items, customers, and their alias/short name
-  const { data: orders, error: ordersError } = await (supabase
-    .from("sales_orders") as any)
+  // Fetch the selected items with their parent orders and customer details
+  const { data: selectedItems, error: itemsError } = await (supabase
+    .from("sales_order_items") as any)
     .select(`
       id,
-      customer_id,
-      order_date,
-      gst_rate,
-      customers(customer_name, alias),
-      sales_order_items(
+      sales_order_id,
+      department,
+      product_id,
+      quantity,
+      price,
+      selected_roll_ids,
+      sales_orders(
         id,
-        department,
-        product_id,
-        quantity,
-        price,
-        selected_roll_ids
+        order_number,
+        order_date,
+        customer_id,
+        status,
+        gst_rate,
+        selected_roll_ids,
+        customers(customer_name, alias)
       )
     `)
-    .in("id", orderIds);
+    .in("id", itemIds);
 
-  if (ordersError || !orders || orders.length === 0) {
-    throw new Error("Sales orders not found.");
+  if (itemsError || !selectedItems || selectedItems.length === 0) {
+    throw new Error("Selected sales order items not found.");
   }
 
-  // Validate that all selected orders belong to the same customer
-  const customerNames = Array.from(new Set(orders.map((o: any) => o.customers?.customer_name ?? "Unknown")));
+  // Validate that all items belong to the same customer
+  const customerNames = Array.from(
+    new Set(selectedItems.map((it: any) => it.sales_orders?.customers?.customer_name ?? "Unknown"))
+  );
   if (customerNames.length > 1) {
-    throw new Error("All selected orders must belong to the same customer to be billed together.");
+    throw new Error("All selected items must belong to the same customer to be billed together.");
   }
 
   const customerName = customerNames[0] as string;
-  const entryDate = (orders[0] as any).order_date ?? todayInIndia();
+  const entryDate = (selectedItems[0] as any).sales_orders?.order_date ?? todayInIndia();
 
-  // Update sales orders with billing info
-  // To avoid duplicate totals, apply the full bill_value on the first order, and 0 on the others
-  for (let i = 0; i < orders.length; i++) {
+  // Group selected items by order ID
+  const selectedItemsByOrderId: Record<string, any[]> = {};
+  for (const item of selectedItems) {
+    const oId = item.sales_order_id;
+    if (!selectedItemsByOrderId[oId]) {
+      selectedItemsByOrderId[oId] = [];
+    }
+    selectedItemsByOrderId[oId].push(item);
+  }
+
+  const parentOrderIds = Object.keys(selectedItemsByOrderId);
+
+  // Process billing and potential splitting for each parent order
+  for (let idx = 0; idx < parentOrderIds.length; idx++) {
+    const oId = parentOrderIds[idx];
+    const isFirstParent = (idx === 0);
+    const selectedInThisOrder = selectedItemsByOrderId[oId];
+    const parentOrder = selectedInThisOrder[0].sales_orders;
+
+    // Fetch all items currently in this parent order to check for splits
+    const { data: allItems, error: allItemsError } = await (supabase
+      .from("sales_order_items") as any)
+      .select("id, department, product_id, quantity, price, selected_roll_ids")
+      .eq("sales_order_id", oId);
+
+    if (allItemsError || !allItems) {
+      throw new Error(`Failed to fetch items for order ${oId}`);
+    }
+
+    const selectedIds = new Set(selectedInThisOrder.map((it: any) => it.id));
+    const unselectedInThisOrder = allItems.filter((it: any) => !selectedIds.has(it.id));
+
+    if (unselectedInThisOrder.length > 0) {
+      // Split the order: clone parent order for unselected items, keep original for selected/billed items
+      const clonePayload = {
+        order_number: parentOrder.order_number,
+        order_date: parentOrder.order_date,
+        customer_id: parentOrder.customer_id,
+        status: "confirmed",
+        bill_number: null,
+        bill_value: null,
+        gst_rate: parentOrder.gst_rate,
+        selected_roll_ids: unselectedInThisOrder.reduce((acc: string[], it: any) => [...acc, ...(it.selected_roll_ids ?? [])], []),
+        created_by: user.id,
+        updated_by: user.id
+      };
+
+      const { data: newOrder, error: newOrderError } = await (supabase
+        .from("sales_orders") as any)
+        .insert(clonePayload)
+        .select("id")
+        .single();
+
+      if (newOrderError || !newOrder) {
+        throw new Error(`Failed to split order: ${newOrderError?.message}`);
+      }
+
+      // Move unselected items to the cloned order
+      for (const unselectedItem of unselectedInThisOrder) {
+        const { error: moveError } = await (supabase
+          .from("sales_order_items") as any)
+          .update({ sales_order_id: newOrder.id })
+          .eq("id", unselectedItem.id);
+        if (moveError) {
+          throw new Error(`Failed to move unselected items to cloned order: ${moveError.message}`);
+        }
+      }
+    }
+
+    // Update the original order with billing details and only the selected roll IDs
     const { error: updateError } = await (supabase
       .from("sales_orders") as any)
       .update({
         bill_number: billNumber,
-        bill_value: i === 0 ? billValue : 0,
+        bill_value: isFirstParent ? billValue : 0,
+        selected_roll_ids: selectedInThisOrder.reduce((acc: string[], it: any) => [...acc, ...(it.selected_roll_ids ?? [])], []),
         updated_by: user.id,
       } as any)
-      .eq("id", orders[i].id);
+      .eq("id", oId);
 
-    if (updateError) throw new Error(updateError.message);
+    if (updateError) {
+      throw new Error(updateError.message);
+    }
   }
 
   // If bill number is "0" or bill value is 0, skip journal entries
@@ -2422,29 +2495,30 @@ export async function deleteRotoMetallicProduction(id: string) {
 export async function saveLaminationProduction(formData: FormData) {
   const user = await requirePermission("production.edit");
   const lamType = String(formData.get("lam_type") ?? "");
-  const fabricRollId = String(formData.get("fabric_roll_id") ?? "");
+  const fabricTypeId = String(formData.get("fabric_type_id") ?? "");
   const filmRollId = formData.get("film_roll_id") ? String(formData.get("film_roll_id")) : null;
   const nwMaterialId = formData.get("nw_material_id") ? String(formData.get("nw_material_id")) : null;
   const weightKg = Number(formData.get("weight_kg") ?? 0);
   const meters = Number(formData.get("meters") ?? 0);
   const entryDate = String(formData.get("entry_date") ?? todayInIndia());
 
-  if (!lamType || !fabricRollId || weightKg <= 0 || meters <= 0) {
+  if (!lamType || !fabricTypeId || weightKg <= 0 || meters <= 0) {
     throw new Error("Invalid parameters.");
   }
 
   const supabase = await createClient();
 
-  // Fetch fabric roll
-  const { data: fabricRoll, error: fabricError } = await (supabase
-    .from("fabric_rolls") as any)
-    .select("roll_number")
-    .eq("id", fabricRollId)
+  // Fetch fabric type details
+  const { data: fabricType, error: fabricError } = await (supabase
+    .from("fabric_types") as any)
+    .select("fabric_name")
+    .eq("id", fabricTypeId)
     .single();
 
-  if (fabricError || !fabricRoll) {
-    throw new Error("Fabric roll not found.");
+  if (fabricError || !fabricType) {
+    throw new Error("Fabric type not found.");
   }
+  const fabricTypeName = (fabricType as any).fabric_name;
 
   let filmRollIdValue: string | null = null;
   let filmRollIdStr = "";
@@ -2467,15 +2541,15 @@ export async function saveLaminationProduction(formData: FormData) {
 
   let newRollId = "";
   if (lamType === "BOX") {
-    newRollId = `${filmRollIdStr}(${(fabricRoll as any).roll_number})(B)`;
+    newRollId = `${filmRollIdStr}(${fabricTypeName})(B)`;
   } else if (lamType === "F_S") {
-    newRollId = `${filmRollIdStr}(${(fabricRoll as any).roll_number})(F/S)`;
+    newRollId = `${filmRollIdStr}(${fabricTypeName})(F/S)`;
   } else if (lamType === "H_S") {
-    newRollId = `${filmRollIdStr}(${(fabricRoll as any).roll_number})(H/S)`;
+    newRollId = `${filmRollIdStr}(${fabricTypeName})(H/S)`;
   } else if (lamType === "NW") {
-    newRollId = `(${(fabricRoll as any).roll_number})(NW)`;
+    newRollId = `(${fabricTypeName})(NW)`;
   } else if (lamType === "PLAIN") {
-    newRollId = `(${(fabricRoll as any).roll_number})(P)`;
+    newRollId = `(${fabricTypeName})(P)`;
   } else {
     throw new Error("Unsupported lamination type.");
   }
@@ -2485,7 +2559,7 @@ export async function saveLaminationProduction(formData: FormData) {
     .insert({
       roll_id: newRollId,
       lam_type: lamType,
-      fabric_roll_id: fabricRollId,
+      fabric_type_id: fabricTypeId,
       film_roll_id: filmRollIdValue,
       nw_material_id: lamType === "NW" ? nwMaterialId : null,
       weight_kg: weightKg,
@@ -2525,7 +2599,7 @@ export async function saveOffsetProduction(formData: FormData) {
   const user = await requirePermission("production.edit");
   const offsetType = String(formData.get("offset_type") ?? "");
   const brandId = String(formData.get("brand_id") ?? "");
-  const sourceFabricRollId = formData.get("source_fabric_roll_id") ? String(formData.get("source_fabric_roll_id")) : null;
+  const fabricTypeId = formData.get("fabric_type_id") ? String(formData.get("fabric_type_id")) : null;
   const sourceLamRollId = formData.get("source_lam_roll_id") ? String(formData.get("source_lam_roll_id")) : null;
   const weightKg = Number(formData.get("weight_kg") ?? 0);
   const entryDate = String(formData.get("entry_date") ?? todayInIndia());
@@ -2548,32 +2622,32 @@ export async function saveOffsetProduction(formData: FormData) {
   }
   const brandName = (brandData as any).brand;
 
-  let fabricRollNumber = "";
+  let fabricTypeName = "";
   if (offsetType === "FABRIC") {
-    if (!sourceFabricRollId) throw new Error("Source fabric roll is required.");
-    const { data: fr } = await (supabase.from("fabric_rolls") as any).select("roll_number").eq("id", sourceFabricRollId).single();
-    if (!fr) throw new Error("Source fabric roll not found.");
-    fabricRollNumber = (fr as any).roll_number;
+    if (!fabricTypeId) throw new Error("Source fabric type is required.");
+    const { data: ft } = await (supabase.from("fabric_types") as any).select("fabric_name").eq("id", fabricTypeId).single();
+    if (!ft) throw new Error("Source fabric type not found.");
+    fabricTypeName = (ft as any).fabric_name;
   } else if (["NW_LAM", "PLAIN_LAM"].includes(offsetType)) {
     if (!sourceLamRollId) throw new Error("Source laminated roll is required.");
     const { data: lr } = await (supabase
       .from("lamination_rolls") as any)
-      .select("fabric_roll_id, fabric_rolls(roll_number)")
+      .select("fabric_type_id, fabric_types(fabric_name)")
       .eq("id", sourceLamRollId)
       .single();
     if (!lr) throw new Error("Source laminated roll not found.");
-    fabricRollNumber = (lr as any).fabric_rolls?.roll_number ?? "";
+    fabricTypeName = (lr as any).fabric_types?.fabric_name ?? "";
   }
 
   let newRollId = "";
   if (offsetType === "NW") {
     newRollId = `${brandName}(NW)`;
   } else if (offsetType === "NW_LAM") {
-    newRollId = `${brandName}(NW-LAM-${fabricRollNumber})`;
+    newRollId = `${brandName}(NW-LAM-${fabricTypeName})`;
   } else if (offsetType === "PLAIN_LAM") {
-    newRollId = `${brandName}(${fabricRollNumber}-P)`;
+    newRollId = `${brandName}(${fabricTypeName}-P)`;
   } else if (offsetType === "FABRIC") {
-    newRollId = `${brandName}(${fabricRollNumber})`;
+    newRollId = `${brandName}(${fabricTypeName})`;
   } else {
     throw new Error("Unsupported offset printing type.");
   }
@@ -2584,7 +2658,7 @@ export async function saveOffsetProduction(formData: FormData) {
       roll_id: newRollId,
       offset_type: offsetType,
       brand_id: brandId,
-      source_fabric_roll_id: offsetType === "FABRIC" ? sourceFabricRollId : null,
+      fabric_type_id: offsetType === "FABRIC" ? fabricTypeId : null,
       source_lam_roll_id: ["NW_LAM", "PLAIN_LAM"].includes(offsetType) ? sourceLamRollId : null,
       weight_kg: weightKg,
       entry_date: entryDate,
@@ -2620,7 +2694,7 @@ export async function saveFinishingBundle(formData: FormData) {
   const user = await requirePermission("production.edit");
   const finishType = String(formData.get("finish_type") ?? "");
   const sourceLamRollId = formData.get("source_lam_roll_id") ? String(formData.get("source_lam_roll_id")) : null;
-  const sourceFabricRollId = formData.get("source_fabric_roll_id") ? String(formData.get("source_fabric_roll_id")) : null;
+  const fabricTypeId = formData.get("fabric_type_id") ? String(formData.get("fabric_type_id")) : null;
   const sourceNwMaterialId = formData.get("source_nw_material_id") ? String(formData.get("source_nw_material_id")) : null;
   const numBags = Number(formData.get("num_bags") ?? 0);
   const weightKg = Number(formData.get("weight_kg") ?? 0);
@@ -2639,10 +2713,10 @@ export async function saveFinishingBundle(formData: FormData) {
     if (!lr) throw new Error("Source laminated roll not found.");
     bundleId = (lr as any).roll_id;
   } else if (finishType === "PLAIN") {
-    if (!sourceFabricRollId) throw new Error("Source fabric roll is required.");
-    const { data: fr } = await (supabase.from("fabric_rolls") as any).select("roll_number").eq("id", sourceFabricRollId).single();
-    if (!fr) throw new Error("Source fabric roll not found.");
-    bundleId = (fr as any).roll_number;
+    if (!fabricTypeId) throw new Error("Source fabric type is required.");
+    const { data: ft } = await (supabase.from("fabric_types") as any).select("fabric_name").eq("id", fabricTypeId).single();
+    if (!ft) throw new Error("Source fabric type not found.");
+    bundleId = (ft as any).fabric_name;
   } else if (finishType === "NW") {
     if (!sourceNwMaterialId) throw new Error("Source non-woven material is required.");
     const { data: rm } = await (supabase.from("raw_materials") as any).select("material_name").eq("id", sourceNwMaterialId).single();
@@ -2658,7 +2732,7 @@ export async function saveFinishingBundle(formData: FormData) {
       bundle_id: bundleId,
       finish_type: finishType,
       source_lam_roll_id: finishType === "LAMINATED" ? sourceLamRollId : null,
-      source_fabric_roll_id: finishType === "PLAIN" ? sourceFabricRollId : null,
+      fabric_type_id: finishType === "PLAIN" ? fabricTypeId : null,
       source_nw_material_id: finishType === "NW" ? sourceNwMaterialId : null,
       num_bags: numBags,
       weight_kg: weightKg,
