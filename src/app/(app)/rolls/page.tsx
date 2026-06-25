@@ -10,20 +10,15 @@ export default async function RollsPage() {
   await requirePermission("rolls.view");
   const supabase = await createClient();
 
-  const { data: stock } = await supabase
-    .from("fabric_rolls")
-    .select("fabric_type_id, weight, meters, status, fabric_types(fabric_name)")
-    .eq("status", "available")
-    .is("deleted_at", null);
+  const { data: stockSummary } = await (supabase as any).rpc("get_fabric_stock_summary");
 
-  const stockRows = Object.values(((stock ?? []) as any[]).reduce<Record<string, any>>((acc, roll) => {
-    const key = roll.fabric_type_id;
-    acc[key] ??= { fabric_type_id: key, fabric_name: roll.fabric_types?.fabric_name, rolls: 0, weight: 0, meters: 0 };
-    acc[key].rolls += 1;
-    acc[key].weight += Number(roll.weight ?? 0);
-    acc[key].meters += Number(roll.meters ?? 0);
-    return acc;
-  }, {})).sort((a: any, b: any) => String(a.fabric_name).localeCompare(String(b.fabric_name)));
+  const stockRows = ((stockSummary ?? []) as any[]).map((row) => ({
+    fabric_type_id: row.fabric_type_id,
+    fabric_name: row.fabric_name,
+    rolls: Number(row.rolls ?? 0),
+    weight: Number(row.weight ?? 0),
+    meters: Number(row.meters ?? 0),
+  })).sort((a: any, b: any) => String(a.fabric_name).localeCompare(String(b.fabric_name)));
 
   const totalRolls = stockRows.reduce((sum: number, r: any) => sum + r.rolls, 0);
   const totalWeight = stockRows.reduce((sum: number, r: any) => sum + r.weight, 0);

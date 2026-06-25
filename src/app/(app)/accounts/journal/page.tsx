@@ -87,24 +87,8 @@ export default async function AccountsJournalPage(props: {
   }
 
   // 3. Generate next Journal Number
-  const { data: dbJournals } = await supabase
-    .from("accounts_journal")
-    .select("journal_no")
-    .is("deleted_at", null);
-  const journalNos = ((dbJournals ?? []) as Array<{ journal_no: string | null }>)
-    .map(j => j.journal_no)
-    .filter((journalNo): journalNo is string => Boolean(journalNo));
-  let nextJEInt = 1;
-  for (const no of journalNos) {
-    const match = no.match(/JE-(\d+)/);
-    if (match) {
-      const val = parseInt(match[1], 10);
-      if (val >= nextJEInt) {
-        nextJEInt = val + 1;
-      }
-    }
-  }
-  const nextJournalNo = `JE-${String(nextJEInt).padStart(6, "0")}`;
+  const { data: nextJournalNoData } = await (supabase as any).rpc("get_next_journal_no");
+  const nextJournalNo = String(nextJournalNoData ?? "JE-000001");
 
   // 4. Group recent entries for grouped presentation
   const groupedJE: Record<string, {

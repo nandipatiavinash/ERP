@@ -31,17 +31,16 @@ export default async function AccountReportsPage({ searchParams }: { searchParam
   if (accountId) {
     selectedAccount = customers?.find((c) => c.id === accountId) || null;
     
-    // Fetch all journal entries for this account up to the 'to' date
-    // (This includes historical ones before 'from' to compute the opening balance)
+    // Fetch only journal entries within the selected range to prevent full table scans
     let query = supabase
       .from("accounts_journal")
       .select("*")
+      .gte("entry_date", from)
       .lte("entry_date", to)
       .is("deleted_at", null);
 
     if (selectedAccount) {
       const conditions = [`account_id.eq.${accountId}`];
-      // Escape spaces in the search string for Supabase OR query (we can use %20 or just quotes, but in Postgres ilike filter, backslash escaping or simple quotes works. Wait, in Supabase PostgREST, spaces inside ilike are represented by wrapping in double quotes: account_name.ilike."KVR & COMPANY")
       conditions.push(`account_name.ilike."${selectedAccount.customer_name}"`);
       if (selectedAccount.alias) {
         conditions.push(`account_name.ilike."${selectedAccount.alias}"`);
@@ -57,20 +56,48 @@ export default async function AccountReportsPage({ searchParams }: { searchParam
       query = query.eq("account_id", accountId);
     }
 
-    const { data: entries } = await query
-      .order("entry_date", { ascending: true })
-      .order("created_at", { ascending: true });
+    const [{ data: openingBalData }, { data: entries }] = await Promise.all([
+      (supabase as any).rpc("get_opening_balance", { p_account_id: accountId, p_from_date: from }),
+      query
+        .order("entry_date", { ascending: true })
+        .order("created_at", { ascending: true })
+    ]);
 
-    journalEntries = entries || [];
+    // Construct virtual entries dated before 'from' to represent the opening balance in the frontend
+    const virtualEntries = [];
+    if (openingBalData && openingBalData.length > 0) {
+      const { total_debit, total_credit } = openingBalData[0];
+      if (Number(total_debit) > 0) {
+        virtualEntries.push({
+          id: "virtual-dr",
+          journal_no: "OPENING",
+          entry_date: "1970-01-01",
+          account_name: selectedAccount?.customer_name ?? "",
+          entry_type: "debit" as const,
+          amount: Number(total_debit),
+          description: "Opening Balance",
+          account_id: accountId,
+        });
+      }
+      if (Number(total_credit) > 0) {
+        virtualEntries.push({
+          id: "virtual-cr",
+          journal_no: "OPENING",
+          entry_date: "1970-01-01",
+          account_name: selectedAccount?.customer_name ?? "",
+          entry_type: "credit" as const,
+          amount: Number(total_credit),
+          description: "Opening Balance",
+          account_id: accountId,
+        });
+      }
+    }
+
+    journalEntries = [...virtualEntries, ...(entries ?? [])];
   } else {
-    // If nothing selected, fetch all journal entries up to the 'to' date
-    const { data: entries } = await supabase
-      .from("accounts_journal")
-      .select("*, customers(customer_name, alias)")
-      .lte("entry_date", to)
-      .is("deleted_at", null)
-      .order("entry_date", { ascending: true })
-      .order("created_at", { ascending: true });
+    // If nothing selected, fetch aggregated trial balance summary up to 'to' date
+    const { data: entries } = await (supabase as any)
+      .rpc("get_accounts_journal_summary_by_date", { p_date: to });
 
     journalEntries = entries || [];
   }

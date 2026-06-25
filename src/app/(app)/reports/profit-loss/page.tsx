@@ -66,12 +66,9 @@ export default async function ProfitLossReportPage({
     .or("is_internal.eq.profit and loss a/c,is_internal.eq.p&l")
     .is("deleted_at", null);
 
-  // 3. Fetch journal entries up to the selected date
-  const { data: journalEntries } = await supabase
-    .from("accounts_journal")
-    .select("account_id, account_name, entry_type, amount")
-    .lte("entry_date", date)
-    .is("deleted_at", null);
+  // 3. Fetch aggregated journal entries up to the selected date
+  const { data: journalEntries } = await (supabase as any)
+    .rpc("get_accounts_journal_summary_by_date", { p_date: date });
 
   // 4. Fetch existing P&L submission
   const { data: plSetting } = await supabase

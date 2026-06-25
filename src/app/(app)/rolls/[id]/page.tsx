@@ -26,7 +26,8 @@ export default async function FabricTypeRollsPage({
       .select("*, fabric_types(fabric_name), looms(loom_number), loom_production_entries(gross_weight, core_weight, net_weight, net_meters, average_meter_weight)")
       .eq("fabric_type_id", id)
       .is("deleted_at", null)
-      .order("roll_number", { ascending: true }),
+      .order("roll_number", { ascending: true })
+      .limit(300),
     (supabase as any).rpc("get_roll_allocations_for_fabric", { p_fabric_type_id: id }),
   ]);
 

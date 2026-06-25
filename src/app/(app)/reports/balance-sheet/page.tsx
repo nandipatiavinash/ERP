@@ -101,12 +101,9 @@ export default async function BalanceSheetPage({
     .select("id, customer_name, alias, opening_debit, opening_credit, is_internal")
     .is("deleted_at", null);
 
-  // 3. Fetch all journal entries up to the selected date
-  const { data: journalEntries } = await supabase
-    .from("accounts_journal")
-    .select("account_id, account_name, entry_type, amount")
-    .lte("entry_date", date)
-    .is("deleted_at", null);
+  // 3. Fetch aggregated journal entries up to the selected date
+  const { data: journalEntries } = await (supabase as any)
+    .rpc("get_accounts_journal_summary_by_date", { p_date: date });
 
   return (
     <div className="space-y-6">
