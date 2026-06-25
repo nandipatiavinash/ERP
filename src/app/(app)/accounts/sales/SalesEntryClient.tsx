@@ -71,6 +71,7 @@ function getRollDetails(rollId: string, rolls: Roll[]) {
 }
 
 type ProductGroup = {
+  itemId: string;
   productId: string;
   productName: string;
   department: string;
@@ -86,28 +87,14 @@ type ProductGroup = {
   totalMeters: number;
 };
 
+// Returns each order item individually (does not club same fabric types)
 function buildProductGroups(order: SalesOrder, rolls: Roll[], fabricTypes: { id: string; fabric_name: string }[]): ProductGroup[] {
-  const groupMap = new Map<string, ProductGroup>();
-
-  for (const item of (order.sales_order_items ?? [])) {
-    const key = `${item.department}::${item.product_id}`;
-    if (!groupMap.has(key)) {
-      groupMap.set(key, {
-        productId: item.product_id,
-        productName: getProductName(item.product_id, fabricTypes),
-        department: item.department,
-        rolls: [],
-        totalNetWeight: 0,
-        totalMeters: 0,
-      });
-    }
-    const group = groupMap.get(key)!;
-
-    for (const rollId of (item.selected_roll_ids ?? [])) {
+  return (order.sales_order_items ?? []).map((item) => {
+    const rollsData = (item.selected_roll_ids ?? []).map((rollId) => {
       const roll = getRollDetails(rollId, rolls);
-      if (!roll) continue;
+      if (!roll) return null;
       const prod = roll.loom_production_entries;
-      const rollData = {
+      return {
         roll_number: roll.roll_number,
         gross_weight: prod?.gross_weight ?? roll.weight ?? 0,
         core_weight: prod?.core_weight ?? 0,
@@ -115,59 +102,117 @@ function buildProductGroups(order: SalesOrder, rolls: Roll[], fabricTypes: { id:
         net_meters: prod?.net_meters ?? (roll.meters ?? 0),
         average_meter_weight: prod?.average_meter_weight ?? 0,
       };
-      group.rolls.push(rollData);
-      group.totalNetWeight += rollData.net_weight;
-      group.totalMeters += rollData.net_meters;
-    }
-  }
+    }).filter(Boolean) as any[];
 
-  return Array.from(groupMap.values());
+    const totalNetWeight = rollsData.reduce((s, r) => s + r.net_weight, 0);
+    const totalMeters = rollsData.reduce((s, r) => s + r.net_meters, 0);
+
+    return {
+      itemId: item.id,
+      productId: item.product_id,
+      productName: getProductName(item.product_id, fabricTypes),
+      department: item.department,
+      rolls: rollsData,
+      totalNetWeight,
+      totalMeters,
+    };
+  });
 }
 
 export function SalesEntryClient({ pendingOrders, billedOrders, rolls, fabricTypes }: SalesEntryClientProps) {
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
-  const [billInputs, setBillInputs] = useState<Record<string, { bill_number: string; bill_value: string }>>({});
+  const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
+  const [billNumber, setBillNumber] = useState("");
+  const [billValue, setBillValue] = useState("");
+
   const [isPending, startTransition] = useTransition();
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [printOrderId, setPrintOrderId] = useState<string | null>(null);
-  const [confirmDialog, setConfirmDialog] = useState<{ orderId: string } | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<{ orderIds: string[] } | null>(null);
 
   const toggleExpand = (orderId: string) => {
     setExpandedOrderId((prev) => (prev === orderId ? null : orderId));
   };
 
-  const handleBillInput = (orderId: string, field: "bill_number" | "bill_value", value: string) => {
-    setBillInputs((prev) => ({
-      ...prev,
-      [orderId]: { ...(prev[orderId] ?? { bill_number: "", bill_value: "" }), [field]: value },
-    }));
+  const toggleSelectOrder = (orderId: string) => {
+    setSelectedOrderIds((prev) =>
+      prev.includes(orderId) ? prev.filter((id) => id !== orderId) : [...prev, orderId]
+    );
   };
 
-  const handleSubmitBilling = (orderId: string) => {
-    const inputs = billInputs[orderId];
-    if (!inputs?.bill_number?.trim()) {
+  // Group pending orders by customer (firm)
+  const pendingOrdersByCustomer = useMemo(() => {
+    const groups: Record<string, { customerName: string; alias?: string; orders: SalesOrder[] }> = {};
+    for (const order of pendingOrders) {
+      const custId = order.customer_id;
+      const custName = order.customers?.customer_name ?? "Unknown Customer";
+      const alias = order.customers?.alias;
+      if (!groups[custId]) {
+        groups[custId] = { customerName: custName, alias, orders: [] };
+      }
+      groups[custId].orders.push(order);
+    }
+    return Object.entries(groups).map(([id, data]) => ({
+      customerId: id,
+      ...data
+    }));
+  }, [pendingOrders]);
+
+  // Determine active customer ID from currently selected orders
+  const activeCustomerId = useMemo(() => {
+    if (selectedOrderIds.length === 0) return null;
+    const firstSelected = pendingOrders.find((o) => o.id === selectedOrderIds[0]);
+    return firstSelected ? firstSelected.customer_id : null;
+  }, [selectedOrderIds, pendingOrders]);
+
+  const toggleSelectCustomerAll = (customerId: string, customerOrders: SalesOrder[]) => {
+    const customerOrderIds = customerOrders.map((o) => o.id);
+    const allSelected = customerOrderIds.every((id) => selectedOrderIds.includes(id));
+
+    if (allSelected) {
+      // Deselect all for this customer
+      setSelectedOrderIds((prev) => prev.filter((id) => !customerOrderIds.includes(id)));
+    } else {
+      // Select all for this customer, overriding any other selection
+      setSelectedOrderIds(customerOrderIds);
+    }
+  };
+
+  const handleSubmitBilling = () => {
+    if (selectedOrderIds.length === 0) {
+      setErrorMsg("Please select at least one order to bill.");
+      return;
+    }
+    if (!billNumber.trim()) {
       setErrorMsg("Bill Number is required.");
       return;
     }
-    const billValue = parseFloat(inputs.bill_value);
-    if (!Number.isFinite(billValue) || billValue <= 0) {
-      setErrorMsg("Bill Value must be a positive number.");
+    const val = parseFloat(billValue);
+    if (!Number.isFinite(val) || val < 0) {
+      setErrorMsg("Bill Value must be a non-negative number.");
+      return;
+    }
+
+    // Verify all selected orders belong to the same customer
+    const selectedOrders = pendingOrders.filter((o) => selectedOrderIds.includes(o.id));
+    const customerNames = Array.from(new Set(selectedOrders.map((o) => o.customers?.customer_name)));
+    if (customerNames.length > 1) {
+      setErrorMsg("All selected orders must belong to the same customer to be billed together.");
       return;
     }
 
     // If bill number is "0", ask for confirmation before proceeding
-    if (inputs.bill_number.trim() === "0") {
-      setConfirmDialog({ orderId });
+    if (billNumber.trim() === "0") {
+      setConfirmDialog({ orderIds: selectedOrderIds });
       return;
     }
 
-    doSubmitBilling(orderId, false);
+    doSubmitBilling(selectedOrderIds, false);
   };
 
-  const doSubmitBilling = (orderId: string, skipJournal: boolean) => {
-    const inputs = billInputs[orderId];
-    const billValue = parseFloat(inputs.bill_value);
+  const doSubmitBilling = (orderIds: string[], skipJournal: boolean) => {
+    const val = parseFloat(billValue);
 
     setErrorMsg(null);
     setSuccessMsg(null);
@@ -176,21 +221,19 @@ export function SalesEntryClient({ pendingOrders, billedOrders, rolls, fabricTyp
     startTransition(async () => {
       try {
         const fd = new FormData();
-        fd.append("order_id", orderId);
-        fd.append("bill_number", inputs.bill_number.trim());
-        fd.append("bill_value", String(billValue));
+        fd.append("order_ids", orderIds.join(","));
+        fd.append("bill_number", billNumber.trim());
+        fd.append("bill_value", String(val));
         if (skipJournal) fd.append("skip_journal", "1");
         await saveSalesOrderBilling(fd);
         setSuccessMsg(
           skipJournal
-            ? "Sales billing saved (bill number 0 — no journal entry recorded)."
+            ? "Sales billing saved (bill number 0 or value 0 — no journal entry recorded)."
             : "Sales billing saved and journal entries generated!"
         );
-        setBillInputs((prev) => {
-          const copy = { ...prev };
-          delete copy[orderId];
-          return copy;
-        });
+        setBillNumber("");
+        setBillValue("");
+        setSelectedOrderIds([]);
       } catch (err: any) {
         setErrorMsg(err.message ?? "Failed to save billing.");
       }
@@ -243,7 +286,7 @@ export function SalesEntryClient({ pendingOrders, billedOrders, rolls, fabricTyp
               </button>
               <button
                 className="px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium transition-colors"
-                onClick={() => doSubmitBilling(confirmDialog.orderId, true)}
+                onClick={() => doSubmitBilling(confirmDialog.orderIds, true)}
               >
                 Yes, Save Without Journal
               </button>
@@ -260,148 +303,205 @@ export function SalesEntryClient({ pendingOrders, billedOrders, rolls, fabricTyp
         <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm">{successMsg}</div>
       )}
 
-      {/* Section 1: Pending Sales */}
+      {/* Multi-Select Billing Form */}
+      {selectedOrderIds.length > 0 && (
+        <Card className="border border-emerald-200 bg-emerald-50/20 shadow-md">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold text-emerald-950">
+              Billing Information for {selectedOrderIds.length} Selected Order(s)
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap items-end gap-3">
+              <div className="flex-1 min-w-[160px]">
+                <Label className="text-xs text-muted-foreground mb-1">Bill Number</Label>
+                <Input
+                  placeholder="e.g. INV-001"
+                  value={billNumber}
+                  onChange={(e) => setBillNumber(e.target.value)}
+                  className="h-9 text-sm border-slate-300"
+                />
+              </div>
+              <div className="flex-1 min-w-[140px]">
+                <Label className="text-xs text-muted-foreground mb-1">Bill Value (₹)</Label>
+                <Input
+                  type="number"
+                  placeholder="0.00"
+                  value={billValue}
+                  onChange={(e) => setBillValue(e.target.value)}
+                  className="h-9 text-sm font-mono border-slate-300"
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  className="h-9 bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5"
+                  onClick={handleSubmitBilling}
+                  disabled={isPending}
+                >
+                  <Receipt className="h-3.5 w-3.5" />
+                  {isPending ? "Saving..." : "Submit Billing"}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setSelectedOrderIds([])}
+                  className="h-9 text-xs"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Section 1: Pending Sales Grouped by Customer */}
       <Card className="border-0 shadow-lg bg-gradient-to-br from-white to-amber-50/30">
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2 text-lg">
             <Package className="h-5 w-5 text-amber-600" />
-            Pending Billing
+            Pending Billing by Customer (Firm)
             <Badge className="ml-2 bg-amber-50 text-amber-700 border-amber-200">
               {pendingOrders.length}
             </Badge>
           </CardTitle>
-          <p className="text-sm text-muted-foreground">Confirmed deliveries awaiting bill number and bill value entry.</p>
+          <p className="text-sm text-muted-foreground mt-1">Select orders from a customer to bill them together as a single bill.</p>
         </CardHeader>
         <CardContent>
-          {pendingOrders.length === 0 ? (
+          {pendingOrdersByCustomer.length === 0 ? (
             <EmptyState
               title="No pending deliveries"
               description="Confirmed deliveries that haven't been billed yet will appear here."
             />
           ) : (
-            <div className="space-y-3">
-              {pendingOrders.map((order) => {
-                const isExpanded = expandedOrderId === order.id;
-                const groups = buildProductGroups(order, rolls, fabricTypes);
-                const inputs = billInputs[order.id] ?? { bill_number: "", bill_value: "" };
-                const grandTotalKg = groups.reduce((s, g) => s + g.totalNetWeight, 0);
-                const grandTotalMtrs = groups.reduce((s, g) => s + g.totalMeters, 0);
+            <div className="space-y-6">
+              {pendingOrdersByCustomer.map((customerGroup) => {
+                // Determine if this customer's group checkboxes are disabled (since another customer has selected orders)
+                const isGroupDisabled = activeCustomerId !== null && activeCustomerId !== customerGroup.customerId;
+                const customerOrderIds = customerGroup.orders.map((o) => o.id);
+                const allSelected = customerOrderIds.every((id) => selectedOrderIds.includes(id));
 
                 return (
-                  <div
-                    key={order.id}
-                    className="rounded-xl border border-slate-200 bg-white overflow-hidden transition-shadow hover:shadow-md"
-                  >
-                    {/* Order header - clickable */}
-                    <button
-                      type="button"
-                      className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-slate-50/50 transition-colors"
-                      onClick={() => toggleExpand(order.id)}
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        {isExpanded ? (
-                          <ChevronDown className="h-4 w-4 text-slate-400 shrink-0" />
-                        ) : (
-                          <ChevronRight className="h-4 w-4 text-slate-400 shrink-0" />
+                  <div key={customerGroup.customerId} className="space-y-2 border-l-2 border-slate-200 pl-4 py-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-baseline gap-2">
+                        <h3 className="font-semibold text-slate-800 text-sm">
+                          {customerGroup.customerName}
+                        </h3>
+                        {customerGroup.alias && (
+                          <span className="text-xs text-muted-foreground">({customerGroup.alias})</span>
                         )}
-                        <div className="min-w-0">
-                          <span className="font-semibold text-sm text-slate-900">
-                            {order.customers?.customer_name ?? "—"}
-                          </span>
-                          <span className="ml-3 text-xs text-muted-foreground">
-                            {formatDate(order.order_date)}
-                          </span>
-                        </div>
                       </div>
-                      <div className="flex items-center gap-3 shrink-0">
-                        <span className="text-xs text-muted-foreground font-mono">
-                          {groups.length} product{groups.length !== 1 ? "s" : ""} · {formatNumber(grandTotalKg, 1)} kg
-                        </span>
-                        <Badge className="bg-amber-50 text-amber-700 border-amber-200 text-xs">
-                          Pending
-                        </Badge>
-                      </div>
-                    </button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={isGroupDisabled}
+                        onClick={() => toggleSelectCustomerAll(customerGroup.customerId, customerGroup.orders)}
+                        className="text-xs text-emerald-600 hover:text-emerald-700 h-8 px-2"
+                      >
+                        {allSelected ? "Deselect All" : "Select All"}
+                      </Button>
+                    </div>
 
-                    {/* Expanded content */}
-                    {isExpanded && (
-                      <div className="border-t border-slate-100 px-4 py-4 bg-slate-50/30 space-y-4">
-                        {/* Summary table grouped by department/product */}
-                        <div className="overflow-x-auto rounded-lg border border-slate-200">
-                          <Table>
-                            <TableHeader>
-                              <TableRow className="bg-slate-100/60">
-                                <TableHead className="text-xs font-semibold">Department</TableHead>
-                                <TableHead className="text-xs font-semibold">Product</TableHead>
-                                <TableHead className="text-xs font-semibold text-right">Rolls</TableHead>
-                                <TableHead className="text-xs font-semibold text-right">Net W8 (kg)</TableHead>
-                                <TableHead className="text-xs font-semibold text-right">Meters</TableHead>
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {groups.map((g) => (
-                                <TableRow key={`${g.department}-${g.productId}`} className="hover:bg-white/60">
-                                  <TableCell className="text-sm capitalize">{g.department}</TableCell>
-                                  <TableCell className="text-sm font-mono font-medium">{g.productName}</TableCell>
-                                  <TableCell className="text-sm text-right">{g.rolls.length}</TableCell>
-                                  <TableCell className="text-sm text-right font-mono">{formatNumber(g.totalNetWeight, 1)}</TableCell>
-                                  <TableCell className="text-sm text-right font-mono">{formatNumber(Math.floor(g.totalMeters), 0)}</TableCell>
-                                </TableRow>
-                              ))}
-                              <TableRow className="bg-emerald-50/60 font-semibold">
-                                <TableCell colSpan={2} className="text-sm">TOTAL</TableCell>
-                                <TableCell className="text-sm text-right">
-                                  {groups.reduce((s, g) => s + g.rolls.length, 0)}
-                                </TableCell>
-                                <TableCell className="text-sm text-right font-mono">{formatNumber(grandTotalKg, 1)}</TableCell>
-                                <TableCell className="text-sm text-right font-mono">{formatNumber(Math.floor(grandTotalMtrs), 0)}</TableCell>
-                              </TableRow>
-                            </TableBody>
-                          </Table>
-                        </div>
+                    <div className="space-y-3">
+                      {customerGroup.orders.map((order) => {
+                        const isExpanded = expandedOrderId === order.id;
+                        const groups = buildProductGroups(order, rolls, fabricTypes);
+                        const grandTotalKg = groups.reduce((s, g) => s + g.totalNetWeight, 0);
 
-                        {/* Bill inputs row */}
-                        <div className="flex flex-wrap items-end gap-3 pt-1">
-                          <div className="flex-1 min-w-[160px]">
-                            <Label className="text-xs text-muted-foreground mb-1">Bill Number</Label>
-                            <Input
-                              placeholder="e.g. INV-001"
-                              value={inputs.bill_number}
-                              onChange={(e) => handleBillInput(order.id, "bill_number", e.target.value)}
-                              className="h-9 text-sm border-slate-300"
-                            />
-                          </div>
-                          <div className="flex-1 min-w-[140px]">
-                            <Label className="text-xs text-muted-foreground mb-1">Bill Value (₹)</Label>
-                            <Input
-                              type="number"
-                              placeholder="0.00"
-                              value={inputs.bill_value}
-                              onChange={(e) => handleBillInput(order.id, "bill_value", e.target.value)}
-                              className="h-9 text-sm font-mono border-slate-300"
-                            />
-                          </div>
-                          <Button
-                            size="sm"
-                            className="h-9 bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5"
-                            onClick={() => handleSubmitBilling(order.id)}
-                            disabled={isPending}
+                        return (
+                          <div
+                            key={order.id}
+                            className="rounded-xl border border-slate-200 bg-white overflow-hidden transition-shadow hover:shadow-md"
                           >
-                            <Receipt className="h-3.5 w-3.5" />
-                            {isPending ? "Saving..." : "Submit"}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-9 gap-1.5"
-                            onClick={() => setPrintOrderId(order.id)}
-                          >
-                            <Printer className="h-3.5 w-3.5" />
-                            Print
-                          </Button>
-                        </div>
-                      </div>
-                    )}
+                            {/* Order header row */}
+                            <div className="w-full flex items-center gap-3 px-4 py-3 border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
+                              <input
+                                type="checkbox"
+                                checked={selectedOrderIds.includes(order.id)}
+                                onChange={() => toggleSelectOrder(order.id)}
+                                disabled={isGroupDisabled}
+                                className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer disabled:opacity-50"
+                              />
+                              <button
+                                type="button"
+                                className="flex-1 flex items-center justify-between text-left"
+                                onClick={() => toggleExpand(order.id)}
+                              >
+                                <div className="flex items-center gap-3 min-w-0">
+                                  {isExpanded ? (
+                                    <ChevronDown className="h-4 w-4 text-slate-400 shrink-0" />
+                                  ) : (
+                                    <ChevronRight className="h-4 w-4 text-slate-400 shrink-0" />
+                                  )}
+                                  <div className="min-w-0">
+                                    <span className="font-semibold text-sm text-slate-900">
+                                      Order #{order.order_number}
+                                    </span>
+                                    <span className="ml-3 text-xs text-muted-foreground">
+                                      {formatDate(order.order_date)}
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-3 shrink-0">
+                                  <span className="text-xs text-muted-foreground font-mono">
+                                    {groups.length} item{groups.length !== 1 ? "s" : ""} · {formatNumber(grandTotalKg, 1)} kg
+                                  </span>
+                                  <Badge className="bg-amber-50 text-amber-700 border-amber-200 text-xs font-normal">
+                                    Pending
+                                  </Badge>
+                                </div>
+                              </button>
+                            </div>
+
+                            {/* Expanded content */}
+                            {isExpanded && (
+                              <div className="border-t border-slate-100 px-4 py-4 bg-slate-50/30 space-y-4">
+                                {/* Summary table grouped by department/product */}
+                                <div className="overflow-x-auto rounded-lg border border-slate-200">
+                                  <Table>
+                                    <TableHeader>
+                                      <TableRow className="bg-slate-100/60">
+                                        <TableHead className="text-xs font-semibold">Department</TableHead>
+                                        <TableHead className="text-xs font-semibold">Product</TableHead>
+                                        <TableHead className="text-xs font-semibold text-right">Rolls</TableHead>
+                                        <TableHead className="text-xs font-semibold text-right">Net W8 (kg)</TableHead>
+                                        <TableHead className="text-xs font-semibold text-right">Meters</TableHead>
+                                      </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                      {groups.map((g) => (
+                                        <TableRow key={g.itemId} className="hover:bg-white/60">
+                                          <TableCell className="text-sm capitalize">{g.department}</TableCell>
+                                          <TableCell className="text-sm font-mono font-medium">{g.productName}</TableCell>
+                                          <TableCell className="text-sm text-right">{g.rolls.length}</TableCell>
+                                          <TableCell className="text-sm text-right font-mono">{formatNumber(g.totalNetWeight, 1)}</TableCell>
+                                          <TableCell className="text-sm text-right font-mono">{formatNumber(Math.floor(g.totalMeters), 0)}</TableCell>
+                                        </TableRow>
+                                      ))}
+                                    </TableBody>
+                                  </Table>
+                                </div>
+
+                                {/* Actions row */}
+                                <div className="flex justify-end pt-1">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-9 gap-1.5"
+                                    onClick={() => setPrintOrderId(order.id)}
+                                  >
+                                    <Printer className="h-3.5 w-3.5" />
+                                    Print Invoice Details
+                                  </Button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 );
               })}
@@ -453,7 +553,7 @@ export function SalesEntryClient({ pendingOrders, billedOrders, rolls, fabricTyp
                           ₹{formatNumber(order.bill_value ?? 0, 2)}
                         </TableCell>
                         <TableCell className="text-sm text-right">
-                          {groups.length} product{groups.length !== 1 ? "s" : ""}
+                          {groups.length} item{groups.length !== 1 ? "s" : ""}
                         </TableCell>
                         <TableCell className="text-center">
                           <Button

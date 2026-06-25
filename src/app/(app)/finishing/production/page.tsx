@@ -1,56 +1,73 @@
-import { StageProductionForm } from "@/components/app/stage-production-form";
-import { ConfirmSubmitButton } from "@/components/app/confirm-submit-button";
+import { requirePermission } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/server";
+import { PageHeader } from "@/components/app/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { PageHeader } from "@/components/app/page-header";
-import { softDeleteStageProduction } from "@/app/(app)/_actions";
-import { requirePermission } from "@/lib/auth";
-import { createClient } from "@/lib/supabase/server";
+import { FinishingProductionForm } from "@/components/app/finishing-production-form";
+import { deleteFinishingBundle } from "@/app/(app)/_actions";
+import { ConfirmSubmitButton } from "@/components/app/confirm-submit-button";
 import { formatDate } from "@/lib/utils";
 
 export default async function FinishingProductionPage() {
   await requirePermission("finishing.production");
   const supabase = await createClient();
 
-  const [{ data: activeRolls }, { data: stageEntries }] = await Promise.all([
+  const [
+    { data: activeLamRolls },
+    { data: activeFabricRolls },
+    { data: rawNWMaterials },
+    { data: todayFinishingEntries },
+  ] = await Promise.all([
+    supabase
+      .from("lamination_rolls")
+      .select("id, roll_id, weight_kg")
+      .eq("status", "available")
+      .is("deleted_at", null)
+      .order("roll_id"),
     supabase
       .from("fabric_rolls")
-      .select("id, roll_number")
+      .select("id, roll_number, weight")
       .eq("status", "available")
-      .eq("current_stage", "offset_printing")
+      .eq("current_stage", "loom")
       .is("deleted_at", null)
       .order("roll_number"),
     supabase
-      .from("stage_production_entries")
-      .select("*, fabric_rolls(roll_number)")
-      .eq("stage", "finishing")
+      .from("raw_materials")
+      .select("id, material_name")
+      .eq("department", "finishing")
       .is("deleted_at", null)
-      .order("entry_date", { ascending: false })
+      .order("material_name"),
+    supabase
+      .from("finishing_bundles")
+      .select("*, lamination_rolls(roll_id), fabric_rolls(roll_number), raw_materials(material_name)")
+      .is("deleted_at", null)
       .order("created_at", { ascending: false })
       .limit(50),
   ]);
 
-  const rolls = (activeRolls ?? []) as any[];
-  const rows = (stageEntries ?? []) as any[];
-  const productMap: Record<string, string> = {
-    "finished-bags-28": "Finished Bags W-28",
-    "finished-bags-32": "Finished Bags W-32",
-  };
+  const laminationRolls = (activeLamRolls ?? []) as any[];
+  const fabricRolls = (activeFabricRolls ?? []) as any[];
+  const rawMaterials = (rawNWMaterials ?? []) as any[];
+  const finishingRows = (todayFinishingEntries ?? []) as any[];
 
   return (
-    <>
+    <div className="space-y-6">
       <PageHeader
-        title="Finishing Production Entry"
-        description="Select Offset Printed rolls and record bag cutting and finishing details."
+        title="Finishing Production"
+        description="Log finishing bundles of bags from laminated rolls, plain fabric rolls, or NW raw materials."
       />
 
-      <Card className="mb-5">
+      <Card>
         <CardHeader>
-          <CardTitle>Log Finishing Production</CardTitle>
+          <CardTitle>Log Finishing Bundle</CardTitle>
         </CardHeader>
         <CardContent>
-          <StageProductionForm stage="finishing" rolls={rolls} />
+          <FinishingProductionForm
+            laminationRolls={laminationRolls}
+            fabricRolls={fabricRolls}
+            rawMaterials={rawMaterials}
+          />
         </CardContent>
       </Card>
 
@@ -59,39 +76,39 @@ export default async function FinishingProductionPage() {
           <CardTitle>Recent Finishing Production Entries</CardTitle>
         </CardHeader>
         <CardContent>
-          {rows.length === 0 ? (
-            <EmptyState title="No entries found" description="Logged Finishing production entries will appear here." />
+          {finishingRows.length === 0 ? (
+            <EmptyState title="No entries found" description="Finishing bundles logged will appear here." />
           ) : (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto rounded-lg border border-slate-100">
               <Table>
                 <TableHeader>
-                  <TableRow>
+                  <TableRow className="bg-slate-50/50">
                     <TableHead>Date</TableHead>
-                    <TableHead>Roll Number</TableHead>
-                    <TableHead>Bag Type</TableHead>
-                    <TableHead>Packaging</TableHead>
-                    <TableHead>Remarks</TableHead>
-                    <TableHead>Actions</TableHead>
+                    <TableHead>Bundle ID (Source)</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead className="text-right">No. of Bags</TableHead>
+                    <TableHead className="text-right">Weight (kg)</TableHead>
+                    <TableHead className="text-center">Action</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {rows.map((row: any) => (
+                  {finishingRows.map((row) => (
                     <TableRow key={row.id}>
                       <TableCell>{formatDate(row.entry_date)}</TableCell>
-                      <TableCell className="font-bold text-emerald-950">
-                        {row.fabric_rolls?.roll_number ?? "-"}
-                      </TableCell>
-                      <TableCell>{productMap[row.product_id] ?? row.product_id ?? "-"}</TableCell>
-                      <TableCell>{row.details?.packaging ?? "-"}</TableCell>
-                      <TableCell>{row.remarks ?? "-"}</TableCell>
-                      <TableCell>
-                        <form action={softDeleteStageProduction}>
-                          <input type="hidden" name="id" value={row.id} />
+                      <TableCell className="font-mono font-bold text-emerald-950">{row.bundle_id}</TableCell>
+                      <TableCell className="font-semibold text-xs">{row.finish_type}</TableCell>
+                      <TableCell className="text-right font-mono">{row.num_bags}</TableCell>
+                      <TableCell className="text-right font-mono">{row.weight_kg}</TableCell>
+                      <TableCell className="text-center">
+                        <form action={async (fd) => {
+                          "use server";
+                          await deleteFinishingBundle(row.id);
+                        }}>
                           <ConfirmSubmitButton
                             size="sm"
-                            variant="outline"
-                            confirmTitle="Delete production entry?"
-                            confirmDescription="This will revert the roll stage back to Offset Printing."
+                            variant="destructive"
+                            confirmTitle="Delete finishing entry?"
+                            confirmDescription="This will delete this bundle and restore the source roll/material back to available stock."
                           >
                             Delete
                           </ConfirmSubmitButton>
@@ -105,6 +122,6 @@ export default async function FinishingProductionPage() {
           )}
         </CardContent>
       </Card>
-    </>
+    </div>
   );
 }

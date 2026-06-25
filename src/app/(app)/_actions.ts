@@ -1467,21 +1467,29 @@ async function generateNextJournalNo(supabase: any): Promise<string> {
 export async function saveSalesOrderBilling(formData: FormData) {
   const user = await requirePermission("sales.edit");
   const orderId = String(formData.get("order_id") ?? "");
+  const orderIdsStr = String(formData.get("order_ids") ?? "");
   const billNumber = String(formData.get("bill_number") ?? "").trim();
   const billValue = Number(formData.get("bill_value") ?? 0);
-  const skipJournal = formData.get("skip_journal") === "1" && billNumber === "0";
 
-  if (!orderId || !billNumber) {
+  const orderIds = orderIdsStr
+    ? orderIdsStr.split(",").map(id => id.trim()).filter(Boolean)
+    : orderId
+      ? [orderId]
+      : [];
+
+  if (orderIds.length === 0 || !billNumber) {
     throw new Error("Order ID and Bill Number are required.");
   }
-  if (!Number.isFinite(billValue) || billValue <= 0) {
-    throw new Error("Bill Value must be a positive amount.");
+  if (!Number.isFinite(billValue) || billValue < 0) {
+    throw new Error("Bill Value must be a non-negative amount.");
   }
+
+  const skipJournal = (billNumber === "0") || (billValue === 0);
 
   const supabase = await createClient();
 
-  // Fetch the order with items, customers, and their alias/short name
-  const { data: order, error: orderError } = await (supabase
+  // Fetch the orders with items, customers, and their alias/short name
+  const { data: orders, error: ordersError } = await (supabase
     .from("sales_orders") as any)
     .select(`
       id,
@@ -1498,27 +1506,37 @@ export async function saveSalesOrderBilling(formData: FormData) {
         selected_roll_ids
       )
     `)
-    .eq("id", orderId)
-    .single();
+    .in("id", orderIds);
 
-  if (orderError || !order) throw new Error("Sales order not found.");
+  if (ordersError || !orders || orders.length === 0) {
+    throw new Error("Sales orders not found.");
+  }
 
-  const customerName = (order as any).customers?.customer_name ?? "Unknown";
-  const entryDate = (order as any).order_date ?? todayInIndia();
+  // Validate that all selected orders belong to the same customer
+  const customerNames = Array.from(new Set(orders.map((o: any) => o.customers?.customer_name ?? "Unknown")));
+  if (customerNames.length > 1) {
+    throw new Error("All selected orders must belong to the same customer to be billed together.");
+  }
 
-  // Update sales order with billing info
-  const { error: updateError } = await (supabase
-    .from("sales_orders") as any)
-    .update({
-      bill_number: billNumber,
-      bill_value: billValue,
-      updated_by: user.id,
-    } as any)
-    .eq("id", orderId);
+  const customerName = customerNames[0] as string;
+  const entryDate = (orders[0] as any).order_date ?? todayInIndia();
 
-  if (updateError) throw new Error(updateError.message);
+  // Update sales orders with billing info
+  // To avoid duplicate totals, apply the full bill_value on the first order, and 0 on the others
+  for (let i = 0; i < orders.length; i++) {
+    const { error: updateError } = await (supabase
+      .from("sales_orders") as any)
+      .update({
+        bill_number: billNumber,
+        bill_value: i === 0 ? billValue : 0,
+        updated_by: user.id,
+      } as any)
+      .eq("id", orders[i].id);
 
-  // If bill number is "0" and skip_journal flag is set, skip journal entries
+    if (updateError) throw new Error(updateError.message);
+  }
+
+  // If bill number is "0" or bill value is 0, skip journal entries
   if (skipJournal) {
     revalidatePath("/accounts/sales");
     revalidatePath("/accounts/journal");
@@ -2242,5 +2260,559 @@ export async function saveProfitLoss(
   revalidatePath("/reports/profit-loss");
   revalidatePath("/reports/balance-sheet");
 }
+
+export async function saveRotoFilmProduction(formData: FormData) {
+  const user = await requirePermission("production.edit");
+  const brandId = String(formData.get("brand_id") ?? "");
+  const filmType = String(formData.get("film_type") ?? "").toLowerCase();
+  const colorId = formData.get("color_id") ? String(formData.get("color_id")) : null;
+  const weightKg = Number(formData.get("weight_kg") ?? 0);
+  const meters = Number(formData.get("meters") ?? 0);
+  const entryDate = String(formData.get("entry_date") ?? todayInIndia());
+
+  if (!brandId || !filmType || weightKg <= 0 || meters <= 0) {
+    throw new Error("Invalid production parameters.");
+  }
+  if (filmType !== "gloss" && filmType !== "matt") {
+    throw new Error("Film type must be gloss or matt.");
+  }
+
+  const supabase = await createClient();
+
+  // Fetch product/brand details with customer details for the alias
+  const { data: brandData, error: brandError } = await (supabase
+    .from("roto_products") as any)
+    .select("brand, customer_id, customers(customer_name, alias)")
+    .eq("id", brandId)
+    .single();
+
+  if (brandError || !brandData) {
+    throw new Error("Brand not found.");
+  }
+
+  const brandName = (brandData as any).brand;
+  const customer = (brandData as any).customers;
+  const alias = customer ? (customer.alias || customer.customer_name) : "";
+
+  let colorName = "";
+  if (colorId) {
+    const { data: colorData } = await (supabase
+      .from("roto_colors") as any)
+      .select("color_name")
+      .eq("id", colorId)
+      .single();
+    if (colorData) {
+      colorName = (colorData as any).color_name;
+    }
+  }
+
+  // Generate roll_id: BRAND(CLIENT ALIES NAME)(G/M)(COLOUR)
+  const filmTypeChar = filmType === "gloss" ? "G" : "M";
+  let rollId = brandName;
+  if (alias) {
+    rollId += `(${alias})`;
+  }
+  rollId += `(${filmTypeChar})`;
+  if (colorName) {
+    rollId += `(${colorName})`;
+  }
+
+  const { error: insertError } = await (supabase
+    .from("roto_film_rolls") as any)
+    .insert({
+      roll_id: rollId,
+      brand_id: brandId,
+      film_type: filmType,
+      color_id: colorId || null,
+      weight_kg: weightKg,
+      meters: meters,
+      entry_date: entryDate,
+      status: "available",
+      created_by: user.id,
+      updated_by: user.id,
+    } as any);
+
+  if (insertError) throw new Error(insertError.message);
+
+  revalidatePath("/roto-printing/production");
+  revalidatePath("/roto-printing/stock");
+  revalidatePath("/lamination/production");
+}
+
+export async function deleteRotoFilmProduction(id: string) {
+  const user = await requirePermission("production.edit");
+  const supabase = await createClient();
+
+  const { error } = await (supabase
+    .from("roto_film_rolls") as any)
+    .delete()
+    .eq("id", id);
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/roto-printing/production");
+  revalidatePath("/roto-printing/stock");
+  revalidatePath("/lamination/production");
+}
+
+export async function saveRotoMetallicProduction(formData: FormData) {
+  const user = await requirePermission("production.edit");
+  const sourceFilmRollId = String(formData.get("source_film_roll_id") ?? "");
+  const isSplit = formData.get("is_split") === "1" || formData.get("is_split") === "true";
+  const weightKg = Number(formData.get("weight_kg") ?? 0);
+  const meters = Number(formData.get("meters") ?? 0);
+  const entryDate = String(formData.get("entry_date") ?? todayInIndia());
+
+  if (!sourceFilmRollId || weightKg <= 0 || meters <= 0) {
+    throw new Error("Invalid parameters.");
+  }
+
+  const supabase = await createClient();
+
+  // Fetch the source film roll ID
+  const { data: filmRoll, error: filmError } = await (supabase
+    .from("roto_film_rolls") as any)
+    .select("roll_id")
+    .eq("id", sourceFilmRollId)
+    .single();
+
+  if (filmError || !filmRoll) {
+    throw new Error("Source film roll not found.");
+  }
+
+  const newRollId = `${(filmRoll as any).roll_id}(Mt)`;
+
+  const { error: insertError } = await (supabase
+    .from("roto_metallic_rolls") as any)
+    .insert({
+      roll_id: newRollId,
+      source_film_roll_id: sourceFilmRollId,
+      is_split: isSplit,
+      weight_kg: weightKg,
+      meters: meters,
+      entry_date: entryDate,
+      status: "available",
+      created_by: user.id,
+      updated_by: user.id,
+    } as any);
+
+  if (insertError) throw new Error(insertError.message);
+
+  revalidatePath("/roto-printing/production");
+  revalidatePath("/roto-printing/stock");
+  revalidatePath("/lamination/production");
+}
+
+export async function deleteRotoMetallicProduction(id: string) {
+  const user = await requirePermission("production.edit");
+  const supabase = await createClient();
+
+  const { error } = await (supabase
+    .from("roto_metallic_rolls") as any)
+    .delete()
+    .eq("id", id);
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/roto-printing/production");
+  revalidatePath("/roto-printing/stock");
+  revalidatePath("/lamination/production");
+}
+
+export async function saveLaminationProduction(formData: FormData) {
+  const user = await requirePermission("production.edit");
+  const lamType = String(formData.get("lam_type") ?? "");
+  const fabricRollId = String(formData.get("fabric_roll_id") ?? "");
+  const filmRollId = formData.get("film_roll_id") ? String(formData.get("film_roll_id")) : null;
+  const nwMaterialId = formData.get("nw_material_id") ? String(formData.get("nw_material_id")) : null;
+  const weightKg = Number(formData.get("weight_kg") ?? 0);
+  const meters = Number(formData.get("meters") ?? 0);
+  const entryDate = String(formData.get("entry_date") ?? todayInIndia());
+
+  if (!lamType || !fabricRollId || weightKg <= 0 || meters <= 0) {
+    throw new Error("Invalid parameters.");
+  }
+
+  const supabase = await createClient();
+
+  // Fetch fabric roll
+  const { data: fabricRoll, error: fabricError } = await (supabase
+    .from("fabric_rolls") as any)
+    .select("roll_number")
+    .eq("id", fabricRollId)
+    .single();
+
+  if (fabricError || !fabricRoll) {
+    throw new Error("Fabric roll not found.");
+  }
+
+  let filmRollIdValue: string | null = null;
+  let filmRollIdStr = "";
+  if (["BOX", "F_S", "H_S"].includes(lamType)) {
+    if (!filmRollId) {
+      throw new Error(`Film roll is required for lamination type ${lamType}.`);
+    }
+    const { data: filmRoll, error: filmError } = await (supabase
+      .from("roto_metallic_rolls") as any)
+      .select("roll_id")
+      .eq("id", filmRollId)
+      .single();
+
+    if (filmError || !filmRoll) {
+      throw new Error("Metallic film roll not found.");
+    }
+    filmRollIdValue = filmRollId;
+    filmRollIdStr = (filmRoll as any).roll_id;
+  }
+
+  let newRollId = "";
+  if (lamType === "BOX") {
+    newRollId = `${filmRollIdStr}(${(fabricRoll as any).roll_number})(B)`;
+  } else if (lamType === "F_S") {
+    newRollId = `${filmRollIdStr}(${(fabricRoll as any).roll_number})(F/S)`;
+  } else if (lamType === "H_S") {
+    newRollId = `${filmRollIdStr}(${(fabricRoll as any).roll_number})(H/S)`;
+  } else if (lamType === "NW") {
+    newRollId = `(${(fabricRoll as any).roll_number})(NW)`;
+  } else if (lamType === "PLAIN") {
+    newRollId = `(${(fabricRoll as any).roll_number})(P)`;
+  } else {
+    throw new Error("Unsupported lamination type.");
+  }
+
+  const { error: insertError } = await (supabase
+    .from("lamination_rolls") as any)
+    .insert({
+      roll_id: newRollId,
+      lam_type: lamType,
+      fabric_roll_id: fabricRollId,
+      film_roll_id: filmRollIdValue,
+      nw_material_id: lamType === "NW" ? nwMaterialId : null,
+      weight_kg: weightKg,
+      meters: meters,
+      entry_date: entryDate,
+      status: "available",
+      created_by: user.id,
+      updated_by: user.id,
+    } as any);
+
+  if (insertError) throw new Error(insertError.message);
+
+  revalidatePath("/lamination/production");
+  revalidatePath("/lamination/stock");
+  revalidatePath("/offset-printing/production");
+  revalidatePath("/finishing/production");
+}
+
+export async function deleteLaminationProduction(id: string) {
+  const user = await requirePermission("production.edit");
+  const supabase = await createClient();
+
+  const { error } = await (supabase
+    .from("lamination_rolls") as any)
+    .delete()
+    .eq("id", id);
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/lamination/production");
+  revalidatePath("/lamination/stock");
+  revalidatePath("/offset-printing/production");
+  revalidatePath("/finishing/production");
+}
+
+export async function saveOffsetProduction(formData: FormData) {
+  const user = await requirePermission("production.edit");
+  const offsetType = String(formData.get("offset_type") ?? "");
+  const brandId = String(formData.get("brand_id") ?? "");
+  const sourceFabricRollId = formData.get("source_fabric_roll_id") ? String(formData.get("source_fabric_roll_id")) : null;
+  const sourceLamRollId = formData.get("source_lam_roll_id") ? String(formData.get("source_lam_roll_id")) : null;
+  const weightKg = Number(formData.get("weight_kg") ?? 0);
+  const entryDate = String(formData.get("entry_date") ?? todayInIndia());
+
+  if (!offsetType || !brandId || weightKg <= 0) {
+    throw new Error("Invalid parameters.");
+  }
+
+  const supabase = await createClient();
+
+  // Fetch brand/product details
+  const { data: brandData, error: brandError } = await (supabase
+    .from("offset_products") as any)
+    .select("brand")
+    .eq("id", brandId)
+    .single();
+
+  if (brandError || !brandData) {
+    throw new Error("Offset brand not found.");
+  }
+  const brandName = (brandData as any).brand;
+
+  let fabricRollNumber = "";
+  if (offsetType === "FABRIC") {
+    if (!sourceFabricRollId) throw new Error("Source fabric roll is required.");
+    const { data: fr } = await (supabase.from("fabric_rolls") as any).select("roll_number").eq("id", sourceFabricRollId).single();
+    if (!fr) throw new Error("Source fabric roll not found.");
+    fabricRollNumber = (fr as any).roll_number;
+  } else if (["NW_LAM", "PLAIN_LAM"].includes(offsetType)) {
+    if (!sourceLamRollId) throw new Error("Source laminated roll is required.");
+    const { data: lr } = await (supabase
+      .from("lamination_rolls") as any)
+      .select("fabric_roll_id, fabric_rolls(roll_number)")
+      .eq("id", sourceLamRollId)
+      .single();
+    if (!lr) throw new Error("Source laminated roll not found.");
+    fabricRollNumber = (lr as any).fabric_rolls?.roll_number ?? "";
+  }
+
+  let newRollId = "";
+  if (offsetType === "NW") {
+    newRollId = `${brandName}(NW)`;
+  } else if (offsetType === "NW_LAM") {
+    newRollId = `${brandName}(NW-LAM-${fabricRollNumber})`;
+  } else if (offsetType === "PLAIN_LAM") {
+    newRollId = `${brandName}(${fabricRollNumber}-P)`;
+  } else if (offsetType === "FABRIC") {
+    newRollId = `${brandName}(${fabricRollNumber})`;
+  } else {
+    throw new Error("Unsupported offset printing type.");
+  }
+
+  const { error: insertError } = await (supabase
+    .from("offset_rolls") as any)
+    .insert({
+      roll_id: newRollId,
+      offset_type: offsetType,
+      brand_id: brandId,
+      source_fabric_roll_id: offsetType === "FABRIC" ? sourceFabricRollId : null,
+      source_lam_roll_id: ["NW_LAM", "PLAIN_LAM"].includes(offsetType) ? sourceLamRollId : null,
+      weight_kg: weightKg,
+      entry_date: entryDate,
+      status: "available",
+      created_by: user.id,
+      updated_by: user.id,
+    } as any);
+
+  if (insertError) throw new Error(insertError.message);
+
+  revalidatePath("/offset-printing/production");
+  revalidatePath("/offset-printing/stock");
+  revalidatePath("/finishing/production");
+}
+
+export async function deleteOffsetProduction(id: string) {
+  const user = await requirePermission("production.edit");
+  const supabase = await createClient();
+
+  const { error } = await (supabase
+    .from("offset_rolls") as any)
+    .delete()
+    .eq("id", id);
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/offset-printing/production");
+  revalidatePath("/offset-printing/stock");
+  revalidatePath("/finishing/production");
+}
+
+export async function saveFinishingBundle(formData: FormData) {
+  const user = await requirePermission("production.edit");
+  const finishType = String(formData.get("finish_type") ?? "");
+  const sourceLamRollId = formData.get("source_lam_roll_id") ? String(formData.get("source_lam_roll_id")) : null;
+  const sourceFabricRollId = formData.get("source_fabric_roll_id") ? String(formData.get("source_fabric_roll_id")) : null;
+  const sourceNwMaterialId = formData.get("source_nw_material_id") ? String(formData.get("source_nw_material_id")) : null;
+  const numBags = Number(formData.get("num_bags") ?? 0);
+  const weightKg = Number(formData.get("weight_kg") ?? 0);
+  const entryDate = String(formData.get("entry_date") ?? todayInIndia());
+
+  if (!finishType || numBags <= 0 || weightKg <= 0) {
+    throw new Error("Invalid parameters.");
+  }
+
+  const supabase = await createClient();
+
+  let bundleId = "";
+  if (finishType === "LAMINATED") {
+    if (!sourceLamRollId) throw new Error("Source laminated roll is required.");
+    const { data: lr } = await (supabase.from("lamination_rolls") as any).select("roll_id").eq("id", sourceLamRollId).single();
+    if (!lr) throw new Error("Source laminated roll not found.");
+    bundleId = (lr as any).roll_id;
+  } else if (finishType === "PLAIN") {
+    if (!sourceFabricRollId) throw new Error("Source fabric roll is required.");
+    const { data: fr } = await (supabase.from("fabric_rolls") as any).select("roll_number").eq("id", sourceFabricRollId).single();
+    if (!fr) throw new Error("Source fabric roll not found.");
+    bundleId = (fr as any).roll_number;
+  } else if (finishType === "NW") {
+    if (!sourceNwMaterialId) throw new Error("Source non-woven material is required.");
+    const { data: rm } = await (supabase.from("raw_materials") as any).select("material_name").eq("id", sourceNwMaterialId).single();
+    if (!rm) throw new Error("Non-woven material not found.");
+    bundleId = (rm as any).material_name;
+  } else {
+    throw new Error("Unsupported finishing type.");
+  }
+
+  const { error: insertError } = await (supabase
+    .from("finishing_bundles") as any)
+    .insert({
+      bundle_id: bundleId,
+      finish_type: finishType,
+      source_lam_roll_id: finishType === "LAMINATED" ? sourceLamRollId : null,
+      source_fabric_roll_id: finishType === "PLAIN" ? sourceFabricRollId : null,
+      source_nw_material_id: finishType === "NW" ? sourceNwMaterialId : null,
+      num_bags: numBags,
+      weight_kg: weightKg,
+      entry_date: entryDate,
+      created_by: user.id,
+      updated_by: user.id,
+    } as any);
+
+  if (insertError) throw new Error(insertError.message);
+
+  revalidatePath("/finishing/production");
+  revalidatePath("/finishing/stock");
+}
+
+export async function deleteFinishingBundle(id: string) {
+  const user = await requirePermission("production.edit");
+  const supabase = await createClient();
+
+  const { error } = await (supabase
+    .from("finishing_bundles") as any)
+    .delete()
+    .eq("id", id);
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/finishing/production");
+  revalidatePath("/finishing/stock");
+}
+
+export async function consumeFabricRoll(rollId: string, stage: string) {
+  const user = await requirePermission("production.edit");
+  const supabase = await createClient();
+
+  const { error } = await (supabase
+    .from("fabric_rolls") as any)
+    .update({ status: "consumed", current_stage: stage, updated_by: user.id } as any)
+    .eq("id", rollId);
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/fabric/stock");
+  revalidatePath("/lamination/consumption");
+  revalidatePath("/offset-printing/consumption");
+  revalidatePath("/finishing/consumption");
+}
+
+export async function revertFabricRollConsumption(rollId: string) {
+  const user = await requirePermission("production.edit");
+  const supabase = await createClient();
+
+  const { error } = await (supabase
+    .from("fabric_rolls") as any)
+    .update({ status: "available", current_stage: "loom", updated_by: user.id } as any)
+    .eq("id", rollId);
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/fabric/stock");
+  revalidatePath("/lamination/consumption");
+  revalidatePath("/offset-printing/consumption");
+  revalidatePath("/finishing/consumption");
+}
+
+export async function consumeMetallicRoll(rollId: string) {
+  const user = await requirePermission("production.edit");
+  const supabase = await createClient();
+
+  const { error } = await (supabase
+    .from("roto_metallic_rolls") as any)
+    .update({ status: "consumed", updated_by: user.id } as any)
+    .eq("id", rollId);
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/roto-printing/stock");
+  revalidatePath("/lamination/consumption");
+}
+
+export async function revertMetallicRollConsumption(rollId: string) {
+  const user = await requirePermission("production.edit");
+  const supabase = await createClient();
+
+  const { error } = await (supabase
+    .from("roto_metallic_rolls") as any)
+    .update({ status: "available", updated_by: user.id } as any)
+    .eq("id", rollId);
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/roto-printing/stock");
+  revalidatePath("/lamination/consumption");
+}
+
+export async function consumeLaminationRoll(rollId: string) {
+  const user = await requirePermission("production.edit");
+  const supabase = await createClient();
+
+  const { error } = await (supabase
+    .from("lamination_rolls") as any)
+    .update({ status: "consumed", updated_by: user.id } as any)
+    .eq("id", rollId);
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/lamination/stock");
+  revalidatePath("/offset-printing/consumption");
+  revalidatePath("/finishing/consumption");
+}
+
+export async function revertLaminationRollConsumption(rollId: string) {
+  const user = await requirePermission("production.edit");
+  const supabase = await createClient();
+
+  const { error } = await (supabase
+    .from("lamination_rolls") as any)
+    .update({ status: "available", updated_by: user.id } as any)
+    .eq("id", rollId);
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/lamination/stock");
+  revalidatePath("/offset-printing/consumption");
+  revalidatePath("/finishing/consumption");
+}
+
+export async function consumeOffsetRoll(rollId: string) {
+  const user = await requirePermission("production.edit");
+  const supabase = await createClient();
+
+  const { error } = await (supabase
+    .from("offset_rolls") as any)
+    .update({ status: "consumed", updated_by: user.id } as any)
+    .eq("id", rollId);
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/offset-printing/stock");
+  revalidatePath("/finishing/consumption");
+}
+
+export async function revertOffsetRollConsumption(rollId: string) {
+  const user = await requirePermission("production.edit");
+  const supabase = await createClient();
+
+  const { error } = await (supabase
+    .from("offset_rolls") as any)
+    .update({ status: "available", updated_by: user.id } as any)
+    .eq("id", rollId);
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/offset-printing/stock");
+  revalidatePath("/finishing/consumption");
+}
+
 
 

@@ -1,56 +1,73 @@
-import { StageProductionForm } from "@/components/app/stage-production-form";
-import { ConfirmSubmitButton } from "@/components/app/confirm-submit-button";
+import { requirePermission } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/server";
+import { PageHeader } from "@/components/app/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { PageHeader } from "@/components/app/page-header";
-import { softDeleteStageProduction } from "@/app/(app)/_actions";
-import { requirePermission } from "@/lib/auth";
-import { createClient } from "@/lib/supabase/server";
+import { LaminationProductionForm } from "@/components/app/lamination-production-form";
+import { deleteLaminationProduction } from "@/app/(app)/_actions";
+import { ConfirmSubmitButton } from "@/components/app/confirm-submit-button";
 import { formatDate } from "@/lib/utils";
 
 export default async function LaminationProductionPage() {
   await requirePermission("lamination.production");
   const supabase = await createClient();
 
-  const [{ data: activeRolls }, { data: stageEntries }] = await Promise.all([
+  const [
+    { data: activeFabricRolls },
+    { data: activeMetallicRolls },
+    { data: rawNWMaterials },
+    { data: todayLaminationEntries },
+  ] = await Promise.all([
     supabase
       .from("fabric_rolls")
-      .select("id, roll_number")
+      .select("id, roll_number, weight, meters")
       .eq("status", "available")
-      .eq("current_stage", "roto_printing")
+      .eq("current_stage", "loom")
       .is("deleted_at", null)
       .order("roll_number"),
     supabase
-      .from("stage_production_entries")
-      .select("*, fabric_rolls(roll_number)")
-      .eq("stage", "lamination")
+      .from("roto_metallic_rolls")
+      .select("id, roll_id, weight_kg, meters")
+      .eq("status", "available")
       .is("deleted_at", null)
-      .order("entry_date", { ascending: false })
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("raw_materials")
+      .select("id, material_name")
+      .eq("department", "lamination")
+      .is("deleted_at", null)
+      .order("material_name"),
+    supabase
+      .from("lamination_rolls")
+      .select("*, fabric_rolls(roll_number), roto_metallic_rolls(roll_id), raw_materials(material_name)")
+      .is("deleted_at", null)
       .order("created_at", { ascending: false })
       .limit(50),
   ]);
 
-  const rolls = (activeRolls ?? []) as any[];
-  const rows = (stageEntries ?? []) as any[];
-  const productMap: Record<string, string> = {
-    "lam-film-25": "Laminated Film 2.5 mil",
-    "lam-film-30": "Laminated Film 3.0 mil",
-  };
+  const fabricRolls = (activeFabricRolls ?? []) as any[];
+  const metallicRolls = (activeMetallicRolls ?? []) as any[];
+  const rawMaterials = (rawNWMaterials ?? []) as any[];
+  const laminationRows = (todayLaminationEntries ?? []) as any[];
 
   return (
-    <>
+    <div className="space-y-6">
       <PageHeader
-        title="Lamination Production Entry"
-        description="Select Roto Printed rolls and record their lamination film and adhesive details."
+        title="Lamination Production"
+        description="Log lamination output using a fabric roll, metallic film roll, or raw NW material."
       />
 
-      <Card className="mb-5">
+      <Card>
         <CardHeader>
-          <CardTitle>Log Lamination Production</CardTitle>
+          <CardTitle>Log Lamination Run</CardTitle>
         </CardHeader>
         <CardContent>
-          <StageProductionForm stage="lamination" rolls={rolls} />
+          <LaminationProductionForm
+            fabricRolls={fabricRolls}
+            filmRolls={metallicRolls}
+            rawMaterials={rawMaterials}
+          />
         </CardContent>
       </Card>
 
@@ -59,39 +76,45 @@ export default async function LaminationProductionPage() {
           <CardTitle>Recent Lamination Production Entries</CardTitle>
         </CardHeader>
         <CardContent>
-          {rows.length === 0 ? (
-            <EmptyState title="No entries found" description="Logged lamination entries will appear here." />
+          {laminationRows.length === 0 ? (
+            <EmptyState title="No entries found" description="Laminated rolls produced will appear here." />
           ) : (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto rounded-lg border border-slate-100">
               <Table>
                 <TableHeader>
-                  <TableRow>
+                  <TableRow className="bg-slate-50/50">
                     <TableHead>Date</TableHead>
-                    <TableHead>Roll Number</TableHead>
-                    <TableHead>Film Product</TableHead>
-                    <TableHead>Adhesive Details</TableHead>
-                    <TableHead>Remarks</TableHead>
-                    <TableHead>Actions</TableHead>
+                    <TableHead>Laminated Roll ID</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Source Fabric</TableHead>
+                    <TableHead>Source Film (Metallic)</TableHead>
+                    <TableHead>NW Material</TableHead>
+                    <TableHead className="text-right">KGs</TableHead>
+                    <TableHead className="text-right">Meters</TableHead>
+                    <TableHead className="text-center">Action</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {rows.map((row) => (
+                  {laminationRows.map((row) => (
                     <TableRow key={row.id}>
                       <TableCell>{formatDate(row.entry_date)}</TableCell>
-                      <TableCell className="font-bold text-emerald-950">
-                        {row.fabric_rolls?.roll_number ?? "-"}
-                      </TableCell>
-                      <TableCell>{productMap[row.product_id] ?? row.product_id ?? "-"}</TableCell>
-                      <TableCell>{row.details?.adhesive ?? "-"}</TableCell>
-                      <TableCell>{row.remarks ?? "-"}</TableCell>
-                      <TableCell>
-                        <form action={softDeleteStageProduction}>
-                          <input type="hidden" name="id" value={row.id} />
+                      <TableCell className="font-mono font-bold text-emerald-950">{row.roll_id}</TableCell>
+                      <TableCell className="font-semibold text-xs">{row.lam_type}</TableCell>
+                      <TableCell className="font-mono text-xs">{row.fabric_rolls?.roll_number ?? "-"}</TableCell>
+                      <TableCell className="font-mono text-xs">{row.roto_metallic_rolls?.roll_id ?? "-"}</TableCell>
+                      <TableCell className="text-xs">{row.raw_materials?.material_name ?? "-"}</TableCell>
+                      <TableCell className="text-right font-mono">{row.weight_kg}</TableCell>
+                      <TableCell className="text-right font-mono">{row.meters}</TableCell>
+                      <TableCell className="text-center">
+                        <form action={async (fd) => {
+                          "use server";
+                          await deleteLaminationProduction(row.id);
+                        }}>
                           <ConfirmSubmitButton
                             size="sm"
-                            variant="outline"
-                            confirmTitle="Delete production entry?"
-                            confirmDescription="This will revert the roll stage back to Roto Printing."
+                            variant="destructive"
+                            confirmTitle="Delete lamination entry?"
+                            confirmDescription="This will delete this roll and revert the source fabric and metallic rolls back to available stock."
                           >
                             Delete
                           </ConfirmSubmitButton>
@@ -105,6 +128,6 @@ export default async function LaminationProductionPage() {
           )}
         </CardContent>
       </Card>
-    </>
+    </div>
   );
 }

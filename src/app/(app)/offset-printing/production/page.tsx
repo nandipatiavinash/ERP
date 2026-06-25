@@ -1,12 +1,12 @@
-import { StageProductionForm } from "@/components/app/stage-production-form";
-import { ConfirmSubmitButton } from "@/components/app/confirm-submit-button";
+import { requirePermission } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/server";
+import { PageHeader } from "@/components/app/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { PageHeader } from "@/components/app/page-header";
-import { softDeleteStageProduction } from "@/app/(app)/_actions";
-import { requirePermission } from "@/lib/auth";
-import { createClient } from "@/lib/supabase/server";
+import { OffsetProductionForm } from "@/components/app/offset-production-form";
+import { deleteOffsetProduction } from "@/app/(app)/_actions";
+import { ConfirmSubmitButton } from "@/components/app/confirm-submit-button";
 import { formatDate } from "@/lib/utils";
 
 export default async function OffsetPrintingProductionPage() {
@@ -14,56 +14,58 @@ export default async function OffsetPrintingProductionPage() {
   const supabase = await createClient();
 
   const [
-    { data: activeRolls },
-    { data: offsetProducts },
-    { data: stageEntries },
+    { data: activeFabricRolls },
+    { data: activeLamRolls },
+    { data: activeOffsetProducts },
+    { data: todayOffsetEntries },
   ] = await Promise.all([
     supabase
       .from("fabric_rolls")
-      .select("id, roll_number")
+      .select("id, roll_number, weight")
       .eq("status", "available")
-      .eq("current_stage", "lamination")
+      .eq("current_stage", "loom")
       .is("deleted_at", null)
       .order("roll_number"),
     supabase
+      .from("lamination_rolls")
+      .select("id, roll_id, lam_type, weight_kg, fabric_rolls(roll_number)")
+      .eq("status", "available")
+      .is("deleted_at", null)
+      .order("roll_id"),
+    supabase
       .from("offset_products")
-      .select("id, brand, width, height")
+      .select("id, brand")
       .eq("status", "active")
       .order("brand"),
     supabase
-      .from("stage_production_entries")
-      .select("*, fabric_rolls(roll_number)")
-      .eq("stage", "offset_printing")
+      .from("offset_rolls")
+      .select("*, offset_products(brand), fabric_rolls(roll_number), lamination_rolls(roll_id)")
       .is("deleted_at", null)
-      .order("entry_date", { ascending: false })
       .order("created_at", { ascending: false })
       .limit(50),
   ]);
 
-  const rolls = (activeRolls ?? []) as any[];
-  const products = (offsetProducts ?? []).map((p: any) => ({
-    id: p.id,
-    label: `${p.brand} (${p.width}x${p.height} in)`,
-  }));
-  const productMap = new Map((offsetProducts ?? []).map((p: any) => [p.id, `${p.brand} (${p.width}x${p.height} in)`]));
-  const rows = (stageEntries ?? []) as any[];
+  const fabricRolls = (activeFabricRolls ?? []) as any[];
+  const laminationRolls = (activeLamRolls ?? []) as any[];
+  const offsetProducts = (activeOffsetProducts ?? []) as any[];
+  const offsetRows = (todayOffsetEntries ?? []) as any[];
 
   return (
-    <>
+    <div className="space-y-6">
       <PageHeader
-        title="Offset Printing Production Entry"
-        description="Select Laminated fabric rolls and record their Offset Printing product details."
+        title="Offset Printing Production"
+        description="Log offset printing output using a fabric roll, laminated NW/Plain roll, or raw NW material."
       />
 
-      <Card className="mb-5">
+      <Card>
         <CardHeader>
-          <CardTitle>Log Offset Production</CardTitle>
+          <CardTitle>Log Offset Production Run</CardTitle>
         </CardHeader>
         <CardContent>
-          <StageProductionForm
-            stage="offset_printing"
-            rolls={rolls}
-            offsetProducts={products}
+          <OffsetProductionForm
+            fabricRolls={fabricRolls}
+            laminationRolls={laminationRolls}
+            offsetProducts={offsetProducts}
           />
         </CardContent>
       </Card>
@@ -73,37 +75,43 @@ export default async function OffsetPrintingProductionPage() {
           <CardTitle>Recent Offset Production Entries</CardTitle>
         </CardHeader>
         <CardContent>
-          {rows.length === 0 ? (
-            <EmptyState title="No entries found" description="Logged Offset production entries will appear here." />
+          {offsetRows.length === 0 ? (
+            <EmptyState title="No entries found" description="Offset rolls produced will appear here." />
           ) : (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto rounded-lg border border-slate-100">
               <Table>
                 <TableHeader>
-                  <TableRow>
+                  <TableRow className="bg-slate-50/50">
                     <TableHead>Date</TableHead>
-                    <TableHead>Roll Number</TableHead>
-                    <TableHead>Offset Product</TableHead>
-                    <TableHead>Remarks</TableHead>
-                    <TableHead>Actions</TableHead>
+                    <TableHead>Offset Roll ID</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Brand</TableHead>
+                    <TableHead>Source Fabric</TableHead>
+                    <TableHead>Source Laminated</TableHead>
+                    <TableHead className="text-right">Weight (kg)</TableHead>
+                    <TableHead className="text-center">Action</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {rows.map((row: any) => (
+                  {offsetRows.map((row) => (
                     <TableRow key={row.id}>
                       <TableCell>{formatDate(row.entry_date)}</TableCell>
-                      <TableCell className="font-bold text-emerald-950">
-                        {row.fabric_rolls?.roll_number ?? "-"}
-                      </TableCell>
-                      <TableCell>{productMap.get(row.product_id) ?? "-"}</TableCell>
-                      <TableCell>{row.remarks ?? "-"}</TableCell>
-                      <TableCell>
-                        <form action={softDeleteStageProduction}>
-                          <input type="hidden" name="id" value={row.id} />
+                      <TableCell className="font-mono font-bold text-emerald-950">{row.roll_id}</TableCell>
+                      <TableCell className="font-semibold text-xs">{row.offset_type}</TableCell>
+                      <TableCell>{row.offset_products?.brand ?? "-"}</TableCell>
+                      <TableCell className="font-mono text-xs">{row.fabric_rolls?.roll_number ?? "-"}</TableCell>
+                      <TableCell className="font-mono text-xs">{row.lamination_rolls?.roll_id ?? "-"}</TableCell>
+                      <TableCell className="text-right font-mono">{row.weight_kg}</TableCell>
+                      <TableCell className="text-center">
+                        <form action={async (fd) => {
+                          "use server";
+                          await deleteOffsetProduction(row.id);
+                        }}>
                           <ConfirmSubmitButton
                             size="sm"
-                            variant="outline"
-                            confirmTitle="Delete production entry?"
-                            confirmDescription="This will revert the roll stage back to Lamination."
+                            variant="destructive"
+                            confirmTitle="Delete offset production entry?"
+                            confirmDescription="This will delete this roll and revert any source fabric or laminated rolls back to available stock."
                           >
                             Delete
                           </ConfirmSubmitButton>
@@ -117,6 +125,6 @@ export default async function OffsetPrintingProductionPage() {
           )}
         </CardContent>
       </Card>
-    </>
+    </div>
   );
 }
