@@ -8,12 +8,13 @@ import { SalesConfirmationReportClient } from "./SalesConfirmationReportClient";
 export default async function SalesConfirmationReportPage({
   searchParams,
 }: {
-  searchParams: Promise<{ date?: string }>;
+  searchParams: Promise<{ date?: string; tab?: string }>;
 }) {
   await requirePermission("reports.sales_confirmation");
   const supabase = await createClient();
   const params = await searchParams;
   const date = params.date || todayInIndia();
+  const tab = params.tab || "pending";
 
   // Fetch billed sales orders for this date
   const { data: orders } = await supabase
@@ -91,6 +92,7 @@ export default async function SalesConfirmationReportPage({
           orders={billedOrders}
           pendingOrders={pendingOrders}
           date={date}
+          tab={tab}
           fabrics={fabrics || []}
           rotoProducts={roto || []}
           offsetProducts={offset || []}

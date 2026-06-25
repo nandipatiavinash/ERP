@@ -43,6 +43,7 @@ interface SalesConfirmationReportClientProps {
   orders: SalesOrder[];
   pendingOrders: SalesOrder[];
   date: string;
+  tab: string;
   fabrics: Array<{ id: string; fabric_name: string; selling_price: number }>;
   rotoProducts: Array<{ id: string; brand: string; width: number; height: number }>;
   offsetProducts: Array<{ id: string; brand: string; width: number; height: number }>;
@@ -53,6 +54,7 @@ export function SalesConfirmationReportClient({
   orders,
   pendingOrders,
   date,
+  tab,
   fabrics,
   rotoProducts,
   offsetProducts,
@@ -60,8 +62,7 @@ export function SalesConfirmationReportClient({
 }: SalesConfirmationReportClientProps) {
   const router = useRouter();
   
-  // Tabs: "pending" or "completed"
-  const [activeTab, setActiveTab] = useState<"pending" | "completed">("pending");
+  const activeTab = tab === "completed" ? "completed" : "pending";
 
   // Collapsible states
   const [expandedOrders, setExpandedOrders] = useState<Record<string, boolean>>({});
@@ -257,7 +258,7 @@ export function SalesConfirmationReportClient({
       <div className="flex items-center justify-between border-b border-slate-200">
         <div className="flex">
           <button
-            onClick={() => setActiveTab("pending")}
+            onClick={() => router.push(`/reports/sales-confirmation?tab=pending&date=${date}`)}
             className={`px-5 py-2.5 font-bold text-sm border-b-2 transition-all ${
               activeTab === "pending"
                 ? "border-emerald-600 text-emerald-600"
@@ -267,7 +268,7 @@ export function SalesConfirmationReportClient({
             Pending Confirmation ({sortedOrders.length})
           </button>
           <button
-            onClick={() => setActiveTab("completed")}
+            onClick={() => router.push(`/reports/sales-confirmation?tab=completed&date=${date}`)}
             className={`px-5 py-2.5 font-bold text-sm border-b-2 transition-all ${
               activeTab === "completed"
                 ? "border-emerald-600 text-emerald-600"
@@ -280,7 +281,7 @@ export function SalesConfirmationReportClient({
 
         {activeTab === "completed" && (
           <div className="pb-1">
-            <DateFilter date={date} baseUrl="/reports/sales-confirmation" />
+            <DateFilter date={date} baseUrl="/reports/sales-confirmation?tab=completed" />
           </div>
         )}
       </div>

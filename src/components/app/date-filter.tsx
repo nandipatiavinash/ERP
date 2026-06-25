@@ -18,7 +18,8 @@ export function DateFilter({ date, baseUrl }: { date: string; baseUrl: string })
         value={date}
         onChange={(e) => {
           const newDate = e.target.value;
-          router.push(`${baseUrl}?date=${newDate}` as any);
+          const separator = baseUrl.includes("?") ? "&" : "?";
+          router.push(`${baseUrl}${separator}date=${newDate}` as any);
         }}
         className="w-44 h-8 text-sm"
       />
