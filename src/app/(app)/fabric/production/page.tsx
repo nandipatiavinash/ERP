@@ -22,7 +22,7 @@ export default async function FabricProductionPage() {
     day: "2-digit",
   }).format(new Date());
   
-  const [{ data: fabrics }, { data: looms }, { data: rows }, { data: meterRows }, { data: allSerials }] = await Promise.all([
+  const [{ data: fabrics }, { data: looms }, { data: rows }, { data: meterRows }, { data: nextSerialsData }] = await Promise.all([
     supabase.from("fabric_types").select("id, fabric_name").eq("status", "active").is("deleted_at", null).order("fabric_name"),
     supabase.from("looms").select("id, loom_number").eq("status", "active").is("deleted_at", null).order("loom_number"),
     supabase
@@ -32,7 +32,7 @@ export default async function FabricProductionPage() {
       .eq("entry_date", today)
       .order("created_at", { ascending: false }),
     (supabase as any).rpc("get_last_end_meters_by_loom"),
-    supabase.from("loom_production_entries").select("fabric_type_id, serial_number").is("deleted_at", null),
+    (supabase as any).rpc("get_next_serial_numbers"),
   ]);
 
   const productionRows = ((rows ?? []) as any[]).sort((a, b) => {
@@ -47,23 +47,10 @@ export default async function FabricProductionPage() {
     if (lastMeters[loom.id] === undefined) lastMeters[loom.id] = 0;
   }
 
-  // Calculate next serial number for each fabric type
+  // Map next serial numbers directly from the RPC response
   const nextSerials: Record<string, string> = {};
-  const serialsGrouped: Record<string, number[]> = {};
-  for (const s of (allSerials ?? []) as any[]) {
-    if (!s.fabric_type_id) continue;
-    if (!serialsGrouped[s.fabric_type_id]) {
-      serialsGrouped[s.fabric_type_id] = [];
-    }
-    const num = parseInt(s.serial_number, 10);
-    if (!isNaN(num)) {
-      serialsGrouped[s.fabric_type_id].push(num);
-    }
-  }
-  for (const fabric of (fabrics ?? []) as any[]) {
-    const list = serialsGrouped[fabric.id] ?? [];
-    const maxVal = list.length > 0 ? Math.max(...list) : 0;
-    nextSerials[fabric.id] = String(maxVal + 1);
+  for (const row of (nextSerialsData ?? []) as any[]) {
+    nextSerials[row.fabric_type_id] = String(row.next_serial);
   }
 
   return (
