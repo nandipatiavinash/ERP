@@ -1464,24 +1464,17 @@ async function generateNextJournalNo(supabase: any): Promise<string> {
   return `JE-${String(nextInt).padStart(6, "0")}`;
 }
 
-export async function saveSalesOrderBilling(formData: FormData) {
+export async function prepareSalesOrderDraftBilling(formData: FormData) {
   const user = await requirePermission("sales.edit");
   const itemIdsStr = String(formData.get("item_ids") ?? "");
-  const billNumber = String(formData.get("bill_number") ?? "").trim();
-  const billValue = Number(formData.get("bill_value") ?? 0);
 
   const itemIds = itemIdsStr
     ? itemIdsStr.split(",").map(id => id.trim()).filter(Boolean)
     : [];
 
-  if (itemIds.length === 0 || !billNumber) {
-    throw new Error("Item IDs and Bill Number are required.");
+  if (itemIds.length === 0) {
+    throw new Error("At least one item must be selected.");
   }
-  if (!Number.isFinite(billValue) || billValue < 0) {
-    throw new Error("Bill Value must be a non-negative amount.");
-  }
-
-  const skipJournal = (billNumber === "0") || (billValue === 0);
 
   const supabase = await createClient();
 
@@ -1521,9 +1514,6 @@ export async function saveSalesOrderBilling(formData: FormData) {
     throw new Error("All selected items must belong to the same customer to be billed together.");
   }
 
-  const customerName = customerNames[0] as string;
-  const entryDate = (selectedItems[0] as any).sales_orders?.order_date ?? todayInIndia();
-
   // Group selected items by order ID
   const selectedItemsByOrderId: Record<string, any[]> = {};
   for (const item of selectedItems) {
@@ -1539,7 +1529,6 @@ export async function saveSalesOrderBilling(formData: FormData) {
   // Process billing and potential splitting for each parent order
   for (let idx = 0; idx < parentOrderIds.length; idx++) {
     const oId = parentOrderIds[idx];
-    const isFirstParent = (idx === 0);
     const selectedInThisOrder = selectedItemsByOrderId[oId];
     const parentOrder = selectedInThisOrder[0].sales_orders;
 
@@ -1557,7 +1546,7 @@ export async function saveSalesOrderBilling(formData: FormData) {
     const unselectedInThisOrder = allItems.filter((it: any) => !selectedIds.has(it.id));
 
     if (unselectedInThisOrder.length > 0) {
-      // Split the order: clone parent order for unselected items, keep original for selected/billed items
+      // Split the order: clone parent order for unselected items, keep original for selected/draft-billed items
       const clonePayload = {
         order_number: parentOrder.order_number,
         order_date: parentOrder.order_date,
@@ -1567,6 +1556,7 @@ export async function saveSalesOrderBilling(formData: FormData) {
         bill_value: null,
         gst_rate: parentOrder.gst_rate,
         selected_roll_ids: unselectedInThisOrder.reduce((acc: string[], it: any) => [...acc, ...(it.selected_roll_ids ?? [])], []),
+        is_draft_billing: false,
         created_by: user.id,
         updated_by: user.id
       };
@@ -1593,12 +1583,11 @@ export async function saveSalesOrderBilling(formData: FormData) {
       }
     }
 
-    // Update the original order with billing details and only the selected roll IDs
+    // Update the original order with draft status and only the selected roll IDs
     const { error: updateError } = await (supabase
       .from("sales_orders") as any)
       .update({
-        bill_number: billNumber,
-        bill_value: isFirstParent ? billValue : 0,
+        is_draft_billing: true,
         selected_roll_ids: selectedInThisOrder.reduce((acc: string[], it: any) => [...acc, ...(it.selected_roll_ids ?? [])], []),
         updated_by: user.id,
       } as any)
@@ -1607,6 +1596,66 @@ export async function saveSalesOrderBilling(formData: FormData) {
     if (updateError) {
       throw new Error(updateError.message);
     }
+  }
+
+  revalidatePath("/accounts/sales");
+}
+
+export async function finalizeSalesOrderBilling(formData: FormData) {
+  const user = await requirePermission("sales.edit");
+  const orderId = String(formData.get("order_id") ?? "");
+  const billNumber = String(formData.get("bill_number") ?? "").trim();
+  const billValue = Number(formData.get("bill_value") ?? 0);
+
+  if (!orderId || !billNumber) {
+    throw new Error("Order ID and Bill Number are required.");
+  }
+  if (!Number.isFinite(billValue) || billValue < 0) {
+    throw new Error("Bill Value must be a non-negative amount.");
+  }
+
+  const skipJournal = (billNumber === "0") || (billValue === 0);
+  const supabase = await createClient();
+
+  // Fetch the order to finalize
+  const { data: order, error: orderError } = await (supabase
+    .from("sales_orders") as any)
+    .select(`
+      id,
+      order_number,
+      order_date,
+      customer_id,
+      status,
+      gst_rate,
+      is_draft_billing,
+      customers(customer_name)
+    `)
+    .eq("id", orderId)
+    .single();
+
+  if (orderError || !order) {
+    throw new Error("Sales order not found.");
+  }
+  if (!order.is_draft_billing) {
+    throw new Error("Order is not in draft billing state.");
+  }
+
+  const customerName = order.customers?.customer_name ?? "Unknown";
+  const entryDate = order.order_date ?? todayInIndia();
+
+  // Update the order with finalized billing details
+  const { error: updateError } = await (supabase
+    .from("sales_orders") as any)
+    .update({
+      bill_number: billNumber,
+      bill_value: billValue,
+      is_draft_billing: false,
+      updated_by: user.id,
+    } as any)
+    .eq("id", orderId);
+
+  if (updateError) {
+    throw new Error(updateError.message);
   }
 
   // If bill number is "0" or bill value is 0, skip journal entries
@@ -1658,6 +1707,25 @@ export async function saveSalesOrderBilling(formData: FormData) {
   revalidatePath("/accounts/journal");
   revalidatePath("/sales/order-confirmation");
   revalidatePath("/reports");
+}
+
+export async function discardSalesOrderDraftBilling(orderId: string) {
+  const user = await requirePermission("sales.edit");
+  const supabase = await createClient();
+
+  const { error: updateError } = await (supabase
+    .from("sales_orders") as any)
+    .update({
+      is_draft_billing: false,
+      updated_by: user.id,
+    } as any)
+    .eq("id", orderId);
+
+  if (updateError) {
+    throw new Error(updateError.message);
+  }
+
+  revalidatePath("/accounts/sales");
 }
 
 export async function deleteSalesOrderCompletely(orderId: string) {
