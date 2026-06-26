@@ -569,8 +569,7 @@ export function OrderConfirmationWorkspace({
                               {group.orders.length} order{group.orders.length > 1 && "s"}
                             </Badge>
                           </div>
-                          <div className="text-xs text-muted-foreground flex items-center justify-between">
-                            <span>{group.customer.alias ?? "No alias"}</span>
+                          <div className="text-xs text-muted-foreground flex items-center justify-end">
                             <span>{totalItems} item{totalItems !== 1 && "s"}</span>
                           </div>
                         </button>
@@ -927,7 +926,7 @@ export function OrderConfirmationWorkspace({
                         <TableRow key={order.id} className="hover:bg-slate-50/30">
                           <TableCell className="font-bold text-emerald-950">{order.order_number}</TableCell>
                           <TableCell className="font-medium">
-                            {order.customers?.customer_name} {order.customers?.alias ? `(${order.customers.alias})` : ""}
+                            {order.customers?.customer_name}
                           </TableCell>
                           <TableCell>{order.sales_order_items?.length ?? 0} items</TableCell>
                           <TableCell>{formatDate(order.order_date)}</TableCell>

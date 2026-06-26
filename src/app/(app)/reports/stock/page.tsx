@@ -1,6 +1,6 @@
 import { requirePermission } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { todayInIndia } from "@/lib/utils";
+import { todayInIndia, fetchPagedData } from "@/lib/utils";
 import { StockReportClient } from "./StockReportClient";
 
 type Params = { from?: string; to?: string };
@@ -19,9 +19,11 @@ export default async function StockReportPage({ searchParams }: { searchParams: 
     { data: consumptions },
     { data: sales },
     { data: fabricTypes },
-    { data: rolls },
-    { data: salesOrders },
+    rolls,
+    salesOrders,
     { data: materialSales },
+    { data: rotoProducts },
+    { data: offsetProducts },
   ] = await Promise.all([
     supabase
       .from("raw_materials")
@@ -45,20 +47,40 @@ export default async function StockReportPage({ searchParams }: { searchParams: 
     supabase
       .from("fabric_types")
       .select("id, fabric_name"),
-    supabase
-      .from("fabric_rolls")
-      .select("id, roll_number, fabric_type_id, weight, production_date, status, current_stage")
-      .is("deleted_at", null),
-    supabase
-      .from("sales_orders")
-      .select("id, order_date, status, bill_number, bill_value, customer_id, customers(customer_name, alias), sales_order_items(selected_roll_ids)")
-      .is("deleted_at", null),
+    fetchPagedData(
+      supabase
+        .from("fabric_rolls")
+        .select("id, roll_number, fabric_type_id, weight, production_date, status, current_stage")
+        .is("deleted_at", null)
+    ),
+    fetchPagedData(
+      supabase
+        .from("sales_orders")
+        .select(`
+          id,
+          order_number,
+          order_date,
+          status,
+          bill_number,
+          bill_value,
+          customer_id,
+          customers(customer_name, alias),
+          sales_order_items(id, department, product_id, quantity, selected_roll_ids)
+        `)
+        .is("deleted_at", null)
+    ),
     // All material sales (raw_material + waste) for the Sale section
     (supabase.from("material_sales") as any)
       .select("id, type, department, raw_material_id, sale_date, quantity, bill_number, customers(customer_name, alias)")
       .gte("sale_date", from)
       .lte("sale_date", to)
       .is("deleted_at", null),
+    supabase
+      .from("roto_products")
+      .select("id, brand, width, height"),
+    supabase
+      .from("offset_products")
+      .select("id, brand, width, height"),
   ]);
 
   return (
@@ -73,7 +95,10 @@ export default async function StockReportPage({ searchParams }: { searchParams: 
       rolls={(rolls ?? []) as any[]}
       salesOrders={(salesOrders ?? []) as any[]}
       materialSales={(materialSales ?? []) as any[]}
+      rotoProducts={(rotoProducts ?? []) as any[]}
+      offsetProducts={(offsetProducts ?? []) as any[]}
     />
   );
 }
+
 

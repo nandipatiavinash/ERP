@@ -7,7 +7,7 @@ import { DateRangeFilter } from "@/components/app/date-range-filter";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EmptyState } from "@/components/ui/empty-state";
-import { formatNumber, todayInIndia } from "@/lib/utils";
+import { formatNumber, todayInIndia, formatDate } from "@/lib/utils";
 
 interface RawMaterial {
   id: string;
@@ -63,6 +63,7 @@ interface FabricRoll {
 
 interface SalesOrder {
   id: string;
+  order_number?: string | null;
   order_date: string;
   status: string;
   bill_number: string | null;
@@ -73,8 +74,26 @@ interface SalesOrder {
     alias: string | null;
   } | null;
   sales_order_items: Array<{
+    id: string;
+    department: string;
+    product_id: string;
+    quantity: number | string;
     selected_roll_ids: string[] | null;
   }> | null;
+}
+
+interface RotoProduct {
+  id: string;
+  brand: string;
+  width: number;
+  height: number;
+}
+
+interface OffsetProduct {
+  id: string;
+  brand: string;
+  width: number;
+  height: number;
 }
 
 interface StockReportClientProps {
@@ -88,6 +107,8 @@ interface StockReportClientProps {
   rolls: FabricRoll[];
   salesOrders: SalesOrder[];
   materialSales: MaterialSale[];
+  rotoProducts?: RotoProduct[];
+  offsetProducts?: OffsetProduct[];
 }
 
 export function StockReportClient({
@@ -101,8 +122,10 @@ export function StockReportClient({
   rolls,
   salesOrders,
   materialSales,
+  rotoProducts = [],
+  offsetProducts = [],
 }: StockReportClientProps) {
-  const [activeSection, setActiveSection] = useState<"raw_material" | "stock" | "sale">("raw_material");
+  const [activeSection, setActiveSection] = useState<"raw_material" | "stock" | "sale" | "clients">("raw_material");
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [expandedBills, setExpandedBills] = useState<Record<string, boolean>>({});
 
@@ -162,6 +185,115 @@ export function StockReportClient({
   // -------------------------------------------------------------
   // Data Processors
   // -------------------------------------------------------------
+
+  const getProductName = (dept: string, productId: string) => {
+    if (dept === "fabric") {
+      const f = fabricTypes.find((x) => x.id === productId);
+      return f ? f.fabric_name : "Fabric Product";
+    } else if (dept === "roto-printing") {
+      const r = rotoProducts?.find((x) => x.id === productId);
+      return r ? `${r.brand} (${r.width}x${r.height} in)` : "Roto Product";
+    } else if (dept === "offset-printing") {
+      const o = offsetProducts?.find((x) => x.id === productId);
+      return o ? `${o.brand} (${o.width}x${o.height} in)` : "Offset Product";
+    } else if (dept === "lamination") {
+      return productId === "lam-film-25" ? "Laminated Film 2.5 mil" : "Laminated Film 3.0 mil";
+    } else if (dept === "finishing") {
+      return productId === "finished-bags-28" ? "Finished Bags W-28" : "Finished Bags W-32";
+    }
+    return "Unknown Product";
+  };
+
+  const clientsData = useMemo(() => {
+    const relevantOrders = salesOrders.filter((order) => {
+      if (order.status === "draft") return false;
+      return order.order_date >= from && order.order_date <= to;
+    });
+
+    const customerGroupMap: Record<string, {
+      customerId: string;
+      customerName: string;
+      totalKg: number;
+      totalRolls: number;
+      orders: Array<{
+        id: string;
+        orderNumber: string;
+        billNumber: string;
+        orderDate: string;
+        items: Array<{
+          id: string;
+          department: string;
+          productName: string;
+          quantity: number;
+          weightKg: number;
+          rollsCount: number;
+          isFabric: boolean;
+        }>;
+      }>;
+    }> = {};
+
+    relevantOrders.forEach((order) => {
+      const custId = order.customer_id;
+      const custName = order.customers?.customer_name ?? "Unknown";
+
+      if (!customerGroupMap[custId]) {
+        customerGroupMap[custId] = {
+          customerId: custId,
+          customerName: custName,
+          totalKg: 0,
+          totalRolls: 0,
+          orders: [],
+        };
+      }
+
+      const orderItems = (order.sales_order_items ?? []).map((item) => {
+        const isFabric = item.department === "fabric";
+        let weightKg = 0;
+        let rollsCount = 0;
+
+        if (isFabric) {
+          const rollIds = item.selected_roll_ids ?? [];
+          rollsCount = rollIds.length;
+          rollIds.forEach((rid) => {
+            const r = rolls.find((roll) => roll.id === rid);
+            if (r) {
+              weightKg += Number(r.weight ?? 0);
+            }
+          });
+        } else {
+          weightKg = Number(item.quantity ?? 0);
+        }
+
+        const productName = getProductName(item.department, item.product_id);
+
+        return {
+          id: item.id,
+          department: item.department,
+          productName,
+          quantity: Number(item.quantity ?? 0),
+          weightKg,
+          rollsCount,
+          isFabric,
+        };
+      });
+
+      const orderTotalKg = orderItems.reduce((sum, item) => sum + item.weightKg, 0);
+      const orderTotalRolls = orderItems.reduce((sum, item) => sum + item.rollsCount, 0);
+
+      customerGroupMap[custId].totalKg += orderTotalKg;
+      customerGroupMap[custId].totalRolls += orderTotalRolls;
+
+      customerGroupMap[custId].orders.push({
+        id: order.id,
+        orderNumber: order.order_number || "-",
+        billNumber: order.bill_number || order.order_number || "No Bill",
+        orderDate: order.order_date,
+        items: orderItems,
+      });
+    });
+
+    return Object.values(customerGroupMap).sort((a, b) => a.customerName.localeCompare(b.customerName));
+  }, [salesOrders, rolls, from, to, rotoProducts, offsetProducts, fabricTypes]);
 
   // Section 1: Raw Materials
   const rawMaterialData = useMemo(() => {
@@ -528,6 +660,20 @@ export function StockReportClient({
             }`}
           >
             Sale
+          </button>
+          <button
+            onClick={() => {
+              setActiveSection("clients");
+              setExpanded({});
+              setExpandedBills({});
+            }}
+            className={`px-4 py-1.5 text-xs font-bold transition-all rounded-md ${
+              activeSection === "clients"
+                ? "bg-slate-900 text-white shadow-sm"
+                : "text-slate-600 hover:bg-slate-50"
+            }`}
+          >
+            Clients
           </button>
         </div>
 
@@ -904,6 +1050,145 @@ export function StockReportClient({
                       <TableCell className="py-3 text-slate-900 font-bold text-right uppercase">Total Sales</TableCell>
                       <TableCell className="text-right text-slate-950 py-3">{formatNumber(saleTotals, 0)}</TableCell>
                     </TableRow>
+                  </TableBody>
+                </Table>
+              )}
+            </>
+          )}
+
+          {/* SECTION 4: Clients */}
+          {activeSection === "clients" && (
+            <>
+              {clientsData.length === 0 ? (
+                <EmptyState title="No Client Dispatches Found" description="No client sales or dispatches are recorded in this date range." />
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-slate-50 border-b border-slate-200">
+                      <TableHead className="w-10"></TableHead>
+                      <TableHead className="font-semibold text-slate-700">Firm Name</TableHead>
+                      <TableHead className="font-semibold text-slate-700 text-right w-44">Total Dispatched (KGs)</TableHead>
+                      <TableHead className="font-semibold text-slate-700 text-right w-44">Total Fabric Rolls</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {clientsData.map((client) => {
+                      const isClientExpanded = expanded[client.customerId];
+                      return (
+                        <>
+                          <TableRow
+                            key={client.customerId}
+                            onClick={() => toggleExpand(client.customerId)}
+                            className="cursor-pointer hover:bg-slate-50 transition-colors border-b border-slate-200"
+                          >
+                            <TableCell className="py-3 px-4">
+                              {isClientExpanded ? (
+                                <ChevronDown className="h-4 w-4 text-slate-500" />
+                              ) : (
+                                <ChevronRight className="h-4 w-4 text-slate-500" />
+                              )}
+                            </TableCell>
+                            <TableCell className="font-bold text-slate-900 py-3">{client.customerName}</TableCell>
+                            <TableCell className="text-right text-slate-950 font-bold py-3">
+                              {formatNumber(client.totalKg, 2)} kg
+                            </TableCell>
+                            <TableCell className="text-right text-slate-950 font-bold py-3">
+                              {client.totalRolls}
+                            </TableCell>
+                          </TableRow>
+
+                          {isClientExpanded && (
+                            <TableRow className="bg-slate-50/50 hover:bg-slate-50/50 border-b border-slate-200">
+                              <TableCell colSpan={4} className="p-4">
+                                <div className="rounded-lg border border-slate-200 bg-white shadow-inner overflow-hidden max-w-5xl mx-auto my-2">
+                                  <div className="bg-slate-100 px-4 py-2 border-b border-slate-200">
+                                    <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                                      Dispatches / Bills for {client.customerName}
+                                    </span>
+                                  </div>
+                                  <Table>
+                                    <TableHeader>
+                                      <TableRow className="bg-slate-50 border-b border-slate-200">
+                                        <TableHead className="w-10"></TableHead>
+                                        <TableHead className="text-xs font-semibold text-slate-600">Bill / Dispatch No</TableHead>
+                                        <TableHead className="text-xs font-semibold text-slate-600">Date</TableHead>
+                                        <TableHead className="text-xs font-semibold text-slate-600 text-right">Total Weight (KGs)</TableHead>
+                                        <TableHead className="text-xs font-semibold text-slate-600 text-right">Total Fabric Rolls</TableHead>
+                                      </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                      {client.orders.map((order) => {
+                                        const isBillExpanded = expandedBills[order.id];
+                                        const orderTotalKg = order.items.reduce((sum, it) => sum + it.weightKg, 0);
+                                        const orderTotalRolls = order.items.reduce((sum, it) => sum + it.rollsCount, 0);
+                                        
+                                        return (
+                                          <>
+                                            <TableRow
+                                              key={order.id}
+                                              onClick={() => toggleExpandBill(order.id)}
+                                              className="cursor-pointer hover:bg-slate-50 transition-colors border-b border-slate-200"
+                                            >
+                                              <TableCell className="py-2.5 px-4">
+                                                {isBillExpanded ? (
+                                                  <ChevronDown className="h-3.5 w-3.5 text-slate-500" />
+                                                ) : (
+                                                  <ChevronRight className="h-3.5 w-3.5 text-slate-500" />
+                                                )}
+                                              </TableCell>
+                                              <TableCell className="font-semibold text-slate-800">{order.billNumber}</TableCell>
+                                              <TableCell className="text-slate-600">{formatDate(order.orderDate)}</TableCell>
+                                              <TableCell className="text-right font-semibold text-slate-800">{formatNumber(orderTotalKg, 2)} kg</TableCell>
+                                              <TableCell className="text-right font-semibold text-slate-800">{orderTotalRolls}</TableCell>
+                                            </TableRow>
+
+                                            {isBillExpanded && (
+                                              <TableRow className="bg-slate-50 hover:bg-slate-50 border-b border-slate-200">
+                                                <TableCell colSpan={5} className="p-3">
+                                                  <div className="rounded-md border border-slate-200 bg-white shadow-sm overflow-hidden max-w-4xl mx-auto my-1">
+                                                    <div className="bg-slate-50 px-3 py-1.5 border-b border-slate-200 flex justify-between">
+                                                      <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">
+                                                        Bill Details: {order.billNumber}
+                                                      </span>
+                                                    </div>
+                                                    <table className="w-full border-collapse text-left text-xs">
+                                                      <thead>
+                                                        <tr className="bg-slate-100/50 text-[10px] font-bold uppercase tracking-wider text-muted-foreground border-b">
+                                                          <th className="p-2 pl-4">Department</th>
+                                                          <th className="p-2">Product Name</th>
+                                                          <th className="p-2 text-right">Dispatched Qty</th>
+                                                          <th className="p-2 text-right">Calculated Kg</th>
+                                                          <th className="p-2 text-right pr-4">Rolls Count</th>
+                                                        </tr>
+                                                      </thead>
+                                                      <tbody className="divide-y text-xs text-slate-700">
+                                                        {order.items.map((item) => (
+                                                          <tr key={item.id} className="hover:bg-slate-50/50">
+                                                            <td className="p-2 pl-4 capitalize font-medium text-slate-600">{item.department.replace("-", " ")}</td>
+                                                            <td className="p-2 font-semibold text-slate-800">{item.productName}</td>
+                                                            <td className="p-2 text-right font-mono">{formatNumber(item.quantity, 1)}</td>
+                                                            <td className="p-2 text-right font-mono font-semibold">{formatNumber(item.weightKg, 2)} kg</td>
+                                                            <td className="p-2 text-right font-mono pr-4">{item.isFabric ? item.rollsCount : "-"}</td>
+                                                          </tr>
+                                                        ))}
+                                                      </tbody>
+                                                    </table>
+                                                  </div>
+                                                </TableCell>
+                                              </TableRow>
+                                            )}
+                                          </>
+                                        );
+                                      })}
+                                    </TableBody>
+                                  </Table>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               )}

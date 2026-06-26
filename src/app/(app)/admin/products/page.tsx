@@ -14,6 +14,8 @@ import { fetchMasterRows } from "@/lib/master-query";
 import { modules } from "@/lib/modules";
 import { createClient } from "@/lib/supabase/server";
 import { cn } from "@/lib/utils";
+import { RotoColorsPreview } from "./RotoColorsPreview";
+
 
 type Params = { tab?: string; search?: string; page?: string; sort?: string; direction?: "asc" | "desc" };
 
@@ -67,15 +69,33 @@ export default async function ProductsAdminPage({ searchParams }: { searchParams
     .filter((c) => !c.customer_name.endsWith(" A/c"))
     .map((c) => ({ id: c.id, name: c.customer_name, alias: c.alias }));
 
+  let colorsList: any[] = [];
+
   if (tab === "fabric") {
     const result = await fetchMasterRows({ supabase, config: modules["fabric-types"], select: "id, fabric_name, description, status", params, defaultSort: "fabric_name" });
     fabricData = result.rows;
     fabricTotal = result.totalRows;
   } else if (tab === "roto") {
+    const { data: colorsData } = await supabase
+      .from("roto_colors")
+      .select("id, color_name")
+      .eq("status", "active")
+      .order("color_name");
+    colorsList = colorsData ?? [];
+
     const offset = (productPage - 1) * 10;
     const { data, count } = await supabase
       .from("roto_products")
-      .select("id, brand, width, height, num_cylinders, image_url, status, customer_id, customers:customer_id(customer_name, alias)", { count: "exact" })
+      .select(`
+        id, brand, width, height, num_cylinders, image_url, status, customer_id, 
+        customers:customer_id(customer_name, alias),
+        roto_product_colors(
+          id,
+          color_id,
+          image_url,
+          roto_colors(id, color_name)
+        )
+      `, { count: "exact" })
       .order("brand", { ascending: true })
       .range(offset, offset + 9);
     rotoData = data ?? [];
@@ -174,6 +194,29 @@ export default async function ProductsAdminPage({ searchParams }: { searchParams
                     <option value="inactive">Inactive</option>
                   </select>
                 </div>
+                <div className="space-y-2 md:col-span-2 lg:col-span-3">
+                  <Label>Associate Colors & Images</Label>
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 border p-4 rounded-md bg-slate-50/50">
+                    {colorsList.map((color) => (
+                      <div key={color.id} className="border p-3 rounded bg-white flex flex-col gap-2 shadow-sm">
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            name="color_ids"
+                            value={color.id}
+                            id={`color_${color.id}`}
+                            className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                          />
+                          <Label htmlFor={`color_${color.id}`} className="font-semibold text-slate-700 cursor-pointer">{color.color_name}</Label>
+                        </div>
+                        <div className="space-y-1">
+                          <Label htmlFor={`image_${color.id}`} className="text-[10px] text-muted-foreground uppercase">Upload Image</Label>
+                          <Input id={`image_${color.id}`} name={`image_file_${color.id}`} type="file" accept="image/*" className="h-8 py-1 text-xs cursor-pointer" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
                 <div className="flex items-end md:col-span-2 lg:col-span-3">
                   <ConfirmSubmitButton confirmTitle="Add Roto Product?" confirmDescription="Review product brand, dimensions, cylinders, client, and image file before adding.">
                     Add Product
@@ -214,14 +257,13 @@ export default async function ProductsAdminPage({ searchParams }: { searchParams
                               <div className="h-12 w-12 rounded bg-muted flex items-center justify-center text-xs text-muted-foreground">No image</div>
                             )}
                           </TableCell>
-                          <TableCell>
-                            {row.customers?.customer_name ? (
-                              <span className="font-semibold text-slate-800">
-                                {row.customers.customer_name} {row.customers.alias ? `(${row.customers.alias})` : ""}
-                              </span>
-                            ) : (
-                              <span className="text-slate-400 italic">General</span>
-                            )}
+                           <TableCell>
+                            <RotoColorsPreview
+                              firmName={row.customers?.customer_name ?? "General"}
+                              brandName={row.brand}
+                              colors={row.roto_product_colors ?? []}
+                              defaultImageUrl={row.image_url}
+                            />
                           </TableCell>
                           <TableCell className="font-semibold">{row.brand}</TableCell>
                           <TableCell>{row.width} &times; {row.height} in</TableCell>
@@ -272,6 +314,45 @@ export default async function ProductsAdminPage({ searchParams }: { searchParams
                                     <option value="active">Active</option>
                                     <option value="inactive">Inactive</option>
                                   </select>
+                                </div>
+                                <div className="space-y-2 md:col-span-2">
+                                  <Label>Associate Colors & Images</Label>
+                                  <div className="grid gap-3 sm:grid-cols-2 border p-3 rounded-md bg-slate-50/30">
+                                    {colorsList.map((color) => {
+                                      const assoc = (row.roto_product_colors ?? []).find((ac: any) => ac.color_id === color.id);
+                                      const isChecked = !!assoc;
+                                      const currentImgUrl = assoc?.image_url || "";
+                                      
+                                      return (
+                                        <div key={color.id} className="border p-2.5 rounded bg-white flex flex-col gap-2 shadow-sm">
+                                          <div className="flex items-center gap-2">
+                                            <input
+                                              type="checkbox"
+                                              name="color_ids"
+                                              value={color.id}
+                                              id={`edit_color_${row.id}_${color.id}`}
+                                              defaultChecked={isChecked}
+                                              className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                                            />
+                                            <Label htmlFor={`edit_color_${row.id}_${color.id}`} className="font-semibold text-slate-700 cursor-pointer text-xs">{color.color_name}</Label>
+                                          </div>
+                                          
+                                          {currentImgUrl && (
+                                            <div className="flex items-center gap-2 mt-1">
+                                              <img src={currentImgUrl} alt={color.color_name} className="h-8 w-8 object-cover rounded border" />
+                                              <span className="text-[10px] text-muted-foreground truncate max-w-[120px]">Current Image</span>
+                                              <input type="hidden" name={`existing_image_${color.id}`} value={currentImgUrl} />
+                                            </div>
+                                          )}
+                                          
+                                          <div className="space-y-1 mt-1">
+                                            <Label htmlFor={`edit_image_${row.id}_${color.id}`} className="text-[9px] text-muted-foreground uppercase">Change Image</Label>
+                                            <Input id={`edit_image_${row.id}_${color.id}`} name={`image_file_${color.id}`} type="file" accept="image/*" className="h-8 py-1 text-xs cursor-pointer" />
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
                                 </div>
                                 <div className="md:col-span-2">
                                   <ConfirmSubmitButton confirmTitle="Save changes?" confirmDescription="Confirm Roto product changes before saving.">

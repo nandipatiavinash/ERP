@@ -735,12 +735,77 @@ export async function saveRotoProduct(formData: FormData) {
     customer_id,
   };
 
-  const query = id 
-    ? (supabase.from("roto_products") as any).update(payload).eq("id", id)
-    : (supabase.from("roto_products") as any).insert(payload);
+  let rotoProductId = id;
 
-  const { error } = await query;
-  if (error) throw new Error(error.message);
+  if (id) {
+    const { error } = await (supabase.from("roto_products") as any).update(payload).eq("id", id);
+    if (error) throw new Error(error.message);
+  } else {
+    const { data, error } = await (supabase.from("roto_products") as any).insert(payload).select("id").single();
+    if (error) throw new Error(error.message);
+    rotoProductId = data.id;
+  }
+
+  // Handle multiple colors:
+  // Get all checked color_ids from formData
+  const selectedColorIds = formData.getAll("color_ids").map(String);
+
+  // Get current color associations for this product
+  const { data: existingAssociations } = await supabase
+    .from("roto_product_colors")
+    .select("color_id, image_url")
+    .eq("roto_product_id", rotoProductId);
+
+  const existingMap = new Map((existingAssociations ?? []).map((item: any) => [item.color_id, item.image_url]));
+
+  // Delete colors that are no longer selected
+  const colorsToDelete = Array.from(existingMap.keys()).filter((cid) => !selectedColorIds.includes(cid));
+  if (colorsToDelete.length > 0) {
+    await supabase
+      .from("roto_product_colors")
+      .delete()
+      .eq("roto_product_id", rotoProductId)
+      .in("color_id", colorsToDelete);
+  }
+
+  // Save selected colors (insert or update)
+  for (const colorId of selectedColorIds) {
+    const colorFile = formData.get(`image_file_${colorId}`) as File | null;
+    let colorImageUrl = String(formData.get(`existing_image_${colorId}`) ?? "");
+
+    if (colorFile && colorFile.size > 0) {
+      const fileExt = colorFile.name.split('.').pop();
+      const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const filePath = `roto/${rotoProductId}/${colorId}/${fileName}`;
+
+      await adminSupabase.storage.createBucket("products", { public: true }).catch(() => {});
+
+      const { error: uploadError } = await adminSupabase.storage
+        .from("products")
+        .upload(filePath, colorFile, { cacheControl: "3600", upsert: true });
+
+      if (uploadError) throw new Error(`Color image upload failed: ${uploadError.message}`);
+
+      const { data } = adminSupabase.storage
+        .from("products")
+        .getPublicUrl(filePath);
+
+      colorImageUrl = data.publicUrl;
+    }
+
+    // Insert or update on conflict
+    const associationPayload = {
+      roto_product_id: rotoProductId,
+      color_id: colorId,
+      image_url: colorImageUrl || null,
+    };
+
+    const { error: assocError } = await (supabase
+      .from("roto_product_colors") as any)
+      .upsert(associationPayload as any, { onConflict: "roto_product_id,color_id" });
+
+    if (assocError) throw new Error(`Failed to save color association: ${assocError.message}`);
+  }
 
   revalidatePath("/admin/products");
 }
