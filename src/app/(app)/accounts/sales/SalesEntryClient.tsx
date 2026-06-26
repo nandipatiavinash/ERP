@@ -1,12 +1,8 @@
 "use client";
 
 import { useState, useTransition, useMemo } from "react";
-import { Printer, FileText, ChevronDown, ChevronRight, Receipt, Package, RotateCcw } from "lucide-react";
-import {
-  prepareSalesOrderDraftBilling,
-  finalizeSalesOrderBilling,
-  discardSalesOrderDraftBilling
-} from "@/app/(app)/_actions";
+import { Printer, FileText, ChevronDown, ChevronRight, Receipt, Package } from "lucide-react";
+import { saveSalesOrderBillingDirect } from "@/app/(app)/_actions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -14,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { formatDate, formatNumber } from "@/lib/utils";
+import { formatDate, formatNumber, todayInIndia } from "@/lib/utils";
 import { SalesPrintView } from "@/components/app/sales-print-view";
 
 type Roll = {
@@ -48,7 +44,6 @@ type SalesOrder = {
   status: string;
   bill_number?: string;
   bill_value?: number;
-  is_draft_billing?: boolean;
   customers?: {
     customer_name: string;
     alias?: string;
@@ -61,7 +56,6 @@ type SalesOrder = {
 
 interface SalesEntryClientProps {
   pendingOrders: SalesOrder[];
-  draftOrders: SalesOrder[];
   billedOrders: SalesOrder[];
   rolls: Roll[];
   fabricTypes: { id: string; fabric_name: string }[];
@@ -124,69 +118,17 @@ function buildProductGroups(order: SalesOrder, rolls: Roll[], fabricTypes: { id:
   });
 }
 
-export function SalesEntryClient({
-  pendingOrders,
-  draftOrders,
-  billedOrders,
-  rolls,
-  fabricTypes
-}: SalesEntryClientProps) {
-  const [activeTab, setActiveTab] = useState<"pending" | "draft" | "billed">("pending");
+export function SalesEntryClient({ pendingOrders, billedOrders, rolls, fabricTypes }: SalesEntryClientProps) {
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
-  const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
-
-  // Staged draft invoice finalization modal state
-  const [finalizingOrder, setFinalizingOrder] = useState<SalesOrder | null>(null);
-  const [modalBillNumber, setModalBillNumber] = useState("");
-  const [modalBillValue, setModalBillValue] = useState("");
-  const [modalConfirmDialog, setModalConfirmDialog] = useState<boolean>(false);
+  const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
+  const [billNumber, setBillNumber] = useState("");
+  const [billValue, setBillValue] = useState("");
 
   const [isPending, startTransition] = useTransition();
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [printOrderId, setPrintOrderId] = useState<string | null>(null);
-
-  // Details of currently selected items to list in the billing card (for Tab 1)
-  const selectedItemsDetails = useMemo(() => {
-    const list: {
-      itemId: string;
-      productName: string;
-      department: string;
-      rollCount: number;
-      weight: number;
-      meters: number;
-      orderNumber: string;
-    }[] = [];
-    for (const order of pendingOrders) {
-      for (const item of (order.sales_order_items ?? [])) {
-        if (selectedItemIds.includes(item.id)) {
-          const rollsData = (item.selected_roll_ids ?? []).map((rollId) => {
-            const roll = rolls.find((r) => r.id === rollId);
-            if (!roll) return null;
-            const prod = roll.loom_production_entries;
-            return {
-              net_weight: prod?.net_weight ?? (roll.weight ?? 0),
-              net_meters: prod?.net_meters ?? (roll.meters ?? 0),
-            };
-          }).filter(Boolean);
-
-          const totalWeight = rollsData.reduce((s, r) => s + r!.net_weight, 0);
-          const totalMeters = rollsData.reduce((s, r) => s + r!.net_meters, 0);
-
-          list.push({
-            itemId: item.id,
-            productName: getProductName(item.product_id, fabricTypes),
-            department: item.department,
-            rollCount: item.selected_roll_ids?.length ?? 0,
-            weight: totalWeight,
-            meters: totalMeters,
-            orderNumber: order.order_number,
-          });
-        }
-      }
-    }
-    return list;
-  }, [selectedItemIds, pendingOrders, rolls, fabricTypes]);
+  const [confirmDialog, setConfirmDialog] = useState<{ orderIds: string[] } | null>(null);
 
   const toggleExpand = (orderId: string) => {
     setExpandedOrderId((prev) => (prev === orderId ? null : orderId));
@@ -210,145 +152,100 @@ export function SalesEntryClient({
     }));
   }, [pendingOrders]);
 
-  // Determine active customer ID from currently selected items
+  // Determine active customer ID from currently selected orders
   const activeCustomerId = useMemo(() => {
-    if (selectedItemIds.length === 0) return null;
-    for (const order of pendingOrders) {
-      for (const item of (order.sales_order_items ?? [])) {
-        if (selectedItemIds.includes(item.id)) {
-          return order.customer_id;
-        }
-      }
-    }
-    return null;
-  }, [selectedItemIds, pendingOrders]);
+    if (selectedOrderIds.length === 0) return null;
+    const firstSelected = pendingOrders.find((o) => selectedOrderIds.includes(o.id));
+    return firstSelected ? firstSelected.customer_id : null;
+  }, [selectedOrderIds, pendingOrders]);
 
   const toggleSelectCustomerAll = (customerId: string, customerOrders: SalesOrder[]) => {
-    const customerItemIds = customerOrders.flatMap((o) => (o.sales_order_items ?? []).map((i) => i.id));
-    const allSelected = customerItemIds.length > 0 && customerItemIds.every((id) => selectedItemIds.includes(id));
+    const ids = customerOrders.map((o) => o.id);
+    const allSelected = ids.length > 0 && ids.every((id) => selectedOrderIds.includes(id));
 
     if (allSelected) {
-      setSelectedItemIds((prev) => prev.filter((id) => !customerItemIds.includes(id)));
+      setSelectedOrderIds((prev) => prev.filter((id) => !ids.includes(id)));
     } else {
-      setSelectedItemIds(customerItemIds);
+      setSelectedOrderIds(ids);
     }
   };
 
   const toggleSelectOrder = (order: SalesOrder) => {
-    const ids = (order.sales_order_items ?? []).map((i) => i.id);
-    const allSel = ids.every((id) => selectedItemIds.includes(id));
-    if (allSel) {
-      setSelectedItemIds((prev) => prev.filter((id) => !ids.includes(id)));
-    } else {
-      setSelectedItemIds((prev) => {
+    setSelectedOrderIds((prev) => {
+      if (prev.includes(order.id)) {
+        return prev.filter((id) => id !== order.id);
+      } else {
         const filtered = prev.filter(id => {
-          const itemOrder = pendingOrders.find(o => (o.sales_order_items ?? []).some(i => i.id === id));
+          const itemOrder = pendingOrders.find(o => o.id === id);
           return itemOrder?.customer_id === order.customer_id;
         });
-        return [...new Set([...filtered, ...ids])];
-      });
-    }
-  };
-
-  // 1. Action: Prepare Draft Billing
-  const handlePrepareDraft = () => {
-    if (selectedItemIds.length === 0) {
-      setErrorMsg("Please select at least one item to prepare a draft invoice.");
-      return;
-    }
-
-    // Verify all selected items belong to the same customer
-    const selectedOrders = pendingOrders.filter((o) =>
-      (o.sales_order_items ?? []).some((i) => selectedItemIds.includes(i.id))
-    );
-    const customerNames = Array.from(new Set(selectedOrders.map((o) => o.customers?.customer_name)));
-    if (customerNames.length > 1) {
-      setErrorMsg("All selected items must belong to the same customer to be draft billed together.");
-      return;
-    }
-
-    setErrorMsg(null);
-    setSuccessMsg(null);
-
-    startTransition(async () => {
-      try {
-        const fd = new FormData();
-        fd.append("item_ids", selectedItemIds.join(","));
-        await prepareSalesOrderDraftBilling(fd);
-        setSuccessMsg("Draft invoice prepared successfully! Verify details in the Draft Invoices tab.");
-        setSelectedItemIds([]);
-        setActiveTab("draft");
-      } catch (err: any) {
-        setErrorMsg(err.message ?? "Failed to prepare draft invoice.");
+        return [...new Set([...filtered, order.id])];
       }
     });
   };
 
-  // 2. Action: Finalize Billing Form Submission
-  const handleFinalizeSubmit = () => {
-    if (!finalizingOrder) return;
-    if (!modalBillNumber.trim()) {
+  // Details of currently selected orders to list in the billing card
+  const selectedOrdersDetails = useMemo(() => {
+    return pendingOrders.filter((o) => selectedOrderIds.includes(o.id));
+  }, [selectedOrderIds, pendingOrders]);
+
+  const handleSubmitBilling = () => {
+    if (selectedOrderIds.length === 0) {
+      setErrorMsg("Please select at least one delivery order to bill.");
+      return;
+    }
+    if (!billNumber.trim()) {
       setErrorMsg("Bill Number is required.");
       return;
     }
-    const val = parseFloat(modalBillValue);
+    const val = parseFloat(billValue);
     if (!Number.isFinite(val) || val < 0) {
       setErrorMsg("Bill Value must be a non-negative number.");
       return;
     }
 
-    // If bill number is "0", ask for confirmation
-    if (modalBillNumber.trim() === "0") {
-      setModalConfirmDialog(true);
+    // Verify all selected orders belong to the same customer
+    const selectedOrders = pendingOrders.filter((o) => selectedOrderIds.includes(o.id));
+    const customerNames = Array.from(new Set(selectedOrders.map((o) => o.customers?.customer_name)));
+    if (customerNames.length > 1) {
+      setErrorMsg("All selected orders must belong to the same customer to be billed together.");
       return;
     }
 
-    doFinalizeBilling(false);
+    // If bill number is "0", ask for confirmation before proceeding
+    if (billNumber.trim() === "0") {
+      setConfirmDialog({ orderIds: selectedOrderIds });
+      return;
+    }
+
+    doSubmitBilling(selectedOrderIds, false);
   };
 
-  const doFinalizeBilling = (skipJournal: boolean) => {
-    if (!finalizingOrder) return;
-    const val = parseFloat(modalBillValue);
+  const doSubmitBilling = (orderIds: string[], skipJournal: boolean) => {
+    const val = parseFloat(billValue);
 
     setErrorMsg(null);
     setSuccessMsg(null);
-    setModalConfirmDialog(false);
-    const targetOrderId = finalizingOrder.id;
-    setFinalizingOrder(null);
+    setConfirmDialog(null);
 
     startTransition(async () => {
       try {
         const fd = new FormData();
-        fd.append("order_id", targetOrderId);
-        fd.append("bill_number", modalBillNumber.trim());
+        fd.append("order_ids", orderIds.join(","));
+        fd.append("bill_number", billNumber.trim());
         fd.append("bill_value", String(val));
         if (skipJournal) fd.append("skip_journal", "1");
-        await finalizeSalesOrderBilling(fd);
+        await saveSalesOrderBillingDirect(fd);
         setSuccessMsg(
           skipJournal
-            ? "Sales billing finalized (bill number 0 or value 0 — no journal entry recorded)."
-            : "Sales billing finalized and journal entries generated!"
+            ? "Sales billing saved (bill number 0 or value 0 — no journal entry recorded)."
+            : "Sales billing saved and journal entries generated!"
         );
-        setModalBillNumber("");
-        setModalBillValue("");
-        setActiveTab("billed");
+        setBillNumber("");
+        setBillValue("");
+        setSelectedOrderIds([]);
       } catch (err: any) {
-        setErrorMsg(err.message ?? "Failed to finalize billing.");
-      }
-    });
-  };
-
-  // 3. Action: Discard Draft
-  const handleDiscardDraft = (orderId: string) => {
-    setErrorMsg(null);
-    setSuccessMsg(null);
-
-    startTransition(async () => {
-      try {
-        await discardSalesOrderDraftBilling(orderId);
-        setSuccessMsg("Draft invoice discarded. Items returned to pending list.");
-      } catch (err: any) {
-        setErrorMsg(err.message ?? "Failed to discard draft invoice.");
+        setErrorMsg(err.message ?? "Failed to save billing.");
       }
     });
   };
@@ -384,11 +281,18 @@ export function SalesEntryClient({
   // Build product groups for print view
   const printOrder = useMemo(() => {
     if (!printOrderId) return null;
+    if (printOrderId === "combined-print" && selectedOrderIds.length > 0) {
+      const selectedOrders = pendingOrders.filter((o) => selectedOrderIds.includes(o.id));
+      const first = selectedOrders[0];
+      if (!first) return null;
+      return {
+        ...first,
+        order_number: Array.from(new Set(selectedOrders.map((o) => o.order_number))).join(", "),
+        sales_order_items: selectedOrders.flatMap((o) => o.sales_order_items ?? []),
+      };
+    }
     const pending = pendingOrders.find((o) => o.id === printOrderId);
     if (pending) return pending;
-
-    const draft = draftOrders.find((o) => o.id === printOrderId);
-    if (draft) return draft;
 
     const billed = billedOrders.find((o) => o.id === printOrderId);
     if (billed && billed.bill_number) {
@@ -401,13 +305,19 @@ export function SalesEntryClient({
       };
     }
     return billed;
-  }, [printOrderId, pendingOrders, draftOrders, billedOrders]);
+  }, [printOrderId, pendingOrders, billedOrders, selectedOrderIds]);
 
-  const printGroups = printOrder ? buildProductGroups(printOrder, rolls, fabricTypes) : [];
-  const printRollsByProduct: Record<string, any[]> = {};
-  for (const g of printGroups) {
-    printRollsByProduct[g.productName] = g.rolls;
-  }
+  const printGroups = useMemo(() => {
+    return printOrder ? buildProductGroups(printOrder, rolls, fabricTypes) : [];
+  }, [printOrder, rolls, fabricTypes]);
+
+  const printRollsByProduct = useMemo(() => {
+    const map: Record<string, any[]> = {};
+    for (const g of printGroups) {
+      map[g.productName] = g.rolls;
+    }
+    return map;
+  }, [printGroups]);
 
   // If print view is active, show only that
   if (printOrderId && printOrder) {
@@ -423,66 +333,8 @@ export function SalesEntryClient({
 
   return (
     <div className="space-y-6">
-      {/* Dialog for Finalizing Billing */}
-      {finalizingOrder && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm no-print">
-          <div className="bg-white rounded-2xl shadow-2xl border border-slate-100 max-w-md w-full mx-4 p-6 space-y-4">
-            <div className="flex items-center justify-between border-b pb-2">
-              <h2 className="text-lg font-bold text-slate-800">Finalize Billing</h2>
-              <button onClick={() => setFinalizingOrder(null)} className="text-slate-400 hover:text-slate-600">✕</button>
-            </div>
-            <div className="space-y-1">
-              <span className="text-xs text-muted-foreground uppercase font-bold tracking-wider">Customer</span>
-              <p className="text-sm font-semibold text-slate-800">{finalizingOrder.customers?.customer_name}</p>
-              <p className="text-xs text-slate-500">Order #{finalizingOrder.order_number} · {formatDate(finalizingOrder.order_date)}</p>
-            </div>
-
-            <div className="space-y-3">
-              <div>
-                <Label htmlFor="modal_bill_number" className="text-xs font-semibold text-slate-700">Bill Number</Label>
-                <Input
-                  id="modal_bill_number"
-                  placeholder="e.g. INV-001"
-                  value={modalBillNumber}
-                  onChange={(e) => setModalBillNumber(e.target.value)}
-                  className="h-10 text-sm mt-1"
-                />
-              </div>
-              <div>
-                <Label htmlFor="modal_bill_value" className="text-xs font-semibold text-slate-700">Bill Value (₹)</Label>
-                <Input
-                  id="modal_bill_value"
-                  type="number"
-                  placeholder="0.00"
-                  value={modalBillValue}
-                  onChange={(e) => setModalBillValue(e.target.value)}
-                  className="h-10 text-sm font-mono mt-1"
-                />
-              </div>
-            </div>
-
-            <div className="flex gap-3 justify-end pt-2">
-              <Button
-                variant="outline"
-                className="h-10 px-4 text-sm"
-                onClick={() => setFinalizingOrder(null)}
-              >
-                Cancel
-              </Button>
-              <Button
-                className="h-10 px-5 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium"
-                onClick={handleFinalizeSubmit}
-                disabled={isPending}
-              >
-                {isPending ? "Saving..." : "Confirm & Finalize"}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Confirmation Dialog for Bill Number 0 */}
-      {modalConfirmDialog && (
+      {confirmDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm no-print">
           <div className="bg-white rounded-2xl shadow-2xl border border-amber-200 max-w-sm w-full mx-4 p-6">
             <div className="flex items-center gap-3 mb-3">
@@ -497,13 +349,13 @@ export function SalesEntryClient({
             <div className="flex gap-3 justify-end">
               <button
                 className="px-4 py-2 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 transition-colors"
-                onClick={() => setModalConfirmDialog(false)}
+                onClick={() => setConfirmDialog(null)}
               >
                 Cancel
               </button>
               <button
                 className="px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium transition-colors"
-                onClick={() => doFinalizeBilling(true)}
+                onClick={() => doSubmitBilling(confirmDialog.orderIds, true)}
               >
                 Yes, Save Without Journal
               </button>
@@ -520,456 +372,305 @@ export function SalesEntryClient({
         <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm no-print">{successMsg}</div>
       )}
 
-      {/* Workspace Tab Navigation */}
-      <div className="flex flex-wrap gap-2 border-b border-slate-200 pb-3 no-print">
-        <button
-          onClick={() => { setActiveTab("pending"); setErrorMsg(null); setSuccessMsg(null); }}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold transition-all duration-200 ${
-            activeTab === "pending"
-              ? "bg-slate-900 text-white shadow-sm"
-              : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
-          }`}
-        >
-          <Package className="h-4 w-4" />
-          Pending Items ({pendingOrders.reduce((acc, o) => acc + (o.sales_order_items?.length ?? 0), 0)})
-        </button>
-        <button
-          onClick={() => { setActiveTab("draft"); setErrorMsg(null); setSuccessMsg(null); }}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold transition-all duration-200 ${
-            activeTab === "draft"
-              ? "bg-slate-900 text-white shadow-sm"
-              : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
-          }`}
-        >
-          <RotateCcw className="h-4 w-4" />
-          Draft Invoices ({draftOrders.length})
-        </button>
-        <button
-          onClick={() => { setActiveTab("billed"); setErrorMsg(null); setSuccessMsg(null); }}
-          className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold transition-all duration-200 ${
-            activeTab === "billed"
-              ? "bg-slate-900 text-white shadow-sm"
-              : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
-          }`}
-        >
-          <FileText className="h-4 w-4" />
-          Billed Orders ({groupedBilledOrders.length})
-        </button>
-      </div>
+      {/* Section 1: Confirmed Deliveries Grouped by Customer */}
+      <Card className="border-0 shadow-lg bg-gradient-to-br from-white to-amber-50/30 no-print">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Package className="h-5 w-5 text-amber-600" />
+            Confirmed Deliveries Pending Billing
+            <Badge className="ml-2 bg-amber-50 text-amber-700 border-amber-200">
+              {pendingOrders.length}
+            </Badge>
+          </CardTitle>
+          <p className="text-sm text-muted-foreground mt-1">Select one or more confirmed dispatches for a customer to enter invoice billing details.</p>
+        </CardHeader>
+        <CardContent>
+          {pendingOrdersByCustomer.length === 0 ? (
+            <EmptyState
+              title="No pending deliveries"
+              description="Confirmed deliveries awaiting billing will appear here."
+            />
+          ) : (
+            <div className="space-y-6">
+              {pendingOrdersByCustomer.map((customerGroup) => {
+                const isGroupDisabled = activeCustomerId !== null && activeCustomerId !== customerGroup.customerId;
+                const customerOrderIds = customerGroup.orders.map((o) => o.id);
+                const allSelected = customerOrderIds.length > 0 && customerOrderIds.every((id) => selectedOrderIds.includes(id));
 
-      {/* TAB 1: Pending Items */}
-      {activeTab === "pending" && (
-        <div className="space-y-6">
-          <Card className="border-0 shadow-lg bg-gradient-to-br from-white to-amber-50/30">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Package className="h-5 w-5 text-amber-600" />
-                Pending Billing by Customer (Firm)
-                <Badge className="ml-2 bg-amber-50 text-amber-700 border-amber-200">
-                  {pendingOrders.length}
-                </Badge>
-              </CardTitle>
-              <p className="text-sm text-muted-foreground mt-1">Select fabric items to group them and prepare a draft invoice for verification.</p>
-            </CardHeader>
-            <CardContent>
-              {pendingOrdersByCustomer.length === 0 ? (
-                <EmptyState
-                  title="No pending deliveries"
-                  description="Confirmed deliveries that haven't been billed yet will appear here."
-                />
-              ) : (
-                <div className="space-y-6">
-                  {pendingOrdersByCustomer.map((customerGroup) => {
-                    const isGroupDisabled = activeCustomerId !== null && activeCustomerId !== customerGroup.customerId;
-                    const customerItemIds = customerGroup.orders.flatMap((o) => (o.sales_order_items ?? []).map((i) => i.id));
-                    const allSelected = customerItemIds.length > 0 && customerItemIds.every((id) => selectedItemIds.includes(id));
-
-                    return (
-                      <div key={customerGroup.customerId} className="space-y-2 border-l-2 border-slate-200 pl-4 py-1">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-baseline gap-2">
-                            <h3 className="font-semibold text-slate-800 text-sm">
-                              {customerGroup.customerName}
-                            </h3>
-                            {customerGroup.alias && (
-                              <span className="text-xs text-muted-foreground">({customerGroup.alias})</span>
-                            )}
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            disabled={isGroupDisabled}
-                            onClick={() => toggleSelectCustomerAll(customerGroup.customerId, customerGroup.orders)}
-                            className="text-xs text-emerald-600 hover:text-emerald-700 h-8 px-2"
-                          >
-                            {allSelected ? "Deselect All" : "Select All"}
-                          </Button>
-                        </div>
-
-                        <div className="space-y-3">
-                          {customerGroup.orders.map((order) => {
-                            const isExpanded = expandedOrderId === order.id;
-                            const groups = buildProductGroups(order, rolls, fabricTypes);
-                            const grandTotalKg = groups.reduce((s, g) => s + g.totalNetWeight, 0);
-
-                            const orderItemIds = (order.sales_order_items ?? []).map((i) => i.id);
-                            const orderAllSelected = orderItemIds.every((id) => selectedItemIds.includes(id));
-
-                            return (
-                              <div
-                                key={order.id}
-                                className="rounded-xl border border-slate-200 bg-white overflow-hidden transition-shadow hover:shadow-md"
-                              >
-                                {/* Order header row */}
-                                <div className="w-full flex items-center gap-3 px-4 py-3 border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
-                                  <input
-                                    type="checkbox"
-                                    checked={orderAllSelected}
-                                    onChange={() => toggleSelectOrder(order)}
-                                    disabled={isGroupDisabled}
-                                    className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer disabled:opacity-50"
-                                  />
-                                  <button
-                                    type="button"
-                                    className="flex-1 flex items-center justify-between text-left"
-                                    onClick={() => toggleExpand(order.id)}
-                                  >
-                                    <div className="flex items-center gap-3 min-w-0">
-                                      {isExpanded ? (
-                                        <ChevronDown className="h-4 w-4 text-slate-400 shrink-0" />
-                                      ) : (
-                                        <ChevronRight className="h-4 w-4 text-slate-400 shrink-0" />
-                                      )}
-                                      <div className="min-w-0">
-                                        <span className="font-semibold text-sm text-slate-900">
-                                          Order #{order.order_number}
-                                        </span>
-                                        <span className="ml-3 text-xs text-muted-foreground">
-                                          {formatDate(order.order_date)}
-                                        </span>
-                                      </div>
-                                    </div>
-                                    <div className="flex items-center gap-3 shrink-0">
-                                      <span className="text-xs text-muted-foreground font-mono">
-                                        {groups.length} item{groups.length !== 1 ? "s" : ""} · {formatNumber(grandTotalKg, 1)} kg
-                                      </span>
-                                      <Badge className="bg-amber-50 text-amber-700 border-amber-200 text-xs font-normal">
-                                        Pending
-                                      </Badge>
-                                    </div>
-                                  </button>
-                                </div>
-
-                                {/* Expanded content */}
-                                {isExpanded && (
-                                  <div className="border-t border-slate-100 px-4 py-4 bg-slate-50/30 space-y-4">
-                                    <div className="overflow-x-auto rounded-lg border border-slate-200">
-                                      <Table>
-                                        <TableHeader>
-                                          <TableRow className="bg-slate-100/60">
-                                            <TableHead className="w-10"></TableHead>
-                                            <TableHead className="text-xs font-semibold">Department</TableHead>
-                                            <TableHead className="text-xs font-semibold">Product</TableHead>
-                                            <TableHead className="text-xs font-semibold text-right">Rolls</TableHead>
-                                            <TableHead className="text-xs font-semibold text-right">Net W8 (kg)</TableHead>
-                                            <TableHead className="text-xs font-semibold text-right">Meters</TableHead>
-                                          </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                          {groups.map((g) => {
-                                            const isItemChecked = selectedItemIds.includes(g.itemId);
-                                            return (
-                                              <TableRow key={g.itemId} className="hover:bg-white/60">
-                                                <TableCell className="w-10">
-                                                  <input
-                                                    type="checkbox"
-                                                    checked={isItemChecked}
-                                                    onChange={() => {
-                                                      setSelectedItemIds((prev) => {
-                                                        if (prev.includes(g.itemId)) {
-                                                          return prev.filter((id) => id !== g.itemId);
-                                                        } else {
-                                                          const filtered = prev.filter((id) => {
-                                                            const itemOrder = pendingOrders.find((o) => (o.sales_order_items ?? []).some((i) => i.id === id));
-                                                            return itemOrder?.customer_id === order.customer_id;
-                                                          });
-                                                          return [...filtered, g.itemId];
-                                                        }
-                                                      });
-                                                    }}
-                                                    disabled={isGroupDisabled}
-                                                    className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer disabled:opacity-50"
-                                                  />
-                                                </TableCell>
-                                                <TableCell className="text-sm capitalize">{g.department}</TableCell>
-                                                <TableCell className="text-sm font-mono font-medium">{g.productName}</TableCell>
-                                                <TableCell className="text-sm text-right">{g.rolls.length}</TableCell>
-                                                <TableCell className="text-sm text-right font-mono">{formatNumber(g.totalNetWeight, 1)}</TableCell>
-                                                <TableCell className="text-sm text-right font-mono">{formatNumber(Math.floor(g.totalMeters), 0)}</TableCell>
-                                              </TableRow>
-                                            );
-                                          })}
-                                        </TableBody>
-                                      </Table>
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
+                return (
+                  <div key={customerGroup.customerId} className="space-y-2 border-l-2 border-slate-200 pl-4 py-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-baseline gap-2">
+                        <h3 className="font-semibold text-slate-800 text-sm">
+                          {customerGroup.customerName}
+                        </h3>
+                        {customerGroup.alias && (
+                          <span className="text-xs text-muted-foreground">({customerGroup.alias})</span>
+                        )}
                       </div>
-                    );
-                  })}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Staging selected items form */}
-          {selectedItemIds.length > 0 && (
-            <Card className="border border-emerald-200 bg-emerald-50/20 shadow-md">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-semibold text-emerald-950">
-                  Staging Selected Items for Draft Invoice
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <div className="text-xs font-semibold text-emerald-800 uppercase tracking-wider">Selected Items:</div>
-                  <div className="grid grid-cols-1 gap-2 max-h-40 overflow-y-auto pr-1">
-                    {selectedItemsDetails.map((item) => (
-                      <div key={item.itemId} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 sm:gap-4 text-xs bg-white/80 border border-emerald-100 p-2.5 rounded-lg">
-                        <div className="min-w-0">
-                          <span className="font-semibold text-slate-800 block sm:inline">{item.productName}</span>
-                          <span className="text-slate-500 ml-1 capitalize">({item.department})</span>
-                          <span className="text-muted-foreground ml-0 sm:ml-2 block sm:inline">Order #{item.orderNumber}</span>
-                        </div>
-                        <div className="font-mono text-slate-700 sm:text-right shrink-0">
-                          {item.rollCount} Roll{item.rollCount !== 1 ? 's' : ''} · {formatNumber(item.weight, 1)} kg
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="flex gap-2 justify-end">
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => setSelectedItemIds([])}
-                    className="h-10 text-xs"
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    size="sm"
-                    className="h-10 bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 px-5 font-semibold"
-                    onClick={handlePrepareDraft}
-                    disabled={isPending}
-                  >
-                    <Receipt className="h-4 w-4" />
-                    {isPending ? "Processing..." : "Prepare Draft Invoice"}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-      )}
-
-      {/* TAB 2: Draft Invoices */}
-      {activeTab === "draft" && (
-        <div className="space-y-6">
-          <Card className="border-0 shadow-lg bg-gradient-to-br from-white to-amber-50/20">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <RotateCcw className="h-5 w-5 text-amber-600" />
-                Draft Invoices & Verification
-                <Badge className="ml-2 bg-amber-50 text-amber-700 border-amber-200">
-                  {draftOrders.length}
-                </Badge>
-              </CardTitle>
-              <p className="text-sm text-muted-foreground mt-1">Print and verify dispatch weights, then enter invoice details to finalize billing.</p>
-            </CardHeader>
-            <CardContent>
-              {draftOrders.length === 0 ? (
-                <EmptyState
-                  title="No draft invoices"
-                  description="Staged fabric selections pending verification will appear here."
-                />
-              ) : (
-                <div className="space-y-6">
-                  {draftOrders.map((order) => {
-                    const groups = buildProductGroups(order, rolls, fabricTypes);
-                    return (
-                      <div
-                        key={order.id}
-                        className="rounded-xl border border-slate-200 bg-white overflow-hidden transition-shadow hover:shadow-md"
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={isGroupDisabled}
+                        onClick={() => toggleSelectCustomerAll(customerGroup.customerId, customerGroup.orders)}
+                        className="text-xs text-emerald-600 hover:text-emerald-700 h-8 px-2"
                       >
-                        {/* Order header row */}
-                        <div className="w-full flex flex-col sm:flex-row sm:items-center sm:justify-between px-4 py-3 gap-2 border-b border-slate-100 bg-slate-50/50">
-                          <div>
-                            <span className="font-semibold text-sm text-slate-900 block sm:inline">
-                              {order.customers?.customer_name}
-                            </span>
-                            {order.customers?.alias && (
-                              <span className="text-xs text-muted-foreground ml-1">({order.customers.alias})</span>
-                            )}
-                            <span className="ml-0 sm:ml-3 text-xs text-muted-foreground font-mono block sm:inline">
-                              Order #{order.order_number} · {formatDate(order.order_date)}
-                            </span>
-                          </div>
-                          <div>
-                            <Badge className="bg-amber-50 text-amber-700 border-amber-200 text-xs font-normal">
-                              Pending Verification
-                            </Badge>
-                          </div>
-                        </div>
+                        {allSelected ? "Deselect All" : "Select All"}
+                      </Button>
+                    </div>
 
-                        {/* Items summary */}
-                        <div className="p-4 space-y-4">
-                          <div className="overflow-x-auto rounded-lg border border-slate-200">
-                            <Table>
-                              <TableHeader>
-                                <TableRow className="bg-slate-100/60">
-                                  <TableHead className="text-xs font-semibold">Department</TableHead>
-                                  <TableHead className="text-xs font-semibold">Product</TableHead>
-                                  <TableHead className="text-xs font-semibold text-right">Rolls</TableHead>
-                                  <TableHead className="text-xs font-semibold text-right">Net W8 (kg)</TableHead>
-                                  <TableHead className="text-xs font-semibold text-right">Meters</TableHead>
-                                </TableRow>
-                              </TableHeader>
-                              <TableBody>
-                                {groups.map((g) => (
-                                  <TableRow key={g.itemId} className="hover:bg-slate-50/20">
-                                    <TableCell className="text-sm capitalize">{g.department}</TableCell>
-                                    <TableCell className="text-sm font-mono font-medium">{g.productName}</TableCell>
-                                    <TableCell className="text-sm text-right">{g.rolls.length}</TableCell>
-                                    <TableCell className="text-sm text-right font-mono">{formatNumber(g.totalNetWeight, 1)}</TableCell>
-                                    <TableCell className="text-sm text-right font-mono">{formatNumber(Math.floor(g.totalMeters), 0)}</TableCell>
-                                  </TableRow>
-                                ))}
-                              </TableBody>
-                            </Table>
-                          </div>
-
-                          {/* Actions row */}
-                          <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 pt-1">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="h-9 gap-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 font-medium"
-                              onClick={() => handleDiscardDraft(order.id)}
-                              disabled={isPending}
-                            >
-                              Discard Draft
-                            </Button>
-                            <div className="flex flex-col sm:flex-row gap-2">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-9 gap-1.5 font-medium"
-                                onClick={() => setPrintOrderId(order.id)}
-                              >
-                                <Printer className="h-3.5 w-3.5" />
-                                Print Draft Invoice
-                              </Button>
-                              <Button
-                                size="sm"
-                                className="h-9 gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-medium"
-                                onClick={() => {
-                                  setFinalizingOrder(order);
-                                  setModalBillNumber("");
-                                  setModalBillValue("");
-                                  setModalConfirmDialog(false);
-                                }}
-                              >
-                                <Receipt className="h-3.5 w-3.5" />
-                                Finalize Billing
-                              </Button>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* TAB 3: Billed Orders */}
-      {activeTab === "billed" && (
-        <div className="space-y-6">
-          <Card className="border-0 shadow-lg bg-gradient-to-br from-white to-emerald-50/30">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <FileText className="h-5 w-5 text-emerald-600" />
-                Billed Sales
-                <Badge className="ml-2 bg-emerald-50 text-emerald-700 border-emerald-200">
-                  {groupedBilledOrders.length}
-                </Badge>
-              </CardTitle>
-              <p className="text-sm text-muted-foreground">Sales with bill number and value, with journal entries auto-generated.</p>
-            </CardHeader>
-            <CardContent>
-              {groupedBilledOrders.length === 0 ? (
-                <EmptyState
-                  title="No billed sales yet"
-                  description="Once you finalize billing for draft invoices, they will appear here."
-                />
-              ) : (
-                <div className="overflow-x-auto rounded-lg border border-slate-200">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-emerald-50/40">
-                        <TableHead className="text-xs font-semibold">Date</TableHead>
-                        <TableHead className="text-xs font-semibold">Customer</TableHead>
-                        <TableHead className="text-xs font-semibold">Bill Number</TableHead>
-                        <TableHead className="text-xs font-semibold text-right">Bill Value (₹)</TableHead>
-                        <TableHead className="text-xs font-semibold text-right">Products</TableHead>
-                        <TableHead className="text-xs font-semibold text-center">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {groupedBilledOrders.map((order) => {
+                    <div className="space-y-3">
+                      {customerGroup.orders.map((order) => {
+                        const isExpanded = expandedOrderId === order.id;
                         const groups = buildProductGroups(order, rolls, fabricTypes);
+                        const grandTotalKg = groups.reduce((s, g) => s + g.totalNetWeight, 0);
+                        const isChecked = selectedOrderIds.includes(order.id);
+
                         return (
-                          <TableRow key={order.id} className="hover:bg-white/60">
-                            <TableCell className="text-sm">{formatDate(order.order_date)}</TableCell>
-                            <TableCell className="text-sm font-medium">{order.customers?.customer_name ?? "—"}</TableCell>
-                            <TableCell className="text-sm font-mono">{order.bill_number}</TableCell>
-                            <TableCell className="text-sm text-right font-mono font-medium">
-                              ₹{formatNumber(order.bill_value ?? 0, 2)}
-                            </TableCell>
-                            <TableCell className="text-sm text-right">
-                              {groups.length} item{groups.length !== 1 ? "s" : ""}
-                            </TableCell>
-                            <TableCell className="text-center">
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-7 text-xs gap-1"
-                                onClick={() => setPrintOrderId(order.id)}
+                          <div
+                            key={order.id}
+                            className="rounded-xl border border-slate-200 bg-white overflow-hidden transition-shadow hover:shadow-md"
+                          >
+                            {/* Order header row */}
+                            <div className="w-full flex items-center gap-3 px-4 py-3 border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => toggleSelectOrder(order)}
+                                disabled={isGroupDisabled}
+                                className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer disabled:opacity-50"
+                              />
+                              <button
+                                type="button"
+                                className="flex-1 flex items-center justify-between text-left"
+                                onClick={() => toggleExpand(order.id)}
                               >
-                                <Printer className="h-3 w-3" />
-                                Print
-                              </Button>
-                            </TableCell>
-                          </TableRow>
+                                <div className="flex items-center gap-3 min-w-0">
+                                  {isExpanded ? (
+                                    <ChevronDown className="h-4 w-4 text-slate-400 shrink-0" />
+                                  ) : (
+                                    <ChevronRight className="h-4 w-4 text-slate-400 shrink-0" />
+                                  )}
+                                  <div className="min-w-0">
+                                    <span className="font-semibold text-sm text-slate-900">
+                                      Order #{order.order_number}
+                                    </span>
+                                    <span className="ml-3 text-xs text-muted-foreground font-mono">
+                                      {formatDate(order.order_date)}
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="flex items-center gap-3 shrink-0" onClick={(e) => e.stopPropagation()}>
+                                  <span className="text-xs text-muted-foreground font-mono">
+                                    {groups.length} item{groups.length !== 1 ? "s" : ""} · {formatNumber(grandTotalKg, 1)} kg
+                                  </span>
+                                  <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-xs font-normal">
+                                    Confirmed
+                                  </Badge>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-7 text-xs gap-1 no-print border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                                    onClick={() => setPrintOrderId(order.id)}
+                                  >
+                                    <Printer className="h-3 w-3" />
+                                    Print Dispatch Note
+                                  </Button>
+                                </div>
+                              </button>
+                            </div>
+
+                            {/* Expanded content */}
+                            {isExpanded && (
+                              <div className="border-t border-slate-100 px-4 py-4 bg-slate-50/30 space-y-4">
+                                <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+                                  <Table>
+                                    <TableHeader>
+                                      <TableRow className="bg-slate-100/60">
+                                        <TableHead className="text-xs font-semibold">Department</TableHead>
+                                        <TableHead className="text-xs font-semibold">Product</TableHead>
+                                        <TableHead className="text-xs font-semibold text-right">Rolls</TableHead>
+                                        <TableHead className="text-xs font-semibold text-right">Net W8 (kg)</TableHead>
+                                        <TableHead className="text-xs font-semibold text-right">Meters</TableHead>
+                                      </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                      {groups.map((g) => (
+                                        <TableRow key={g.itemId} className="hover:bg-slate-50/20">
+                                          <TableCell className="text-sm capitalize">{g.department}</TableCell>
+                                          <TableCell className="text-sm font-mono font-medium">{g.productName}</TableCell>
+                                          <TableCell className="text-sm text-right">{g.rolls.length}</TableCell>
+                                          <TableCell className="text-sm text-right font-mono">{formatNumber(g.totalNetWeight, 1)}</TableCell>
+                                          <TableCell className="text-sm text-right font-mono">{formatNumber(Math.floor(g.totalMeters), 0)}</TableCell>
+                                        </TableRow>
+                                      ))}
+                                    </TableBody>
+                                  </Table>
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         );
                       })}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Billing Inputs Card */}
+      {selectedOrderIds.length > 0 && (
+        <Card className="border border-emerald-200 bg-emerald-50/20 shadow-md no-print">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-semibold text-emerald-950">
+              Billing Details for {selectedOrderIds.length} Selected Dispatch(es)
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <div className="text-xs font-semibold text-emerald-800 uppercase tracking-wider">Selected Dispatch Details:</div>
+              <div className="grid grid-cols-1 gap-2 max-h-40 overflow-y-auto pr-1">
+                {selectedOrdersDetails.map((order) => {
+                  const groups = buildProductGroups(order, rolls, fabricTypes);
+                  const weight = groups.reduce((s, g) => s + g.totalNetWeight, 0);
+                  const rollsCount = groups.reduce((s, g) => s + g.rolls.length, 0);
+                  return (
+                    <div key={order.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 sm:gap-4 text-xs bg-white/80 border border-emerald-100 p-2.5 rounded-lg">
+                      <div>
+                        <span className="font-semibold text-slate-800">Order #{order.order_number}</span>
+                        <span className="text-slate-500 ml-2">Date: {formatDate(order.order_date)}</span>
+                      </div>
+                      <div className="font-mono text-slate-700 sm:text-right shrink-0 font-semibold">
+                        {rollsCount} Roll{rollsCount !== 1 ? 's' : ''} · {formatNumber(weight, 1)} kg
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-end gap-3 pt-2">
+              <div className="flex-1 min-w-[160px]">
+                <Label className="text-xs text-muted-foreground mb-1">Bill Number</Label>
+                <Input
+                  placeholder="e.g. INV-001"
+                  value={billNumber}
+                  onChange={(e) => setBillNumber(e.target.value)}
+                  className="h-9 text-sm border-slate-300"
+                />
+              </div>
+              <div className="flex-1 min-w-[140px]">
+                <Label className="text-xs text-muted-foreground mb-1">Bill Value (₹)</Label>
+                <Input
+                  type="number"
+                  placeholder="0.00"
+                  value={billValue}
+                  onChange={(e) => setBillValue(e.target.value)}
+                  className="h-9 text-sm font-mono border-slate-300"
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-9 border-emerald-300 text-emerald-700 hover:bg-emerald-50 font-semibold gap-1.5"
+                  onClick={() => setPrintOrderId("combined-print")}
+                  type="button"
+                >
+                  <Printer className="h-4 w-4" />
+                  Print Dispatch Note
+                </Button>
+                <Button
+                  size="sm"
+                  className="h-9 bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 font-semibold"
+                  onClick={handleSubmitBilling}
+                  disabled={isPending}
+                >
+                  <Receipt className="h-4 w-4" />
+                  {isPending ? "Submitting..." : "Submit Billing"}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setSelectedOrderIds([])}
+                  className="h-9 text-xs"
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       )}
+
+      {/* Section 2: Billed Sales */}
+      <Card className="border-0 shadow-lg bg-gradient-to-br from-white to-emerald-50/30">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <FileText className="h-5 w-5 text-emerald-600" />
+            Billed Sales
+            <Badge className="ml-2 bg-emerald-50 text-emerald-700 border-emerald-200">
+              {groupedBilledOrders.length}
+            </Badge>
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">Finalized invoices with bill numbers, details, and print options.</p>
+        </CardHeader>
+        <CardContent>
+          {groupedBilledOrders.length === 0 ? (
+            <EmptyState
+              title="No billed sales yet"
+              description="Once you submit billing for pending deliveries, they will appear here."
+            />
+          ) : (
+            <div className="overflow-x-auto rounded-lg border border-slate-200">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-emerald-50/40">
+                    <TableHead className="text-xs font-semibold">Date</TableHead>
+                    <TableHead className="text-xs font-semibold">Customer</TableHead>
+                    <TableHead className="text-xs font-semibold">Bill Number</TableHead>
+                    <TableHead className="text-xs font-semibold text-right">Bill Value (₹)</TableHead>
+                    <TableHead className="text-xs font-semibold text-right">Products</TableHead>
+                    <TableHead className="text-xs font-semibold text-center">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {groupedBilledOrders.map((order) => {
+                    const groups = buildProductGroups(order, rolls, fabricTypes);
+                    return (
+                      <TableRow key={order.id} className="hover:bg-white/60">
+                        <TableCell className="text-sm">{formatDate(order.order_date)}</TableCell>
+                        <TableCell className="text-sm font-medium">{order.customers?.customer_name ?? "—"}</TableCell>
+                        <TableCell className="text-sm font-mono">{order.bill_number}</TableCell>
+                        <TableCell className="text-sm text-right font-mono font-medium">
+                          ₹{formatNumber(order.bill_value ?? 0, 2)}
+                        </TableCell>
+                        <TableCell className="text-sm text-right">
+                          {groups.length} item{groups.length !== 1 ? "s" : ""}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-xs gap-1"
+                            onClick={() => setPrintOrderId(order.id)}
+                          >
+                            <Printer className="h-3 w-3" />
+                            Print Invoice Copy
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

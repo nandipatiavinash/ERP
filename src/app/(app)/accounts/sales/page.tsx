@@ -19,19 +19,11 @@ export default async function AccountsSalesPage({
   const params = await searchParams;
   const date = params.date || todayInIndia();
 
-  // 1. Fetch pending orders, draft orders, billed orders, and fabric types concurrently
-  const [pendingRes, draftRes, billedRes, fabricTypesRes] = await Promise.all([
+  // 1. Fetch pending orders, billed orders, and fabric types concurrently
+  const [pendingRes, billedRes, fabricTypesRes] = await Promise.all([
     (supabase.from("sales_orders") as any)
       .select("id, order_number, order_date, customer_id, status, bill_number, bill_value, customers(customer_name, alias, phone, address, gst_number), sales_order_items(id, department, product_id, quantity, selected_roll_ids)")
       .eq("status", "confirmed")
-      .eq("is_draft_billing", false)
-      .is("bill_number", null)
-      .is("deleted_at", null)
-      .order("order_date", { ascending: false }),
-    (supabase.from("sales_orders") as any)
-      .select("id, order_number, order_date, customer_id, status, bill_number, bill_value, customers(customer_name, alias, phone, address, gst_number), sales_order_items(id, department, product_id, quantity, selected_roll_ids)")
-      .eq("status", "confirmed")
-      .eq("is_draft_billing", true)
       .is("bill_number", null)
       .is("deleted_at", null)
       .order("order_date", { ascending: false }),
@@ -49,14 +41,12 @@ export default async function AccountsSalesPage({
   ]);
 
   const pendingOrders = pendingRes.data;
-  const draftOrders = draftRes.data;
   const billedOrders = billedRes.data;
   const fabricTypes = fabricTypesRes.data;
 
-  // 2. Gather all roll IDs across pending + draft + billed orders to fetch roll data
+  // 2. Gather all roll IDs across pending + billed orders to fetch roll data
   const allOrders = [
     ...((pendingOrders ?? []) as any[]),
-    ...((draftOrders ?? []) as any[]),
     ...((billedOrders ?? []) as any[])
   ];
   const allRollIds: string[] = [];
@@ -93,7 +83,6 @@ export default async function AccountsSalesPage({
 
         <SalesEntryClient
           pendingOrders={(pendingOrders ?? []) as any[]}
-          draftOrders={(draftOrders ?? []) as any[]}
           billedOrders={(billedOrders ?? []) as any[]}
           rolls={rolls}
           fabricTypes={(fabricTypes ?? []) as any[]}

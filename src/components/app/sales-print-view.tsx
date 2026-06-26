@@ -32,7 +32,9 @@ interface SalesPrintViewProps {
 
 export function SalesPrintView({ order, rollsByProduct }: SalesPrintViewProps) {
   const customer = order.customers;
-  const productKeys = Object.keys(rollsByProduct).sort();
+  const productKeys = Object.keys(rollsByProduct)
+    .filter((key) => rollsByProduct[key] && rollsByProduct[key].length > 0)
+    .sort();
 
   let grandTotalNetWeight = 0;
   let grandTotalMeters = 0;

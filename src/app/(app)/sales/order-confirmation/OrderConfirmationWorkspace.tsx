@@ -1,13 +1,20 @@
 "use client";
 
 import { useState, useTransition, useMemo } from "react";
-import { Check, Printer, X, ChevronRight, ChevronDown, Search, Trash2 } from "lucide-react";
-import { confirmSalesDelivery, deleteSalesOrderItem } from "@/app/(app)/_actions";
+import { Check, Printer, ChevronRight, ChevronDown, Search, Trash2, Package, RotateCcw } from "lucide-react";
+import { confirmMultipleSalesDeliveries, deleteSalesOrderItem } from "@/app/(app)/_actions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/app/status-badge";
 import { Label } from "@/components/ui/label";
 import { formatNumber, formatDate } from "@/lib/utils";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { SalesPrintView } from "@/components/app/sales-print-view";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { DateFilter } from "@/components/app/date-filter";
+import { EmptyState } from "@/components/ui/empty-state";
+import { todayInIndia } from "@/lib/utils";
 
 type Roll = {
   id: string;
@@ -59,11 +66,13 @@ type SalesOrder = {
 
 interface OrderConfirmationWorkspaceProps {
   orders: SalesOrder[];
+  confirmedOrders?: SalesOrder[];
   fabrics: { id: string; fabric_name: string }[];
   rotoProducts: { id: string; brand: string; width: number; height: number }[];
   offsetProducts: { id: string; brand: string; width: number; height: number }[];
   rolls: Roll[];
-  initialOrderId?: string | null;
+  date?: string;
+  initialOrderId?: string;
   singleViewMode?: boolean;
 }
 
@@ -80,43 +89,83 @@ function sortRollsBySerial(a: Roll, b: Roll) {
 }
 
 export function OrderConfirmationWorkspace({
-  orders,
+  orders, // Draft orders
+  confirmedOrders = [], // Confirmed orders
   fabrics,
   rotoProducts,
   offsetProducts,
   rolls,
-  initialOrderId = null,
+  date = todayInIndia(),
+  initialOrderId,
   singleViewMode = false,
 }: OrderConfirmationWorkspaceProps) {
-  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(initialOrderId);
+  const [activeTab, setActiveTab] = useState<"pending" | "confirmed">("pending");
   const [searchTerm, setSearchTerm] = useState("");
   const [isPending, startTransition] = useTransition();
 
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
+  // Compute initial orders and items for single view mode
+  const initialCustomerOrders = useMemo(() => {
+    if (singleViewMode && orders.length > 0) {
+      const customerId = orders[0].customer_id;
+      return orders.filter((o) => o.customer_id === customerId && o.status === "draft");
+    }
+    return [];
+  }, [singleViewMode, orders]);
+
+  const initialItems = useMemo(() => {
+    return initialCustomerOrders.flatMap((o) => o.sales_order_items ?? []);
+  }, [initialCustomerOrders]);
+
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(() => {
+    if (singleViewMode && orders.length > 0) {
+      return orders[0].customer_id;
+    }
+    return null;
+  });
+
   // Roll allocation state: Record<itemId, rollId[]>
-  const [allocation, setAllocation] = useState<Record<string, string[]>>({});
+  const [allocation, setAllocation] = useState<Record<string, string[]>>(() => {
+    const initialAlloc: Record<string, string[]> = {};
+    initialItems.forEach((item) => {
+      initialAlloc[item.id] = item.selected_roll_ids || [];
+    });
+    return initialAlloc;
+  });
+
+  // Selected items state (which draft items we are delivering now)
+  const [selectedItemIds, setSelectedItemIds] = useState<string[]>(() => {
+    return initialItems.map((i) => i.id);
+  });
+
   // Expanded items state: Record<itemId, boolean>
-  const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
+  const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>(() => {
+    const initialExpand: Record<string, boolean> = {};
+    initialItems.forEach((item) => {
+      initialExpand[item.id] = item.department === "fabric";
+    });
+    return initialExpand;
+  });
 
   const [deleteItemId, setDeleteItemId] = useState<string | null>(null);
-  const [itemRemainingActions, setItemRemainingActions] = useState<Record<string, "backorder" | "close">>({});
-
-
-  // Calculate sum of weights of all currently selected rolls across all items
-  const totalSelectedWeight = useMemo(() => {
-    if (!selectedOrderId) return 0;
-    const currentOrder = orders.find((o) => o.id === selectedOrderId);
-    if (!currentOrder) return 0;
-    let sum = 0;
-    currentOrder.sales_order_items?.forEach((item) => {
-      const selectedIds = allocation[item.id] || [];
-      const itemRolls = rolls.filter((r) => selectedIds.includes(r.id));
-      sum += itemRolls.reduce((s, r) => s + Number(r.weight || 0), 0);
+  const [itemRemainingActions, setItemRemainingActions] = useState<Record<string, "backorder" | "close">>(() => {
+    const initialRemaining: Record<string, "backorder" | "close"> = {};
+    initialItems.forEach((item) => {
+      initialRemaining[item.id] = "close";
     });
-    return sum;
-  }, [selectedOrderId, allocation, rolls, orders]);
+    return initialRemaining;
+  });
+  const [printOrderId, setPrintOrderId] = useState<string | null>(null);
+  const [isDraftPrint, setIsDraftPrint] = useState(false);
+  const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [deliveryDate, setDeliveryDate] = useState(todayInIndia());
+
+  const toggleOrderExpand = (orderId: string) => {
+    setExpandedOrderId((prev) => (prev === orderId ? null : orderId));
+  };
 
   // Resolve product name helper
   const getProductName = (dept: string, productId: string) => {
@@ -137,24 +186,54 @@ export function OrderConfirmationWorkspace({
     return "Unknown Product";
   };
 
-  // Find active order details
-  const selectedOrder = useMemo(() => {
-    if (!selectedOrderId) return null;
-    return orders.find((o) => o.id === selectedOrderId) || null;
-  }, [selectedOrderId, orders]);
+  // Group draft orders by customer
+  const draftCustomers = useMemo(() => {
+    const map: Record<string, { customer: Customer; orders: SalesOrder[] }> = {};
+    for (const order of orders) {
+      if (order.status !== "draft") continue;
+      const cust = order.customers;
+      if (!cust) continue;
+      if (!map[cust.id]) {
+        map[cust.id] = { customer: cust, orders: [] };
+      }
+      map[cust.id].orders.push(order);
+    }
+    return Object.values(map).filter((item) => {
+      const query = searchTerm.toLowerCase();
+      return (
+        item.customer.customer_name.toLowerCase().includes(query) ||
+        item.customer.alias?.toLowerCase().includes(query)
+      );
+    });
+  }, [orders, searchTerm]);
 
-  // Set initial allocation & expansion when an order is selected
-  const handleSelectOrder = (order: SalesOrder) => {
-    setSelectedOrderId(order.id);
+  // Selected customer's draft orders and items
+  const activeCustomerOrders = useMemo(() => {
+    if (!selectedCustomerId) return [];
+    return orders.filter((o) => o.customer_id === selectedCustomerId && o.status === "draft");
+  }, [selectedCustomerId, orders]);
+
+  const activeCustomerItems = useMemo(() => {
+    return activeCustomerOrders.flatMap((o) => o.sales_order_items ?? []);
+  }, [activeCustomerOrders]);
+
+  // Initialize allocation/expansion when customer is selected
+  const handleSelectCustomer = (customerId: string) => {
+    setSelectedCustomerId(customerId);
     setErrorMsg(null);
     setSuccessMsg(null);
+    setExpandedOrderId(null);
+    setDeliveryDate(todayInIndia());
+
+    const customerOrders = orders.filter((o) => o.customer_id === customerId && o.status === "draft");
+    const items = customerOrders.flatMap((o) => o.sales_order_items ?? []);
+
     const initialAlloc: Record<string, string[]> = {};
     const initialExpand: Record<string, boolean> = {};
     const initialRemaining: Record<string, "backorder" | "close"> = {};
 
-    order.sales_order_items?.forEach((item) => {
+    items.forEach((item) => {
       initialAlloc[item.id] = item.selected_roll_ids || [];
-      // Expand fabric item roll list by default if there are rolls allocated, or if it's fabric
       initialExpand[item.id] = item.department === "fabric";
       initialRemaining[item.id] = "close";
     });
@@ -162,8 +241,15 @@ export function OrderConfirmationWorkspace({
     setAllocation(initialAlloc);
     setExpandedItems(initialExpand);
     setItemRemainingActions(initialRemaining);
+    setSelectedItemIds(items.map((i) => i.id)); // Select all items by default
   };
 
+  // Toggle item checking
+  const toggleSelectItem = (itemId: string) => {
+    setSelectedItemIds((prev) =>
+      prev.includes(itemId) ? prev.filter((id) => id !== itemId) : [...prev, itemId]
+    );
+  };
 
   // Toggle roll selection
   const toggleRoll = (itemId: string, rollId: string) => {
@@ -181,32 +267,35 @@ export function OrderConfirmationWorkspace({
     setExpandedItems((prev) => ({ ...prev, [itemId]: !prev[itemId] }));
   };
 
-  // Filtered orders list
-  const filteredOrders = useMemo(() => {
-    return orders.filter((o) => {
-      const query = searchTerm.toLowerCase();
-      const numMatch = o.order_number.toLowerCase().includes(query);
-      const custMatch = o.customers?.customer_name.toLowerCase().includes(query) || false;
-      const aliasMatch = o.customers?.alias?.toLowerCase().includes(query) || false;
-      return numMatch || custMatch || aliasMatch;
-    });
-  }, [orders, searchTerm]);
-
-  // Save current allocations
-  const handleSave = () => {
-    if (!selectedOrder) return;
+  // Confirm delivery action
+  const handleConfirmDeliveries = () => {
+    if (selectedItemIds.length === 0) {
+      setErrorMsg("Please select at least one item to confirm delivery.");
+      return;
+    }
     setErrorMsg(null);
     setSuccessMsg(null);
 
     startTransition(async () => {
       try {
-        await confirmSalesDelivery(selectedOrder.id, allocation, itemRemainingActions);
-        setSuccessMsg("Order allocations saved and delivery status confirmed successfully!");
+        await confirmMultipleSalesDeliveries(selectedItemIds, allocation, itemRemainingActions, deliveryDate);
+        setSuccessMsg("Deliveries confirmed successfully! You can print the dispatch sheet below.");
+        
+        // Locate one of the parent orders that was confirmed to enable printing
+        const confirmedOrder = activeCustomerOrders.find((o) =>
+          (o.sales_order_items ?? []).some((item) => selectedItemIds.includes(item.id))
+        );
+        if (confirmedOrder) {
+          setPrintOrderId(confirmedOrder.id);
+        }
+
+        setSelectedItemIds([]);
+        setAllocation({});
+        setSelectedCustomerId(null);
       } catch (err: any) {
-        setErrorMsg(err.message || "Failed to save order confirmation.");
+        setErrorMsg(err.message || "Failed to confirm sales delivery.");
       }
     });
-
   };
 
   const handleDeleteItem = (itemId: string) => {
@@ -218,13 +307,7 @@ export function OrderConfirmationWorkspace({
       try {
         await deleteSalesOrderItem(itemId);
         setSuccessMsg("Item deleted successfully!");
-        
-        if (selectedOrder) {
-          const updatedItems = selectedOrder.sales_order_items?.filter((x) => x.id !== itemId) || [];
-          if (updatedItems.length === 0) {
-            setSelectedOrderId(null);
-          }
-        }
+        setSelectedItemIds((prev) => prev.filter((id) => id !== itemId));
       } catch (err: any) {
         setErrorMsg(err.message || "Failed to delete item.");
       }
@@ -237,485 +320,640 @@ export function OrderConfirmationWorkspace({
       .filter(
         (r) =>
           r.fabric_type_id === item.product_id &&
-          (r.status === "available" || item.selected_roll_ids?.includes(r.id))
+          (r.status === "available" || item.selected_roll_ids?.includes(r.id) || (allocation[item.id] ?? []).includes(r.id))
       )
       .sort(sortRollsBySerial);
   };
 
-  return (
-    <div className="flex flex-col xl:flex-row gap-6 h-full items-stretch">
+  // Build product groups for print view
+  const printOrder = useMemo(() => {
+    if (!printOrderId) return null;
+    const pending = orders.find((o) => o.id === printOrderId);
+    if (pending) return pending;
+    const confirmed = confirmedOrders.find((o) => o.id === printOrderId);
+    return confirmed || null;
+  }, [printOrderId, orders, confirmedOrders]);
 
-      {/* Left panel: Orders list */}
-      {!singleViewMode && (
-        <div className="w-full xl:w-80 shrink-0 flex flex-col gap-4 no-print">
-          <Card className="h-[calc(100vh-12rem)] flex flex-col overflow-hidden">
-            <CardHeader className="p-4 border-b">
-              <CardTitle className="text-base font-bold">Select Sales Order</CardTitle>
-              <div className="relative mt-2">
-                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                <input
-                  type="text"
-                  placeholder="Search orders..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-9 h-9 w-full rounded-md border bg-background text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-                />
-              </div>
-            </CardHeader>
-            <div className="flex-1 overflow-y-auto divide-y divide-border">
-              {filteredOrders.length === 0 ? (
-                <div className="p-4 text-center text-sm text-muted-foreground">No orders found</div>
-              ) : (
-                filteredOrders.map((order) => {
-                  const isSelected = order.id === selectedOrderId;
-                  return (
-                    <button
-                      key={order.id}
-                      onClick={() => handleSelectOrder(order)}
-                      className={`w-full text-left p-4 transition-colors hover:bg-muted/50 flex flex-col gap-1.5 ${
-                        isSelected ? "bg-muted border-l-4 border-l-primary pl-3" : ""
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="font-bold text-sm text-emerald-950">
-                          Order #{order.order_number}
-                        </span>
-                        <StatusBadge value={order.status} />
-                      </div>
-                      <div className="text-xs font-semibold text-foreground truncate">
-                        {order.customers?.customer_name}
-                        {order.customers?.alias ? ` (${order.customers.alias})` : ""}
-                      </div>
-                      <div className="flex items-center justify-between text-[11px] text-muted-foreground mt-1">
-                        <span>{formatDate(order.order_date)}</span>
-                        <span>{order.sales_order_items?.length ?? 0} items</span>
-                      </div>
-                    </button>
-                  );
-                })
-              )}
-            </div>
-          </Card>
+  type ProductGroup = {
+    itemId: string;
+    productId: string;
+    productName: string;
+    department: string;
+    rolls: any[];
+    totalNetWeight: number;
+    totalMeters: number;
+  };
+
+  const buildProductGroups = (order: SalesOrder, rolls: Roll[], fabrics: any[]): ProductGroup[] => {
+    return (order.sales_order_items ?? []).map((item) => {
+      const rollsData = (item.selected_roll_ids ?? []).map((rollId) => {
+        const roll = rolls.find((r) => r.id === rollId);
+        if (!roll) return null;
+        const prod = roll.loom_production_entries;
+        return {
+          roll_number: roll.roll_number,
+          gross_weight: prod?.gross_weight ?? roll.weight ?? 0,
+          core_weight: prod?.core_weight ?? 0,
+          net_weight: prod?.net_weight ?? (roll.weight ?? 0),
+          net_meters: prod?.net_meters ?? (roll.meters ?? 0),
+          average_meter_weight: prod?.average_meter_weight ?? 0,
+        };
+      }).filter(Boolean) as any[];
+
+      const totalNetWeight = rollsData.reduce((s, r) => s + r.net_weight, 0);
+      const totalMeters = rollsData.reduce((s, r) => s + r.net_meters, 0);
+
+      return {
+        itemId: item.id,
+        productId: item.product_id,
+        productName: getProductName(item.department, item.product_id),
+        department: item.department,
+        rolls: rollsData,
+        totalNetWeight,
+        totalMeters,
+      };
+    });
+  };
+
+  const printGroups = useMemo(() => {
+    return printOrder ? buildProductGroups(printOrder, rolls, fabrics) : [];
+  }, [printOrder, rolls, fabrics]);
+
+  const printRollsByProduct = useMemo(() => {
+    const map: Record<string, any[]> = {};
+    for (const g of printGroups) {
+      map[g.productName] = g.rolls;
+    }
+    return map;
+  }, [printGroups]);
+
+  // stagedPrintOrder representing currently selected rolls and items in workspace
+  const stagedPrintOrder = useMemo(() => {
+    if (!selectedCustomerId) return null;
+    const customerOrders = orders.filter((o) => o.customer_id === selectedCustomerId && o.status === "draft");
+    const firstOrder = customerOrders[0];
+    if (!firstOrder) return null;
+
+    const selectedItems = customerOrders
+      .flatMap((o) => o.sales_order_items ?? [])
+      .filter((item) => selectedItemIds.includes(item.id))
+      .map((item) => ({
+        ...item,
+        selected_roll_ids: allocation[item.id] ?? [],
+      }));
+
+    return {
+      ...firstOrder,
+      order_number: "DRAFT-" + Array.from(new Set(customerOrders.map((o) => o.order_number))).join("/"),
+      sales_order_items: selectedItems,
+    };
+  }, [selectedCustomerId, orders, selectedItemIds, allocation]);
+
+  const stagedPrintGroups = useMemo(() => {
+    return stagedPrintOrder ? buildProductGroups(stagedPrintOrder as any, rolls, fabrics) : [];
+  }, [stagedPrintOrder, rolls, fabrics]);
+
+  const stagedPrintRollsByProduct = useMemo(() => {
+    const map: Record<string, any[]> = {};
+    for (const g of stagedPrintGroups) {
+      map[g.productName] = g.rolls;
+    }
+    return map;
+  }, [stagedPrintGroups]);
+
+  // Calculate sum of weights of all currently selected rolls across checked items
+  const totalSelectedWeight = useMemo(() => {
+    if (!selectedCustomerId) return 0;
+    let sum = 0;
+    activeCustomerItems.forEach((item) => {
+      if (!selectedItemIds.includes(item.id)) return;
+      const selectedIds = allocation[item.id] || [];
+      const itemRolls = rolls.filter((r) => selectedIds.includes(r.id));
+      sum += itemRolls.reduce((s, r) => s + Number(r.weight || 0), 0);
+    });
+    return sum;
+  }, [selectedCustomerId, selectedItemIds, allocation, rolls, activeCustomerItems]);
+
+  // Group activeCustomerItems by order for the workspace rendering
+  const activeCustomerOrdersWithItems = useMemo(() => {
+    if (!selectedCustomerId) return [];
+    return activeCustomerOrders.map((order) => {
+      const items = (order.sales_order_items ?? []);
+      return {
+        order,
+        items,
+      };
+    }).filter(group => group.items.length > 0);
+  }, [selectedCustomerId, activeCustomerOrders]);
+
+  // Group currently selected items by order for the confirmation dialog
+  const selectedItemsSummary = useMemo(() => {
+    if (!selectedCustomerId) return [];
+    
+    return activeCustomerOrders.map((order) => {
+      const items = (order.sales_order_items ?? [])
+        .filter((item) => selectedItemIds.includes(item.id))
+        .map((item) => {
+          const selectedIds = allocation[item.id] || [];
+          const selectedRolls = rolls.filter((r) => selectedIds.includes(r.id));
+          const totalWeight = selectedRolls.reduce((sum, r) => sum + Number(r.weight || 0), 0);
+          
+          return {
+            ...item,
+            productName: getProductName(item.department, item.product_id),
+            rollsCount: item.department === "fabric" ? selectedRolls.length : 0,
+            weight: item.department === "fabric" ? totalWeight : item.quantity,
+          };
+        });
+      
+      return {
+        order,
+        items,
+      };
+    }).filter(group => group.items.length > 0);
+  }, [selectedCustomerId, activeCustomerOrders, selectedItemIds, allocation, rolls]);
+
+  // If print view is active, show only that
+  if (printOrderId && printOrder) {
+    return (
+      <div>
+        <Button variant="outline" className="mb-4 no-print" onClick={() => setPrintOrderId(null)}>
+          ← Back to Delivery Entry
+        </Button>
+        <SalesPrintView order={printOrder as any} rollsByProduct={printRollsByProduct} />
+      </div>
+    );
+  }
+
+  if (isDraftPrint && stagedPrintOrder) {
+    return (
+      <div>
+        <Button variant="outline" className="mb-4 no-print" onClick={() => setIsDraftPrint(false)}>
+          ← Back to Delivery Workspace
+        </Button>
+        <div className="mb-4 p-3.5 bg-amber-50 border border-amber-200 text-amber-800 text-xs rounded-lg no-print">
+          <strong>Draft Mode:</strong> This is a preview of the dispatch note with currently selected rolls. It has not been saved or confirmed yet.
         </div>
-      )}
+        <SalesPrintView order={stagedPrintOrder as any} rollsByProduct={stagedPrintRollsByProduct} />
+      </div>
+    );
+  }
 
-      {/* Right panel: Active workspace */}
-      <div className="flex-1 min-w-0 no-print">
-        {!selectedOrder ? (
-          <Card className="h-full flex items-center justify-center p-8 text-center border-dashed">
-            <div className="max-w-md space-y-3">
-              <div className="h-12 w-12 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto">
-                <Printer className="h-6 w-6" />
-              </div>
-              <h3 className="text-lg font-bold text-emerald-950">No Order Selected</h3>
-              <p className="text-sm text-muted-foreground">
-                Select an order from the list on the left to allocate rolls, view dynamic quantity tallies, and generate proforma invoices.
-              </p>
-            </div>
-          </Card>
-        ) : (
-          <div className="space-y-6">
-            {/* Feedback Notifications */}
-            {errorMsg && (
-              <div className="p-4 bg-red-100 text-red-800 rounded-lg text-sm font-semibold">
-                {errorMsg}
-              </div>
-            )}
-            {successMsg && (
-              <div className="p-4 bg-emerald-100 text-emerald-800 rounded-lg text-sm font-semibold">
-                {successMsg}
-              </div>
-            )}
+  return (
+    <div className="space-y-6">
+      {/* Workspace Tab Navigation */}
+      <div className="flex flex-wrap gap-2 border-b border-slate-200 pb-3 no-print">
+        <button
+          onClick={() => { setActiveTab("pending"); setErrorMsg(null); setSuccessMsg(null); setSelectedCustomerId(null); }}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold transition-all duration-200 ${
+            activeTab === "pending"
+              ? "bg-slate-900 text-white shadow-sm"
+              : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+          }`}
+        >
+          <Package className="h-4 w-4" />
+          Pending Confirmation ({orders.length})
+        </button>
+        <button
+          onClick={() => { setActiveTab("confirmed"); setErrorMsg(null); setSuccessMsg(null); setSelectedCustomerId(null); }}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold transition-all duration-200 ${
+            activeTab === "confirmed"
+              ? "bg-slate-900 text-white shadow-sm"
+              : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+          }`}
+        >
+          <RotateCcw className="h-4 w-4" />
+          Confirmed Deliveries ({confirmedOrders.length})
+        </button>
+      </div>
 
-            {/* Selected Order Overview Card */}
-            {selectedOrder.status === "confirmed" ? (
-              <Card className="border-l-4 border-l-emerald-600 bg-emerald-50/10">
-                <CardHeader className="p-5 border-b flex flex-row items-center justify-between flex-wrap gap-4">
-                  <div>
-                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold uppercase tracking-wider mb-2">
-                      <Check className="h-3.5 w-3.5" /> Order Confirmed
-                    </div>
-                    <CardTitle className="text-xl font-black text-emerald-950">
-                      Order #{selectedOrder.order_number}
-                    </CardTitle>
-                    <p className="text-sm text-muted-foreground mt-0.5">
-                      Date: {formatDate(selectedOrder.order_date)} | Firm Name:{" "}
-                      <span className="font-semibold text-foreground">
-                        {selectedOrder.customers?.customer_name}
-                      </span>
-                      {selectedOrder.customers?.alias && ` (${selectedOrder.customers.alias})`}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <StatusBadge value={selectedOrder.status} />
+      {activeTab === "pending" ? (
+        <div className="flex flex-col xl:flex-row gap-6 items-stretch">
+          {/* Left Panel: Customer list with draft orders */}
+          {!singleViewMode && (
+            <div className="w-full xl:w-80 shrink-0 flex flex-col gap-4 no-print">
+              <Card className="h-[calc(100vh-14rem)] flex flex-col overflow-hidden">
+                <CardHeader className="p-4 border-b">
+                  <CardTitle className="text-base font-bold">Select Customer</CardTitle>
+                  <div className="relative mt-2">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <input
+                      type="text"
+                      placeholder="Search customer..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-9 h-9 w-full rounded-md border bg-background text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                    />
                   </div>
                 </CardHeader>
-
-                <CardContent className="p-5 space-y-6">
-                  <div className="text-sm font-bold text-muted-foreground uppercase tracking-wider">
-                    Confirmed Order Items & Allocations
-                  </div>
-
-                  {selectedOrder.sales_order_items?.length === 0 ? (
-                    <div className="text-center py-6 text-sm text-muted-foreground">
-                      This order has no registered items.
-                    </div>
+                <div className="flex-1 overflow-y-auto divide-y divide-border">
+                  {draftCustomers.length === 0 ? (
+                    <div className="p-4 text-center text-sm text-muted-foreground">No draft orders found</div>
                   ) : (
-                    <div className="space-y-6">
-                      {selectedOrder.sales_order_items?.map((item) => {
-                        const prodName = getProductName(item.department, item.product_id);
-                        const selectedRolls = rolls
-                          .filter((r) => item.selected_roll_ids?.includes(r.id))
-                          .sort(sortRollsBySerial);
-                        const totalWeight = selectedRolls.reduce((sum, r) => sum + Number(r.weight || 0), 0);
-                        const totalMeters = selectedRolls.reduce((sum, r) => sum + Number(r.meters || 0), 0);
-
-                        return (
-                          <div key={item.id} className="border rounded-lg bg-card overflow-hidden shadow-sm">
-                            <div className="p-4 bg-muted/20 border-b flex items-center justify-between">
-                              <div>
-                                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
-                                  {item.department}
-                                </span>
-                                <span className="font-bold text-base text-emerald-950">
-                                  {prodName}
-                                </span>
-                              </div>
-                              <div className="text-right flex items-center gap-6">
-                                <div>
-                                  <span className="text-xs text-muted-foreground block">Order Qty</span>
-                                  <span className="font-bold text-sm">{formatNumber(item.quantity)} kg</span>
-                                </div>
-                              </div>
-                            </div>
-
-                            <div className="p-4 space-y-4">
-                              {item.department !== "fabric" ? (
-                                <div className="text-sm text-muted-foreground py-2 font-medium">
-                                  Confirmed & ready for dispatch.
-                                </div>
-                              ) : selectedRolls.length === 0 ? (
-                                <div className="text-sm text-red-600 py-2 font-medium">
-                                  No fabric rolls were allocated to this item.
-                                </div>
-                              ) : (
-                                <div className="space-y-4">
-                                  <div className="grid grid-cols-3 gap-4 bg-emerald-50/30 p-3 rounded-lg text-sm">
-                                    <div>
-                                      <div className="text-muted-foreground text-xs">Allocated Rolls</div>
-                                      <div className="font-bold text-emerald-950">{selectedRolls.length} rolls</div>
-                                    </div>
-                                    <div>
-                                      <div className="text-muted-foreground text-xs">Total Weight</div>
-                                      <div className="font-bold text-emerald-950">{formatNumber(totalWeight, 2)} kg</div>
-                                    </div>
-                                    <div>
-                                      <div className="text-muted-foreground text-xs">Total Meters</div>
-                                      <div className="font-bold text-emerald-950">{formatNumber(totalMeters, 2)} m</div>
-                                    </div>
-                                  </div>
-
-                                  <div className="overflow-x-auto border rounded-lg">
-                                    <table className="w-full text-left border-collapse text-sm">
-                                      <thead>
-                                        <tr className="bg-muted/40 border-b text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                                          <th className="p-3">S.No</th>
-                                          <th className="p-3">Net W8</th>
-                                          <th className="p-3">Core W8</th>
-                                          <th className="p-3">Gross W8</th>
-                                          <th className="p-3">Mtrs</th>
-                                          <th className="p-3">Avg Mtrs</th>
-                                          <th className="p-3">Loom</th>
-                                        </tr>
-                                      </thead>
-                                      <tbody className="divide-y">
-                                        {selectedRolls.map((roll) => {
-                                          const grossW = roll.loom_production_entries?.gross_weight ? formatNumber(roll.loom_production_entries.gross_weight, 2) : "-";
-                                          const coreW = roll.loom_production_entries?.core_weight ? formatNumber(roll.loom_production_entries.core_weight, 2) : "-";
-                                          const avgMeterW = roll.loom_production_entries?.average_meter_weight ? formatNumber(Math.floor(Number(roll.loom_production_entries.average_meter_weight)), 0) : "-";
-                                          const loomNo = roll.looms?.loom_number ?? "-";
-                                          return (
-                                            <tr key={roll.id}>
-                                              <td className="p-3 font-bold text-emerald-950">{roll.roll_number}</td>
-                                              <td className="p-3 font-semibold">{formatNumber(roll.weight, 2)}</td>
-                                              <td className="p-3">{coreW}</td>
-                                              <td className="p-3">{grossW}</td>
-                                              <td className="p-3">{formatNumber(roll.meters, 0)}</td>
-                                              <td className="p-3">{avgMeterW}</td>
-                                              <td className="p-3 font-medium">{loomNo}</td>
-                                            </tr>
-                                          );
-                                        })}
-                                      </tbody>
-                                    </table>
-                                  </div>
-                                </div>
-                              )}
-                            </div>
+                    draftCustomers.map((group) => {
+                      const isSelected = group.customer.id === selectedCustomerId;
+                      const totalItems = group.orders.reduce((sum, o) => sum + (o.sales_order_items?.length ?? 0), 0);
+                      return (
+                        <button
+                          key={group.customer.id}
+                          onClick={() => handleSelectCustomer(group.customer.id)}
+                          className={`w-full text-left p-4 transition-colors hover:bg-muted/50 flex flex-col gap-1.5 ${
+                            isSelected ? "bg-muted border-l-4 border-l-emerald-600 pl-3" : ""
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="font-bold text-sm text-emerald-950 truncate max-w-[180px]">
+                              {group.customer.customer_name}
+                            </span>
+                            <Badge className="bg-amber-50 text-amber-700 border-amber-200 text-[10px] px-2 py-0.5">
+                              {group.orders.length} order{group.orders.length > 1 && "s"}
+                            </Badge>
                           </div>
-                        );
-                      })}
-                    </div>
+                          <div className="text-xs text-muted-foreground flex items-center justify-between">
+                            <span>{group.customer.alias ?? "No alias"}</span>
+                            <span>{totalItems} item{totalItems !== 1 && "s"}</span>
+                          </div>
+                        </button>
+                      );
+                    })
                   )}
-                </CardContent>
+                </div>
+              </Card>
+            </div>
+          )}
+ 
+          {/* Right Panel: Workspace */}
+          <div className="flex-1 min-w-0 no-print">
+            {!selectedCustomerId ? (
+              <Card className="h-full flex items-center justify-center p-8 text-center border-dashed">
+                <div className="max-w-md space-y-3">
+                  <div className="h-12 w-12 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto">
+                    <Printer className="h-6 w-6" />
+                  </div>
+                  <h3 className="text-lg font-bold text-emerald-950">Select a Customer</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Select a customer from the left sidebar to confirm dispatch, allocate fabric rolls, split orders, and print dispatch notes.
+                  </p>
+                </div>
               </Card>
             ) : (
-              <Card className="border-l-4 border-l-primary">
-                <CardHeader className="p-5 border-b flex flex-row items-center justify-between flex-wrap gap-4">
-                  <div>
-                    <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                      Active Order Workspace
+              <div className="space-y-6">
+                {/* Feedback notifications */}
+                {errorMsg && (
+                  <div className="p-3.5 bg-red-100 text-red-800 rounded-lg text-sm font-semibold">{errorMsg}</div>
+                )}
+                {successMsg && (
+                  <div className="p-3.5 bg-emerald-100 text-emerald-800 rounded-lg text-sm font-semibold">{successMsg}</div>
+                )}
+ 
+                {/* Workspace Header */}
+                <Card className="border-l-4 border-l-primary">
+                  <CardHeader className="p-5 border-b flex flex-row items-center justify-between flex-wrap gap-4">
+                    <div>
+                      <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                        Confirm Delivery Workspace
+                      </div>
+                      <CardTitle className="text-xl font-black mt-1 text-emerald-950 flex flex-wrap items-center gap-3">
+                        <span>{orders.find((o) => o.customer_id === selectedCustomerId)?.customers?.customer_name}</span>
+                        {totalSelectedWeight > 0 && (
+                          <span className="text-sm font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
+                            Selected Weight: {formatNumber(totalSelectedWeight, 2)} kg
+                          </span>
+                        )}
+                      </CardTitle>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Select products across draft orders, allocate fabric rolls, split and confirm delivery.
+                      </p>
                     </div>
-                    <CardTitle className="text-xl font-black mt-1 text-emerald-950 flex flex-wrap items-center gap-3">
-                      <span>Order #{selectedOrder.order_number}</span>
-                      {totalSelectedWeight > 0 && (
-                        <span className="text-sm font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
-                          Selected Weight: {formatNumber(totalSelectedWeight, 2)} kg
-                        </span>
-                      )}
-                    </CardTitle>
-                    <p className="text-sm text-muted-foreground mt-0.5">
-                      Date: {formatDate(selectedOrder.order_date)} | Firm Name:{" "}
-                      <span className="font-semibold text-foreground">
-                        {selectedOrder.customers?.customer_name}
-                      </span>
-                      {selectedOrder.customers?.alias && ` (${selectedOrder.customers.alias})`}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-4 flex-wrap">
-                    <button
-                      type="button"
-                      onClick={handleSave}
-                      disabled={isPending}
-                      className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-5 text-sm font-semibold text-primary-foreground shadow hover:bg-primary/90 transition-colors disabled:opacity-50"
-                    >
-                      {isPending ? "Confirming..." : "Confirm & Save"}
-                    </button>
-                  </div>
-
-                </CardHeader>
-
-                <CardContent className="p-5 space-y-6">
-                  <div className="text-sm font-bold text-muted-foreground uppercase tracking-wider">
-                    Order Items & Stock Allocation
-                  </div>
-
-                  {selectedOrder.sales_order_items?.length === 0 ? (
-                    <div className="text-center py-6 text-sm text-muted-foreground">
-                      This order has no registered items.
+                     <div className="flex gap-3 items-end flex-wrap">
+                      <div className="flex flex-col gap-1 no-print">
+                        <Label className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">
+                          Delivery Date
+                        </Label>
+                        <input
+                          type="date"
+                          value={deliveryDate}
+                          onChange={(e) => setDeliveryDate(e.target.value)}
+                          className="h-9 px-3 rounded-md border border-slate-200 bg-background text-sm font-medium focus:outline-none focus:ring-1 focus:ring-primary w-40"
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setIsDraftPrint(true)}
+                        disabled={selectedItemIds.length === 0}
+                        className="h-9 border-slate-300 text-slate-700 hover:bg-slate-50 font-semibold gap-1.5"
+                      >
+                        <Printer className="h-4 w-4" />
+                        Print Draft Dispatch
+                      </Button>
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmModal(true)}
+                        disabled={isPending || selectedItemIds.length === 0}
+                        className="inline-flex h-9 items-center justify-center rounded-md bg-emerald-600 px-5 text-sm font-semibold text-white shadow hover:bg-emerald-700 transition-colors disabled:opacity-50"
+                      >
+                        {isPending ? "Confirming..." : "Confirm Delivery & Print"}
+                      </button>
                     </div>
-                  ) : (
+                  </CardHeader>
+ 
+                  <CardContent className="p-5 space-y-6">
+                    <div className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                      Draft Products Staged for Delivery
+                    </div>
+ 
                     <div className="space-y-4">
-                      {selectedOrder.sales_order_items?.map((item) => {
-                        const itemRolls = getItemRolls(item);
-                        const selectedIds = allocation[item.id] || [];
-                        const selectedRolls = itemRolls.filter((r) => selectedIds.includes(r.id));
-
-                        const totalMeters = selectedRolls.reduce(
-                          (sum, r) => sum + Number(r.meters || 0),
-                          0
-                        );
-                        const totalWeight = selectedRolls.reduce(
-                          (sum, r) => sum + Number(r.weight || 0),
-                          0
-                        );
-
-                        const isExpanded = !!expandedItems[item.id];
-                        const prodName = getProductName(item.department, item.product_id);
+                      {activeCustomerOrdersWithItems.map(({ order, items }) => {
+                        const isOrderExpanded = expandedOrderId === order.id;
 
                         return (
                           <div
-                            key={item.id}
-                            className="border rounded-lg overflow-hidden bg-card shadow-sm"
+                            key={order.id}
+                            className="border rounded-xl bg-white overflow-hidden shadow-sm transition-all"
                           >
-                            {/* Card Header (Product Clickable Toggle) */}
-                            <div
-                              onClick={() => toggleExpand(item.id)}
-                              className="p-4 bg-muted/20 border-b flex items-center justify-between cursor-pointer select-none hover:bg-muted/40 transition-colors"
+                            {/* Order Header / Accordion Trigger */}
+                            <button
+                              type="button"
+                              onClick={() => toggleOrderExpand(order.id)}
+                              className="w-full flex items-center justify-between p-4 bg-slate-50/50 hover:bg-slate-50 transition-colors text-left border-b border-slate-200/80"
                             >
                               <div className="flex items-center gap-3">
-                                {isExpanded ? (
-                                  <ChevronDown className="h-5 w-5 text-muted-foreground shrink-0" />
+                                {isOrderExpanded ? (
+                                  <ChevronDown className="h-5 w-5 text-slate-500" />
                                 ) : (
-                                  <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
+                                  <ChevronRight className="h-5 w-5 text-slate-500" />
                                 )}
                                 <div>
-                                  <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground block">
-                                    {item.department}
-                                  </span>
-                                  <span className="font-bold text-base text-emerald-950">
-                                    {prodName}
+                                  <span className="font-bold text-sm text-slate-900">Order #{order.order_number}</span>
+                                  <span className="ml-3 text-xs text-muted-foreground font-mono">
+                                    Date: {formatDate(order.order_date)}
                                   </span>
                                 </div>
                               </div>
-
-                              <div className="flex items-center gap-6">
-                                <div className="text-right">
-                                  <span className="text-xs text-muted-foreground block">Needed</span>
-                                  <span className="font-bold text-sm">{formatNumber(item.quantity)} kg</span>
-                                </div>
-                                <div className="text-right">
-                                  <span className="text-xs text-muted-foreground block">Selected</span>
-                                  <span
-                                    className={`font-bold text-sm ${
-                                      totalWeight >= item.quantity
-                                        ? "text-emerald-700"
-                                        : "text-amber-700"
-                                    }`}
-                                  >
-                                    {formatNumber(totalWeight)} kg
-                                  </span>
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setDeleteItemId(item.id);
-                                  }}
-                                  className="p-1.5 rounded-md text-red-500 hover:bg-red-50 hover:text-red-600 transition-colors shrink-0"
-                                  title="Delete Item"
-                                >
-                                  <Trash2 className="h-4.5 w-4.5" />
-                                </button>
+                              <div className="text-xs text-slate-500 font-semibold bg-slate-100 px-2 py-1 rounded-md">
+                                {items.length} item{items.length !== 1 ? "s" : ""}
                               </div>
-                            </div>
+                            </button>
 
-                            {/* Card Content */}
-                            {isExpanded && (
-                              <div className="p-4 space-y-4">
-                                {/* Tally Metrics Block */}
-                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 bg-muted/30 p-3 rounded-lg text-sm">
-                                  <div>
-                                    <div className="text-muted-foreground text-xs">Target Qty</div>
-                                    <div className="font-bold text-sm text-emerald-950">
-                                      {formatNumber(item.quantity)} kg
-                                    </div>
-                                  </div>
-                                  <div>
-                                    <div className="text-muted-foreground text-xs">Selected Qty</div>
-                                    <div className="font-bold text-sm text-emerald-950">
-                                      {formatNumber(totalWeight)} kg
-                                    </div>
-                                  </div>
-                                  <div>
-                                    <div className="text-muted-foreground text-xs">Selected Meters</div>
-                                    <div className="font-bold text-sm text-emerald-950">
-                                      {formatNumber(totalMeters, 2)}
-                                    </div>
-                                  </div>
-                                  <div>
-                                    <div className="text-muted-foreground text-xs">Selected Rolls</div>
-                                    <div className="font-bold text-sm text-emerald-950">
-                                      {selectedIds.length} rolls
-                                    </div>
-                                  </div>
-                                </div>
+                            {/* Staged items for this order */}
+                            {isOrderExpanded && (
+                              <div className="p-4 space-y-4 bg-slate-50/10">
+                                {items.map((item) => {
+                                  const itemRolls = getItemRolls(item);
+                                  const selectedIds = allocation[item.id] || [];
+                                  const selectedRolls = itemRolls.filter((r) => selectedIds.includes(r.id));
 
-                                {/* Partial Order Checkbox for this item */}
-                                {item.department === "fabric" && totalWeight < item.quantity && (
-                                  <div className="flex items-center gap-2 bg-amber-50/50 border border-amber-200/60 p-3 rounded-lg">
-                                    <input
-                                      type="checkbox"
-                                      id={`partial-order-checkbox-${item.id}`}
-                                      checked={(itemRemainingActions[item.id] ?? "close") === "backorder"}
-                                      onChange={(e) => {
-                                        setItemRemainingActions((prev) => ({
-                                          ...prev,
-                                          [item.id]: e.target.checked ? "backorder" : "close",
-                                        }));
-                                      }}
-                                      className="h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary cursor-pointer"
-                                    />
-                                    <Label
-                                      htmlFor={`partial-order-checkbox-${item.id}`}
-                                      className="text-xs font-semibold text-emerald-950 cursor-pointer select-none"
+                                  const totalMeters = selectedRolls.reduce((sum, r) => sum + Number(r.meters || 0), 0);
+                                  const totalWeight = selectedRolls.reduce((sum, r) => sum + Number(r.weight || 0), 0);
+
+                                  const isExpanded = !!expandedItems[item.id];
+                                  const isChecked = selectedItemIds.includes(item.id);
+                                  const prodName = getProductName(item.department, item.product_id);
+                                  const parentOrderNo = order.order_number;
+
+                                  return (
+                                    <div
+                                      key={item.id}
+                                      className={`border rounded-lg overflow-hidden bg-card shadow-sm transition-colors ${
+                                        isChecked ? "border-emerald-200" : "opacity-75"
+                                      }`}
                                     >
-                                      Create Partial Order for this item (Remaining {formatNumber(item.quantity - totalWeight, 2)} kg will go into a new bill)
-                                    </Label>
-                                  </div>
-                                )}
+                                      {/* Card Header */}
+                                      <div className="p-4 bg-muted/20 border-b flex items-center justify-between gap-3">
+                                        <div className="flex items-center gap-3 min-w-0">
+                                          <input
+                                            type="checkbox"
+                                            checked={isChecked}
+                                            onChange={() => toggleSelectItem(item.id)}
+                                            className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                                          />
+                                          <button
+                                            type="button"
+                                            onClick={() => toggleExpand(item.id)}
+                                            className="flex items-center gap-1.5 text-left min-w-0"
+                                          >
+                                            {isExpanded ? (
+                                              <ChevronDown className="h-4.5 w-4.5 text-slate-400 shrink-0" />
+                                            ) : (
+                                              <ChevronRight className="h-4.5 w-4.5 text-slate-400 shrink-0" />
+                                            )}
+                                            <div className="truncate">
+                                              <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground block">
+                                                {item.department} · Order #{parentOrderNo}
+                                              </span>
+                                              <span className="font-bold text-sm text-emerald-950 block sm:inline">
+                                                {prodName}
+                                              </span>
+                                            </div>
+                                          </button>
+                                        </div>
 
-                                {/* Rolls Selection (Row Format) */}
-                                {item.department !== "fabric" ? (
+                                        <div className="flex items-center gap-4 shrink-0 text-xs">
+                                          <div className="text-right">
+                                            <span className="text-muted-foreground block">Needed</span>
+                                            <span className="font-bold">{formatNumber(item.quantity)} kg</span>
+                                          </div>
+                                          {isChecked && item.department === "fabric" && (
+                                            <div className="text-right">
+                                              <span className="text-muted-foreground block">Selected</span>
+                                              <span className={`font-bold ${totalWeight >= item.quantity ? "text-emerald-700" : "text-amber-700"}`}>
+                                                {formatNumber(totalWeight)} kg
+                                              </span>
+                                            </div>
+                                          )}
+                                          <button
+                                            type="button"
+                                            onClick={() => setDeleteItemId(item.id)}
+                                            className="p-1 text-red-500 hover:bg-red-50 rounded"
+                                          >
+                                            <Trash2 className="h-4 w-4" />
+                                          </button>
+                                        </div>
+                                      </div>
 
-                                  <div className="text-sm text-muted-foreground py-4 text-center border border-dashed rounded-lg">
-                                    Dynamic roll tracking is only available for Fabric department. Delivery confirmation will mark this item ready.
-                                  </div>
-                                ) : itemRolls.length === 0 ? (
-                                  <div className="text-sm text-muted-foreground py-4 text-center border border-dashed rounded-lg">
-                                    No available rolls found in stock for this fabric type.
-                                  </div>
-                                ) : (
-                                  <div className="space-y-2">
-                                    <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                                      Select Fabric Rolls
-                                    </Label>
-                                    <div className="overflow-x-auto border rounded-lg">
-                                      <table className="w-full text-left border-collapse text-sm">
-                                        <thead>
-                                          <tr className="bg-muted/40 border-b text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                                                                            <th className="p-3 w-12 text-center">Select</th>
-                                            <th className="p-3">S.No</th>
-                                            <th className="p-3">Gross W8</th>
-                                            <th className="p-3">Core W8</th>
-                                            <th className="p-3">Net W8</th>
-                                            <th className="p-3">Mtrs</th>
-                                            <th className="p-3">Avg Mtrs</th>
-                                            <th className="p-3">Loom</th>
-                                          </tr>
-                                        </thead>
-                                        <tbody className="divide-y">
-                                          {itemRolls.map((roll) => {
-                                            const isSelected = selectedIds.includes(roll.id);
-                                            const grossW = roll.loom_production_entries?.gross_weight ? formatNumber(roll.loom_production_entries.gross_weight, 2) : "-";
-                                            const coreW = roll.loom_production_entries?.core_weight ? formatNumber(roll.loom_production_entries.core_weight, 2) : "-";
-                                            const avgMeterW = roll.loom_production_entries?.average_meter_weight ? formatNumber(Math.floor(Number(roll.loom_production_entries.average_meter_weight)), 0) : "-";
-                                            const loomNo = roll.looms?.loom_number ?? "-";
-                                            return (
-                                              <tr
-                                                key={roll.id}
-                                                onClick={() => toggleRoll(item.id, roll.id)}
-                                                className={`cursor-pointer hover:bg-muted/30 transition-colors ${
-                                                  isSelected ? "bg-emerald-50/30" : ""
-                                                }`}
-                                              >
-                                                <td className="p-3 text-center" onClick={(e) => e.stopPropagation()}>
-                                                  <input
-                                                    type="checkbox"
-                                                    checked={isSelected}
-                                                    onChange={() => toggleRoll(item.id, roll.id)}
-                                                    className="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500"
-                                                  />
-                                                </td>
-                                                <td className="p-3 font-bold text-emerald-950">{roll.roll_number}</td>
-                                                <td className="p-3">{grossW}</td>
-                                                <td className="p-3">{coreW}</td>
-                                                <td className="p-3 font-semibold">{formatNumber(roll.weight, 2)}</td>
-                                                <td className="p-3">{formatNumber(roll.meters, 0)}</td>
-                                                <td className="p-3">{avgMeterW}</td>
-                                                <td className="p-3 font-medium">{loomNo}</td>
-                                              </tr>
-                                            );
-                                          })}
-                                        </tbody>
-                                      </table>
+                                      {/* Card Content */}
+                                      {isExpanded && isChecked && (
+                                        <div className="p-4 space-y-4 border-t bg-slate-50/20">
+                                          {item.department === "fabric" && (
+                                            <div className="grid grid-cols-3 gap-4 bg-muted/40 p-3 rounded-lg text-xs font-semibold">
+                                              <div>
+                                                <div className="text-muted-foreground text-[10px]">Selected Rolls</div>
+                                                <div>{selectedRolls.length} rolls</div>
+                                              </div>
+                                              <div>
+                                                <div className="text-muted-foreground text-[10px]">Selected Weight</div>
+                                                <div>{formatNumber(totalWeight, 2)} kg</div>
+                                              </div>
+                                              <div>
+                                                <div className="text-muted-foreground text-[10px]">Selected Meters</div>
+                                                <div>{formatNumber(totalMeters, 2)} m</div>
+                                              </div>
+                                            </div>
+                                          )}
+
+                                          {/* Partial Order Checkbox */}
+                                          {item.department === "fabric" && totalWeight < item.quantity && (
+                                            <div className="flex items-center gap-2 bg-amber-50/50 border border-amber-200/60 p-3 rounded-lg text-xs">
+                                              <input
+                                                type="checkbox"
+                                                id={`partial-order-checkbox-${item.id}`}
+                                                checked={(itemRemainingActions[item.id] ?? "close") === "backorder"}
+                                                onChange={(e) => {
+                                                  setItemRemainingActions((prev) => ({
+                                                    ...prev,
+                                                    [item.id]: e.target.checked ? "backorder" : "close",
+                                                  }));
+                                                }}
+                                                className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                                              />
+                                              <Label htmlFor={`partial-order-checkbox-${item.id}`} className="font-semibold text-slate-800 cursor-pointer select-none">
+                                                Create Partial Order for this item (Remaining {formatNumber(item.quantity - totalWeight, 2)} kg backordered)
+                                              </Label>
+                                            </div>
+                                          )}
+
+                                          {/* Roll Selector Grid */}
+                                          {item.department !== "fabric" ? (
+                                            <div className="text-xs text-muted-foreground py-3 text-center border border-dashed rounded-lg bg-white">
+                                              Marked ready for dispatch automatically.
+                                            </div>
+                                          ) : itemRolls.length === 0 ? (
+                                            <div className="text-xs text-muted-foreground py-3 text-center border border-dashed rounded-lg bg-white">
+                                              No available rolls in stock for this fabric type.
+                                            </div>
+                                          ) : (
+                                            <div className="space-y-2">
+                                              <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                                                Select fabric rolls from stock:
+                                              </Label>
+                                              <div className="overflow-x-auto border rounded-lg bg-white">
+                                                <table className="w-full text-left border-collapse text-xs">
+                                                  <thead>
+                                                    <tr className="bg-slate-100/50 border-b text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                                                      <th className="p-2.5 w-10 text-center">Select</th>
+                                                      <th className="p-2.5">Roll No</th>
+                                                      <th className="p-2.5 text-right">Net W8 (kg)</th>
+                                                      <th className="p-2.5 text-right">Mtrs</th>
+                                                      <th className="p-2.5">Loom</th>
+                                                    </tr>
+                                                  </thead>
+                                                  <tbody className="divide-y">
+                                                    {itemRolls.map((roll) => {
+                                                      const isSelected = selectedIds.includes(roll.id);
+                                                      const loomNo = roll.looms?.loom_number ?? "-";
+                                                      return (
+                                                        <tr
+                                                          key={roll.id}
+                                                          onClick={() => toggleRoll(item.id, roll.id)}
+                                                          className={`cursor-pointer hover:bg-slate-50/50 transition-colors ${
+                                                            isSelected ? "bg-emerald-50/20" : ""
+                                                          }`}
+                                                        >
+                                                          <td className="p-2.5 text-center" onClick={(e) => e.stopPropagation()}>
+                                                            <input
+                                                              type="checkbox"
+                                                              checked={isSelected}
+                                                              onChange={() => toggleRoll(item.id, roll.id)}
+                                                              className="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                                                            />
+                                                          </td>
+                                                          <td className="p-2.5 font-mono font-semibold text-slate-800">{roll.roll_number}</td>
+                                                          <td className="p-2.5 text-right font-mono font-semibold">{formatNumber(roll.weight, 2)}</td>
+                                                          <td className="p-2.5 text-right font-mono">{formatNumber(roll.meters, 0)}</td>
+                                                          <td className="p-2.5 font-medium">{loomNo}</td>
+                                                        </tr>
+                                                      );
+                                                    })}
+                                                  </tbody>
+                                                </table>
+                                              </div>
+                                            </div>
+                                          )}
+                                        </div>
+                                      )}
                                     </div>
-                                  </div>
-                                )}
+                                  );
+                                })}
                               </div>
                             )}
                           </div>
                         );
                       })}
                     </div>
-                  )}
-                </CardContent>
-              </Card>
+                  </CardContent>
+                </Card>
+              </div>
             )}
           </div>
-        )}
-      </div>
+        </div>
+      ) : (
+        /* TAB 2: Confirmed Deliveries */
+        <div className="space-y-6">
+          <Card className="border-0 shadow-lg bg-gradient-to-br from-white to-emerald-50/30">
+            <CardHeader className="pb-3 flex flex-row items-center justify-between flex-wrap gap-4">
+              <div>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Check className="h-5 w-5 text-emerald-600" />
+                  Confirmed Deliveries
+                  <Badge className="ml-2 bg-emerald-50 text-emerald-700 border-emerald-200">
+                    {confirmedOrders.length}
+                  </Badge>
+                </CardTitle>
+                <p className="text-sm text-muted-foreground mt-1">Confirmed dispatches for the selected date.</p>
+              </div>
+              <DateFilter date={date} baseUrl="/sales/order-confirmation?tab=completed" />
+            </CardHeader>
+            <CardContent>
+              {confirmedOrders.length === 0 ? (
+                <EmptyState
+                  title="No confirmed deliveries today"
+                  description="Deliveries confirmed on this date will appear here."
+                />
+              ) : (
+                <div className="overflow-x-auto rounded-lg border border-slate-200">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-slate-50/50">
+                        <TableHead className="text-xs font-bold">Order Number</TableHead>
+                        <TableHead className="text-xs font-bold">Firm Name</TableHead>
+                        <TableHead className="text-xs font-bold">Items Count</TableHead>
+                        <TableHead className="text-xs font-bold">Order Date</TableHead>
+                        <TableHead className="text-xs font-bold text-center">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {confirmedOrders.map((order) => (
+                        <TableRow key={order.id} className="hover:bg-slate-50/30">
+                          <TableCell className="font-bold text-emerald-950">{order.order_number}</TableCell>
+                          <TableCell className="font-medium">
+                            {order.customers?.customer_name} {order.customers?.alias ? `(${order.customers.alias})` : ""}
+                          </TableCell>
+                          <TableCell>{order.sales_order_items?.length ?? 0} items</TableCell>
+                          <TableCell>{formatDate(order.order_date)}</TableCell>
+                          <TableCell className="text-center">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-8 gap-1.5 text-xs font-medium"
+                              onClick={() => setPrintOrderId(order.id)}
+                            >
+                              <Printer className="h-3 w-3" />
+                              Print Dispatch Note
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
+      {/* Delete Item Dialog */}
       <Dialog open={deleteItemId !== null} onOpenChange={(open) => { if (!open) setDeleteItemId(null); }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
@@ -740,9 +978,69 @@ export function OrderConfirmationWorkspace({
                 }
               }}
               disabled={isPending}
-              className="inline-flex h-9 items-center justify-center rounded-md bg-destructive px-4 text-sm font-semibold text-destructive-foreground hover:bg-destructive/90 transition-colors disabled:opacity-50"
+              className="inline-flex h-9 items-center justify-center rounded-md bg-destructive px-4 text-sm font-semibold text-white hover:bg-destructive/90 transition-colors disabled:opacity-50"
             >
-              Yes
+              Yes, Delete
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirm Delivery Dialog */}
+      <Dialog open={showConfirmModal} onOpenChange={setShowConfirmModal}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-emerald-950 font-bold">Confirm Delivery Dispatch</DialogTitle>
+            <DialogDescription>
+              Review the items and fabric rolls staged for dispatch on <strong className="text-slate-800">{formatDate(deliveryDate)}</strong>:
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 max-h-[350px] overflow-y-auto my-3 pr-1">
+            {selectedItemsSummary.map(({ order, items }) => (
+              <div key={order.id} className="border border-slate-200 rounded-lg p-3 bg-slate-50/50">
+                <div className="text-xs font-bold text-slate-800 mb-2 border-b pb-1">
+                  Order #{order.order_number} ({formatDate(order.order_date)})
+                </div>
+                <div className="space-y-2">
+                  {items.map((item) => (
+                    <div key={item.id} className="flex justify-between items-start text-xs">
+                      <div>
+                        <span className="font-semibold text-slate-700">{item.productName}</span>
+                        <span className="text-slate-500 capitalize ml-1">({item.department})</span>
+                      </div>
+                      <div className="text-right font-mono font-medium">
+                        {item.department === "fabric" ? (
+                          <span>{item.rollsCount} roll{item.rollsCount !== 1 ? "s" : ""} · {formatNumber(item.weight, 2)} kg</span>
+                        ) : (
+                          <span>{formatNumber(item.weight, 2)} units</span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="flex justify-end gap-3 mt-4">
+            <button
+              type="button"
+              onClick={() => setShowConfirmModal(false)}
+              className="inline-flex h-9 items-center justify-center rounded-md border border-slate-200 bg-background px-4 text-sm font-semibold hover:bg-slate-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setShowConfirmModal(false);
+                handleConfirmDeliveries();
+              }}
+              disabled={isPending}
+              className="inline-flex h-9 items-center justify-center rounded-md bg-emerald-600 px-5 text-sm font-semibold text-white hover:bg-emerald-700 transition-colors disabled:opacity-50"
+            >
+              {isPending ? "Confirming..." : "Yes, Confirm & Print"}
             </button>
           </div>
         </DialogContent>

@@ -2976,5 +2976,398 @@ export async function revertOffsetRollConsumption(rollId: string) {
   revalidatePath("/finishing/consumption");
 }
 
+export async function confirmMultipleSalesDeliveries(
+  selectedItemIds: string[],
+  itemRolls: Record<string, string[]>,
+  itemRemainingActions: Record<string, "backorder" | "close"> = {},
+  deliveryDate?: string
+) {
+  const user = await requirePermission("sales.edit");
+  const supabase = await createClient();
+
+  if (selectedItemIds.length === 0) {
+    throw new Error("No items selected for delivery confirmation.");
+  }
+
+  // Fetch all selected items with their parent orders
+  const { data: selectedItems, error: itemsError } = await (supabase
+    .from("sales_order_items") as any)
+    .select(`
+      id,
+      sales_order_id,
+      department,
+      product_id,
+      quantity,
+      price,
+      selected_roll_ids,
+      sales_orders(
+        id,
+        order_number,
+        order_date,
+        customer_id,
+        status,
+        gst_rate,
+        selected_roll_ids
+      )
+    `)
+    .in("id", selectedItemIds);
+
+  if (itemsError || !selectedItems || selectedItems.length === 0) {
+    throw new Error("Selected items not found.");
+  }
+
+  // Fetch roll weights for fabric allocations
+  const allNewRollIds = Object.values(itemRolls).flat();
+  const rollsData: Record<string, number> = {};
+  if (allNewRollIds.length > 0) {
+    const { data: rollData, error: rollError } = await (supabase
+      .from("fabric_rolls") as any)
+      .select("id, weight")
+      .in("id", allNewRollIds);
+    if (rollError) throw new Error("Failed to retrieve roll details.");
+    for (const r of rollData || []) {
+      rollsData[r.id] = Number(r.weight || 0);
+    }
+  }
+
+  // Group selected items by order ID
+  const itemsByOrderId: Record<string, any[]> = {};
+  for (const item of selectedItems) {
+    const oId = item.sales_order_id;
+    if (!itemsByOrderId[oId]) {
+      itemsByOrderId[oId] = [];
+    }
+    itemsByOrderId[oId].push(item);
+  }
+
+  const parentOrderIds = Object.keys(itemsByOrderId);
+
+  // Process confirmation and splitting for each parent order
+  for (const oId of parentOrderIds) {
+    const selectedInThisOrder = itemsByOrderId[oId];
+    const parentOrder = selectedInThisOrder[0].sales_orders;
+
+    // Fetch all items currently in this parent order
+    const { data: allItemsInOrder, error: fetchError } = await (supabase
+      .from("sales_order_items") as any)
+      .select("id, department, product_id, quantity, price, selected_roll_ids")
+      .eq("sales_order_id", oId);
+
+    if (fetchError || !allItemsInOrder) {
+      throw new Error(`Failed to fetch items for order ${oId}`);
+    }
+
+    const selectedIdsSet = new Set(selectedInThisOrder.map((it: any) => it.id));
+    const unselectedInThisOrder = allItemsInOrder.filter((it: any) => !selectedIdsSet.has(it.id));
+
+    // 1. If there are unselected items, split the order (clone for unselected, keep original for selected/confirmed)
+    if (unselectedInThisOrder.length > 0) {
+      const clonePayload = {
+        order_number: parentOrder.order_number,
+        order_date: parentOrder.order_date,
+        customer_id: parentOrder.customer_id,
+        status: "draft", // Unselected items remain in draft state
+        bill_number: null,
+        bill_value: null,
+        gst_rate: parentOrder.gst_rate,
+        selected_roll_ids: [],
+        created_by: user.id,
+        updated_by: user.id
+      };
+
+      const { data: clonedOrder, error: cloneError } = await (supabase
+        .from("sales_orders") as any)
+        .insert(clonePayload)
+        .select("id")
+        .single();
+
+      if (cloneError || !clonedOrder) {
+        throw new Error(`Failed to split draft order: ${cloneError?.message}`);
+      }
+
+      // Move unselected items to the cloned draft order
+      for (const unselectedItem of unselectedInThisOrder) {
+        const { error: moveError } = await (supabase
+          .from("sales_order_items") as any)
+          .update({ sales_order_id: clonedOrder.id })
+          .eq("id", unselectedItem.id);
+        if (moveError) {
+          throw new Error(`Failed to move unselected items to cloned draft order: ${moveError.message}`);
+        }
+      }
+    }
+
+    // 2. Process roll allocations and backorders for the confirmed items in the original order
+    const backorderItems: Array<{ department: string; product_id: string; quantity: number }> = [];
+    const confirmedItemsToKeep: string[] = [];
+
+    for (const item of selectedInThisOrder) {
+      const newRollIds = itemRolls[item.id] || [];
+      const oldRollIds = (item.selected_roll_ids as string[]) || [];
+      const action = itemRemainingActions[item.id] || "close";
+
+      if (item.department === "fabric") {
+        const deliveredWeight = newRollIds.reduce((sum, rid) => sum + (rollsData[rid] || 0), 0);
+
+        if (deliveredWeight < item.quantity) {
+          if (action === "backorder") {
+            const remainingQty = item.quantity - deliveredWeight;
+            if (deliveredWeight > 0) {
+              const { error: updateItemError } = await (supabase
+                .from("sales_order_items") as any)
+                .update({
+                  selected_roll_ids: newRollIds,
+                  quantity: deliveredWeight,
+                } as any)
+                .eq("id", item.id);
+              if (updateItemError) throw new Error(updateItemError.message);
+              confirmedItemsToKeep.push(item.id);
+
+              backorderItems.push({
+                department: item.department,
+                product_id: item.product_id,
+                quantity: remainingQty,
+              });
+            } else {
+              const { error: deleteItemError } = await (supabase
+                .from("sales_order_items") as any)
+                .delete()
+                .eq("id", item.id);
+              if (deleteItemError) throw new Error(deleteItemError.message);
+
+              backorderItems.push({
+                department: item.department,
+                product_id: item.product_id,
+                quantity: item.quantity,
+              });
+            }
+          } else {
+            if (deliveredWeight > 0) {
+              const { error: updateItemError } = await (supabase
+                .from("sales_order_items") as any)
+                .update({
+                  selected_roll_ids: newRollIds,
+                  quantity: deliveredWeight,
+                } as any)
+                .eq("id", item.id);
+              if (updateItemError) throw new Error(updateItemError.message);
+              confirmedItemsToKeep.push(item.id);
+            } else {
+              const { error: deleteItemError } = await (supabase
+                .from("sales_order_items") as any)
+                .delete()
+                .eq("id", item.id);
+              if (deleteItemError) throw new Error(deleteItemError.message);
+            }
+          }
+        } else {
+          const { error: updateItemError } = await (supabase
+            .from("sales_order_items") as any)
+            .update({
+              selected_roll_ids: newRollIds,
+              quantity: deliveredWeight,
+            } as any)
+            .eq("id", item.id);
+          if (updateItemError) throw new Error(updateItemError.message);
+          confirmedItemsToKeep.push(item.id);
+        }
+
+        const releasedRollIds = oldRollIds.filter((id) => !newRollIds.includes(id));
+        if (releasedRollIds.length > 0) {
+          const { error: releaseError } = await (supabase
+            .from("fabric_rolls") as any)
+            .update({ status: "available", updated_by: user.id } as any)
+            .in("id", releasedRollIds);
+          if (releaseError) throw new Error(releaseError.message);
+        }
+
+        if (newRollIds.length > 0) {
+          const { error: allocateError } = await (supabase
+            .from("fabric_rolls") as any)
+            .update({ status: "sold", updated_by: user.id } as any)
+            .in("id", newRollIds);
+          if (allocateError) throw new Error(allocateError.message);
+        }
+      } else {
+        confirmedItemsToKeep.push(item.id);
+      }
+    }
+
+    // Insert backordered items into a new draft order if any exist
+    if (backorderItems.length > 0) {
+      const { data: newOrder, error: newOrderError } = await (supabase
+        .from("sales_orders") as any)
+        .insert({
+          customer_id: parentOrder.customer_id,
+          order_date: parentOrder.order_date,
+          order_number: parentOrder.order_number,
+          status: "draft",
+          created_by: user.id,
+          updated_by: user.id,
+        } as any)
+        .select("id")
+        .single();
+
+      if (newOrderError) throw new Error("Failed to create backorder sales order.");
+
+      const backorderItemsPayload = backorderItems.map((bo) => ({
+        sales_order_id: (newOrder as any).id,
+        department: bo.department,
+        product_id: bo.product_id,
+        quantity: bo.quantity,
+        selected_roll_ids: [],
+      }));
+
+      const { error: boInsertError } = await (supabase
+        .from("sales_order_items") as any)
+        .insert(backorderItemsPayload);
+      if (boInsertError) throw new Error("Failed to create backordered items.");
+    }
+
+    // Mark the original order as confirmed containing only confirmed/delivered items
+    if (confirmedItemsToKeep.length > 0) {
+      const { error: orderError } = await (supabase
+        .from("sales_orders") as any)
+        .update({
+          status: "confirmed",
+          order_date: deliveryDate || todayInIndia(),
+          selected_roll_ids: selectedInThisOrder.reduce((acc: string[], it: any) => [...acc, ...(itemRolls[it.id] ?? [])], []),
+          updated_by: user.id
+        } as any)
+        .eq("id", oId);
+
+      if (orderError) throw new Error(orderError.message);
+    } else {
+      // If no items remain, delete the empty order
+      const { error: deleteOrderError } = await (supabase
+        .from("sales_orders") as any)
+        .delete()
+        .eq("id", oId);
+      if (deleteOrderError) throw new Error(deleteOrderError.message);
+    }
+  }
+
+  revalidatePath("/sales/order-confirmation");
+  revalidatePath("/accounts/sales");
+  revalidatePath("/rolls");
+  revalidatePath("/fabric/stock");
+}
+
+export async function saveSalesOrderBillingDirect(formData: FormData) {
+  const user = await requirePermission("sales.edit");
+  const orderIdsStr = String(formData.get("order_ids") ?? "");
+  const billNumber = String(formData.get("bill_number") ?? "").trim();
+  const billValue = Number(formData.get("bill_value") ?? 0);
+
+  const orderIds = orderIdsStr
+    ? orderIdsStr.split(",").map(id => id.trim()).filter(Boolean)
+    : [];
+
+  if (orderIds.length === 0 || !billNumber) {
+    throw new Error("Order IDs and Bill Number are required.");
+  }
+  if (!Number.isFinite(billValue) || billValue < 0) {
+    throw new Error("Bill Value must be a non-negative amount.");
+  }
+
+  const skipJournal = (billNumber === "0") || (billValue === 0);
+  const supabase = await createClient();
+
+  // Fetch the orders to confirm they are confirmed and not yet billed
+  const { data: orders, error: ordersError } = await (supabase
+    .from("sales_orders") as any)
+    .select(`
+      id,
+      order_number,
+      order_date,
+      customer_id,
+      status,
+      gst_rate,
+      customers(customer_name)
+    `)
+    .in("id", orderIds);
+
+  if (ordersError || !orders || orders.length === 0) {
+    throw new Error("Selected confirmed orders not found.");
+  }
+
+  // Verify all orders belong to the same customer
+  const customerNames = Array.from(new Set(orders.map((o: any) => o.customers?.customer_name)));
+  if (customerNames.length > 1) {
+    throw new Error("All selected orders must belong to the same customer to be billed together.");
+  }
+
+  const customerName = customerNames[0] as string;
+  const entryDate = orders[0]?.order_date || todayInIndia();
+
+  // Update billing details on all selected orders
+  for (let idx = 0; idx < orders.length; idx++) {
+    const oId = orders[idx].id;
+    const isFirstParent = (idx === 0);
+    const { error: updateError } = await (supabase
+      .from("sales_orders") as any)
+      .update({
+        bill_number: billNumber,
+        bill_value: isFirstParent ? billValue : 0, // Post bill_value once to prevent double-counting in ledger/aggregations
+        updated_by: user.id
+      } as any)
+      .eq("id", oId);
+
+    if (updateError) {
+      throw new Error(updateError.message);
+    }
+  }
+
+  // If bill number is "0" or bill value is 0, skip journal entries
+  if (skipJournal) {
+    revalidatePath("/accounts/sales");
+    revalidatePath("/accounts/journal");
+    revalidatePath("/sales/order-confirmation");
+    revalidatePath("/reports");
+    return;
+  }
+
+  const [customerAcResult, salesAcResult] = await Promise.all([
+    supabase.from("customers").select("id, customer_name").ilike("customer_name", customerName).is("deleted_at", null).maybeSingle(),
+    supabase.from("customers").select("id, customer_name").ilike("customer_name", "Sales A/c").is("deleted_at", null).maybeSingle()
+  ]);
+  const customerAc = customerAcResult.data as any;
+  const salesAc = salesAcResult.data as any;
+
+  const journalNo = await generateNextJournalNo(supabase);
+  const journalInserts = [
+    {
+      journal_no: journalNo,
+      entry_date: entryDate,
+      account_id: customerAc?.id ?? null,
+      account_name: customerAc?.customer_name ?? customerName,
+      entry_type: "debit",
+      amount: billValue,
+      description: billNumber,
+      created_by: user.id,
+      updated_by: user.id,
+    },
+    {
+      journal_no: journalNo,
+      entry_date: entryDate,
+      account_id: salesAc?.id ?? null,
+      account_name: salesAc?.customer_name ?? "Sales A/c",
+      entry_type: "credit",
+      amount: billValue,
+      description: `${billNumber} (${customerAc?.customer_name ?? customerName})`,
+      created_by: user.id,
+      updated_by: user.id,
+    },
+  ];
+
+  const { error: journalError } = await (supabase.from("accounts_journal") as any).insert(journalInserts);
+  if (journalError) throw new Error(journalError.message);
+
+  revalidatePath("/accounts/sales");
+  revalidatePath("/accounts/journal");
+  revalidatePath("/sales/order-confirmation");
+  revalidatePath("/reports");
+}
+
 
 
