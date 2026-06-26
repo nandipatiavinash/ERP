@@ -2976,6 +2976,27 @@ export async function revertOffsetRollConsumption(rollId: string) {
   revalidatePath("/finishing/consumption");
 }
 
+async function generateNextDispatchNumber(supabase: any, deliveryDate: string): Promise<string> {
+  const dateParts = deliveryDate.split("-");
+  const mmDd = `${dateParts[1]}-${dateParts[2]}`;
+  const { data: existing } = await supabase
+    .from("sales_orders")
+    .select("order_number")
+    .like("order_number", `DP-${mmDd}-%`)
+    .is("deleted_at", null);
+
+  let maxSeq = 0;
+  for (const order of (existing || []) as any[]) {
+    const num = order.order_number;
+    const parts = num.split("-");
+    const seq = Number(parts[3]);
+    if (!isNaN(seq) && seq > maxSeq) {
+      maxSeq = seq;
+    }
+  }
+  return `DP-${mmDd}-${String(maxSeq + 1).padStart(2, "0")}`;
+}
+
 export async function confirmMultipleSalesDeliveries(
   selectedItemIds: string[],
   itemRolls: Record<string, string[]>,
@@ -3016,6 +3037,14 @@ export async function confirmMultipleSalesDeliveries(
     throw new Error("Selected items not found.");
   }
 
+  // Validate that all selected items belong to the same customer
+  const customerIds = Array.from(new Set(selectedItems.map((it: any) => it.sales_orders?.customer_id)));
+  if (customerIds.length > 1) {
+    throw new Error("All selected items must belong to the same customer for delivery confirmation.");
+  }
+  const customerId = customerIds[0];
+  const gstRate = selectedItems[0]?.sales_orders?.gst_rate ?? 18;
+
   // Fetch roll weights for fabric allocations
   const allNewRollIds = Object.values(itemRolls).flat();
   const rollsData: Record<string, number> = {};
@@ -3030,7 +3059,7 @@ export async function confirmMultipleSalesDeliveries(
     }
   }
 
-  // Group selected items by order ID
+  // Group selected items by their original parent order ID (to check for empty drafts later)
   const itemsByOrderId: Record<string, any[]> = {};
   for (const item of selectedItems) {
     const oId = item.sales_order_id;
@@ -3039,206 +3068,148 @@ export async function confirmMultipleSalesDeliveries(
     }
     itemsByOrderId[oId].push(item);
   }
-
   const parentOrderIds = Object.keys(itemsByOrderId);
 
-  // Process confirmation and splitting for each parent order
-  for (const oId of parentOrderIds) {
-    const selectedInThisOrder = itemsByOrderId[oId];
-    const parentOrder = selectedInThisOrder[0].sales_orders;
+  // Generate the next unique dispatch number e.g. DP-MM-DD-SS
+  const dateStr = deliveryDate || todayInIndia();
+  const dispatchOrderNumber = await generateNextDispatchNumber(supabase, dateStr);
 
-    // Fetch all items currently in this parent order
-    const { data: allItemsInOrder, error: fetchError } = await (supabase
-      .from("sales_order_items") as any)
-      .select("id, department, product_id, quantity, price, selected_roll_ids")
-      .eq("sales_order_id", oId);
+  // Create the consolidated confirmed dispatch order
+  const { data: newDispatchOrder, error: createDispatchError } = await (supabase
+    .from("sales_orders") as any)
+    .insert({
+      customer_id: customerId,
+      order_number: dispatchOrderNumber,
+      order_date: dateStr,
+      status: "confirmed",
+      is_draft_billing: false,
+      gst_rate: gstRate,
+      selected_roll_ids: allNewRollIds,
+      created_by: user.id,
+      updated_by: user.id
+    })
+    .select("id")
+    .single();
 
-    if (fetchError || !allItemsInOrder) {
-      throw new Error(`Failed to fetch items for order ${oId}`);
-    }
+  if (createDispatchError || !newDispatchOrder) {
+    throw new Error(`Failed to create dispatch order: ${createDispatchError?.message}`);
+  }
 
-    const selectedIdsSet = new Set(selectedInThisOrder.map((it: any) => it.id));
-    const unselectedInThisOrder = allItemsInOrder.filter((it: any) => !selectedIdsSet.has(it.id));
+  const newDispatchOrderId = newDispatchOrder.id;
 
-    // 1. If there are unselected items, split the order (clone for unselected, keep original for selected/confirmed)
-    if (unselectedInThisOrder.length > 0) {
-      const clonePayload = {
-        order_number: parentOrder.order_number,
-        order_date: parentOrder.order_date,
-        customer_id: parentOrder.customer_id,
-        status: "draft", // Unselected items remain in draft state
-        bill_number: null,
-        bill_value: null,
-        gst_rate: parentOrder.gst_rate,
-        selected_roll_ids: [],
-        created_by: user.id,
-        updated_by: user.id
-      };
+  // Process item updates and roll allocations
+  for (const item of selectedItems) {
+    const newRollIds = itemRolls[item.id] || [];
+    const oldRollIds = (item.selected_roll_ids as string[]) || [];
+    const action = itemRemainingActions[item.id] || "close";
 
-      const { data: clonedOrder, error: cloneError } = await (supabase
-        .from("sales_orders") as any)
-        .insert(clonePayload)
-        .select("id")
-        .single();
+    if (item.department === "fabric") {
+      const deliveredWeight = newRollIds.reduce((sum, rid) => sum + (rollsData[rid] || 0), 0);
 
-      if (cloneError || !clonedOrder) {
-        throw new Error(`Failed to split draft order: ${cloneError?.message}`);
-      }
+      if (deliveredWeight < item.quantity) {
+        if (action === "backorder") {
+          const remainingQty = item.quantity - deliveredWeight;
+          if (deliveredWeight > 0) {
+            // Move item to the dispatch order with the delivered weight and roll IDs
+            const { error: updateItemError } = await (supabase
+              .from("sales_order_items") as any)
+              .update({
+                sales_order_id: newDispatchOrderId,
+                selected_roll_ids: newRollIds,
+                quantity: deliveredWeight,
+              } as any)
+              .eq("id", item.id);
+            if (updateItemError) throw new Error(updateItemError.message);
 
-      // Move unselected items to the cloned draft order
-      for (const unselectedItem of unselectedInThisOrder) {
-        const { error: moveError } = await (supabase
-          .from("sales_order_items") as any)
-          .update({ sales_order_id: clonedOrder.id })
-          .eq("id", unselectedItem.id);
-        if (moveError) {
-          throw new Error(`Failed to move unselected items to cloned draft order: ${moveError.message}`);
-        }
-      }
-    }
-
-    // 2. Process roll allocations and backorders for the confirmed items in the original order
-    const backorderItems: Array<{ department: string; product_id: string; quantity: number }> = [];
-    const confirmedItemsToKeep: string[] = [];
-
-    for (const item of selectedInThisOrder) {
-      const newRollIds = itemRolls[item.id] || [];
-      const oldRollIds = (item.selected_roll_ids as string[]) || [];
-      const action = itemRemainingActions[item.id] || "close";
-
-      if (item.department === "fabric") {
-        const deliveredWeight = newRollIds.reduce((sum, rid) => sum + (rollsData[rid] || 0), 0);
-
-        if (deliveredWeight < item.quantity) {
-          if (action === "backorder") {
-            const remainingQty = item.quantity - deliveredWeight;
-            if (deliveredWeight > 0) {
-              const { error: updateItemError } = await (supabase
-                .from("sales_order_items") as any)
-                .update({
-                  selected_roll_ids: newRollIds,
-                  quantity: deliveredWeight,
-                } as any)
-                .eq("id", item.id);
-              if (updateItemError) throw new Error(updateItemError.message);
-              confirmedItemsToKeep.push(item.id);
-
-              backorderItems.push({
+            // Insert a new backordered item in the original order
+            const { error: boInsertError } = await (supabase
+              .from("sales_order_items") as any)
+              .insert({
+                sales_order_id: item.sales_order_id,
                 department: item.department,
                 product_id: item.product_id,
                 quantity: remainingQty,
+                price: item.price,
+                selected_roll_ids: [],
               });
-            } else {
-              const { error: deleteItemError } = await (supabase
-                .from("sales_order_items") as any)
-                .delete()
-                .eq("id", item.id);
-              if (deleteItemError) throw new Error(deleteItemError.message);
-
-              backorderItems.push({
-                department: item.department,
-                product_id: item.product_id,
-                quantity: item.quantity,
-              });
-            }
+            if (boInsertError) throw new Error("Failed to create backordered item.");
           } else {
-            if (deliveredWeight > 0) {
-              const { error: updateItemError } = await (supabase
-                .from("sales_order_items") as any)
-                .update({
-                  selected_roll_ids: newRollIds,
-                  quantity: deliveredWeight,
-                } as any)
-                .eq("id", item.id);
-              if (updateItemError) throw new Error(updateItemError.message);
-              confirmedItemsToKeep.push(item.id);
-            } else {
-              const { error: deleteItemError } = await (supabase
-                .from("sales_order_items") as any)
-                .delete()
-                .eq("id", item.id);
-              if (deleteItemError) throw new Error(deleteItemError.message);
-            }
+            // 0 delivered, just leave it as is in the original draft order
           }
         } else {
-          const { error: updateItemError } = await (supabase
-            .from("sales_order_items") as any)
-            .update({
-              selected_roll_ids: newRollIds,
-              quantity: deliveredWeight,
-            } as any)
-            .eq("id", item.id);
-          if (updateItemError) throw new Error(updateItemError.message);
-          confirmedItemsToKeep.push(item.id);
-        }
-
-        const releasedRollIds = oldRollIds.filter((id) => !newRollIds.includes(id));
-        if (releasedRollIds.length > 0) {
-          const { error: releaseError } = await (supabase
-            .from("fabric_rolls") as any)
-            .update({ status: "available", updated_by: user.id } as any)
-            .in("id", releasedRollIds);
-          if (releaseError) throw new Error(releaseError.message);
-        }
-
-        if (newRollIds.length > 0) {
-          const { error: allocateError } = await (supabase
-            .from("fabric_rolls") as any)
-            .update({ status: "sold", updated_by: user.id } as any)
-            .in("id", newRollIds);
-          if (allocateError) throw new Error(allocateError.message);
+          // close it (no backorder), update weight and move to dispatch order
+          if (deliveredWeight > 0) {
+            const { error: updateItemError } = await (supabase
+              .from("sales_order_items") as any)
+              .update({
+                sales_order_id: newDispatchOrderId,
+                selected_roll_ids: newRollIds,
+                quantity: deliveredWeight,
+              } as any)
+              .eq("id", item.id);
+            if (updateItemError) throw new Error(updateItemError.message);
+          } else {
+            // 0 delivered and closed - delete from the original order
+            const { error: deleteItemError } = await (supabase
+              .from("sales_order_items") as any)
+              .delete()
+              .eq("id", item.id);
+            if (deleteItemError) throw new Error(deleteItemError.message);
+          }
         }
       } else {
-        confirmedItemsToKeep.push(item.id);
+        // Fully delivered: move to dispatch order
+        const { error: updateItemError } = await (supabase
+          .from("sales_order_items") as any)
+          .update({
+            sales_order_id: newDispatchOrderId,
+            selected_roll_ids: newRollIds,
+            quantity: deliveredWeight,
+          } as any)
+          .eq("id", item.id);
+        if (updateItemError) throw new Error(updateItemError.message);
       }
-    }
 
-    // Insert backordered items into a new draft order if any exist
-    if (backorderItems.length > 0) {
-      const { data: newOrder, error: newOrderError } = await (supabase
-        .from("sales_orders") as any)
-        .insert({
-          customer_id: parentOrder.customer_id,
-          order_date: parentOrder.order_date,
-          order_number: parentOrder.order_number,
-          status: "draft",
-          created_by: user.id,
-          updated_by: user.id,
-        } as any)
-        .select("id")
-        .single();
+      // Update roll statuses
+      const releasedRollIds = oldRollIds.filter((id) => !newRollIds.includes(id));
+      if (releasedRollIds.length > 0) {
+        const { error: releaseError } = await (supabase
+          .from("fabric_rolls") as any)
+          .update({ status: "available", updated_by: user.id } as any)
+          .in("id", releasedRollIds);
+        if (releaseError) throw new Error(releaseError.message);
+      }
 
-      if (newOrderError) throw new Error("Failed to create backorder sales order.");
-
-      const backorderItemsPayload = backorderItems.map((bo) => ({
-        sales_order_id: (newOrder as any).id,
-        department: bo.department,
-        product_id: bo.product_id,
-        quantity: bo.quantity,
-        selected_roll_ids: [],
-      }));
-
-      const { error: boInsertError } = await (supabase
-        .from("sales_order_items") as any)
-        .insert(backorderItemsPayload);
-      if (boInsertError) throw new Error("Failed to create backordered items.");
-    }
-
-    // Mark the original order as confirmed containing only confirmed/delivered items
-    if (confirmedItemsToKeep.length > 0) {
-      const { error: orderError } = await (supabase
-        .from("sales_orders") as any)
-        .update({
-          status: "confirmed",
-          order_date: deliveryDate || todayInIndia(),
-          selected_roll_ids: selectedInThisOrder.reduce((acc: string[], it: any) => [...acc, ...(itemRolls[it.id] ?? [])], []),
-          updated_by: user.id
-        } as any)
-        .eq("id", oId);
-
-      if (orderError) throw new Error(orderError.message);
+      if (newRollIds.length > 0) {
+        const { error: allocateError } = await (supabase
+          .from("fabric_rolls") as any)
+          .update({ status: "sold", updated_by: user.id } as any)
+          .in("id", newRollIds);
+        if (allocateError) throw new Error(allocateError.message);
+      }
     } else {
-      // If no items remain, delete the empty order
+      // Non-fabric items (move to dispatch order directly)
+      const { error: updateItemError } = await (supabase
+        .from("sales_order_items") as any)
+        .update({
+          sales_order_id: newDispatchOrderId,
+        } as any)
+        .eq("id", item.id);
+      if (updateItemError) throw new Error(updateItemError.message);
+    }
+  }
+
+  // 4. Delete parent draft orders if they are now empty
+  for (const oId of parentOrderIds) {
+    const { data: remainingItems, error: countError } = await (supabase
+      .from("sales_order_items") as any)
+      .select("id")
+      .eq("sales_order_id", oId);
+
+    if (countError) throw new Error("Failed to count remaining items in draft order.");
+
+    if (!remainingItems || remainingItems.length === 0) {
+      console.log(`Deleting empty original draft order: ${oId}`);
       const { error: deleteOrderError } = await (supabase
         .from("sales_orders") as any)
         .delete()

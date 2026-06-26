@@ -992,7 +992,7 @@ export function OrderConfirmationWorkspace({
           <DialogHeader>
             <DialogTitle className="text-emerald-950 font-bold">Confirm Delivery Dispatch</DialogTitle>
             <DialogDescription>
-              Review the items and fabric rolls staged for dispatch on <strong className="text-slate-800">{formatDate(deliveryDate)}</strong>:
+              Review the items and fabric rolls staged for dispatch on <strong className="text-slate-800">{formatDate(deliveryDate)}</strong> (this will consolidate them into a single dispatch note):
             </DialogDescription>
           </DialogHeader>
 
