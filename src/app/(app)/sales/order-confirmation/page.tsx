@@ -61,10 +61,10 @@ export default async function OrderConfirmationPage({
 
   const [availableRollsResult, selectedRollsResult, fabrics, rotoProducts, offsetProducts] = await Promise.all([
     uniqueNeededFabricTypeIds.length > 0
-      ? supabase.from("fabric_rolls").select(rollSelect).in("fabric_type_id", uniqueNeededFabricTypeIds).eq("status", "available").is("deleted_at", null).order("roll_number", { ascending: true })
+      ? supabase.from("fabric_rolls").select(rollSelect).in("fabric_type_id", uniqueNeededFabricTypeIds).eq("status", "available").is("deleted_at", null).order("id", { ascending: true }).limit(10000)
       : Promise.resolve({ data: [], error: null }),
     uniqueRollIds.length > 0
-      ? supabase.from("fabric_rolls").select(rollSelect).in("id", uniqueRollIds).is("deleted_at", null).order("roll_number", { ascending: true })
+      ? supabase.from("fabric_rolls").select(rollSelect).in("id", uniqueRollIds).is("deleted_at", null).order("id", { ascending: true }).limit(10000)
       : Promise.resolve({ data: [], error: null }),
     supabase.from("fabric_types").select("id, fabric_name"),
     supabase.from("roto_products").select("id, brand, width, height"),

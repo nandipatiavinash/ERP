@@ -52,7 +52,47 @@ export default async function MaterialSalesPage({
       .order("created_at", { ascending: false }),
   ]);
 
-  const clients = ((clientsRes.data ?? []) as any[]).filter((c) => !c.customer_name.endsWith(" A/c"));
+  const isActualClient = (name: string) => {
+    const n = name.trim().toLowerCase();
+    if (n.endsWith(" a/c") || n.endsWith(" a/c.")) return false;
+    const blacklist = [
+      "cash",
+      "sbi",
+      "icici",
+      "rent",
+      "salaries",
+      "salary",
+      "power bill",
+      "electricity",
+      "machinary",
+      "machinery",
+      "misc",
+      "sales",
+      "purchase",
+      "roundoff",
+      "round off",
+      "bank charges",
+      "equitas",
+      "cgst",
+      "sgst",
+      "igst",
+      "gst",
+      "tds",
+      "tcs",
+      "capital",
+      "drawings",
+      "depreciation",
+      "opening balance",
+      "ca",
+      "cc",
+    ];
+    return !blacklist.some((keyword) => {
+      const regex = new RegExp(`\\b${keyword}\\b`, "i");
+      return regex.test(n);
+    });
+  };
+
+  const clients = ((clientsRes.data ?? []) as any[]).filter((c) => isActualClient(c.customer_name));
   const rawMaterials = (materialsRes.data ?? []) as any[];
   const sales = (salesRes.data ?? []) as any[];
 

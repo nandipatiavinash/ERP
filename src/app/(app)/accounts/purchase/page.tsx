@@ -45,8 +45,48 @@ export default async function PurchaseEntryPage({
       .order("created_at", { ascending: false }),
   ]);
 
+  const isActualClient = (name: string) => {
+    const n = name.trim().toLowerCase();
+    if (n.endsWith(" a/c") || n.endsWith(" a/c.")) return false;
+    const blacklist = [
+      "cash",
+      "sbi",
+      "icici",
+      "rent",
+      "salaries",
+      "salary",
+      "power bill",
+      "electricity",
+      "machinary",
+      "machinery",
+      "misc",
+      "sales",
+      "purchase",
+      "roundoff",
+      "round off",
+      "bank charges",
+      "equitas",
+      "cgst",
+      "sgst",
+      "igst",
+      "gst",
+      "tds",
+      "tcs",
+      "capital",
+      "drawings",
+      "depreciation",
+      "opening balance",
+      "ca",
+      "cc",
+    ];
+    return !blacklist.some((keyword) => {
+      const regex = new RegExp(`\\b${keyword}\\b`, "i");
+      return regex.test(n);
+    });
+  };
+
   const activeMaterials = (materials ?? []).filter((m: any) => m.status === "active");
-  const customerList = ((customers ?? []) as any[]).filter((c) => !c.customer_name.endsWith(" A/c"));
+  const customerList = ((customers ?? []) as any[]).filter((c) => isActualClient(c.customer_name));
   const purchaseRows = (purchases ?? []) as any[];
 
   return (

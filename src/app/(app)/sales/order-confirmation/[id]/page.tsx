@@ -46,10 +46,10 @@ export default async function OrderWorkspacePage({
   // 2. Fetch available and selected rolls in parallel
   const [availableRollsResult, selectedRollsResult] = await Promise.all([
     fabricTypeIds.length > 0
-      ? supabase.from("fabric_rolls").select(rollSelect).in("fabric_type_id", fabricTypeIds).eq("status", "available").is("deleted_at", null).order("roll_number", { ascending: true })
+      ? supabase.from("fabric_rolls").select(rollSelect).in("fabric_type_id", fabricTypeIds).eq("status", "available").is("deleted_at", null).order("id", { ascending: true }).limit(10000)
       : Promise.resolve({ data: [], error: null }),
     selectedRollIds.length > 0
-      ? supabase.from("fabric_rolls").select(rollSelect).in("id", selectedRollIds).is("deleted_at", null).order("roll_number", { ascending: true })
+      ? supabase.from("fabric_rolls").select(rollSelect).in("id", selectedRollIds).is("deleted_at", null).order("id", { ascending: true }).limit(10000)
       : Promise.resolve({ data: [], error: null }),
   ]);
   if (availableRollsResult.error) throw new Error(availableRollsResult.error.message);
