@@ -36,25 +36,33 @@ export default async function OrderConfirmationPage({
 
   if (confirmedError) throw new Error(confirmedError.message);
 
-  // 3. Gather roll IDs
+  // 3. Gather roll IDs and needed fabric type IDs
   const allOrders = [
     ...((draftOrders ?? []) as any[]),
     ...((confirmedOrders ?? []) as any[])
   ];
   const allRollIds: string[] = [];
+  const neededFabricTypeIds: string[] = [];
+
   for (const order of allOrders) {
     for (const item of (order.sales_order_items ?? [])) {
       const ids = (item.selected_roll_ids ?? []) as string[];
       allRollIds.push(...ids);
+      if (item.department === "fabric" && item.product_id) {
+        neededFabricTypeIds.push(item.product_id);
+      }
     }
   }
   const uniqueRollIds = Array.from(new Set(allRollIds));
+  const uniqueNeededFabricTypeIds = Array.from(new Set(neededFabricTypeIds));
 
   // 4. Fetch available rolls and selected rolls in parallel
   const rollSelect = "id, roll_number, meters, weight, status, fabric_type_id, looms(loom_number), loom_production_entries(gross_weight, core_weight, net_weight, net_meters, average_meter_weight)";
 
   const [availableRollsResult, selectedRollsResult, fabrics, rotoProducts, offsetProducts] = await Promise.all([
-    supabase.from("fabric_rolls").select(rollSelect).eq("status", "available").is("deleted_at", null).order("roll_number", { ascending: true }),
+    uniqueNeededFabricTypeIds.length > 0
+      ? supabase.from("fabric_rolls").select(rollSelect).in("fabric_type_id", uniqueNeededFabricTypeIds).eq("status", "available").is("deleted_at", null).order("roll_number", { ascending: true })
+      : Promise.resolve({ data: [], error: null }),
     uniqueRollIds.length > 0
       ? supabase.from("fabric_rolls").select(rollSelect).in("id", uniqueRollIds).is("deleted_at", null).order("roll_number", { ascending: true })
       : Promise.resolve({ data: [], error: null }),
