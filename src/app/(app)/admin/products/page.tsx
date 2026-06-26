@@ -65,8 +65,48 @@ export default async function ProductsAdminPage({ searchParams }: { searchParams
     .is("deleted_at", null)
     .order("customer_name");
 
+  const isActualClient = (name: string) => {
+    const n = name.trim().toLowerCase();
+    if (n.endsWith(" a/c") || n.endsWith(" a/c.")) return false;
+    const blacklist = [
+      "cash",
+      "sbi",
+      "icici",
+      "rent",
+      "salaries",
+      "salary",
+      "power bill",
+      "electricity",
+      "machinary",
+      "machinery",
+      "misc",
+      "sales",
+      "purchase",
+      "roundoff",
+      "round off",
+      "bank charges",
+      "equitas",
+      "cgst",
+      "sgst",
+      "igst",
+      "gst",
+      "tds",
+      "tcs",
+      "capital",
+      "drawings",
+      "depreciation",
+      "opening balance",
+      "ca",
+      "cc",
+    ];
+    return !blacklist.some((keyword) => {
+      const regex = new RegExp(`\\b${keyword}\\b`, "i");
+      return regex.test(n);
+    });
+  };
+
   const clientList = ((dbCustomers ?? []) as any[])
-    .filter((c) => !c.customer_name.endsWith(" A/c"))
+    .filter((c) => isActualClient(c.customer_name))
     .map((c) => ({ id: c.id, name: c.customer_name, alias: c.alias }));
 
   let colorsList: any[] = [];
