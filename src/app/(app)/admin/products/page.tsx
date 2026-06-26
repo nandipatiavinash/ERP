@@ -160,13 +160,13 @@ export default async function ProductsAdminPage({ searchParams }: { searchParams
                   <Label htmlFor="brand">Brand</Label>
                   <Input id="brand" name="brand" placeholder="e.g. RK-Rotogravure" required />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="width">Width (inches)</Label>
-                  <Input id="width" name="width" type="number" step="0.01" placeholder="e.g. 24.50" required />
+                 <div className="space-y-2">
+                  <Label htmlFor="width">Width (mm)</Label>
+                  <Input id="width" name="width" type="number" step="0.01" placeholder="e.g. 600.00" required />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="height">Height (inches)</Label>
-                  <Input id="height" name="height" type="number" step="0.01" placeholder="e.g. 36.00" required />
+                  <Label htmlFor="height">Height (mm)</Label>
+                  <Input id="height" name="height" type="number" step="0.01" placeholder="e.g. 900.00" required />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="num_cylinders">Number of Cylinders</Label>
@@ -174,7 +174,7 @@ export default async function ProductsAdminPage({ searchParams }: { searchParams
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="image_file">Product Image File</Label>
-                  <Input id="image_file" name="image_file" type="file" accept="image/*" required />
+                  <Input id="image_file" name="image_file" type="file" accept="image/*" />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="customer_id">Client / Customer</Label>
@@ -266,7 +266,7 @@ export default async function ProductsAdminPage({ searchParams }: { searchParams
                             />
                           </TableCell>
                           <TableCell className="font-semibold">{row.brand}</TableCell>
-                          <TableCell>{row.width} &times; {row.height} in</TableCell>
+                           <TableCell>{row.width} &times; {row.height} mm</TableCell>
                           <TableCell>{row.num_cylinders}</TableCell>
                           <TableCell>
                             <StatusBadge value={row.status} />
@@ -282,11 +282,11 @@ export default async function ProductsAdminPage({ searchParams }: { searchParams
                                   <Input name="brand" defaultValue={row.brand} required />
                                 </div>
                                 <div className="space-y-2">
-                                  <Label>Width (inches)</Label>
+                                  <Label>Width (mm)</Label>
                                   <Input name="width" type="number" step="0.01" defaultValue={row.width} required />
                                 </div>
                                 <div className="space-y-2">
-                                  <Label>Height (inches)</Label>
+                                  <Label>Height (mm)</Label>
                                   <Input name="height" type="number" step="0.01" defaultValue={row.height} required />
                                 </div>
                                 <div className="space-y-2">

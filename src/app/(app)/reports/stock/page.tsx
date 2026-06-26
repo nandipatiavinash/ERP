@@ -15,7 +15,7 @@ export default async function StockReportPage({ searchParams }: { searchParams: 
 
   const [
     { data: rawMaterials },
-    { data: purchases },
+    purchases,
     { data: consumptions },
     { data: sales },
     { data: fabricTypes },
@@ -30,11 +30,13 @@ export default async function StockReportPage({ searchParams }: { searchParams: 
       .select("id, material_name, unit, current_stock, department")
       .is("deleted_at", null)
       .order("material_name"),
-    supabase
-      .from("raw_material_purchases")
-      .select("raw_material_id, purchase_date, quantity")
-      .gte("purchase_date", from)
-      .is("deleted_at", null),
+    fetchPagedData(
+      supabase
+        .from("raw_material_purchases")
+        .select("id, raw_material_id, purchase_date, supplier_name, bill_number, quantity, rate, total_amount")
+        .gte("purchase_date", from)
+        .is("deleted_at", null)
+    ),
     (supabase.from("raw_material_consumptions") as any)
       .select("raw_material_id, consumption_date, quantity")
       .gte("consumption_date", from)

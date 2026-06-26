@@ -174,7 +174,7 @@ export function OrderConfirmationWorkspace({
       return f ? f.fabric_name : "Fabric Product";
     } else if (dept === "roto-printing") {
       const r = rotoProducts.find((x) => x.id === productId);
-      return r ? `${r.brand} (${r.width}x${r.height} in)` : "Roto Product";
+      return r ? `${r.brand} (${r.width}x${r.height} mm)` : "Roto Product";
     } else if (dept === "offset-printing") {
       const o = offsetProducts.find((x) => x.id === productId);
       return o ? `${o.brand} (${o.width}x${o.height} in)` : "Offset Product";
