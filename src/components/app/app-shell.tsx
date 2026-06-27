@@ -44,6 +44,20 @@ function NavLinks({ groups, onNavigate }: { groups: NavGroup[]; onNavigate?: () 
 
   return (
     <nav className="space-y-1.5 p-3 overflow-y-auto max-h-[calc(100vh-4rem)]">
+      <Link
+        href="/dashboard"
+        prefetch={false}
+        onPointerEnter={() => router.prefetch("/dashboard")}
+        onFocus={() => router.prefetch("/dashboard")}
+        onClick={onNavigate}
+        className={cn(
+          "flex min-h-10 items-center rounded-md px-3 py-2 text-sm font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+          pathname === "/dashboard" && "bg-muted font-bold text-foreground"
+        )}
+      >
+        Dashboard
+      </Link>
+      <div className="h-px bg-muted my-1.5" />
       {groups.map((group) => {
         const isExpanded = !!expanded[group.key];
         const hasActiveItem = group.items.some((item) => pathname === item.href);

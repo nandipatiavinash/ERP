@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition, useMemo } from "react";
-import { Check, Printer, ChevronRight, ChevronDown, Search, Trash2, Package, RotateCcw } from "lucide-react";
+import { Check, Printer, ChevronRight, ChevronDown, Search, Trash2, Package, RotateCcw, ChevronLeft } from "lucide-react";
 import { confirmMultipleSalesDeliveries, deleteSalesOrderItem } from "@/app/(app)/_actions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/app/status-badge";
@@ -100,6 +100,7 @@ export function DeliveryEntryWorkspace({
   singleViewMode = false,
 }: DeliveryEntryWorkspaceProps) {
   const [activeTab, setActiveTab] = useState<"pending" | "confirmed">("pending");
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [isPending, startTransition] = useTransition();
 
@@ -144,7 +145,7 @@ export function DeliveryEntryWorkspace({
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>(() => {
     const initialExpand: Record<string, boolean> = {};
     initialItems.forEach((item) => {
-      initialExpand[item.id] = item.department === "fabric";
+      initialExpand[item.id] = false;
     });
     return initialExpand;
   });
@@ -234,7 +235,7 @@ export function DeliveryEntryWorkspace({
 
     items.forEach((item) => {
       initialAlloc[item.id] = item.selected_roll_ids || [];
-      initialExpand[item.id] = item.department === "fabric";
+      initialExpand[item.id] = false;
       initialRemaining[item.id] = "backorder";
     });
 
@@ -242,6 +243,7 @@ export function DeliveryEntryWorkspace({
     setExpandedItems(initialExpand);
     setItemRemainingActions(initialRemaining);
     setSelectedItemIds(items.map((i) => i.id)); // Select all items by default
+    setIsSidebarCollapsed(true); // Automatically collapse sidebar when customer is selected
   };
 
   // Toggle item checking
@@ -530,7 +532,7 @@ export function DeliveryEntryWorkspace({
       {activeTab === "pending" ? (
         <div className="flex flex-col xl:flex-row gap-6 items-stretch">
           {/* Left Panel: Customer list with draft orders */}
-          {!singleViewMode && (
+          {!singleViewMode && !isSidebarCollapsed && (
             <div className="w-full xl:w-80 shrink-0 flex flex-col gap-4 no-print">
               <Card className="h-[calc(100vh-14rem)] flex flex-col overflow-hidden">
                 <CardHeader className="p-4 border-b">
@@ -613,6 +615,21 @@ export function DeliveryEntryWorkspace({
                         Confirm Delivery Workspace
                       </div>
                       <CardTitle className="text-xl font-black mt-1 text-emerald-950 flex flex-wrap items-center gap-3">
+                        {!singleViewMode && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                            className="h-8 w-8 text-slate-500 hover:text-slate-900 shrink-0"
+                            title={isSidebarCollapsed ? "Show Customer List" : "Hide Customer List"}
+                          >
+                            {isSidebarCollapsed ? (
+                              <ChevronRight className="h-5 w-5" />
+                            ) : (
+                              <ChevronLeft className="h-5 w-5" />
+                            )}
+                          </Button>
+                        )}
                         <span>{orders.find((o) => o.customer_id === selectedCustomerId)?.customers?.customer_name}</span>
                         {totalSelectedWeight > 0 && (
                           <span className="text-sm font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
