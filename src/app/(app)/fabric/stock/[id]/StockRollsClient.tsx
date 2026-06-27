@@ -181,9 +181,9 @@ function RollsTable({
         <TableHeader>
           <TableRow>
             <SortableHead col="roll_number" label="S.No" sortKey={sortKey} sortDir={sortDir} onSort={onSort} />
-            <SortableHead col="net_weight" label="Net W8" sortKey={sortKey} sortDir={sortDir} onSort={onSort} className="text-right" />
-            <SortableHead col="core_weight" label="Core W8" sortKey={sortKey} sortDir={sortDir} onSort={onSort} className="text-right" />
             <SortableHead col="gross_weight" label="Gross W8" sortKey={sortKey} sortDir={sortDir} onSort={onSort} className="text-right" />
+            <SortableHead col="core_weight" label="Core W8" sortKey={sortKey} sortDir={sortDir} onSort={onSort} className="text-right" />
+            <SortableHead col="net_weight" label="Net W8" sortKey={sortKey} sortDir={sortDir} onSort={onSort} className="text-right" />
             <SortableHead col="net_meters" label="Mtrs" sortKey={sortKey} sortDir={sortDir} onSort={onSort} className="text-right" />
             <SortableHead col="avg_meter_weight" label="Avg Mtrs" sortKey={sortKey} sortDir={sortDir} onSort={onSort} className="text-right" />
             <SortableHead col="loom_number" label="Loom" sortKey={sortKey} sortDir={sortDir} onSort={onSort} />
@@ -200,9 +200,9 @@ function RollsTable({
             return (
               <TableRow key={roll.id} className="hover:bg-muted/30">
                 <TableCell className="font-bold text-emerald-950">{roll.roll_number}</TableCell>
-                <TableCell className="text-right font-medium text-emerald-900">{formatNumber(lpe?.net_weight, 2)}</TableCell>
-                <TableCell className="text-right text-muted-foreground">{formatNumber(lpe?.core_weight, 2)}</TableCell>
                 <TableCell className="text-right text-muted-foreground">{formatNumber(lpe?.gross_weight, 2)}</TableCell>
+                <TableCell className="text-right text-muted-foreground">{formatNumber(lpe?.core_weight, 2)}</TableCell>
+                <TableCell className="text-right font-medium text-emerald-900">{formatNumber(lpe?.net_weight, 2)}</TableCell>
                 <TableCell className="text-right font-medium text-emerald-900">{formatNumber(Math.floor(lpe?.net_meters ?? 0), 0)}</TableCell>
                 <TableCell className="text-right text-muted-foreground">{formatNumber(Math.floor(lpe?.average_meter_weight ?? 0), 0)}</TableCell>
                 <TableCell className="font-medium">{roll.looms?.loom_number ?? "N/A"}</TableCell>

@@ -3,7 +3,7 @@ import { ArrowLeft } from "lucide-react";
 import { notFound } from "next/navigation";
 import { requirePermission } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { OrderConfirmationWorkspace } from "../OrderConfirmationWorkspace";
+import { DeliveryEntryWorkspace } from "../DeliveryEntryWorkspace";
 import { Button } from "@/components/ui/button";
 
 export default async function OrderWorkspacePage({
@@ -63,14 +63,14 @@ export default async function OrderWorkspacePage({
   return (
     <div className="space-y-6">
       <div className="no-print mb-4">
-        <Link href={"/sales/order-confirmation" as any} passHref>
+        <Link href={"/sales/delivery-entry" as any} passHref>
           <Button variant="ghost" className="gap-2 text-muted-foreground hover:text-foreground">
             <ArrowLeft className="h-4 w-4" /> Back to Delivery Entry List
           </Button>
         </Link>
       </div>
 
-      <OrderConfirmationWorkspace
+      <DeliveryEntryWorkspace
         orders={[order] as any[]}
         fabrics={(fabrics ?? []) as any[]}
         rotoProducts={(rotoProducts ?? []) as any[]}

@@ -951,7 +951,7 @@ export async function createSalesOrder(formData: FormData) {
     if (itemsError) throw new Error(itemsError.message);
   }
 
-  revalidatePath("/sales/delivery-entry");
+  revalidatePath("/sales/order-confirmation");
 }
 
 export async function deleteSalesOrderItem(itemId: string) {
@@ -1000,7 +1000,7 @@ export async function deleteSalesOrderItem(itemId: string) {
     if (deleteOrderError) throw new Error(deleteOrderError.message);
   }
 
-  revalidatePath("/sales/order-confirmation");
+  revalidatePath("/sales/delivery-entry");
   revalidatePath("/rolls");
   revalidatePath("/fabric/stock");
   revalidatePath("/accounts/sales");
@@ -1180,7 +1180,7 @@ export async function confirmSalesDelivery(
     if (deleteOrderError) throw new Error(deleteOrderError.message);
   }
 
-  revalidatePath("/sales/order-confirmation");
+  revalidatePath("/sales/delivery-entry");
   revalidatePath("/rolls");
   revalidatePath("/fabric/stock");
   revalidatePath("/accounts/sales");
@@ -1727,7 +1727,7 @@ export async function finalizeSalesOrderBilling(formData: FormData) {
   if (skipJournal) {
     revalidatePath("/accounts/sales");
     revalidatePath("/accounts/journal");
-    revalidatePath("/sales/order-confirmation");
+    revalidatePath("/sales/delivery-entry");
     revalidatePath("/reports");
     return;
   }
@@ -1770,7 +1770,7 @@ export async function finalizeSalesOrderBilling(formData: FormData) {
 
   revalidatePath("/accounts/sales");
   revalidatePath("/accounts/journal");
-  revalidatePath("/sales/order-confirmation");
+  revalidatePath("/sales/delivery-entry");
   revalidatePath("/reports");
 }
 
@@ -1862,8 +1862,8 @@ export async function deleteSalesOrderCompletely(orderId: string) {
     throw new Error("Failed to delete sales order: " + orderDelErr.message);
   }
 
-  revalidatePath("/sales/delivery-entry");
   revalidatePath("/sales/order-confirmation");
+  revalidatePath("/sales/delivery-entry");
   revalidatePath("/accounts/sales");
   revalidatePath("/accounts/journal");
   revalidatePath("/rolls");
@@ -3283,7 +3283,7 @@ export async function confirmMultipleSalesDeliveries(
     }
   }
 
-  revalidatePath("/sales/order-confirmation");
+  revalidatePath("/sales/delivery-entry");
   revalidatePath("/accounts/sales");
   revalidatePath("/rolls");
   revalidatePath("/fabric/stock");
@@ -3358,7 +3358,7 @@ export async function saveSalesOrderBillingDirect(formData: FormData) {
   if (skipJournal) {
     revalidatePath("/accounts/sales");
     revalidatePath("/accounts/journal");
-    revalidatePath("/sales/order-confirmation");
+    revalidatePath("/sales/delivery-entry");
     revalidatePath("/reports");
     return;
   }
@@ -3401,7 +3401,7 @@ export async function saveSalesOrderBillingDirect(formData: FormData) {
 
   revalidatePath("/accounts/sales");
   revalidatePath("/accounts/journal");
-  revalidatePath("/sales/order-confirmation");
+  revalidatePath("/sales/delivery-entry");
   revalidatePath("/reports");
 }
 

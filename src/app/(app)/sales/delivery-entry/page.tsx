@@ -1,148 +1,96 @@
-import { DeliveryEntryForm } from "@/components/app/delivery-entry-form";
-import { DeleteOrderButton } from "@/components/app/delete-order-button";
-import { PageHeader } from "@/components/app/page-header";
-import { StatusBadge } from "@/components/app/status-badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { EmptyState } from "@/components/ui/empty-state";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { requirePermission } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { formatDate, formatNumber, todayInIndia } from "@/lib/utils";
-import { DateFilter } from "@/components/app/date-filter";
+import { todayInIndia } from "@/lib/utils";
+import { DeliveryEntryWorkspace } from "./DeliveryEntryWorkspace";
 
 export default async function DeliveryEntryPage({
   searchParams,
 }: {
   searchParams: Promise<{ date?: string }>;
 }) {
-  await requirePermission("sales.order_confirmation");
+  await requirePermission("sales.delivery_entry");
   const supabase = await createClient();
   const params = await searchParams;
   const date = params.date || todayInIndia();
 
-  const [{ data: customers }, { data: fabrics }, { data: roto }, { data: offset }, { data: orders }] = await Promise.all([
-    supabase.from("customers").select("id, customer_name, alias").eq("status", "active").eq("is_internal", "client a/c").is("deleted_at", null).order("customer_name"),
-    supabase.from("fabric_types").select("id, fabric_name").eq("status", "active").is("deleted_at", null).order("fabric_name"),
-    supabase.from("roto_products").select("id, brand, width, height").eq("status", "active").order("brand"),
-    supabase.from("offset_products").select("id, brand, width, height").eq("status", "active").order("brand"),
-    supabase
-      .from("sales_orders")
-      .select("*, customers(customer_name, alias), sales_order_items(id, department, quantity)")
-      .or(`order_date.eq.${date},status.eq.draft`)
-      .is("deleted_at", null)
-      .order("order_date", { ascending: true })
-      .order("order_number", { ascending: true })
-      .limit(100),
+  // 1. Fetch draft orders
+  const { data: draftOrders, error: draftError } = await supabase
+    .from("sales_orders")
+    .select("*, customers(*), sales_order_items(*)")
+    .eq("status", "draft")
+    .is("deleted_at", null)
+    .order("order_date", { ascending: true })
+    .order("order_number", { ascending: true });
+
+  if (draftError) throw new Error(draftError.message);
+
+  // 2. Fetch confirmed orders for the selected date
+  const { data: confirmedOrders, error: confirmedError } = await supabase
+    .from("sales_orders")
+    .select("*, customers(*), sales_order_items(*)")
+    .eq("status", "confirmed")
+    .eq("order_date", date)
+    .is("deleted_at", null)
+    .order("order_date", { ascending: false })
+    .order("order_number", { ascending: true });
+
+  if (confirmedError) throw new Error(confirmedError.message);
+
+  // 3. Gather roll IDs and needed fabric type IDs
+  const allOrders = [
+    ...((draftOrders ?? []) as any[]),
+    ...((confirmedOrders ?? []) as any[])
+  ];
+  const allRollIds: string[] = [];
+  const neededFabricTypeIds: string[] = [];
+
+  for (const order of allOrders) {
+    for (const item of (order.sales_order_items ?? [])) {
+      const ids = (item.selected_roll_ids ?? []) as string[];
+      allRollIds.push(...ids);
+      if (item.department === "fabric" && item.product_id) {
+        neededFabricTypeIds.push(item.product_id);
+      }
+    }
+  }
+  const uniqueRollIds = Array.from(new Set(allRollIds));
+  const uniqueNeededFabricTypeIds = Array.from(new Set(neededFabricTypeIds));
+
+  // 4. Fetch available rolls and selected rolls in parallel
+  const rollSelect = "id, roll_number, meters, weight, status, fabric_type_id, looms(loom_number), loom_production_entries(gross_weight, core_weight, net_weight, net_meters, average_meter_weight)";
+
+  const [availableRollsResult, selectedRollsResult, fabrics, rotoProducts, offsetProducts] = await Promise.all([
+    uniqueNeededFabricTypeIds.length > 0
+      ? supabase.from("fabric_rolls").select(rollSelect).in("fabric_type_id", uniqueNeededFabricTypeIds).eq("status", "available").is("deleted_at", null).order("id", { ascending: true }).limit(10000)
+      : Promise.resolve({ data: [], error: null }),
+    uniqueRollIds.length > 0
+      ? supabase.from("fabric_rolls").select(rollSelect).in("id", uniqueRollIds).is("deleted_at", null).order("id", { ascending: true }).limit(10000)
+      : Promise.resolve({ data: [], error: null }),
+    supabase.from("fabric_types").select("id, fabric_name"),
+    supabase.from("roto_products").select("id, brand, width, height"),
+    supabase.from("offset_products").select("id, brand, width, height")
   ]);
 
-  const isActualClient = (name: string) => {
-    const n = name.trim().toLowerCase();
-    if (n.endsWith(" a/c") || n.endsWith(" a/c.")) return false;
-    const blacklist = [
-      "cash",
-      "sbi",
-      "icici",
-      "rent",
-      "salaries",
-      "salary",
-      "power bill",
-      "electricity",
-      "machinary",
-      "machinery",
-      "misc",
-      "sales",
-      "purchase",
-      "roundoff",
-      "round off",
-      "bank charges",
-      "equitas",
-      "cgst",
-      "sgst",
-      "igst",
-      "gst",
-      "tds",
-      "tcs",
-      "capital",
-      "drawings",
-      "depreciation",
-      "opening balance",
-      "ca",
-      "cc",
-    ];
-    return !blacklist.some((keyword) => {
-      const regex = new RegExp(`\\b${keyword}\\b`, "i");
-      return regex.test(n);
-    });
-  };
+  if (availableRollsResult.error) throw new Error(availableRollsResult.error.message);
+  if (selectedRollsResult.error) throw new Error(selectedRollsResult.error.message);
 
-  const customerRows = ((customers ?? []) as any[])
-    .filter((c) => isActualClient(c.customer_name))
-    .map((c) => ({ id: c.id, name: c.customer_name, alias: c.alias }));
-  const fabricOptions = ((fabrics ?? []) as any[]).map((f) => ({ id: f.id, label: f.fabric_name }));
-  const rotoOptions = ((roto ?? []) as any[]).map((r) => ({ id: r.id, label: `${r.brand} (${r.width}x${r.height} mm)` }));
-  const offsetOptions = ((offset ?? []) as any[]).map((o) => ({ id: o.id, label: `${o.brand} (${o.width}x${o.height} in)` }));
-  const orderRows = (orders ?? []) as any[];
+  const rollsById = new Map<string, any>();
+  for (const roll of [...((availableRollsResult.data ?? []) as any[]), ...((selectedRollsResult.data ?? []) as any[])]) {
+    rollsById.set(roll.id, roll);
+  }
+  const rolls = Array.from(rollsById.values());
 
   return (
-    <>
-      <PageHeader title="Order Confirmation" description="Create multi-item orders across production departments." />
-      
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle>Place New Sales Order</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <DeliveryEntryForm
-            customers={customerRows}
-            fabricProducts={fabricOptions}
-            rotoProducts={rotoOptions}
-            offsetProducts={offsetOptions}
-          />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-          <CardTitle>Recent Orders</CardTitle>
-          <DateFilter date={date} baseUrl="/sales/delivery-entry" />
-        </CardHeader>
-        <CardContent>
-          {orderRows.length === 0 ? (
-            <EmptyState />
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Order Number</TableHead>
-                    <TableHead>Firm Name</TableHead>
-                    <TableHead>Items Count</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="w-12 text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {orderRows.map((order) => (
-                    <TableRow key={order.id}>
-                      <TableCell className="font-bold text-emerald-950">{order.order_number}</TableCell>
-                      <TableCell>
-                        {order.customers?.customer_name} {order.customers?.alias ? `(${order.customers?.alias})` : ""}
-                      </TableCell>
-                      <TableCell>{order.sales_order_items?.length ?? 0} items</TableCell>
-                      <TableCell>
-                        <StatusBadge value={order.status} />
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <DeleteOrderButton orderId={order.id} />
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </>
+    <div className="space-y-6">
+      <DeliveryEntryWorkspace
+        orders={draftOrders as any[]}
+        confirmedOrders={confirmedOrders as any[]}
+        fabrics={(fabrics.data ?? []) as any[]}
+        rotoProducts={(rotoProducts.data ?? []) as any[]}
+        offsetProducts={(offsetProducts.data ?? []) as any[]}
+        rolls={rolls}
+        date={date}
+      />
+    </div>
   );
 }

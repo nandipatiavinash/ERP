@@ -64,7 +64,7 @@ type SalesOrder = {
   sales_order_items?: OrderItem[];
 };
 
-interface OrderConfirmationWorkspaceProps {
+interface DeliveryEntryWorkspaceProps {
   orders: SalesOrder[];
   confirmedOrders?: SalesOrder[];
   fabrics: { id: string; fabric_name: string }[];
@@ -88,7 +88,7 @@ function sortRollsBySerial(a: Roll, b: Roll) {
   return a.roll_number.localeCompare(b.roll_number, undefined, { numeric: true, sensitivity: "base" });
 }
 
-export function OrderConfirmationWorkspace({
+export function DeliveryEntryWorkspace({
   orders, // Draft orders
   confirmedOrders = [], // Confirmed orders
   fabrics,
@@ -98,7 +98,7 @@ export function OrderConfirmationWorkspace({
   date = todayInIndia(),
   initialOrderId,
   singleViewMode = false,
-}: OrderConfirmationWorkspaceProps) {
+}: DeliveryEntryWorkspaceProps) {
   const [activeTab, setActiveTab] = useState<"pending" | "confirmed">("pending");
   const [searchTerm, setSearchTerm] = useState("");
   const [isPending, startTransition] = useTransition();
@@ -901,7 +901,7 @@ export function OrderConfirmationWorkspace({
                 </CardTitle>
                 <p className="text-sm text-muted-foreground mt-1">Confirmed dispatches for the selected date.</p>
               </div>
-              <DateFilter date={date} baseUrl="/sales/order-confirmation?tab=completed" />
+              <DateFilter date={date} baseUrl="/sales/delivery-entry?tab=completed" />
             </CardHeader>
             <CardContent>
               {confirmedOrders.length === 0 ? (
