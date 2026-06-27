@@ -1,6 +1,6 @@
 import { requirePermission } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { todayInIndia } from "@/lib/utils";
+import { todayInIndia, fetchPagedData } from "@/lib/utils";
 import { ClosingStockReportClient } from "./ClosingStockReportClient";
 
 type Params = { date?: string };
@@ -19,7 +19,7 @@ export default async function ClosingStockReportPage({ searchParams }: { searchP
     { data: consumptions },
     { data: materialSales },
     { data: fabricTypes },
-    { data: rolls },
+    rolls,
     { data: salesOrders },
   ] = await Promise.all([
     supabase
@@ -44,11 +44,12 @@ export default async function ClosingStockReportPage({ searchParams }: { searchP
       .from("fabric_types")
       .select("id, fabric_name, selling_price")
       .order("fabric_name"),
-    supabase
-      .from("fabric_rolls")
-      .select("id, roll_number, fabric_type_id, weight, meters, production_date, status, current_stage")
-      .is("deleted_at", null)
-      .order("roll_number"),
+    fetchPagedData(
+      supabase
+        .from("fabric_rolls")
+        .select("id, roll_number, fabric_type_id, weight, meters, production_date, status, current_stage")
+        .is("deleted_at", null)
+    ),
     supabase
       .from("sales_orders")
       .select("order_date, status, bill_number, sales_order_items(selected_roll_ids)")

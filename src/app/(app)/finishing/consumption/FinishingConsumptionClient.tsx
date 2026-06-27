@@ -47,6 +47,10 @@ export function FinishingConsumptionClient({
 }: FinishingConsumptionClientProps) {
   const [activeTab, setActiveTab] = useState<string>("raw");
 
+  const sortedFabric = [...availableFabric].sort((a, b) => (a.roll_number ?? "").localeCompare(b.roll_number ?? "", undefined, { numeric: true, sensitivity: "base" }));
+  const sortedLam = [...availableLam].sort((a, b) => (a.roll_id ?? "").localeCompare(b.roll_id ?? "", undefined, { numeric: true, sensitivity: "base" }));
+  const sortedOffset = [...availableOffset].sort((a, b) => (a.roll_id ?? "").localeCompare(b.roll_id ?? "", undefined, { numeric: true, sensitivity: "base" }));
+
   const tabs = [
     { id: "raw", label: "Raw Materials", icon: Beaker },
     { id: "fabric", label: "Fabric Rolls", icon: Layers },
@@ -173,7 +177,7 @@ export function FinishingConsumptionClient({
                       required
                     >
                       <option value="">Select available roll</option>
-                      {availableFabric.map((r) => (
+                      {sortedFabric.map((r) => (
                         <option key={r.id} value={r.id}>
                           {r.roll_number} ({r.weight}kg · {r.meters}m)
                         </option>
@@ -261,7 +265,7 @@ export function FinishingConsumptionClient({
                       required
                     >
                       <option value="">Select available laminated roll</option>
-                      {availableLam.map((r) => (
+                      {sortedLam.map((r) => (
                         <option key={r.id} value={r.id}>
                           {r.roll_id} ({r.weight_kg}kg · {r.meters}m)
                         </option>
@@ -349,7 +353,7 @@ export function FinishingConsumptionClient({
                       required
                     >
                       <option value="">Select available offset roll</option>
-                      {availableOffset.map((r) => (
+                      {sortedOffset.map((r) => (
                         <option key={r.id} value={r.id}>
                           {r.roll_id} ({r.weight_kg}kg)
                         </option>

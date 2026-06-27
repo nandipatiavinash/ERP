@@ -41,6 +41,9 @@ export function LaminationConsumptionClient({
 }: LaminationConsumptionClientProps) {
   const [activeTab, setActiveTab] = useState<string>("raw");
 
+  const sortedFabric = [...availableFabric].sort((a, b) => (a.roll_number ?? "").localeCompare(b.roll_number ?? "", undefined, { numeric: true, sensitivity: "base" }));
+  const sortedFilm = [...availableFilm].sort((a, b) => (a.roll_id ?? "").localeCompare(b.roll_id ?? "", undefined, { numeric: true, sensitivity: "base" }));
+
   const tabs = [
     { id: "raw", label: "Raw Materials", icon: Beaker },
     { id: "fabric", label: "Fabric Rolls", icon: Layers },
@@ -166,7 +169,7 @@ export function LaminationConsumptionClient({
                       required
                     >
                       <option value="">Select available roll</option>
-                      {availableFabric.map((r) => (
+                      {sortedFabric.map((r) => (
                         <option key={r.id} value={r.id}>
                           {r.roll_number} ({r.weight}kg · {r.meters}m)
                         </option>
@@ -254,7 +257,7 @@ export function LaminationConsumptionClient({
                       required
                     >
                       <option value="">Select available metallic roll</option>
-                      {availableFilm.map((f) => (
+                      {sortedFilm.map((f) => (
                         <option key={f.id} value={f.id}>
                           {f.roll_id} ({f.weight_kg}kg · {f.meters}m)
                         </option>

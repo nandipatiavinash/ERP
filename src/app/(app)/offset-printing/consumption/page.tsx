@@ -44,26 +44,30 @@ export default async function OffsetPrintingConsumptionPage({
       .eq("status", "available")
       .eq("current_stage", "loom")
       .is("deleted_at", null)
-      .order("roll_number"),
+      .order("id", { ascending: true })
+      .limit(10000),
     supabase
       .from("fabric_rolls")
       .select("id, roll_number, weight, meters, updated_at")
       .eq("status", "consumed")
       .eq("current_stage", "offset_printing")
       .is("deleted_at", null)
-      .order("updated_at", { ascending: false }),
+      .order("id", { ascending: false })
+      .limit(100),
     supabase
       .from("lamination_rolls")
       .select("id, roll_id, weight_kg, meters")
       .eq("status", "available")
       .is("deleted_at", null)
-      .order("roll_id"),
+      .order("id", { ascending: true })
+      .limit(10000),
     supabase
       .from("lamination_rolls")
       .select("id, roll_id, weight_kg, meters, updated_at")
       .eq("status", "consumed")
       .is("deleted_at", null)
-      .order("updated_at", { ascending: false }),
+      .order("id", { ascending: false })
+      .limit(100),
   ]);
 
   const materials = (rawMaterialsRes.data ?? []) as any[];
