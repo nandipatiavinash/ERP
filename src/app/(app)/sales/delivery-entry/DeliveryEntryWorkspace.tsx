@@ -153,7 +153,7 @@ export function DeliveryEntryWorkspace({
   const [itemRemainingActions, setItemRemainingActions] = useState<Record<string, "backorder" | "close">>(() => {
     const initialRemaining: Record<string, "backorder" | "close"> = {};
     initialItems.forEach((item) => {
-      initialRemaining[item.id] = "close";
+      initialRemaining[item.id] = "backorder";
     });
     return initialRemaining;
   });
@@ -235,7 +235,7 @@ export function DeliveryEntryWorkspace({
     items.forEach((item) => {
       initialAlloc[item.id] = item.selected_roll_ids || [];
       initialExpand[item.id] = item.department === "fabric";
-      initialRemaining[item.id] = "close";
+      initialRemaining[item.id] = "backorder";
     });
 
     setAllocation(initialAlloc);
@@ -797,17 +797,17 @@ export function DeliveryEntryWorkspace({
                                               <input
                                                 type="checkbox"
                                                 id={`partial-order-checkbox-${item.id}`}
-                                                checked={(itemRemainingActions[item.id] ?? "close") === "backorder"}
+                                                checked={(itemRemainingActions[item.id] ?? "backorder") === "close"}
                                                 onChange={(e) => {
                                                   setItemRemainingActions((prev) => ({
                                                     ...prev,
-                                                    [item.id]: e.target.checked ? "backorder" : "close",
+                                                    [item.id]: e.target.checked ? "close" : "backorder",
                                                   }));
                                                 }}
                                                 className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
                                               />
                                               <Label htmlFor={`partial-order-checkbox-${item.id}`} className="font-semibold text-slate-800 cursor-pointer select-none">
-                                                Create Partial Order for this item (Remaining {formatNumber(item.quantity - totalWeight, 2)} kg backordered)
+                                                Close the order (Remaining {formatNumber(item.quantity - totalWeight, 2)} kg will be discarded)
                                               </Label>
                                             </div>
                                           )}
@@ -832,7 +832,10 @@ export function DeliveryEntryWorkspace({
                                                     <tr className="bg-slate-100/50 border-b text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                                                       <th className="p-2.5 w-10 text-center">Select</th>
                                                       <th className="p-2.5">Roll No</th>
-                                                      <th className="p-2.5 text-right">Net W8 (kg)</th>
+                                                      <th className="p-2.5 text-right">Gross Wt (kg)</th>
+                                                      <th className="p-2.5 text-right">Core Wt (kg)</th>
+                                                      <th className="p-2.5 text-right">Net Wt (kg)</th>
+                                                      <th className="p-2.5 text-right">Avg Meter Wt</th>
                                                       <th className="p-2.5 text-right">Mtrs</th>
                                                       <th className="p-2.5">Loom</th>
                                                     </tr>
@@ -841,6 +844,11 @@ export function DeliveryEntryWorkspace({
                                                     {itemRolls.map((roll) => {
                                                       const isSelected = selectedIds.includes(roll.id);
                                                       const loomNo = roll.looms?.loom_number ?? "-";
+                                                      const grossWeight = roll.loom_production_entries?.gross_weight ?? roll.weight ?? 0;
+                                                      const coreWeight = roll.loom_production_entries?.core_weight ?? 0;
+                                                      const netWeight = roll.loom_production_entries?.net_weight ?? roll.weight ?? 0;
+                                                      const avgWeight = roll.loom_production_entries?.average_meter_weight ?? 0;
+                                                      const netMeters = roll.loom_production_entries?.net_meters ?? roll.meters ?? 0;
                                                       return (
                                                         <tr
                                                           key={roll.id}
@@ -858,8 +866,11 @@ export function DeliveryEntryWorkspace({
                                                             />
                                                           </td>
                                                           <td className="p-2.5 font-mono font-semibold text-slate-800">{roll.roll_number}</td>
-                                                          <td className="p-2.5 text-right font-mono font-semibold">{formatNumber(roll.weight, 2)}</td>
-                                                          <td className="p-2.5 text-right font-mono">{formatNumber(roll.meters, 0)}</td>
+                                                          <td className="p-2.5 text-right font-mono">{formatNumber(grossWeight, 2)}</td>
+                                                          <td className="p-2.5 text-right font-mono">{formatNumber(coreWeight, 2)}</td>
+                                                          <td className="p-2.5 text-right font-mono font-semibold">{formatNumber(netWeight, 2)}</td>
+                                                          <td className="p-2.5 text-right font-mono">{formatNumber(avgWeight, 2)}</td>
+                                                          <td className="p-2.5 text-right font-mono">{formatNumber(netMeters, 0)}</td>
                                                           <td className="p-2.5 font-medium">{loomNo}</td>
                                                         </tr>
                                                       );
