@@ -869,7 +869,7 @@ export function DeliveryEntryWorkspace({
                                                           <td className="p-2.5 text-right font-mono">{formatNumber(grossWeight, 2)}</td>
                                                           <td className="p-2.5 text-right font-mono">{formatNumber(coreWeight, 2)}</td>
                                                           <td className="p-2.5 text-right font-mono font-semibold">{formatNumber(netWeight, 2)}</td>
-                                                          <td className="p-2.5 text-right font-mono">{formatNumber(avgWeight, 2)}</td>
+                                                          <td className="p-2.5 text-right font-mono">{formatNumber(Math.floor(avgWeight), 0)}</td>
                                                           <td className="p-2.5 text-right font-mono">{formatNumber(netMeters, 0)}</td>
                                                           <td className="p-2.5 font-medium">{loomNo}</td>
                                                         </tr>
