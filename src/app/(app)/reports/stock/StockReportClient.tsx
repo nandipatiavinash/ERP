@@ -694,7 +694,7 @@ export function StockReportClient({
   }, [saleProductData, materialSaleData]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 large-erp-page">
       <PageHeader
         title="Stock Report"
         description="Verify raw material ledger transactions, check product available stocks, and review sales logs."

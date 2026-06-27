@@ -502,7 +502,7 @@ export function DeliveryEntryWorkspace({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 large-erp-page">
       {/* Workspace Tab Navigation */}
       <div className="flex flex-wrap gap-2 border-b border-slate-200 pb-3 no-print">
         <button

@@ -332,7 +332,7 @@ export function SalesEntryClient({ pendingOrders, billedOrders, rolls, fabricTyp
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 large-erp-page">
       {/* Confirmation Dialog for Bill Number 0 */}
       {confirmDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm no-print">
