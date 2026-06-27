@@ -44,19 +44,48 @@ export default async function OrderWorkspacePage({
   const rollSelect = "id, roll_number, meters, weight, status, fabric_type_id, looms(loom_number), loom_production_entries(gross_weight, core_weight, net_weight, net_meters, average_meter_weight)";
 
   // 2. Fetch available and selected rolls in parallel
-  const [availableRollsResult, selectedRollsResult] = await Promise.all([
+  const [availableRollsDataResults, selectedRollsResults] = await Promise.all([
     fabricTypeIds.length > 0
-      ? supabase.from("fabric_rolls").select(rollSelect).in("fabric_type_id", fabricTypeIds).eq("status", "available").is("deleted_at", null).order("id", { ascending: true }).limit(10000)
-      : Promise.resolve({ data: [], error: null }),
+      ? Promise.all(
+          fabricTypeIds.map((fabricTypeId) =>
+            supabase
+              .from("fabric_rolls")
+              .select(rollSelect)
+              .eq("fabric_type_id", fabricTypeId)
+              .eq("status", "available")
+              .is("deleted_at", null)
+              .order("id", { ascending: true })
+              .limit(1000)
+          )
+        )
+      : Promise.resolve([] as any[]),
     selectedRollIds.length > 0
-      ? supabase.from("fabric_rolls").select(rollSelect).in("id", selectedRollIds).is("deleted_at", null).order("id", { ascending: true }).limit(10000)
-      : Promise.resolve({ data: [], error: null }),
+      ? Promise.all(
+          Array.from({ length: Math.ceil(selectedRollIds.length / 200) }, (_, i) =>
+            supabase
+              .from("fabric_rolls")
+              .select(rollSelect)
+              .in("id", selectedRollIds.slice(i * 200, (i + 1) * 200))
+              .is("deleted_at", null)
+              .order("id", { ascending: true })
+              .limit(1000)
+          )
+        )
+      : Promise.resolve([] as any[]),
   ]);
-  if (availableRollsResult.error) throw new Error(availableRollsResult.error.message);
-  if (selectedRollsResult.error) throw new Error(selectedRollsResult.error.message);
+
+  for (const res of availableRollsDataResults) {
+    if (res.error) throw new Error(res.error.message);
+  }
+  for (const res of selectedRollsResults) {
+    if (res.error) throw new Error(res.error.message);
+  }
 
   const rollsById = new Map<string, any>();
-  for (const roll of [...((availableRollsResult.data ?? []) as any[]), ...((selectedRollsResult.data ?? []) as any[])]) {
+  const flatAvailable = availableRollsDataResults.flatMap((res) => res.data ?? []);
+  const flatSelected = selectedRollsResults.flatMap((res) => res.data ?? []);
+
+  for (const roll of [...flatAvailable, ...flatSelected]) {
     rollsById.set(roll.id, roll);
   }
 

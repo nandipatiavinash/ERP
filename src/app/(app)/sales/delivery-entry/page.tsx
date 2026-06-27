@@ -59,23 +59,51 @@ export default async function DeliveryEntryPage({
   // 4. Fetch available rolls and selected rolls in parallel
   const rollSelect = "id, roll_number, meters, weight, status, fabric_type_id, looms(loom_number), loom_production_entries(gross_weight, core_weight, net_weight, net_meters, average_meter_weight)";
 
-  const [availableRollsResult, selectedRollsResult, fabrics, rotoProducts, offsetProducts] = await Promise.all([
+  const [availableRollsDataResults, selectedRollsResults, fabrics, rotoProducts, offsetProducts] = await Promise.all([
     uniqueNeededFabricTypeIds.length > 0
-      ? supabase.from("fabric_rolls").select(rollSelect).in("fabric_type_id", uniqueNeededFabricTypeIds).eq("status", "available").is("deleted_at", null).order("id", { ascending: true }).limit(10000)
-      : Promise.resolve({ data: [], error: null }),
+      ? Promise.all(
+          uniqueNeededFabricTypeIds.map((fabricTypeId) =>
+            supabase
+              .from("fabric_rolls")
+              .select(rollSelect)
+              .eq("fabric_type_id", fabricTypeId)
+              .eq("status", "available")
+              .is("deleted_at", null)
+              .order("id", { ascending: true })
+              .limit(1000)
+          )
+        )
+      : Promise.resolve([] as any[]),
     uniqueRollIds.length > 0
-      ? supabase.from("fabric_rolls").select(rollSelect).in("id", uniqueRollIds).is("deleted_at", null).order("id", { ascending: true }).limit(10000)
-      : Promise.resolve({ data: [], error: null }),
+      ? Promise.all(
+          Array.from({ length: Math.ceil(uniqueRollIds.length / 200) }, (_, i) =>
+            supabase
+              .from("fabric_rolls")
+              .select(rollSelect)
+              .in("id", uniqueRollIds.slice(i * 200, (i + 1) * 200))
+              .is("deleted_at", null)
+              .order("id", { ascending: true })
+              .limit(1000)
+          )
+        )
+      : Promise.resolve([] as any[]),
     supabase.from("fabric_types").select("id, fabric_name"),
     supabase.from("roto_products").select("id, brand, width, height"),
     supabase.from("offset_products").select("id, brand, width, height")
   ]);
 
-  if (availableRollsResult.error) throw new Error(availableRollsResult.error.message);
-  if (selectedRollsResult.error) throw new Error(selectedRollsResult.error.message);
+  for (const res of availableRollsDataResults) {
+    if (res.error) throw new Error(res.error.message);
+  }
+  for (const res of selectedRollsResults) {
+    if (res.error) throw new Error(res.error.message);
+  }
 
   const rollsById = new Map<string, any>();
-  for (const roll of [...((availableRollsResult.data ?? []) as any[]), ...((selectedRollsResult.data ?? []) as any[])]) {
+  const flatAvailable = availableRollsDataResults.flatMap((res) => res.data ?? []);
+  const flatSelected = selectedRollsResults.flatMap((res) => res.data ?? []);
+
+  for (const roll of [...flatAvailable, ...flatSelected]) {
     rollsById.set(roll.id, roll);
   }
   const rolls = Array.from(rollsById.values());
