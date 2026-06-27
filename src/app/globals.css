@@ -128,61 +128,31 @@
 
 /* Large ERP Page Typography Theme */
 @layer utilities {
-  .large-erp-page .text-\[9px\] {
-    font-size: 11px !important;
-    line-height: 0.9rem !important;
-  }
-
-  .large-erp-page .text-\[10px\] {
-    font-size: 13px !important;
-    line-height: 1rem !important;
-  }
-
-  .large-erp-page .text-xs {
-    font-size: 15px !important;
-    line-height: 1.25rem !important;
-  }
-
-  .large-erp-page .text-sm {
-    font-size: 17px !important;
-    line-height: 1.5rem !important;
-  }
-
-  .large-erp-page .text-base {
-    font-size: 19px !important;
-    line-height: 1.75rem !important;
-  }
-
-  .large-erp-page .text-lg {
-    font-size: 21px !important;
-    line-height: 1.75rem !important;
-  }
-
-  .large-erp-page .text-xl {
-    font-size: 23px !important;
-    line-height: 2rem !important;
-  }
-
-  .large-erp-page .text-2xl {
-    font-size: 27px !important;
-    line-height: 2.25rem !important;
-  }
-
-  /* Make form elements, tables, and buttons scale up too */
+  .large-erp-page .text-\[9px\],
+  .large-erp-page .text-\[10px\],
+  .large-erp-page .text-xs,
+  .large-erp-page .text-sm,
+  .large-erp-page .text-base,
+  .large-erp-page .text-lg,
+  .large-erp-page label,
+  .large-erp-page table td,
+  .large-erp-page table th,
   .large-erp-page input,
   .large-erp-page select,
   .large-erp-page button,
   .large-erp-page textarea {
     font-size: 16px !important;
+    line-height: 1.5rem !important;
   }
 
-  .large-erp-page label {
-    font-size: 15px !important;
+  .large-erp-page .text-xl {
+    font-size: 20px !important;
+    line-height: 1.75rem !important;
   }
 
-  .large-erp-page table td,
-  .large-erp-page table th {
-    font-size: 15px !important;
+  .large-erp-page .text-2xl {
+    font-size: 24px !important;
+    line-height: 2rem !important;
   }
 }
 

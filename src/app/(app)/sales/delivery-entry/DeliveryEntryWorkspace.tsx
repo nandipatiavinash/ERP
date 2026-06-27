@@ -849,11 +849,11 @@ export function DeliveryEntryWorkspace({
                                                     <tr className="bg-slate-100/50 border-b text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                                                       <th className="p-2.5 w-10 text-center">Select</th>
                                                       <th className="p-2.5">Roll No</th>
-                                                      <th className="p-2.5 text-right">Gross Wt (kg)</th>
-                                                      <th className="p-2.5 text-right">Core Wt (kg)</th>
-                                                      <th className="p-2.5 text-right">Net Wt (kg)</th>
-                                                      <th className="p-2.5 text-right">Avg Meter Wt</th>
-                                                      <th className="p-2.5 text-right">Mtrs</th>
+                                                      <th className="p-2.5 text-center">Gross Wt (kg)</th>
+                                                      <th className="p-2.5 text-center">Core Wt (kg)</th>
+                                                      <th className="p-2.5 text-center">Net Wt (kg)</th>
+                                                      <th className="p-2.5 text-center">Avg Meter Wt</th>
+                                                      <th className="p-2.5 text-center">Mtrs</th>
                                                       <th className="p-2.5">Loom</th>
                                                     </tr>
                                                   </thead>
@@ -883,11 +883,11 @@ export function DeliveryEntryWorkspace({
                                                             />
                                                           </td>
                                                           <td className="p-2.5 font-mono font-semibold text-slate-800">{roll.roll_number}</td>
-                                                          <td className="p-2.5 text-right font-mono">{formatNumber(grossWeight, 2)}</td>
-                                                          <td className="p-2.5 text-right font-mono">{formatNumber(coreWeight, 2)}</td>
-                                                          <td className="p-2.5 text-right font-mono font-semibold">{formatNumber(netWeight, 2)}</td>
-                                                          <td className="p-2.5 text-right font-mono">{formatNumber(Math.floor(avgWeight), 0)}</td>
-                                                          <td className="p-2.5 text-right font-mono">{formatNumber(netMeters, 0)}</td>
+                                                          <td className="p-2.5 text-center font-mono">{formatNumber(grossWeight, 2)}</td>
+                                                          <td className="p-2.5 text-center font-mono">{formatNumber(coreWeight, 2)}</td>
+                                                          <td className="p-2.5 text-center font-mono font-semibold">{formatNumber(netWeight, 2)}</td>
+                                                          <td className="p-2.5 text-center font-mono">{formatNumber(Math.floor(avgWeight), 0)}</td>
+                                                          <td className="p-2.5 text-center font-mono">{formatNumber(netMeters, 0)}</td>
                                                           <td className="p-2.5 font-medium">{loomNo}</td>
                                                         </tr>
                                                       );
