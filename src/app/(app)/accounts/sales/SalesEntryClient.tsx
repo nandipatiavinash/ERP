@@ -122,6 +122,7 @@ export function SalesEntryClient({ pendingOrders, billedOrders, rolls, fabricTyp
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [orderBillNumbers, setOrderBillNumbers] = useState<Record<string, string>>({});
   const [orderBillValues, setOrderBillValues] = useState<Record<string, string>>({});
+  const [expandedCustomerIds, setExpandedCustomerIds] = useState<Record<string, boolean>>({});
 
   const [isPending, startTransition] = useTransition();
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -350,145 +351,161 @@ export function SalesEntryClient({ pendingOrders, billedOrders, rolls, fabricTyp
           ) : (
             <div className="space-y-6">
               {pendingOrdersByCustomer.map((customerGroup) => {
+                const isCustomerExpanded = expandedCustomerIds[customerGroup.customerId] ?? false;
+
                 return (
                   <div key={customerGroup.customerId} className="space-y-2 border-l-2 border-slate-200 pl-4 py-1">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-baseline gap-2">
-                        <h3 className="font-semibold text-slate-800 text-sm">
+                    <button
+                      type="button"
+                      onClick={() => setExpandedCustomerIds(prev => ({ ...prev, [customerGroup.customerId]: !prev[customerGroup.customerId] }))}
+                      className="w-full flex items-center justify-between text-left hover:bg-slate-50 p-1.5 rounded transition-colors"
+                    >
+                      <div className="flex items-center gap-2">
+                        {isCustomerExpanded ? (
+                          <ChevronDown className="h-4 w-4 text-slate-400 shrink-0" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4 text-slate-400 shrink-0" />
+                        )}
+                        <span className="font-semibold text-slate-800 text-sm">
                           {customerGroup.customerName}
-                        </h3>
+                        </span>
                         {customerGroup.alias && (
                           <span className="text-xs text-muted-foreground">({customerGroup.alias})</span>
                         )}
                       </div>
-                    </div>
+                      <Badge className="bg-slate-100 text-slate-700 border border-slate-200 text-xs font-normal">
+                        {customerGroup.orders.length} order{customerGroup.orders.length !== 1 ? 's' : ''}
+                      </Badge>
+                    </button>
 
-                    <div className="space-y-3">
-                      {customerGroup.orders.map((order) => {
-                        const isExpanded = expandedOrderId === order.id;
-                        const groups = buildProductGroups(order, rolls, fabricTypes);
-                        const grandTotalKg = groups.reduce((s, g) => s + g.totalNetWeight, 0);
+                    {isCustomerExpanded && (
+                      <div className="space-y-3 mt-2 pl-2">
+                        {customerGroup.orders.map((order) => {
+                          const isExpanded = expandedOrderId === order.id;
+                          const groups = buildProductGroups(order, rolls, fabricTypes);
+                          const grandTotalKg = groups.reduce((s, g) => s + g.totalNetWeight, 0);
 
-                        return (
-                          <div
-                            key={order.id}
-                            className="rounded-xl border border-slate-200 bg-white overflow-hidden transition-shadow hover:shadow-md"
-                          >
-                            {/* Order header row */}
-                            <div className="w-full flex items-center gap-3 px-4 py-3 border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
-                              <button
-                                type="button"
-                                className="flex-1 flex items-center justify-between text-left"
-                                onClick={() => toggleExpand(order.id)}
-                              >
-                                <div className="flex items-center gap-3 min-w-0">
-                                  {isExpanded ? (
-                                    <ChevronDown className="h-4 w-4 text-slate-400 shrink-0" />
-                                  ) : (
-                                    <ChevronRight className="h-4 w-4 text-slate-400 shrink-0" />
-                                  )}
-                                  <div className="min-w-0">
-                                    <span className="font-semibold text-sm text-slate-900">
-                                      Order #{order.order_number}
+                          return (
+                            <div
+                              key={order.id}
+                              className="rounded-xl border border-slate-200 bg-white overflow-hidden transition-shadow hover:shadow-md"
+                            >
+                              {/* Order header row */}
+                              <div className="w-full flex items-center gap-3 px-4 py-3 border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
+                                <button
+                                  type="button"
+                                  className="flex-1 flex items-center justify-between text-left"
+                                  onClick={() => toggleExpand(order.id)}
+                                >
+                                  <div className="flex items-center gap-3 min-w-0">
+                                    {isExpanded ? (
+                                      <ChevronDown className="h-4 w-4 text-slate-400 shrink-0" />
+                                    ) : (
+                                      <ChevronRight className="h-4 w-4 text-slate-400 shrink-0" />
+                                    )}
+                                    <div className="min-w-0">
+                                      <span className="font-semibold text-sm text-slate-900">
+                                        Order #{order.order_number}
+                                      </span>
+                                      <span className="ml-3 text-xs text-muted-foreground font-mono">
+                                        {formatDate(order.order_date)}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-3 shrink-0" onClick={(e) => e.stopPropagation()}>
+                                    <span className="text-xs font-bold text-slate-800 font-mono">
+                                      {groups.length} item{groups.length !== 1 ? "s" : ""} · {formatNumber(grandTotalKg, 1)} kg
                                     </span>
-                                    <span className="ml-3 text-xs text-muted-foreground font-mono">
-                                      {formatDate(order.order_date)}
-                                    </span>
+                                    <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-xs font-normal">
+                                      Confirmed
+                                    </Badge>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="h-7 text-xs gap-1 no-print border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+                                      onClick={() => setPrintOrderId(order.id)}
+                                    >
+                                      <Printer className="h-3 w-3" />
+                                      Print Dispatch Note
+                                    </Button>
+                                  </div>
+                                </button>
+                              </div>
+
+                              {/* Expanded content */}
+                              {isExpanded && (
+                                <div className="border-t border-slate-100 px-4 py-4 bg-slate-50/30 space-y-4">
+                                  <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+                                    <Table>
+                                      <TableHeader>
+                                        <TableRow className="bg-slate-100/60">
+                                          <TableHead className="text-xs font-semibold">Department</TableHead>
+                                          <TableHead className="text-xs font-semibold">Product</TableHead>
+                                          <TableHead className="text-xs font-semibold text-right">Rolls</TableHead>
+                                          <TableHead className="text-xs font-semibold text-right">Net W8 (kg)</TableHead>
+                                          <TableHead className="text-xs font-semibold text-right">Meters</TableHead>
+                                        </TableRow>
+                                      </TableHeader>
+                                      <TableBody>
+                                        {groups.map((g) => (
+                                          <TableRow key={g.itemId} className="hover:bg-slate-50/20">
+                                            <TableCell className="text-sm capitalize">{g.department}</TableCell>
+                                            <TableCell className="text-sm font-mono font-medium">{g.productName}</TableCell>
+                                            <TableCell className="text-sm text-right">{g.rolls.length}</TableCell>
+                                            <TableCell className="text-sm text-right font-mono">{formatNumber(g.totalNetWeight, 1)}</TableCell>
+                                            <TableCell className="text-sm text-right font-mono">{formatNumber(Math.floor(g.totalMeters), 0)}</TableCell>
+                                          </TableRow>
+                                        ))}
+                                      </TableBody>
+                                    </Table>
+                                  </div>
+
+                                  {/* Billing entry form for this specific order */}
+                                  <div className="bg-slate-50 border-t border-slate-100 px-4 py-3.5 flex flex-wrap items-center justify-between gap-4 text-sm">
+                                    <div className="flex-1 min-w-[160px] flex items-center gap-2">
+                                      <Label htmlFor={`bill-no-${order.id}`} className="text-slate-500 font-bold uppercase tracking-wider shrink-0 text-[10px]">
+                                        Bill No:
+                                      </Label>
+                                      <Input
+                                        id={`bill-no-${order.id}`}
+                                        placeholder="e.g. INV-001"
+                                        value={orderBillNumbers[order.id] ?? ""}
+                                        onChange={(e) => setOrderBillNumbers(prev => ({ ...prev, [order.id]: e.target.value }))}
+                                        className="h-8 text-xs border-slate-300 bg-white"
+                                      />
+                                    </div>
+                                    <div className="flex-1 min-w-[140px] flex items-center gap-2">
+                                      <Label htmlFor={`bill-val-${order.id}`} className="text-slate-500 font-bold uppercase tracking-wider shrink-0 text-[10px]">
+                                        Bill Value (₹):
+                                      </Label>
+                                      <Input
+                                        id={`bill-val-${order.id}`}
+                                        type="number"
+                                        placeholder="0.00"
+                                        value={orderBillValues[order.id] ?? ""}
+                                        onChange={(e) => setOrderBillValues(prev => ({ ...prev, [order.id]: e.target.value }))}
+                                        className="h-8 text-xs font-mono border-slate-300 bg-white"
+                                      />
+                                    </div>
+                                    <div className="flex items-center gap-2 shrink-0">
+                                      <Button
+                                        size="sm"
+                                        className="h-8 bg-emerald-700 hover:bg-emerald-800 text-white font-semibold gap-1 text-xs"
+                                        onClick={() => handleSubmitOrderBilling(order.id)}
+                                        disabled={isPending}
+                                      >
+                                        <Receipt className="h-3.5 w-3.5" />
+                                        Submit
+                                      </Button>
+                                    </div>
                                   </div>
                                 </div>
-                                <div className="flex items-center gap-3 shrink-0" onClick={(e) => e.stopPropagation()}>
-                                  <span className="text-xs text-muted-foreground font-mono">
-                                    {groups.length} item{groups.length !== 1 ? "s" : ""} · {formatNumber(grandTotalKg, 1)} kg
-                                  </span>
-                                  <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200 text-xs font-normal">
-                                    Confirmed
-                                  </Badge>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="h-7 text-xs gap-1 no-print border-emerald-200 text-emerald-700 hover:bg-emerald-50"
-                                    onClick={() => setPrintOrderId(order.id)}
-                                  >
-                                    <Printer className="h-3 w-3" />
-                                    Print Dispatch Note
-                                  </Button>
-                                </div>
-                              </button>
+                              )}
                             </div>
-
-                            {/* Expanded content */}
-                            {isExpanded && (
-                              <div className="border-t border-slate-100 px-4 py-4 bg-slate-50/30 space-y-4">
-                                <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
-                                  <Table>
-                                    <TableHeader>
-                                      <TableRow className="bg-slate-100/60">
-                                        <TableHead className="text-xs font-semibold">Department</TableHead>
-                                        <TableHead className="text-xs font-semibold">Product</TableHead>
-                                        <TableHead className="text-xs font-semibold text-right">Rolls</TableHead>
-                                        <TableHead className="text-xs font-semibold text-right">Net W8 (kg)</TableHead>
-                                        <TableHead className="text-xs font-semibold text-right">Meters</TableHead>
-                                      </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                      {groups.map((g) => (
-                                        <TableRow key={g.itemId} className="hover:bg-slate-50/20">
-                                          <TableCell className="text-sm capitalize">{g.department}</TableCell>
-                                          <TableCell className="text-sm font-mono font-medium">{g.productName}</TableCell>
-                                          <TableCell className="text-sm text-right">{g.rolls.length}</TableCell>
-                                          <TableCell className="text-sm text-right font-mono">{formatNumber(g.totalNetWeight, 1)}</TableCell>
-                                          <TableCell className="text-sm text-right font-mono">{formatNumber(Math.floor(g.totalMeters), 0)}</TableCell>
-                                        </TableRow>
-                                      ))}
-                                    </TableBody>
-                                  </Table>
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Persistent billing entry form for this specific order */}
-                            <div className="bg-slate-50 border-t border-slate-100 px-4 py-3.5 flex flex-wrap items-center justify-between gap-4 text-sm">
-                              <div className="flex-1 min-w-[160px] flex items-center gap-2">
-                                <Label htmlFor={`bill-no-${order.id}`} className="text-slate-500 font-bold uppercase tracking-wider shrink-0 text-[10px]">
-                                  Bill No:
-                                </Label>
-                                <Input
-                                  id={`bill-no-${order.id}`}
-                                  placeholder="e.g. INV-001"
-                                  value={orderBillNumbers[order.id] ?? ""}
-                                  onChange={(e) => setOrderBillNumbers(prev => ({ ...prev, [order.id]: e.target.value }))}
-                                  className="h-8 text-xs border-slate-300 bg-white"
-                                />
-                              </div>
-                              <div className="flex-1 min-w-[140px] flex items-center gap-2">
-                                <Label htmlFor={`bill-val-${order.id}`} className="text-slate-500 font-bold uppercase tracking-wider shrink-0 text-[10px]">
-                                  Bill Value (₹):
-                                </Label>
-                                <Input
-                                  id={`bill-val-${order.id}`}
-                                  type="number"
-                                  placeholder="0.00"
-                                  value={orderBillValues[order.id] ?? ""}
-                                  onChange={(e) => setOrderBillValues(prev => ({ ...prev, [order.id]: e.target.value }))}
-                                  className="h-8 text-xs font-mono border-slate-300 bg-white"
-                                />
-                              </div>
-                              <div className="flex items-center gap-2 shrink-0">
-                                <Button
-                                  size="sm"
-                                  className="h-8 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold gap-1 text-xs"
-                                  onClick={() => handleSubmitOrderBilling(order.id)}
-                                  disabled={isPending}
-                                >
-                                  <Receipt className="h-3.5 w-3.5" />
-                                  Submit Billing
-                                </Button>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
                 );
               })}
