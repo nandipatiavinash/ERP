@@ -120,15 +120,18 @@ function buildProductGroups(order: SalesOrder, rolls: Roll[], fabricTypes: { id:
 
 export function SalesEntryClient({ pendingOrders, billedOrders, rolls, fabricTypes }: SalesEntryClientProps) {
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
-  const [selectedOrderIds, setSelectedOrderIds] = useState<string[]>([]);
-  const [billNumber, setBillNumber] = useState("");
-  const [billValue, setBillValue] = useState("");
+  const [orderBillNumbers, setOrderBillNumbers] = useState<Record<string, string>>({});
+  const [orderBillValues, setOrderBillValues] = useState<Record<string, string>>({});
 
   const [isPending, startTransition] = useTransition();
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [printOrderId, setPrintOrderId] = useState<string | null>(null);
-  const [confirmDialog, setConfirmDialog] = useState<{ orderIds: string[] } | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<{ 
+    orderIds: string[]; 
+    billNumber: string; 
+    billValue: string; 
+  } | null>(null);
 
   const toggleExpand = (orderId: string) => {
     setExpandedOrderId((prev) => (prev === orderId ? null : orderId));
@@ -152,77 +155,37 @@ export function SalesEntryClient({ pendingOrders, billedOrders, rolls, fabricTyp
     }));
   }, [pendingOrders]);
 
-  // Determine active customer ID from currently selected orders
-  const activeCustomerId = useMemo(() => {
-    if (selectedOrderIds.length === 0) return null;
-    const firstSelected = pendingOrders.find((o) => selectedOrderIds.includes(o.id));
-    return firstSelected ? firstSelected.customer_id : null;
-  }, [selectedOrderIds, pendingOrders]);
+  const handleSubmitOrderBilling = (orderId: string) => {
+    const billNo = (orderBillNumbers[orderId] ?? "").trim();
+    const billVal = (orderBillValues[orderId] ?? "").trim();
 
-  const toggleSelectCustomerAll = (customerId: string, customerOrders: SalesOrder[]) => {
-    const ids = customerOrders.map((o) => o.id);
-    const allSelected = ids.length > 0 && ids.every((id) => selectedOrderIds.includes(id));
-
-    if (allSelected) {
-      setSelectedOrderIds((prev) => prev.filter((id) => !ids.includes(id)));
-    } else {
-      setSelectedOrderIds(ids);
-    }
-  };
-
-  const toggleSelectOrder = (order: SalesOrder) => {
-    setSelectedOrderIds((prev) => {
-      if (prev.includes(order.id)) {
-        return prev.filter((id) => id !== order.id);
-      } else {
-        const filtered = prev.filter(id => {
-          const itemOrder = pendingOrders.find(o => o.id === id);
-          return itemOrder?.customer_id === order.customer_id;
-        });
-        return [...new Set([...filtered, order.id])];
-      }
-    });
-  };
-
-  // Details of currently selected orders to list in the billing card
-  const selectedOrdersDetails = useMemo(() => {
-    return pendingOrders.filter((o) => selectedOrderIds.includes(o.id));
-  }, [selectedOrderIds, pendingOrders]);
-
-  const handleSubmitBilling = () => {
-    if (selectedOrderIds.length === 0) {
-      setErrorMsg("Please select at least one delivery order to bill.");
-      return;
-    }
-    if (!billNumber.trim()) {
+    if (!billNo) {
       setErrorMsg("Bill Number is required.");
       return;
     }
-    const val = parseFloat(billValue);
+    const val = parseFloat(billVal);
     if (!Number.isFinite(val) || val < 0) {
       setErrorMsg("Bill Value must be a non-negative number.");
       return;
     }
 
-    // Verify all selected orders belong to the same customer
-    const selectedOrders = pendingOrders.filter((o) => selectedOrderIds.includes(o.id));
-    const customerNames = Array.from(new Set(selectedOrders.map((o) => o.customers?.customer_name)));
-    if (customerNames.length > 1) {
-      setErrorMsg("All selected orders must belong to the same customer to be billed together.");
-      return;
-    }
-
     // If bill number is "0", ask for confirmation before proceeding
-    if (billNumber.trim() === "0") {
-      setConfirmDialog({ orderIds: selectedOrderIds });
+    if (billNo === "0") {
+      setConfirmDialog({ 
+        orderIds: [orderId], 
+        billNumber: billNo, 
+        billValue: billVal 
+      });
       return;
     }
 
-    doSubmitBilling(selectedOrderIds, false);
+    doSubmitBilling([orderId], false, billNo, billVal);
   };
 
-  const doSubmitBilling = (orderIds: string[], skipJournal: boolean) => {
-    const val = parseFloat(billValue);
+  const doSubmitBilling = (orderIds: string[], skipJournal: boolean, specificBillNumber?: string, specificBillValue?: string) => {
+    const finalBillNumber = specificBillNumber ?? "";
+    const finalBillValue = specificBillValue ?? "0";
+    const val = parseFloat(finalBillValue);
 
     setErrorMsg(null);
     setSuccessMsg(null);
@@ -232,7 +195,7 @@ export function SalesEntryClient({ pendingOrders, billedOrders, rolls, fabricTyp
       try {
         const fd = new FormData();
         fd.append("order_ids", orderIds.join(","));
-        fd.append("bill_number", billNumber.trim());
+        fd.append("bill_number", finalBillNumber.trim());
         fd.append("bill_value", String(val));
         if (skipJournal) fd.append("skip_journal", "1");
         await saveSalesOrderBillingDirect(fd);
@@ -241,9 +204,13 @@ export function SalesEntryClient({ pendingOrders, billedOrders, rolls, fabricTyp
             ? "Sales billing saved (bill number 0 or value 0 — no journal entry recorded)."
             : "Sales billing saved and journal entries generated!"
         );
-        setBillNumber("");
-        setBillValue("");
-        setSelectedOrderIds([]);
+        
+        // Clear inputs for this order
+        const targetId = orderIds[0];
+        if (targetId) {
+          setOrderBillNumbers((prev) => ({ ...prev, [targetId]: "" }));
+          setOrderBillValues((prev) => ({ ...prev, [targetId]: "" }));
+        }
       } catch (err: any) {
         setErrorMsg(err.message ?? "Failed to save billing.");
       }
@@ -281,16 +248,6 @@ export function SalesEntryClient({ pendingOrders, billedOrders, rolls, fabricTyp
   // Build product groups for print view
   const printOrder = useMemo(() => {
     if (!printOrderId) return null;
-    if (printOrderId === "combined-print" && selectedOrderIds.length > 0) {
-      const selectedOrders = pendingOrders.filter((o) => selectedOrderIds.includes(o.id));
-      const first = selectedOrders[0];
-      if (!first) return null;
-      return {
-        ...first,
-        order_number: Array.from(new Set(selectedOrders.map((o) => o.order_number))).join(", "),
-        sales_order_items: selectedOrders.flatMap((o) => o.sales_order_items ?? []),
-      };
-    }
     const pending = pendingOrders.find((o) => o.id === printOrderId);
     if (pending) return pending;
 
@@ -305,7 +262,7 @@ export function SalesEntryClient({ pendingOrders, billedOrders, rolls, fabricTyp
       };
     }
     return billed;
-  }, [printOrderId, pendingOrders, billedOrders, selectedOrderIds]);
+  }, [printOrderId, pendingOrders, billedOrders]);
 
   const printGroups = useMemo(() => {
     return printOrder ? buildProductGroups(printOrder, rolls, fabricTypes) : [];
@@ -355,7 +312,7 @@ export function SalesEntryClient({ pendingOrders, billedOrders, rolls, fabricTyp
               </button>
               <button
                 className="px-4 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium transition-colors"
-                onClick={() => doSubmitBilling(confirmDialog.orderIds, true)}
+                onClick={() => doSubmitBilling(confirmDialog.orderIds, true, confirmDialog.billNumber, confirmDialog.billValue)}
               >
                 Yes, Save Without Journal
               </button>
@@ -382,7 +339,7 @@ export function SalesEntryClient({ pendingOrders, billedOrders, rolls, fabricTyp
               {pendingOrders.length}
             </Badge>
           </CardTitle>
-          <p className="text-sm text-muted-foreground mt-1">Select one or more confirmed dispatches for a customer to enter invoice billing details.</p>
+          <p className="text-sm text-muted-foreground mt-1">Enter invoice billing details directly for each confirmed dispatch.</p>
         </CardHeader>
         <CardContent>
           {pendingOrdersByCustomer.length === 0 ? (
@@ -393,10 +350,6 @@ export function SalesEntryClient({ pendingOrders, billedOrders, rolls, fabricTyp
           ) : (
             <div className="space-y-6">
               {pendingOrdersByCustomer.map((customerGroup) => {
-                const isGroupDisabled = activeCustomerId !== null && activeCustomerId !== customerGroup.customerId;
-                const customerOrderIds = customerGroup.orders.map((o) => o.id);
-                const allSelected = customerOrderIds.length > 0 && customerOrderIds.every((id) => selectedOrderIds.includes(id));
-
                 return (
                   <div key={customerGroup.customerId} className="space-y-2 border-l-2 border-slate-200 pl-4 py-1">
                     <div className="flex items-center justify-between">
@@ -408,15 +361,6 @@ export function SalesEntryClient({ pendingOrders, billedOrders, rolls, fabricTyp
                           <span className="text-xs text-muted-foreground">({customerGroup.alias})</span>
                         )}
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        disabled={isGroupDisabled}
-                        onClick={() => toggleSelectCustomerAll(customerGroup.customerId, customerGroup.orders)}
-                        className="text-xs text-emerald-600 hover:text-emerald-700 h-8 px-2"
-                      >
-                        {allSelected ? "Deselect All" : "Select All"}
-                      </Button>
                     </div>
 
                     <div className="space-y-3">
@@ -424,7 +368,6 @@ export function SalesEntryClient({ pendingOrders, billedOrders, rolls, fabricTyp
                         const isExpanded = expandedOrderId === order.id;
                         const groups = buildProductGroups(order, rolls, fabricTypes);
                         const grandTotalKg = groups.reduce((s, g) => s + g.totalNetWeight, 0);
-                        const isChecked = selectedOrderIds.includes(order.id);
 
                         return (
                           <div
@@ -433,13 +376,6 @@ export function SalesEntryClient({ pendingOrders, billedOrders, rolls, fabricTyp
                           >
                             {/* Order header row */}
                             <div className="w-full flex items-center gap-3 px-4 py-3 border-b border-slate-100 hover:bg-slate-50/50 transition-colors">
-                              <input
-                                type="checkbox"
-                                checked={isChecked}
-                                onChange={() => toggleSelectOrder(order)}
-                                disabled={isGroupDisabled}
-                                className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer disabled:opacity-50"
-                              />
                               <button
                                 type="button"
                                 className="flex-1 flex items-center justify-between text-left"
@@ -509,6 +445,46 @@ export function SalesEntryClient({ pendingOrders, billedOrders, rolls, fabricTyp
                                 </div>
                               </div>
                             )}
+
+                            {/* Persistent billing entry form for this specific order */}
+                            <div className="bg-slate-50 border-t border-slate-100 px-4 py-3.5 flex flex-wrap items-center justify-between gap-4 text-sm">
+                              <div className="flex-1 min-w-[160px] flex items-center gap-2">
+                                <Label htmlFor={`bill-no-${order.id}`} className="text-slate-500 font-bold uppercase tracking-wider shrink-0 text-[10px]">
+                                  Bill No:
+                                </Label>
+                                <Input
+                                  id={`bill-no-${order.id}`}
+                                  placeholder="e.g. INV-001"
+                                  value={orderBillNumbers[order.id] ?? ""}
+                                  onChange={(e) => setOrderBillNumbers(prev => ({ ...prev, [order.id]: e.target.value }))}
+                                  className="h-8 text-xs border-slate-300 bg-white"
+                                />
+                              </div>
+                              <div className="flex-1 min-w-[140px] flex items-center gap-2">
+                                <Label htmlFor={`bill-val-${order.id}`} className="text-slate-500 font-bold uppercase tracking-wider shrink-0 text-[10px]">
+                                  Bill Value (₹):
+                                </Label>
+                                <Input
+                                  id={`bill-val-${order.id}`}
+                                  type="number"
+                                  placeholder="0.00"
+                                  value={orderBillValues[order.id] ?? ""}
+                                  onChange={(e) => setOrderBillValues(prev => ({ ...prev, [order.id]: e.target.value }))}
+                                  className="h-8 text-xs font-mono border-slate-300 bg-white"
+                                />
+                              </div>
+                              <div className="flex items-center gap-2 shrink-0">
+                                <Button
+                                  size="sm"
+                                  className="h-8 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold gap-1 text-xs"
+                                  onClick={() => handleSubmitOrderBilling(order.id)}
+                                  disabled={isPending}
+                                >
+                                  <Receipt className="h-3.5 w-3.5" />
+                                  Submit Billing
+                                </Button>
+                              </div>
+                            </div>
                           </div>
                         );
                       })}
@@ -520,91 +496,6 @@ export function SalesEntryClient({ pendingOrders, billedOrders, rolls, fabricTyp
           )}
         </CardContent>
       </Card>
-
-      {/* Billing Inputs Card */}
-      {selectedOrderIds.length > 0 && (
-        <Card className="border border-emerald-200 bg-emerald-50/20 shadow-md no-print">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold text-emerald-950">
-              Billing Details for {selectedOrderIds.length} Selected Dispatch(es)
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <div className="text-xs font-semibold text-emerald-800 uppercase tracking-wider">Selected Dispatch Details:</div>
-              <div className="grid grid-cols-1 gap-2 max-h-40 overflow-y-auto pr-1">
-                {selectedOrdersDetails.map((order) => {
-                  const groups = buildProductGroups(order, rolls, fabricTypes);
-                  const weight = groups.reduce((s, g) => s + g.totalNetWeight, 0);
-                  const rollsCount = groups.reduce((s, g) => s + g.rolls.length, 0);
-                  return (
-                    <div key={order.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1.5 sm:gap-4 text-xs bg-white/80 border border-emerald-100 p-2.5 rounded-lg">
-                      <div>
-                        <span className="font-semibold text-slate-800">Order #{order.order_number}</span>
-                        <span className="text-slate-500 ml-2">Date: {formatDate(order.order_date)}</span>
-                      </div>
-                      <div className="font-mono text-slate-700 sm:text-right shrink-0 font-semibold">
-                        {rollsCount} Roll{rollsCount !== 1 ? 's' : ''} · {formatNumber(weight, 1)} kg
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="flex flex-wrap items-end gap-3 pt-2">
-              <div className="flex-1 min-w-[160px]">
-                <Label className="text-xs text-muted-foreground mb-1">Bill Number</Label>
-                <Input
-                  placeholder="e.g. INV-001"
-                  value={billNumber}
-                  onChange={(e) => setBillNumber(e.target.value)}
-                  className="h-9 text-sm border-slate-300"
-                />
-              </div>
-              <div className="flex-1 min-w-[140px]">
-                <Label className="text-xs text-muted-foreground mb-1">Bill Value (₹)</Label>
-                <Input
-                  type="number"
-                  placeholder="0.00"
-                  value={billValue}
-                  onChange={(e) => setBillValue(e.target.value)}
-                  className="h-9 text-sm font-mono border-slate-300"
-                />
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-9 border-emerald-300 text-emerald-700 hover:bg-emerald-50 font-semibold gap-1.5"
-                  onClick={() => setPrintOrderId("combined-print")}
-                  type="button"
-                >
-                  <Printer className="h-4 w-4" />
-                  Print Dispatch Note
-                </Button>
-                <Button
-                  size="sm"
-                  className="h-9 bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5 font-semibold"
-                  onClick={handleSubmitBilling}
-                  disabled={isPending}
-                >
-                  <Receipt className="h-4 w-4" />
-                  {isPending ? "Submitting..." : "Submit Billing"}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => setSelectedOrderIds([])}
-                  className="h-9 text-xs"
-                >
-                  Cancel
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Section 2: Billed Sales */}
       <Card className="border-0 shadow-lg bg-gradient-to-br from-white to-emerald-50/30">
