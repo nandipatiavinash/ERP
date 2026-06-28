@@ -191,8 +191,14 @@ export function MasterPage({
 
                           <form action={deactivateMaster.bind(null, config.key)}>
                             <input type="hidden" name="id" value={row.id} />
-                            <ConfirmSubmitButton size="sm" variant="outline" className="h-8" confirmTitle="Delete this record?" confirmDescription="This record will be deleted from active workflows.">
-                              Delete
+                            <ConfirmSubmitButton
+                              size="sm"
+                              variant="outline"
+                              className="h-8 border-red-200 hover:bg-red-50 text-red-600"
+                              confirmTitle="Deactivate this record?"
+                              confirmDescription="This record will be deactivated from active workflows."
+                            >
+                              Deactivate
                             </ConfirmSubmitButton>
                           </form>
                         </div>
@@ -203,16 +209,42 @@ export function MasterPage({
               </Table>
               <div className="mt-4 flex flex-col gap-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
                 <div>Showing {pagedRows.length} of {resultCount} records</div>
-                <div className="flex gap-2">
+                <div className="flex items-center gap-1.5">
                   {currentPage <= 1 ? (
                     <Button variant="outline" size="sm" disabled>Previous</Button>
                   ) : (
-                    <Button asChild variant="outline" size="sm"><Link href={query(currentPage - 1) as any}>Previous</Link></Button>
+                    <Button asChild variant="outline" size="sm">
+                      <Link href={query(currentPage - 1) as any}>Previous</Link>
+                    </Button>
                   )}
+
+                  {Array.from({ length: totalPages }, (_, i) => {
+                    const pageNum = i + 1;
+                    const isCurrent = pageNum === currentPage;
+                    return (
+                      <Button
+                        key={pageNum}
+                        asChild={!isCurrent}
+                        variant={isCurrent ? "default" : "outline"}
+                        size="sm"
+                        className={isCurrent ? "pointer-events-none font-bold" : ""}
+                        disabled={isCurrent}
+                      >
+                        {isCurrent ? (
+                          <span>{pageNum}</span>
+                        ) : (
+                          <Link href={query(pageNum) as any}>{pageNum}</Link>
+                        )}
+                      </Button>
+                    );
+                  })}
+
                   {currentPage >= totalPages ? (
                     <Button variant="outline" size="sm" disabled>Next</Button>
                   ) : (
-                    <Button asChild variant="outline" size="sm"><Link href={query(currentPage + 1) as any}>Next</Link></Button>
+                    <Button asChild variant="outline" size="sm">
+                      <Link href={query(currentPage + 1) as any}>Next</Link>
+                    </Button>
                   )}
                 </div>
               </div>

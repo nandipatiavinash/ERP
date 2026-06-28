@@ -266,32 +266,49 @@ export function OffsetProductsClient({
               <div>
                 Showing {offsetData.length} of {offsetTotal} records
               </div>
-              <div className="flex gap-2">
+              <div className="flex items-center gap-1.5">
                 {productPage <= 1 ? (
-                  <button className="h-9 rounded-md border px-3 opacity-50" disabled>
-                    Previous
-                  </button>
+                  <Button variant="outline" size="sm" disabled>Previous</Button>
                 ) : (
-                  <button
+                  <Button
                     type="button"
+                    variant="outline"
+                    size="sm"
                     onClick={() => router.push(`/admin/products?tab=offset&page=${productPage - 1}` as any)}
-                    className="inline-flex h-9 items-center rounded-md border px-3 hover:bg-slate-50"
                   >
                     Previous
-                  </button>
+                  </Button>
                 )}
+
+                {Array.from({ length: totalPages }, (_, i) => {
+                  const pageNum = i + 1;
+                  const isCurrent = pageNum === productPage;
+                  return (
+                    <Button
+                      key={pageNum}
+                      type="button"
+                      variant={isCurrent ? "default" : "outline"}
+                      size="sm"
+                      className={isCurrent ? "pointer-events-none font-bold" : ""}
+                      disabled={isCurrent}
+                      onClick={() => router.push(`/admin/products?tab=offset&page=${pageNum}` as any)}
+                    >
+                      {pageNum}
+                    </Button>
+                  );
+                })}
+
                 {productPage >= totalPages ? (
-                  <button className="h-9 rounded-md border px-3 opacity-50" disabled>
-                    Next
-                  </button>
+                  <Button variant="outline" size="sm" disabled>Next</Button>
                 ) : (
-                  <button
+                  <Button
                     type="button"
+                    variant="outline"
+                    size="sm"
                     onClick={() => router.push(`/admin/products?tab=offset&page=${productPage + 1}` as any)}
-                    className="inline-flex h-9 items-center rounded-md border px-3 hover:bg-slate-50"
                   >
                     Next
-                  </button>
+                  </Button>
                 )}
               </div>
             </div>
