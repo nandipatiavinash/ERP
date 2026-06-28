@@ -2000,38 +2000,6 @@ export async function saveSalesConfirmationRates(
   // 4. Auto-generate a single consolidated journal entry if combined balance is > +/- 100
   if (Math.abs(balance) > 100 && billNumber) {
     const customerName = order.customers?.customer_name ?? "Unknown";
-    const clientAlias = order.customers?.alias;
-
-    // Resolve or create Client Alias A/c
-    let aliasAcId: string | null = null;
-    const aliasBase = (clientAlias && clientAlias.trim()) || customerName.trim();
-    const aliasAcName = aliasBase.toLowerCase().endsWith(" a/c") ? aliasBase : `${aliasBase} A/c`;
-
-    const { data: existingAliasAc } = await (supabase
-      .from("customers") as any)
-      .select("id, customer_name")
-      .ilike("customer_name", aliasAcName)
-      .is("deleted_at", null)
-      .maybeSingle();
-
-    if (existingAliasAc) {
-      aliasAcId = existingAliasAc.id;
-    } else {
-      const { data: newAliasAc, error: createAliasErr } = await (supabase
-        .from("customers") as any)
-        .insert({
-          customer_name: aliasAcName,
-          is_internal: "client a/c",
-          status: "active",
-          created_by: user.id,
-          updated_by: user.id,
-        })
-        .select("id")
-        .single();
-      if (!createAliasErr && newAliasAc) {
-        aliasAcId = newAliasAc.id;
-      }
-    }
 
     const { data: salesAcData } = await (supabase
       .from("customers") as any)
@@ -2046,12 +2014,12 @@ export async function saveSalesConfirmationRates(
     const absBalance = Math.abs(balance);
 
     if (balance > 100) {
-      // Positive balance (underpaid): CLIENT Alias A/c Dr. & SALES A/c Cr.
+      // Positive balance (underpaid): CLIENT A/c Dr. & SALES A/c Cr.
       journalInserts.push({
         journal_no: journalNo,
         entry_date: order.order_date ?? todayInIndia(),
-        account_id: aliasAcId,
-        account_name: aliasAcName,
+        account_id: customerId,
+        account_name: customerName,
         entry_type: "debit",
         amount: absBalance,
         description: `Balance adjustment for Bill ${billNumber}`,
@@ -2070,7 +2038,7 @@ export async function saveSalesConfirmationRates(
         updated_by: user.id,
       });
     } else {
-      // Negative balance (overpaid): SALES A/c Dr. & CLIENT Alias A/c Cr.
+      // Negative balance (overpaid): SALES A/c Dr. & CLIENT A/c Cr.
       journalInserts.push({
         journal_no: journalNo,
         entry_date: order.order_date ?? todayInIndia(),
@@ -2085,8 +2053,8 @@ export async function saveSalesConfirmationRates(
       journalInserts.push({
         journal_no: journalNo,
         entry_date: order.order_date ?? todayInIndia(),
-        account_id: aliasAcId,
-        account_name: aliasAcName,
+        account_id: customerId,
+        account_name: customerName,
         entry_type: "credit",
         amount: absBalance,
         description: `Balance adjustment for Bill ${billNumber}`,
