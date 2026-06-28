@@ -33,8 +33,7 @@ export default async function AccountsSalesPage({
       .eq("order_date", date)
       .not("bill_number", "is", null)
       .is("deleted_at", null)
-      .order("order_date", { ascending: false })
-      .limit(50),
+      .order("order_date", { ascending: false }),
     supabase
       .from("fabric_types")
       .select("id, fabric_name")
@@ -58,15 +57,23 @@ export default async function AccountsSalesPage({
   }
   const uniqueRollIds = Array.from(new Set(allRollIds));
 
-  // 3. Fetch roll details with production entries
+  // 3. Fetch roll details with production entries in chunks of 200 to avoid HeadersOverflowError
   let rolls: any[] = [];
   if (uniqueRollIds.length > 0) {
-    const { data: rollData } = await supabase
-      .from("fabric_rolls")
-      .select("id, roll_number, meters, weight, fabric_type_id, loom_production_entries(gross_weight, core_weight, net_weight, net_meters, average_meter_weight)")
-      .in("id", uniqueRollIds)
-      .is("deleted_at", null);
-    rolls = (rollData ?? []) as any[];
+    const chunks = [];
+    for (let i = 0; i < uniqueRollIds.length; i += 200) {
+      chunks.push(uniqueRollIds.slice(i, i + 200));
+    }
+    const results = await Promise.all(
+      chunks.map(chunk =>
+        supabase
+          .from("fabric_rolls")
+          .select("id, roll_number, meters, weight, fabric_type_id, loom_production_entries(gross_weight, core_weight, net_weight, net_meters, average_meter_weight)")
+          .in("id", chunk)
+          .is("deleted_at", null)
+      )
+    );
+    rolls = results.flatMap(res => res.data ?? []);
   }
 
   return (

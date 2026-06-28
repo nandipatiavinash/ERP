@@ -70,7 +70,6 @@ export default async function DeliveryEntryPage({
               .eq("status", "available")
               .is("deleted_at", null)
               .order("id", { ascending: true })
-              .limit(1000)
           )
         )
       : Promise.resolve([] as any[]),
@@ -83,7 +82,6 @@ export default async function DeliveryEntryPage({
               .in("id", uniqueRollIds.slice(i * 200, (i + 1) * 200))
               .is("deleted_at", null)
               .order("id", { ascending: true })
-              .limit(1000)
           )
         )
       : Promise.resolve([] as any[]),

@@ -55,7 +55,6 @@ export default async function OrderWorkspacePage({
               .eq("status", "available")
               .is("deleted_at", null)
               .order("id", { ascending: true })
-              .limit(1000)
           )
         )
       : Promise.resolve([] as any[]),
@@ -68,7 +67,6 @@ export default async function OrderWorkspacePage({
               .in("id", selectedRollIds.slice(i * 200, (i + 1) * 200))
               .is("deleted_at", null)
               .order("id", { ascending: true })
-              .limit(1000)
           )
         )
       : Promise.resolve([] as any[]),
