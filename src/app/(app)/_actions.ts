@@ -29,6 +29,17 @@ function sanitizeText(value: FormDataEntryValue) {
   return String(value).trim().replace(/\s+/g, " ");
 }
 
+function revalidateAllReports() {
+  revalidatePath("/reports");
+  revalidatePath("/reports/accounts");
+  revalidatePath("/reports/opening-balance");
+  revalidatePath("/reports/closing-stock");
+  revalidatePath("/reports/profit-loss");
+  revalidatePath("/reports/balance-sheet");
+  revalidatePath("/reports/sales-confirmation");
+  revalidatePath("/reports/stock");
+}
+
 function todayInIndia() {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Kolkata",
@@ -1448,7 +1459,7 @@ export async function saveJournalEntry(formData: FormData) {
 
   revalidatePath("/accounts/journal");
   revalidatePath("/accounts/sales");
-  revalidatePath("/reports");
+  revalidateAllReports();
 }
 
 export async function softDeleteJournalEntry(formData: FormData) {
@@ -1464,7 +1475,7 @@ export async function softDeleteJournalEntry(formData: FormData) {
 
   revalidatePath("/accounts/journal");
   revalidatePath("/accounts/sales");
-  revalidatePath("/reports");
+  revalidateAllReports();
 }
 
 export async function softDeleteJournalEntryGroup(formData: FormData) {
@@ -1505,7 +1516,7 @@ export async function softDeleteJournalEntryGroup(formData: FormData) {
 
   revalidatePath("/accounts/journal");
   revalidatePath("/accounts/sales");
-  revalidatePath("/reports");
+  revalidateAllReports();
 }
 
 
@@ -1868,7 +1879,7 @@ export async function deleteSalesOrderCompletely(orderId: string) {
   revalidatePath("/accounts/journal");
   revalidatePath("/rolls");
   revalidatePath("/fabric/stock");
-  revalidatePath("/reports");
+  revalidateAllReports();
 }
 
 
@@ -2259,9 +2270,7 @@ export async function saveMaterialSalesEntry(formData: FormData) {
 
   revalidatePath("/accounts/material");
   revalidatePath("/accounts/journal");
-  revalidatePath("/reports");
-  revalidatePath("/reports/stock");
-  revalidatePath("/reports/closing-stock");
+  revalidateAllReports();
 }
 
 export async function deleteMaterialSalesEntry(formData: FormData) {
@@ -2294,9 +2303,7 @@ export async function deleteMaterialSalesEntry(formData: FormData) {
 
   revalidatePath("/accounts/material");
   revalidatePath("/accounts/journal");
-  revalidatePath("/reports");
-  revalidatePath("/reports/stock");
-  revalidatePath("/reports/closing-stock");
+  revalidateAllReports();
 }
 
 export async function clearSystemTransactions() {
@@ -3359,7 +3366,7 @@ export async function saveSalesOrderBillingDirect(formData: FormData) {
     revalidatePath("/accounts/sales");
     revalidatePath("/accounts/journal");
     revalidatePath("/sales/delivery-entry");
-    revalidatePath("/reports");
+    revalidateAllReports();
     return;
   }
 
@@ -3402,7 +3409,7 @@ export async function saveSalesOrderBillingDirect(formData: FormData) {
   revalidatePath("/accounts/sales");
   revalidatePath("/accounts/journal");
   revalidatePath("/sales/delivery-entry");
-  revalidatePath("/reports");
+  revalidateAllReports();
 }
 
 
