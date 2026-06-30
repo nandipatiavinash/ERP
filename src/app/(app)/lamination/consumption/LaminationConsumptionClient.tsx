@@ -214,7 +214,7 @@ export function LaminationConsumptionClient({
                       <option value="">Select available roll</option>
                       {filteredFabric.map((r) => (
                         <option key={r.id} value={r.id}>
-                          {r.roll_number} ({r.weight}kg · {r.meters}m)
+                          {r.roll_number} (Gross: {r.loom_production_entries?.gross_weight ?? r.weight}kg · Core: {r.loom_production_entries?.core_weight ?? 0}kg · Net: {r.weight}kg · {r.meters}m)
                         </option>
                       ))}
                     </select>
