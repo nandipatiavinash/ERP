@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -40,8 +40,26 @@ export function LaminationConsumptionClient({
   consumedFilm,
 }: LaminationConsumptionClientProps) {
   const [activeTab, setActiveTab] = useState<string>("raw");
+  const [selectedFabricTypeFilter, setSelectedFabricTypeFilter] = useState<string>("none");
 
-  const sortedFabric = [...availableFabric].sort((a, b) => (a.roll_number ?? "").localeCompare(b.roll_number ?? "", undefined, { numeric: true, sensitivity: "base" }));
+  const fabricTypesInStock = useMemo(() => {
+    const typesMap = new Map<string, string>();
+    availableFabric.forEach((roll) => {
+      if (roll.fabric_types) {
+        typesMap.set(roll.fabric_type_id, roll.fabric_types.fabric_name);
+      }
+    });
+    return Array.from(typesMap.entries()).map(([id, name]) => ({ id, name }));
+  }, [availableFabric]);
+
+  const filteredFabric = useMemo(() => {
+    const sorted = [...availableFabric].sort((a, b) => (a.roll_number ?? "").localeCompare(b.roll_number ?? "", undefined, { numeric: true, sensitivity: "base" }));
+    if (selectedFabricTypeFilter === "none" || !selectedFabricTypeFilter) {
+      return [];
+    }
+    return sorted.filter((roll) => roll.fabric_type_id === selectedFabricTypeFilter);
+  }, [availableFabric, selectedFabricTypeFilter]);
+
   const sortedFilm = [...availableFilm].sort((a, b) => (a.roll_id ?? "").localeCompare(b.roll_id ?? "", undefined, { numeric: true, sensitivity: "base" }));
 
   const tabs = [
@@ -161,15 +179,31 @@ export function LaminationConsumptionClient({
                   }}
                   className="flex flex-wrap items-end gap-4"
                 >
-                  <div className="flex-1 min-w-[280px] space-y-1">
+                  <div className="flex-1 min-w-[200px] space-y-1">
+                    <Label className="text-xs font-semibold text-slate-700">Fabric Type</Label>
+                    <select
+                      value={selectedFabricTypeFilter}
+                      onChange={(e) => setSelectedFabricTypeFilter(e.target.value)}
+                      className="w-full h-10 rounded-lg border border-slate-200 px-3 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500 bg-white"
+                    >
+                      <option value="none">Select fabric type</option>
+                      {fabricTypesInStock.map((t) => (
+                        <option key={t.id} value={t.id}>
+                          {t.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex-1 min-w-[200px] space-y-1">
                     <Label className="text-xs font-semibold text-slate-700">Fabric Roll</Label>
                     <select
                       name="roll_id"
-                      className="w-full h-10 rounded-lg border border-slate-200 px-3 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500 font-mono bg-white"
+                      className="w-full h-10 rounded-lg border border-slate-200 px-3 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500 font-mono bg-white disabled:opacity-50"
                       required
+                      disabled={selectedFabricTypeFilter === "none"}
                     >
                       <option value="">Select available roll</option>
-                      {sortedFabric.map((r) => (
+                      {filteredFabric.map((r) => (
                         <option key={r.id} value={r.id}>
                           {r.roll_number} ({r.weight}kg · {r.meters}m)
                         </option>
@@ -177,7 +211,7 @@ export function LaminationConsumptionClient({
                     </select>
                   </div>
                   <Button type="submit" className="bg-emerald-600 hover:bg-emerald-700 text-white px-6">
-                    Mark Fabric Roll Consumed
+                    Submit
                   </Button>
                 </form>
               </div>
@@ -265,7 +299,7 @@ export function LaminationConsumptionClient({
                     </select>
                   </div>
                   <Button type="submit" className="bg-emerald-600 hover:bg-emerald-700 text-white px-6">
-                    Mark Metallic Roll Consumed
+                    Submit
                   </Button>
                 </form>
               </div>

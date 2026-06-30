@@ -19,29 +19,21 @@ type FabricType = {
   fabric_name: string;
 };
 
-type RawMaterial = {
-  id: string;
-  material_name: string;
-};
-
 interface FinishingProductionFormProps {
   laminationRolls: LaminationRoll[];
   fabricTypes: FabricType[];
-  rawMaterials: RawMaterial[];
   onSuccess?: (newBundleInfo: { bundleId: string; numBags: number; weight: number }) => void;
 }
 
 export function FinishingProductionForm({
   laminationRolls,
   fabricTypes,
-  rawMaterials,
   onSuccess,
 }: FinishingProductionFormProps) {
   const [isPending, startTransition] = useTransition();
   const [finishType, setFinishType] = useState<string>("PLAIN");
   const [selectedLamId, setSelectedLamId] = useState<string>("none");
   const [selectedFabricTypeId, setSelectedFabricTypeId] = useState<string>("none");
-  const [selectedRawMaterialId, setSelectedRawMaterialId] = useState<string>("none");
   const [numBags, setNumBags] = useState<string>("");
   const [weightKg, setWeightKg] = useState<string>("");
   const [entryDate, setEntryDate] = useState<string>(
@@ -69,11 +61,10 @@ export function FinishingProductionForm({
       if (ft) fabricName = ft.fabric_name;
     } else if (finishType === "NW") {
       brandName = "NW";
-      const rm = rawMaterials.find((r) => r.id === selectedRawMaterialId);
-      if (rm) fabricName = rm.material_name;
+      fabricName = "NW";
     }
     return `${brandName}(${fabricName})()`;
-  }, [finishType, selectedLamId, selectedFabricTypeId, selectedRawMaterialId, laminationRolls, fabricTypes, rawMaterials]);
+  }, [finishType, selectedLamId, selectedFabricTypeId, laminationRolls, fabricTypes]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -86,10 +77,6 @@ export function FinishingProductionForm({
     }
     if (finishType === "PLAIN" && (!selectedFabricTypeId || selectedFabricTypeId === "none")) {
       setErrorMsg("Fabric Type is required.");
-      return;
-    }
-    if (finishType === "NW" && (!selectedRawMaterialId || selectedRawMaterialId === "none")) {
-      setErrorMsg("Non-Woven material is required.");
       return;
     }
     const bags = parseInt(numBags, 10);
@@ -107,8 +94,6 @@ export function FinishingProductionForm({
           fd.append("source_lam_roll_id", selectedLamId);
         } else if (finishType === "PLAIN") {
           fd.append("fabric_type_id", selectedFabricTypeId);
-        } else if (finishType === "NW") {
-          fd.append("source_nw_material_id", selectedRawMaterialId);
         }
         fd.append("num_bags", String(bags));
         fd.append("weight_kg", String(w));
@@ -124,7 +109,6 @@ export function FinishingProductionForm({
         // Reset
         setSelectedLamId("none");
         setSelectedFabricTypeId("none");
-        setSelectedRawMaterialId("none");
         setNumBags("");
         setWeightKg("");
       } catch (err: any) {
@@ -146,7 +130,7 @@ export function FinishingProductionForm({
         {/* Finishing Type Select */}
         <div className="space-y-1">
           <Label className="text-xs font-semibold text-slate-700">Finishing Type</Label>
-          <Select value={finishType} onValueChange={(val) => { setFinishType(val); setSelectedLamId("none"); setSelectedFabricTypeId("none"); setSelectedRawMaterialId("none"); }}>
+          <Select value={finishType} onValueChange={(val) => { setFinishType(val); setSelectedLamId("none"); setSelectedFabricTypeId("none"); }}>
             <SelectTrigger className="h-10 border-slate-200">
               <SelectValue placeholder="Select finishing type" />
             </SelectTrigger>
@@ -190,23 +174,6 @@ export function FinishingProductionForm({
                   <SelectItem key={t.id} value={t.id} className="text-xs">
                     {t.fabric_name}
                   </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        )}
-
-        {finishType === "NW" && (
-          <div className="space-y-1">
-            <Label className="text-xs font-semibold text-slate-700">Select NW Raw Material</Label>
-            <Select value={selectedRawMaterialId} onValueChange={setSelectedRawMaterialId}>
-              <SelectTrigger className="h-10 border-slate-200">
-                <SelectValue placeholder="Select NW material" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none" disabled>Select NW material</SelectItem>
-                {rawMaterials.map((rm) => (
-                  <SelectItem key={rm.id} value={rm.id}>{rm.material_name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>

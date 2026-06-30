@@ -28,21 +28,18 @@ type RawMaterial = {
 interface LaminationProductionFormProps {
   fabricTypes: FabricType[];
   filmRolls: FilmRoll[];
-  rawMaterials: RawMaterial[];
   onSuccess?: (newRollInfo: { rollId: string; weight: number; meters: number }) => void;
 }
 
 export function LaminationProductionForm({
   fabricTypes,
   filmRolls,
-  rawMaterials,
   onSuccess,
 }: LaminationProductionFormProps) {
   const [isPending, startTransition] = useTransition();
   const [lamType, setLamType] = useState<string>("PLAIN");
   const [selectedFabricTypeId, setSelectedFabricTypeId] = useState<string>("");
   const [selectedFilmId, setSelectedFilmId] = useState<string>("");
-  const [selectedRawMaterialId, setSelectedRawMaterialId] = useState<string>("");
   const [weightKg, setWeightKg] = useState<string>("");
   const [meters, setMeters] = useState<string>("");
   const [entryDate, setEntryDate] = useState<string>(
@@ -81,10 +78,6 @@ export function LaminationProductionForm({
       setErrorMsg("Film Roll is required for BOX/FS/HS types.");
       return;
     }
-    if (lamType === "NW" && !selectedRawMaterialId) {
-      setErrorMsg("Non-Woven material is required for NW type.");
-      return;
-    }
     const w = parseFloat(weightKg);
     const m = parseFloat(meters);
     if (!w || w <= 0 || !m || m <= 0) {
@@ -100,9 +93,6 @@ export function LaminationProductionForm({
         if (["BOX", "F_S", "H_S"].includes(lamType)) {
           fd.append("film_roll_id", selectedFilmId);
         }
-        if (lamType === "NW") {
-          fd.append("nw_material_id", selectedRawMaterialId);
-        }
         fd.append("weight_kg", String(w));
         fd.append("meters", String(m));
         fd.append("entry_date", entryDate);
@@ -117,7 +107,6 @@ export function LaminationProductionForm({
         // Reset
         setSelectedFabricTypeId("");
         setSelectedFilmId("");
-        setSelectedRawMaterialId("");
         setWeightKg("");
         setMeters("");
       } catch (err: any) {
@@ -142,7 +131,7 @@ export function LaminationProductionForm({
         {/* Lamination Type */}
         <div className="space-y-1">
           <Label className="text-xs font-semibold text-slate-700">Lamination Type</Label>
-          <Select value={lamType} onValueChange={(val) => { setLamType(val); setSelectedFabricTypeId(""); setSelectedFilmId(""); setSelectedRawMaterialId(""); }}>
+          <Select value={lamType} onValueChange={(val) => { setLamType(val); setSelectedFabricTypeId(""); setSelectedFilmId(""); }}>
             <SelectTrigger className="h-10 border-slate-200">
               <SelectValue placeholder="Select lamination type" />
             </SelectTrigger>

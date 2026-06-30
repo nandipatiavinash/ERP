@@ -44,7 +44,7 @@ export default async function LaminationConsumptionPage({
       .order("created_at", { ascending: false }),
     supabase
       .from("fabric_rolls")
-      .select("id, roll_number, weight, meters")
+      .select("id, roll_number, weight, meters, fabric_type_id, fabric_types(id, fabric_name)")
       .eq("status", "available")
       .eq("current_stage", "loom")
       .is("deleted_at", null)

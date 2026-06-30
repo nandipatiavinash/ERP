@@ -16,7 +16,6 @@ export default async function LaminationProductionPage() {
   const [
     { data: activeFabricTypes },
     { data: activeMetallicRolls },
-    { data: rawNWMaterials },
     { data: todayLaminationEntries },
     { data: availableRolls },
   ] = await Promise.all([
@@ -33,14 +32,8 @@ export default async function LaminationProductionPage() {
       .is("deleted_at", null)
       .order("created_at", { ascending: false }),
     supabase
-      .from("raw_materials")
-      .select("id, material_name")
-      .eq("department", "lamination")
-      .is("deleted_at", null)
-      .order("material_name"),
-    supabase
       .from("lamination_rolls")
-      .select("*, fabric_types(fabric_name), roto_metallic_rolls(roll_id), raw_materials(material_name)")
+      .select("*, fabric_types(fabric_name), roto_metallic_rolls(roll_id)")
       .is("deleted_at", null)
       .order("created_at", { ascending: false })
       .limit(50),
@@ -59,7 +52,6 @@ export default async function LaminationProductionPage() {
     availableFabricTypeIds.includes(t.id)
   );
   const metallicRolls = (activeMetallicRolls ?? []) as any[];
-  const rawMaterials = (rawNWMaterials ?? []) as any[];
   const laminationRows = (todayLaminationEntries ?? []) as any[];
 
   return (
@@ -77,7 +69,6 @@ export default async function LaminationProductionPage() {
           <LaminationProductionForm
             fabricTypes={fabricTypes}
             filmRolls={metallicRolls}
-            rawMaterials={rawMaterials}
           />
         </CardContent>
       </Card>

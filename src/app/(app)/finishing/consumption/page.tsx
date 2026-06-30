@@ -42,7 +42,7 @@ export default async function FinishingConsumptionPage({
       .order("created_at", { ascending: false }),
     supabase
       .from("fabric_rolls")
-      .select("id, roll_number, weight, meters")
+      .select("id, roll_number, weight, meters, fabric_type_id, fabric_types(id, fabric_name)")
       .eq("status", "available")
       .eq("current_stage", "loom")
       .is("deleted_at", null)
@@ -86,7 +86,7 @@ export default async function FinishingConsumptionPage({
       .limit(100),
   ]);
 
-  const materials = (rawMaterialsRes.data ?? []) as any[];
+  const materials = ((rawMaterialsRes.data ?? []) as any[]).filter((m) => Number(m.current_stock ?? 0) > 0);
   const rawRows = (rawConsumptionsRes.data ?? []) as any[];
   const availableFabric = (availableFabricRes.data ?? []) as any[];
   const consumedFabric = (consumedFabricRes.data ?? []) as any[];

@@ -82,11 +82,7 @@ export function RotoProductionClient({
                   <Table>
                     <TableHeader>
                       <TableRow className="bg-slate-50/50">
-                        <TableHead>Date</TableHead>
                         <TableHead>Roll ID</TableHead>
-                        <TableHead>Brand</TableHead>
-                        <TableHead>Film Type</TableHead>
-                        <TableHead>Color</TableHead>
                         <TableHead className="text-right">KGs</TableHead>
                         <TableHead className="text-right">Meters</TableHead>
                         <TableHead className="text-center">Action</TableHead>
@@ -95,11 +91,7 @@ export function RotoProductionClient({
                     <TableBody>
                       {filmRows.map((row) => (
                         <TableRow key={row.id}>
-                          <TableCell>{formatDate(row.entry_date)}</TableCell>
                           <TableCell className="font-mono font-bold text-emerald-950">{row.roll_id}</TableCell>
-                          <TableCell>{row.roto_products?.brand ?? "-"}</TableCell>
-                          <TableCell className="capitalize">{row.film_type}</TableCell>
-                          <TableCell>{row.roto_colors?.color_name ?? "-"}</TableCell>
                           <TableCell className="text-right font-mono">{row.weight_kg}</TableCell>
                           <TableCell className="text-right font-mono">{row.meters}</TableCell>
                           <TableCell className="text-center">
@@ -150,10 +142,7 @@ export function RotoProductionClient({
                   <Table>
                     <TableHeader>
                       <TableRow className="bg-slate-50/50">
-                        <TableHead>Date</TableHead>
                         <TableHead>Roll ID</TableHead>
-                        <TableHead>Source Film Roll</TableHead>
-                        <TableHead className="text-center">Split Wind?</TableHead>
                         <TableHead className="text-right">KGs</TableHead>
                         <TableHead className="text-right">Meters</TableHead>
                         <TableHead className="text-center">Action</TableHead>
@@ -162,10 +151,7 @@ export function RotoProductionClient({
                     <TableBody>
                       {metallicRows.map((row) => (
                         <TableRow key={row.id}>
-                          <TableCell>{formatDate(row.entry_date)}</TableCell>
                           <TableCell className="font-mono font-bold text-emerald-950">{row.roll_id}</TableCell>
-                          <TableCell className="font-mono text-xs">{row.roto_film_rolls?.roll_id ?? "-"}</TableCell>
-                          <TableCell className="text-center">{row.is_split ? "Yes" : "No"}</TableCell>
                           <TableCell className="text-right font-mono">{row.weight_kg}</TableCell>
                           <TableCell className="text-right font-mono">{row.meters}</TableCell>
                           <TableCell className="text-center">

@@ -2625,7 +2625,6 @@ export async function saveLaminationProduction(formData: FormData) {
   const lamType = String(formData.get("lam_type") ?? "");
   const fabricTypeId = String(formData.get("fabric_type_id") ?? "");
   const filmRollId = formData.get("film_roll_id") ? String(formData.get("film_roll_id")) : null;
-  const nwMaterialId = formData.get("nw_material_id") ? String(formData.get("nw_material_id")) : null;
   const weightKg = Number(formData.get("weight_kg") ?? 0);
   const meters = Number(formData.get("meters") ?? 0);
   const entryDate = String(formData.get("entry_date") ?? todayInIndia());
@@ -2696,7 +2695,7 @@ export async function saveLaminationProduction(formData: FormData) {
       lam_type: lamType,
       fabric_type_id: fabricTypeId,
       film_roll_id: filmRollIdValue,
-      nw_material_id: lamType === "NW" ? nwMaterialId : null,
+      nw_material_id: null,
       weight_kg: weightKg,
       meters: meters,
       entry_date: entryDate,
@@ -2827,7 +2826,6 @@ export async function saveFinishingBundle(formData: FormData) {
   const finishType = String(formData.get("finish_type") ?? "");
   const sourceLamRollId = formData.get("source_lam_roll_id") ? String(formData.get("source_lam_roll_id")) : null;
   const fabricTypeId = formData.get("fabric_type_id") ? String(formData.get("fabric_type_id")) : null;
-  const sourceNwMaterialId = formData.get("source_nw_material_id") ? String(formData.get("source_nw_material_id")) : null;
   const numBags = Number(formData.get("num_bags") ?? 0);
   const weightKg = Number(formData.get("weight_kg") ?? 0);
   const entryDate = String(formData.get("entry_date") ?? todayInIndia());
@@ -2860,11 +2858,8 @@ export async function saveFinishingBundle(formData: FormData) {
     brandName = "PLAIN";
     fabricTypeName = (ft as any).fabric_name;
   } else if (finishType === "NW") {
-    if (!sourceNwMaterialId) throw new Error("Source non-woven material is required.");
-    const { data: rm } = await (supabase.from("raw_materials") as any).select("material_name").eq("id", sourceNwMaterialId).single();
-    if (!rm) throw new Error("Non-woven material not found.");
     brandName = "NW";
-    fabricTypeName = (rm as any).material_name;
+    fabricTypeName = "NW";
   } else {
     throw new Error("Unsupported finishing type.");
   }
@@ -2885,7 +2880,7 @@ export async function saveFinishingBundle(formData: FormData) {
       finish_type: finishType,
       source_lam_roll_id: finishType === "LAMINATED" ? sourceLamRollId : null,
       fabric_type_id: finishType === "PLAIN" ? fabricTypeId : null,
-      source_nw_material_id: finishType === "NW" ? sourceNwMaterialId : null,
+      source_nw_material_id: null,
       num_bags: numBags,
       weight_kg: weightKg,
       entry_date: entryDate,
