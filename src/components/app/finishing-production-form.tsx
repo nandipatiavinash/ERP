@@ -23,12 +23,14 @@ interface FinishingProductionFormProps {
   laminationRolls: LaminationRoll[];
   fabricTypes: FabricType[];
   onSuccess?: (newBundleInfo: { bundleId: string; numBags: number; weight: number }) => void;
+  rows?: any[];
 }
 
 export function FinishingProductionForm({
   laminationRolls,
   fabricTypes,
   onSuccess,
+  rows,
 }: FinishingProductionFormProps) {
   const [isPending, startTransition] = useTransition();
   const [finishType, setFinishType] = useState<string>("PLAIN");
@@ -86,6 +88,21 @@ export function FinishingProductionForm({
       return;
     }
 
+    // Client-side duplicate check
+    if (rows) {
+      const isDup = rows.some((r: any) =>
+        r.finish_type === finishType &&
+        (finishType === "LAMINATED" ? r.source_lam_roll_id === selectedLamId : true) &&
+        (finishType === "PLAIN" ? r.fabric_type_id === selectedFabricTypeId : true) &&
+        Math.floor(Number(r.num_bags)) === Math.floor(bags) &&
+        Math.floor(Number(r.weight_kg) * 100) === Math.floor(w * 100)
+      );
+      if (isDup) {
+        const ok = window.confirm("This entry appears to be a duplicate (an identical entry already exists for today). Do you still want to submit?");
+        if (!ok) return;
+      }
+    }
+
     startTransition(async () => {
       try {
         const fd = new FormData();
@@ -100,6 +117,7 @@ export function FinishingProductionForm({
         fd.append("entry_date", entryDate);
 
         await saveFinishingBundle(fd);
+        alert("Submitted successfully!");
         setSuccessMsg(`Finishing bundle created successfully: ${livePreviewId}`);
 
         if (onSuccess) {

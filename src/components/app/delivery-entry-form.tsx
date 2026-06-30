@@ -106,6 +106,7 @@ export function DeliveryEntryForm({
     const formData = new FormData(form);
     try {
       await createSalesOrder(formData);
+      alert("Submitted successfully!");
       form.reset();
       setConfirmedRows([]);
       setDraft({ department: "fabric", productId: "", quantity: "" });

@@ -18,11 +18,13 @@ type FilmRoll = {
 interface RotoMetallicProductionFormProps {
   filmRolls: FilmRoll[];
   onSuccess?: (newRollInfo: { rollId: string; weight: number; meters: number }) => void;
+  rows?: any[];
 }
 
 export function RotoMetallicProductionForm({
   filmRolls,
   onSuccess,
+  rows,
 }: RotoMetallicProductionFormProps) {
   const [isPending, startTransition] = useTransition();
   const [selectedFilmId, setSelectedFilmId] = useState<string>("");
@@ -63,6 +65,19 @@ export function RotoMetallicProductionForm({
       return;
     }
 
+    // Client-side duplicate check
+    if (rows) {
+      const isDup = rows.some((r: any) =>
+        r.source_film_roll_id === selectedFilmId &&
+        Math.floor(Number(r.weight_kg) * 100) === Math.floor(w * 100) &&
+        Math.floor(Number(r.meters) * 100) === Math.floor(m * 100)
+      );
+      if (isDup) {
+        const ok = window.confirm("This entry appears to be a duplicate (an identical entry already exists for today). Do you still want to submit?");
+        if (!ok) return;
+      }
+    }
+
     startTransition(async () => {
       try {
         const fd = new FormData();
@@ -73,6 +88,7 @@ export function RotoMetallicProductionForm({
         fd.append("entry_date", entryDate);
 
         await saveRotoMetallicProduction(fd);
+        alert("Submitted successfully!");
         setSuccessMsg(`Roto Metallic roll created: ${livePreviewId}`);
 
         if (onSuccess) {

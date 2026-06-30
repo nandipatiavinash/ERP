@@ -69,6 +69,7 @@ export default async function LaminationProductionPage() {
           <LaminationProductionForm
             fabricTypes={fabricTypes}
             filmRolls={metallicRolls}
+            rows={laminationRows}
           />
         </CardContent>
       </Card>

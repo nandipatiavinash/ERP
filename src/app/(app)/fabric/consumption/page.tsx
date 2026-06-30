@@ -58,7 +58,7 @@ export default async function FabricConsumptionPage({
             <CardTitle>Log Consumption</CardTitle>
           </CardHeader>
           <CardContent>
-            <ConsumptionForm department="fabric" materials={materials} />
+            <ConsumptionForm department="fabric" materials={materials} rows={rows} />
           </CardContent>
         </Card>
       ) : (

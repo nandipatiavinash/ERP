@@ -14,9 +14,10 @@ type ConsumptionFormProps = {
   department: string;
   materials: MaterialOption[];
   row?: Record<string, any>;
+  rows?: any[];
 };
 
-export function ConsumptionForm({ department, materials, row }: ConsumptionFormProps) {
+export function ConsumptionForm({ department, materials, row, rows }: ConsumptionFormProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [errorText, setErrorText] = useState<string | null>(null);
 
@@ -34,8 +35,21 @@ export function ConsumptionForm({ department, materials, row }: ConsumptionFormP
       setErrorText("Quantity must be a multiple of 25.");
       return;
     }
-    setIsSaving(true);
     setErrorText(null);
+
+    // Client-side duplicate check
+    if (!row?.id && rows) {
+      const isDup = rows.some((r: any) =>
+        r.raw_material_id === materialId &&
+        Math.floor(Number(r.quantity) * 100) === Math.floor(Number(qtyNum) * 100)
+      );
+      if (isDup) {
+        const ok = window.confirm("This entry appears to be a duplicate (an identical entry already exists for today). Do you still want to submit?");
+        if (!ok) return;
+      }
+    }
+
+    setIsSaving(true);
     try {
       const formData = new FormData(event.currentTarget);
       if (row?.id) {
@@ -43,10 +57,15 @@ export function ConsumptionForm({ department, materials, row }: ConsumptionFormP
       }
       formData.set("department", department);
       await saveRawMaterialConsumption(formData);
+      alert("Submitted successfully!");
 
       if (!row?.id) {
         setMaterialId("");
         setQuantity("");
+        // Reset remarks if any
+        const formEl = event.currentTarget;
+        const remarksEl = formEl.elements.namedItem("remarks") as HTMLTextAreaElement;
+        if (remarksEl) remarksEl.value = "";
       }
     } catch (err: any) {
       setErrorText(err.message || "Failed to save consumption log.");

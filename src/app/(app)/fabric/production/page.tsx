@@ -65,6 +65,7 @@ export default async function FabricProductionPage() {
             lastMeters={lastMeters}
             nextSerials={nextSerials}
             isAdmin={admin}
+            rows={productionRows}
           />
         </CardContent>
       </Card>

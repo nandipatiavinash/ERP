@@ -66,6 +66,7 @@ export function RotoProductionClient({
                 rotoProducts={rotoProducts}
                 customers={customers}
                 rotoColors={rotoColors}
+                rows={filmRows}
               />
             </CardContent>
           </Card>
@@ -126,6 +127,7 @@ export function RotoProductionClient({
             <CardContent>
               <RotoMetallicProductionForm
                 filmRolls={filmRolls}
+                rows={metallicRows}
               />
             </CardContent>
           </Card>

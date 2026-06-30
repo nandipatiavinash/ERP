@@ -29,12 +29,14 @@ interface LaminationProductionFormProps {
   fabricTypes: FabricType[];
   filmRolls: FilmRoll[];
   onSuccess?: (newRollInfo: { rollId: string; weight: number; meters: number }) => void;
+  rows?: any[];
 }
 
 export function LaminationProductionForm({
   fabricTypes,
   filmRolls,
   onSuccess,
+  rows,
 }: LaminationProductionFormProps) {
   const [isPending, startTransition] = useTransition();
   const [lamType, setLamType] = useState<string>("PLAIN");
@@ -85,6 +87,21 @@ export function LaminationProductionForm({
       return;
     }
 
+    // Client-side duplicate check
+    if (rows) {
+      const isDup = rows.some((r: any) =>
+        r.lam_type === lamType &&
+        r.fabric_type_id === selectedFabricTypeId &&
+        (isFilmRequired ? r.film_roll_id === selectedFilmId : true) &&
+        Math.floor(Number(r.weight_kg) * 100) === Math.floor(w * 100) &&
+        Math.floor(Number(r.meters) * 100) === Math.floor(m * 100)
+      );
+      if (isDup) {
+        const ok = window.confirm("This entry appears to be a duplicate (an identical entry already exists for today). Do you still want to submit?");
+        if (!ok) return;
+      }
+    }
+
     startTransition(async () => {
       try {
         const fd = new FormData();
@@ -98,6 +115,7 @@ export function LaminationProductionForm({
         fd.append("entry_date", entryDate);
 
         await saveLaminationProduction(fd);
+        alert("Submitted successfully!");
         setSuccessMsg(`Lamination roll created: ${livePreviewId}`);
 
         if (onSuccess) {

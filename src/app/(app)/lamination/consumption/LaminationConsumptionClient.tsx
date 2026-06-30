@@ -14,7 +14,9 @@ import {
   consumeFabricRoll,
   revertFabricRollConsumption,
   consumeMetallicRoll,
-  revertMetallicRollConsumption
+  revertMetallicRollConsumption,
+  consumeRotoFilmRoll,
+  revertRotoFilmRollConsumption
 } from "@/app/(app)/_actions";
 import { Beaker, Layers, Film } from "lucide-react";
 
@@ -65,7 +67,7 @@ export function LaminationConsumptionClient({
   const tabs = [
     { id: "raw", label: "Raw Materials", icon: Beaker },
     { id: "fabric", label: "Fabric Rolls", icon: Layers },
-    { id: "metallic", label: "Metallic Film Rolls", icon: Film },
+    { id: "metallic", label: "Film Rolls", icon: Film },
   ];
 
   return (
@@ -108,7 +110,7 @@ export function LaminationConsumptionClient({
             {isToday && (
               <div className="bg-slate-50/50 p-4 rounded-xl border border-slate-100">
                 <h4 className="text-sm font-semibold text-slate-800 mb-3">Log Raw Materials</h4>
-                <ConsumptionForm department="lamination" materials={materials} />
+                <ConsumptionForm department="lamination" materials={materials} rows={rawRows} />
               </div>
             )}
             <div className="space-y-3">
@@ -174,7 +176,14 @@ export function LaminationConsumptionClient({
                   action={async (fd) => {
                     const rollId = String(fd.get("roll_id") ?? "");
                     if (rollId) {
-                      await consumeFabricRoll(rollId, "lamination_consumption");
+                      const isDup = consumedFabric.some(r => r.id === rollId);
+                      if (isDup) {
+                        const ok = window.confirm("This roll has already been marked as consumed today. Do you still want to submit?");
+                        if (!ok) return;
+                      }
+                      await consumeFabricRoll(rollId, "lamination");
+                      alert("Submitted successfully!");
+                      setSelectedFabricTypeFilter("none");
                     }
                   }}
                   className="flex flex-wrap items-end gap-4"
@@ -225,6 +234,7 @@ export function LaminationConsumptionClient({
                   <Table>
                     <TableHeader>
                       <TableRow className="bg-slate-50/50">
+                        <TableHead>Fabric Type</TableHead>
                         <TableHead>Roll Number</TableHead>
                         <TableHead className="text-right">Weight (kg)</TableHead>
                         <TableHead className="text-right">Meters</TableHead>
@@ -234,6 +244,7 @@ export function LaminationConsumptionClient({
                     <TableBody>
                       {consumedFabric.map((roll) => (
                         <TableRow key={roll.id}>
+                          <TableCell className="font-semibold">{roll.fabric_types?.fabric_name || "Unknown"}</TableCell>
                           <TableCell className="font-mono font-bold text-emerald-950">{roll.roll_number}</TableCell>
                           <TableCell className="text-right font-mono">{formatNumber(roll.weight, 2)}</TableCell>
                           <TableCell className="text-right font-mono">{formatNumber(roll.meters, 0)}</TableCell>
@@ -264,36 +275,49 @@ export function LaminationConsumptionClient({
         </Card>
       )}
 
-      {/* SECTION C: Metallic Film Rolls */}
+      {/* SECTION C: Film Rolls */}
       {activeTab === "metallic" && (
         <Card className="border-0 shadow-lg bg-gradient-to-br from-white to-emerald-50/20">
           <CardHeader>
-            <CardTitle className="text-lg">Metallic Film Rolls Consumption</CardTitle>
+            <CardTitle className="text-lg">Film Rolls Consumption</CardTitle>
           </CardHeader>
           <CardContent className="space-y-6">
             {isToday && (
               <div className="bg-slate-50/50 p-4 rounded-xl border border-slate-100">
-                <h4 className="text-sm font-semibold text-slate-800 mb-3">Consume Metallic Film Roll</h4>
+                <h4 className="text-sm font-semibold text-slate-800 mb-3">Consume Film Roll</h4>
                 <form
                   action={async (fd) => {
                     const rollId = String(fd.get("roll_id") ?? "");
                     if (rollId) {
-                      await consumeMetallicRoll(rollId);
+                      const isDup = consumedFilm.some(r => r.id === rollId);
+                      if (isDup) {
+                        const ok = window.confirm("This roll has already been marked as consumed today. Do you still want to submit?");
+                        if (!ok) return;
+                      }
+                      const roll = availableFilm.find(r => r.id === rollId);
+                      if (roll) {
+                        if (roll.type === "film") {
+                          await consumeRotoFilmRoll(rollId);
+                        } else {
+                          await consumeMetallicRoll(rollId);
+                        }
+                        alert("Submitted successfully!");
+                      }
                     }
                   }}
                   className="flex flex-wrap items-end gap-4"
                 >
                   <div className="flex-1 min-w-[280px] space-y-1">
-                    <Label className="text-xs font-semibold text-slate-700">Metallic Roll</Label>
+                    <Label className="text-xs font-semibold text-slate-700">Film Roll</Label>
                     <select
                       name="roll_id"
                       className="w-full h-10 rounded-lg border border-slate-200 px-3 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500 font-mono bg-white"
                       required
                     >
-                      <option value="">Select available metallic roll</option>
+                      <option value="">Select available roll</option>
                       {sortedFilm.map((f) => (
                         <option key={f.id} value={f.id}>
-                          {f.roll_id} ({f.weight_kg}kg · {f.meters}m)
+                          {f.roll_id} ({f.weight_kg}kg · {f.meters}m) {f.type === "film" ? " (Film)" : " (Metallic)"}
                         </option>
                       ))}
                     </select>
@@ -305,9 +329,9 @@ export function LaminationConsumptionClient({
               </div>
             )}
             <div className="space-y-3">
-              <h4 className="text-sm font-semibold text-slate-800">Metallic Film Rolls Consumed</h4>
+              <h4 className="text-sm font-semibold text-slate-800">Film Rolls Consumed</h4>
               {consumedFilm.length === 0 ? (
-                <EmptyState title="No consumed film rolls" description="Metallic film rolls marked as consumed will show here." />
+                <EmptyState title="No consumed film rolls" description="Film rolls marked as consumed will show here." />
               ) : (
                 <div className="overflow-x-auto rounded-lg border border-slate-100 bg-white">
                   <Table>
@@ -322,18 +346,24 @@ export function LaminationConsumptionClient({
                     <TableBody>
                       {consumedFilm.map((roll) => (
                         <TableRow key={roll.id}>
-                          <TableCell className="font-mono font-bold text-emerald-950">{roll.roll_id}</TableCell>
+                          <TableCell className="font-mono font-bold text-emerald-950">
+                            {roll.roll_id} {roll.type === "film" ? " (Film)" : " (Metallic)"}
+                          </TableCell>
                           <TableCell className="text-right font-mono">{formatNumber(roll.weight_kg, 2)}</TableCell>
                           <TableCell className="text-right font-mono">{formatNumber(roll.meters, 0)}</TableCell>
                           {isToday && (
                             <TableCell className="text-center">
                               <form action={async () => {
-                                await revertMetallicRollConsumption(roll.id);
+                                if (roll.type === "film") {
+                                  await revertRotoFilmRollConsumption(roll.id);
+                                } else {
+                                  await revertMetallicRollConsumption(roll.id);
+                                }
                               }}>
                                 <ConfirmSubmitButton
                                   size="sm"
                                   variant="destructive"
-                                  confirmTitle="Revert metallic film roll consumption?"
+                                  confirmTitle="Revert film roll consumption?"
                                   confirmDescription="This will restore the roll back to available stock."
                                 >
                                   Revert

@@ -33,6 +33,7 @@ interface OffsetProductionFormProps {
   laminationRolls: LaminationRoll[];
   offsetProducts: OffsetProduct[];
   onSuccess?: (newRollInfo: { rollId: string; weight: number }) => void;
+  rows?: any[];
 }
 
 export function OffsetProductionForm({
@@ -40,10 +41,12 @@ export function OffsetProductionForm({
   laminationRolls,
   offsetProducts,
   onSuccess,
+  rows,
 }: OffsetProductionFormProps) {
   const [isPending, startTransition] = useTransition();
   const [offsetType, setOffsetType] = useState<string>("FABRIC");
   const [selectedFabricTypeId, setSelectedFabricTypeId] = useState<string>("");
+  const [selectedLamBrand, setSelectedLamBrand] = useState<string>("none");
   const [selectedLamId, setSelectedLamId] = useState<string>("");
   const [selectedBrandId, setSelectedBrandId] = useState<string>("");
   const [weightKg, setWeightKg] = useState<string>("");
@@ -53,16 +56,47 @@ export function OffsetProductionForm({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-  // Filter lamination rolls based on selected offset type
-  const filteredLamRolls = useMemo(() => {
-    if (offsetType === "NW_LAM") {
-      return laminationRolls.filter((r) => r.lam_type === "NW");
-    }
-    if (offsetType === "PLAIN_LAM") {
-      return laminationRolls.filter((r) => r.lam_type === "PLAIN");
-    }
-    return [];
+  // Group lamination brands based on offsetType
+  const laminationBrands = useMemo(() => {
+    const brandsSet = new Set<string>();
+    const rolls = offsetType === "NW_LAM"
+      ? laminationRolls.filter((r) => r.lam_type === "NW")
+      : offsetType === "PLAIN_LAM"
+      ? laminationRolls.filter((r) => r.lam_type === "PLAIN")
+      : [];
+
+    rolls.forEach((roll) => {
+      const match = roll.roll_id.match(/^([^(]+)/);
+      if (match) {
+        brandsSet.add(match[1].trim());
+      } else {
+        brandsSet.add(roll.roll_id);
+      }
+    });
+    return Array.from(brandsSet);
   }, [offsetType, laminationRolls]);
+
+  // Filter lamination rolls based on selected brand
+  const filteredLamRolls = useMemo(() => {
+    let rolls = [];
+    if (offsetType === "NW_LAM") {
+      rolls = laminationRolls.filter((r) => r.lam_type === "NW");
+    } else if (offsetType === "PLAIN_LAM") {
+      rolls = laminationRolls.filter((r) => r.lam_type === "PLAIN");
+    } else {
+      return [];
+    }
+
+    if (selectedLamBrand === "none" || !selectedLamBrand) {
+      return [];
+    }
+
+    return rolls.filter((roll) => {
+      const match = roll.roll_id.match(/^([^(]+)/);
+      const brandName = match ? match[1].trim() : roll.roll_id;
+      return brandName === selectedLamBrand;
+    });
+  }, [offsetType, laminationRolls, selectedLamBrand]);
 
   // Compute live preview of offset roll_id
   const livePreviewId = useMemo(() => {
@@ -109,6 +143,21 @@ export function OffsetProductionForm({
       return;
     }
 
+    // Client-side duplicate check
+    if (rows) {
+      const isDup = rows.some((r: any) =>
+        r.offset_type === offsetType &&
+        r.brand_id === selectedBrandId &&
+        (isFabricRequired ? r.fabric_type_id === selectedFabricTypeId : true) &&
+        (isLamRequired ? r.source_lam_roll_id === selectedLamId : true) &&
+        Math.floor(Number(r.weight_kg) * 100) === Math.floor(w * 100)
+      );
+      if (isDup) {
+        const ok = window.confirm("This entry appears to be a duplicate (an identical entry already exists for today). Do you still want to submit?");
+        if (!ok) return;
+      }
+    }
+
     startTransition(async () => {
       try {
         const fd = new FormData();
@@ -124,6 +173,7 @@ export function OffsetProductionForm({
         fd.append("entry_date", entryDate);
 
         await saveOffsetProduction(fd);
+        alert("Submitted successfully!");
         setSuccessMsg(`Offset roll created: ${livePreviewId}`);
 
         if (onSuccess) {
@@ -132,6 +182,7 @@ export function OffsetProductionForm({
 
         // Reset
         setSelectedFabricTypeId("");
+        setSelectedLamBrand("none");
         setSelectedLamId("");
         setWeightKg("");
       } catch (err: any) {
@@ -156,7 +207,7 @@ export function OffsetProductionForm({
         {/* Type Select */}
         <div className="space-y-1">
           <Label className="text-xs font-semibold text-slate-700">Offset Type</Label>
-          <Select value={offsetType} onValueChange={(val) => { setOffsetType(val); setSelectedFabricTypeId(""); setSelectedLamId(""); }}>
+          <Select value={offsetType} onValueChange={(val) => { setOffsetType(val); setSelectedFabricTypeId(""); setSelectedLamId(""); setSelectedLamBrand("none"); }}>
             <SelectTrigger className="h-10 border-slate-200">
               <SelectValue placeholder="Select offset type" />
             </SelectTrigger>
@@ -205,16 +256,38 @@ export function OffsetProductionForm({
           </Select>
         </div>
 
+        {/* Laminated Brand (NW_LAM or PLAIN_LAM types only) */}
+        <div className="space-y-1">
+          <Label className="text-xs font-semibold text-slate-700">Laminated Brand (For LAM Types)</Label>
+          <Select
+            value={selectedLamBrand}
+            onValueChange={setSelectedLamBrand}
+            disabled={!isLamRequired}
+          >
+            <SelectTrigger className="h-10 border-slate-200 text-xs disabled:opacity-50">
+              <SelectValue placeholder={isLamRequired ? "Select laminated brand" : "No brand required"} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">Select laminated brand</SelectItem>
+              {laminationBrands.map((b) => (
+                <SelectItem key={b} value={b} className="text-xs">
+                  {b}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
         {/* Laminated Roll (NW_LAM or PLAIN_LAM types only) */}
         <div className="space-y-1">
           <Label className="text-xs font-semibold text-slate-700">Laminated Roll (For LAM Types)</Label>
           <Select
             value={selectedLamId}
             onValueChange={setSelectedLamId}
-            disabled={!isLamRequired}
+            disabled={!isLamRequired || selectedLamBrand === "none"}
           >
             <SelectTrigger className="h-10 border-slate-200 font-mono text-xs disabled:opacity-50">
-              <SelectValue placeholder={isLamRequired ? "Select laminated roll" : "No lamination roll required"} />
+              <SelectValue placeholder={!isLamRequired ? "No lamination roll required" : selectedLamBrand === "none" ? "Select brand first" : "Select laminated roll"} />
             </SelectTrigger>
             <SelectContent>
               {filteredLamRolls.map((r) => (

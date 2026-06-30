@@ -77,6 +77,7 @@ export default async function OffsetPrintingProductionPage() {
             fabricTypes={fabricTypes}
             laminationRolls={laminationRolls}
             offsetProducts={offsetProducts}
+            rows={offsetRows}
           />
         </CardContent>
       </Card>

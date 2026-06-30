@@ -30,6 +30,7 @@ interface RotoFilmProductionFormProps {
   customers: Customer[];
   rotoColors: RotoColor[];
   onSuccess?: (newRollInfo: { rollId: string; weight: number; meters: number }) => void;
+  rows?: any[];
 }
 
 export function RotoFilmProductionForm({
@@ -37,6 +38,7 @@ export function RotoFilmProductionForm({
   customers,
   rotoColors,
   onSuccess,
+  rows,
 }: RotoFilmProductionFormProps) {
   const [isPending, startTransition] = useTransition();
   const [selectedProductId, setSelectedProductId] = useState<string>("none");
@@ -100,6 +102,19 @@ export function RotoFilmProductionForm({
       return;
     }
 
+    // Client-side duplicate check
+    if (rows) {
+      const isDup = rows.some((r: any) =>
+        r.roll_id === livePreviewId &&
+        Math.floor(Number(r.weight_kg) * 100) === Math.floor(w * 100) &&
+        Math.floor(Number(r.meters) * 100) === Math.floor(m * 100)
+      );
+      if (isDup) {
+        const ok = window.confirm("This entry appears to be a duplicate (an identical entry already exists for today). Do you still want to submit?");
+        if (!ok) return;
+      }
+    }
+
     startTransition(async () => {
       try {
         const fd = new FormData();
@@ -113,6 +128,7 @@ export function RotoFilmProductionForm({
         fd.append("entry_date", entryDate);
 
         await saveRotoFilmProduction(fd);
+        alert("Submitted successfully!");
         setSuccessMsg(`Roto Film roll created: ${livePreviewId}`);
 
         if (onSuccess) {

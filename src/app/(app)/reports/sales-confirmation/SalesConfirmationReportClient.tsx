@@ -87,12 +87,24 @@ export function SalesConfirmationReportClient({
     );
   };
 
+  const [clientSearch, setClientSearch] = useState("");
+
   const displayedOrders = activeTab === "pending" ? pendingOrders : orders;
+
+  const filteredDisplayedOrders = useMemo(() => {
+    if (!clientSearch.trim()) return displayedOrders;
+    return displayedOrders.filter((order) => {
+      const name = order.customers?.customer_name?.toLowerCase() ?? "";
+      const alias = order.customers?.alias?.toLowerCase() ?? "";
+      const query = clientSearch.toLowerCase();
+      return name.includes(query) || alias.includes(query);
+    });
+  }, [displayedOrders, clientSearch]);
 
   // Group displayed orders by bill number
   const groupedOrders = useMemo(() => {
     const groups: Record<string, any> = {};
-    for (const order of displayedOrders) {
+    for (const order of filteredDisplayedOrders) {
       const billNo = order.bill_number;
       if (!billNo) continue;
       if (!groups[billNo]) {
@@ -115,7 +127,7 @@ export function SalesConfirmationReportClient({
       }
     }
     return Object.values(groups);
-  }, [displayedOrders]);
+  }, [filteredDisplayedOrders]);
 
   // Sort and filter orders
   const sortedOrders = useMemo(() => {
@@ -235,6 +247,21 @@ export function SalesConfirmationReportClient({
       const gstRate = Number(gstRates[orderId] ?? 18);
 
       await saveSalesConfirmationRates(orderId, itemPrices, gstRate);
+      alert("Submitted successfully!");
+
+      // Clear price inputs for this order
+      setPrices((prev) => {
+        const next = { ...prev };
+        orderItems.forEach((item) => {
+          delete next[item.id];
+        });
+        return next;
+      });
+      setGstRates((prev) => {
+        const next = { ...prev };
+        delete next[orderId];
+        return next;
+      });
       
       // Lock rate inputs upon save
       setEditingOrders((prev) => ({ ...prev, [orderId]: false }));
@@ -279,11 +306,17 @@ export function SalesConfirmationReportClient({
           </button>
         </div>
 
-        {activeTab === "completed" && (
-          <div className="pb-1">
+        <div className="flex items-center gap-3 pb-1">
+          <Input
+            placeholder="Filter by client..."
+            value={clientSearch}
+            onChange={(e) => setClientSearch(e.target.value)}
+            className="w-48 h-9 text-xs border-slate-200"
+          />
+          {activeTab === "completed" && (
             <DateFilter date={date} baseUrl="/reports/sales-confirmation?tab=completed" />
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {sortedOrders.length === 0 ? (

@@ -25,8 +25,10 @@ export default async function LaminationConsumptionPage({
     rawConsumptionsRes,
     availableFabricRes,
     consumedFabricRes,
-    availableFilmRes,
-    consumedFilmRes
+    availableMetallicRes,
+    consumedMetallicRes,
+    availableFilmPlainRes,
+    consumedFilmPlainRes
   ] = await Promise.all([
     supabase
       .from("raw_materials")
@@ -52,7 +54,7 @@ export default async function LaminationConsumptionPage({
       .limit(10000),
     supabase
       .from("fabric_rolls")
-      .select("id, roll_number, weight, meters, updated_at")
+      .select("id, roll_number, weight, meters, updated_at, fabric_type_id, fabric_types(id, fabric_name)")
       .eq("status", "consumed")
       .in("current_stage", ["lamination", "lamination_consumption"])
       .is("deleted_at", null)
@@ -72,14 +74,36 @@ export default async function LaminationConsumptionPage({
       .is("deleted_at", null)
       .order("id", { ascending: false })
       .limit(100),
+    supabase
+      .from("roto_film_rolls")
+      .select("id, roll_id, weight_kg, meters")
+      .eq("status", "available")
+      .is("deleted_at", null)
+      .order("id", { ascending: true })
+      .limit(10000),
+    supabase
+      .from("roto_film_rolls")
+      .select("id, roll_id, weight_kg, meters, updated_at")
+      .eq("status", "consumed")
+      .is("deleted_at", null)
+      .order("id", { ascending: false })
+      .limit(100),
   ]);
 
   const materials = ((rawMaterialsRes.data ?? []) as any[]).filter((m) => Number(m.current_stock ?? 0) > 0);
   const rawRows = (rawConsumptionsRes.data ?? []) as any[];
   const availableFabric = (availableFabricRes.data ?? []) as any[];
   const consumedFabric = (consumedFabricRes.data ?? []) as any[];
-  const availableFilm = (availableFilmRes.data ?? []) as any[];
-  const consumedFilm = (consumedFilmRes.data ?? []) as any[];
+
+  const availableFilm = [
+    ...((availableMetallicRes.data ?? []) as any[]).map(r => ({ ...r, type: "metallic" })),
+    ...((availableFilmPlainRes.data ?? []) as any[]).map(r => ({ ...r, type: "film" })),
+  ].sort((a, b) => a.roll_id.localeCompare(b.roll_id, undefined, { numeric: true, sensitivity: "base" }));
+
+  const consumedFilm = [
+    ...((consumedMetallicRes.data ?? []) as any[]).map(r => ({ ...r, type: "metallic" })),
+    ...((consumedFilmPlainRes.data ?? []) as any[]).map(r => ({ ...r, type: "film" })),
+  ].sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
 
   return (
     <div className="space-y-6">

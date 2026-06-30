@@ -48,7 +48,7 @@ export default async function OffsetPrintingConsumptionPage({
       .limit(10000),
     supabase
       .from("fabric_rolls")
-      .select("id, roll_number, weight, meters, updated_at")
+      .select("id, roll_number, weight, meters, updated_at, fabric_type_id, fabric_types(id, fabric_name)")
       .eq("status", "consumed")
       .eq("current_stage", "offset_printing")
       .is("deleted_at", null)

@@ -145,7 +145,7 @@ export function FinishingConsumptionClient({
             {isToday && (
               <div className="bg-slate-50/50 p-4 rounded-xl border border-slate-100">
                 <h4 className="text-sm font-semibold text-slate-800 mb-3">Log Raw Materials</h4>
-                <ConsumptionForm department="finishing" materials={materials} />
+                <ConsumptionForm department="finishing" materials={materials} rows={rawRows} />
               </div>
             )}
             <div className="space-y-3">
@@ -211,7 +211,14 @@ export function FinishingConsumptionClient({
                   action={async (fd) => {
                     const rollId = String(fd.get("roll_id") ?? "");
                     if (rollId) {
+                      const isDup = consumedFabric.some(r => r.id === rollId);
+                      if (isDup) {
+                        const ok = window.confirm("This roll has already been marked as consumed today. Do you still want to submit?");
+                        if (!ok) return;
+                      }
                       await consumeFabricRoll(rollId, "finishing");
+                      alert("Submitted successfully!");
+                      setSelectedFabricTypeFilter("none");
                     }
                   }}
                   className="flex flex-wrap items-end gap-4"
@@ -262,6 +269,7 @@ export function FinishingConsumptionClient({
                   <Table>
                     <TableHeader>
                       <TableRow className="bg-slate-50/50">
+                        <TableHead>Fabric Type</TableHead>
                         <TableHead>Roll Number</TableHead>
                         <TableHead className="text-right">Weight (kg)</TableHead>
                         <TableHead className="text-right">Meters</TableHead>
@@ -271,6 +279,7 @@ export function FinishingConsumptionClient({
                     <TableBody>
                       {consumedFabric.map((roll) => (
                         <TableRow key={roll.id}>
+                          <TableCell className="font-semibold">{roll.fabric_types?.fabric_name || "Unknown"}</TableCell>
                           <TableCell className="font-mono font-bold text-emerald-950">{roll.roll_number}</TableCell>
                           <TableCell className="text-right font-mono">{formatNumber(roll.weight, 2)}</TableCell>
                           <TableCell className="text-right font-mono">{formatNumber(roll.meters, 0)}</TableCell>
@@ -315,7 +324,14 @@ export function FinishingConsumptionClient({
                   action={async (fd) => {
                     const rollId = String(fd.get("roll_id") ?? "");
                     if (rollId) {
+                      const isDup = consumedLam.some(r => r.id === rollId);
+                      if (isDup) {
+                        const ok = window.confirm("This roll has already been marked as consumed today. Do you still want to submit?");
+                        if (!ok) return;
+                      }
                       await consumeLaminationRoll(rollId);
+                      alert("Submitted successfully!");
+                      setSelectedBrandFilter("none");
                     }
                   }}
                   className="flex flex-wrap items-end gap-4"
@@ -419,7 +435,13 @@ export function FinishingConsumptionClient({
                   action={async (fd) => {
                     const rollId = String(fd.get("roll_id") ?? "");
                     if (rollId) {
+                      const isDup = consumedOffset.some(r => r.id === rollId);
+                      if (isDup) {
+                        const ok = window.confirm("This roll has already been marked as consumed today. Do you still want to submit?");
+                        if (!ok) return;
+                      }
                       await consumeOffsetRoll(rollId);
+                      alert("Submitted successfully!");
                     }
                   }}
                   className="flex flex-wrap items-end gap-4"

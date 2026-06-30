@@ -2509,13 +2509,13 @@ export async function saveRotoFilmProduction(formData: FormData) {
 
   // Generate roll_id: BRAND(CLIENT ALIES NAME)(G/M)(COLOUR)
   const filmTypeChar = filmType === "gloss" ? "G" : "M";
-  let rollId = brandName;
+  let rollId = brandName.trim();
   if (alias) {
-    rollId += `(${alias})`;
+    rollId += `(${alias.trim()})`;
   }
   rollId += `(${filmTypeChar})`;
   if (colorName) {
-    rollId += `(${colorName})`;
+    rollId += `(${colorName.trim()})`;
   }
 
   const { error: insertError } = await (supabase
@@ -2581,7 +2581,7 @@ export async function saveRotoMetallicProduction(formData: FormData) {
     throw new Error("Source film roll not found.");
   }
 
-  const newRollId = `${(filmRoll as any).roll_id}(Mt)`;
+  const newRollId = `${(filmRoll as any).roll_id.trim()}(Mt)`;
 
   const { error: insertError } = await (supabase
     .from("roto_metallic_rolls") as any)
@@ -2679,7 +2679,7 @@ export async function saveLaminationProduction(formData: FormData) {
     brandName = "NW";
   }
 
-  const baseId = `${brandName}(${fabricTypeName})`;
+  const baseId = `${brandName.trim()}(${fabricTypeName.trim()})`;
   const { count } = await (supabase
     .from("lamination_rolls") as any)
     .select("id", { count: "exact", head: true })
@@ -2774,7 +2774,7 @@ export async function saveOffsetProduction(formData: FormData) {
   }
 
   const fabricNameVal = offsetType === "NW" ? "NW" : fabricTypeName;
-  const baseId = `${brandName}(${fabricNameVal})`;
+  const baseId = `${brandName.trim()}(${fabricNameVal.trim()})`;
   const { count } = await (supabase
     .from("offset_rolls") as any)
     .select("id", { count: "exact", head: true })
@@ -2864,7 +2864,7 @@ export async function saveFinishingBundle(formData: FormData) {
     throw new Error("Unsupported finishing type.");
   }
 
-  const baseId = `${brandName}(${fabricTypeName})`;
+  const baseId = `${brandName.trim()}(${fabricTypeName.trim()})`;
   const { count } = await (supabase
     .from("finishing_bundles") as any)
     .select("id", { count: "exact", head: true })
@@ -2964,6 +2964,36 @@ export async function revertMetallicRollConsumption(rollId: string) {
 
   const { error } = await (supabase
     .from("roto_metallic_rolls") as any)
+    .update({ status: "available", updated_by: user.id } as any)
+    .eq("id", rollId);
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/roto-printing/stock");
+  revalidatePath("/lamination/consumption");
+}
+
+export async function consumeRotoFilmRoll(rollId: string) {
+  const user = await requirePermission("production.edit");
+  const supabase = await createClient();
+
+  const { error } = await (supabase
+    .from("roto_film_rolls") as any)
+    .update({ status: "consumed", updated_by: user.id } as any)
+    .eq("id", rollId);
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/roto-printing/stock");
+  revalidatePath("/lamination/consumption");
+}
+
+export async function revertRotoFilmRollConsumption(rollId: string) {
+  const user = await requirePermission("production.edit");
+  const supabase = await createClient();
+
+  const { error } = await (supabase
+    .from("roto_film_rolls") as any)
     .update({ status: "available", updated_by: user.id } as any)
     .eq("id", rollId);
 

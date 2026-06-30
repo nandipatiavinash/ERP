@@ -200,6 +200,7 @@ export function SalesEntryClient({ pendingOrders, billedOrders, rolls, fabricTyp
         fd.append("bill_value", String(val));
         if (skipJournal) fd.append("skip_journal", "1");
         await saveSalesOrderBillingDirect(fd);
+        alert("Submitted successfully!");
         setSuccessMsg(
           skipJournal
             ? "Sales billing saved (bill number 0 or value 0 — no journal entry recorded)."

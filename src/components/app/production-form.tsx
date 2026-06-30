@@ -17,6 +17,7 @@ export function ProductionForm({
   isAdmin,
   row,
   onSaved,
+  rows,
 }: {
   fabrics: Option[];
   looms: Option[];
@@ -25,6 +26,7 @@ export function ProductionForm({
   isAdmin: boolean;
   row?: Record<string, any>;
   onSaved?: () => void;
+  rows?: any[];
 }) {
   const defaultFabric = row?.fabric_type_id ?? "";
   const defaultLoom = row?.loom_id ?? "";
@@ -73,14 +75,31 @@ export function ProductionForm({
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (isSaving) return;
-    setIsSaving(true);
     setErrorText(null);
+
+    // Client-side duplicate check against today's entries
+    if (!row?.id && rows) {
+      const isDup = rows.some((r: any) =>
+        r.fabric_type_id === fabricId &&
+        r.loom_id === loomId &&
+        Math.floor(Number(r.gross_weight) * 100) === Math.floor(Number(gross) * 100) &&
+        Math.floor(Number(r.core_weight) * 100) === Math.floor(Number(core) * 100) &&
+        Math.floor(Number(r.end_meters)) === Math.floor(Number(endMeters))
+      );
+      if (isDup) {
+        const ok = window.confirm("This entry appears to be a duplicate (an identical entry already exists for today). Do you still want to submit?");
+        if (!ok) return;
+      }
+    }
+
+    setIsSaving(true);
     try {
       const formData = new FormData(event.currentTarget);
       if (row?.id) {
         formData.set("id", row.id);
       }
       await saveProduction(formData);
+      alert("Submitted successfully!");
 
       // Reset the form state upon successful submission (only for creating new records)
       if (!row?.id) {

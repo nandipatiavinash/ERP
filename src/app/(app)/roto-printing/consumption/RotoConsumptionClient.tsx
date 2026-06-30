@@ -61,7 +61,7 @@ export function RotoConsumptionClient({
                 <CardTitle className="text-lg">Log Raw Materials</CardTitle>
               </CardHeader>
               <CardContent>
-                <ConsumptionForm department="roto-printing" materials={materials} />
+                <ConsumptionForm department="roto-printing" materials={materials} rows={rows} />
               </CardContent>
             </Card>
           ) : (

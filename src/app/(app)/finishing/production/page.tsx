@@ -69,6 +69,7 @@ export default async function FinishingProductionPage() {
           <FinishingProductionForm
             laminationRolls={laminationRolls}
             fabricTypes={fabricTypes}
+            rows={finishingRows}
           />
         </CardContent>
       </Card>
