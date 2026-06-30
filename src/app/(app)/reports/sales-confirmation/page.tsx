@@ -69,15 +69,23 @@ export default async function SalesConfirmationReportPage({
   });
   const uniqueRollIds = Array.from(new Set(allRollIds));
 
-  // Fetch rolls
+  // Fetch rolls in chunks of 200 to avoid HeadersOverflowError
   let rolls: any[] = [];
   if (uniqueRollIds.length > 0) {
-    const { data: rollData } = await supabase
-      .from("fabric_rolls")
-      .select("id, weight")
-      .in("id", uniqueRollIds)
-      .is("deleted_at", null);
-    rolls = rollData || [];
+    const chunks = [];
+    for (let i = 0; i < uniqueRollIds.length; i += 200) {
+      chunks.push(uniqueRollIds.slice(i, i + 200));
+    }
+    const results = await Promise.all(
+      chunks.map(chunk =>
+        supabase
+          .from("fabric_rolls")
+          .select("id, weight")
+          .in("id", chunk)
+          .is("deleted_at", null)
+      )
+    );
+    rolls = results.flatMap(res => res.data ?? []);
   }
 
   return (

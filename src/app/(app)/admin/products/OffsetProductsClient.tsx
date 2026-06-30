@@ -116,16 +116,16 @@ export function OffsetProductsClient({
               <Input id="brand" name="brand" placeholder="e.g. RK-Offset" required />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="width">Width (inches)</Label>
-              <Input id="width" name="width" type="number" step="0.01" placeholder="e.g. 18.00" required />
+              <Label htmlFor="width">Width (mm)</Label>
+              <Input id="width" name="width" type="number" step="0.01" placeholder="e.g. 600.00" required />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="height">Height (inches)</Label>
-              <Input id="height" name="height" type="number" step="0.01" placeholder="e.g. 24.00" required />
+              <Label htmlFor="height">Height (mm)</Label>
+              <Input id="height" name="height" type="number" step="0.01" placeholder="e.g. 900.00" required />
             </div>
             <div className="space-y-2">
               <Label htmlFor="image_file">Product Image File</Label>
-              <Input id="image_file" name="image_file" type="file" accept="image/*" required />
+              <Input id="image_file" name="image_file" type="file" accept="image/*" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="customer_id">Client / Customer</Label>
@@ -217,7 +217,7 @@ export function OffsetProductsClient({
                         )}
                       </TableCell>
                       <TableCell className="font-semibold text-slate-900">{row.brand}</TableCell>
-                      <TableCell className="font-mono text-xs">{row.width} &times; {row.height} in</TableCell>
+                      <TableCell className="font-mono text-xs">{row.width} &times; {row.height} mm</TableCell>
                       <TableCell>
                         {row.status === "inactive" ? (
                           <Badge className="bg-red-50 text-red-700 border-red-200">
@@ -335,11 +335,11 @@ export function OffsetProductsClient({
                   <Input name="brand" defaultValue={editingProduct.brand} required />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Width (inches)</Label>
+                  <Label>Width (mm)</Label>
                   <Input name="width" type="number" step="0.01" defaultValue={editingProduct.width} required />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Height (inches)</Label>
+                  <Label>Height (mm)</Label>
                   <Input name="height" type="number" step="0.01" defaultValue={editingProduct.height} required />
                 </div>
                 <div className="space-y-1.5">

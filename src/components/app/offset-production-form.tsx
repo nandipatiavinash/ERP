@@ -75,19 +75,15 @@ export function OffsetProductionForm({
       if (fab) fabricName = fab.fabric_name;
     } else if (["NW_LAM", "PLAIN_LAM"].includes(offsetType)) {
       const lam = laminationRolls.find((r) => r.id === selectedLamId);
-      if (lam && lam.fabric_types) fabricName = lam.fabric_types.fabric_name;
+      if (lam) {
+        const match = lam.roll_id.match(/^([^(]+)\(([^)]+)\)/);
+        if (match) fabricName = match[2];
+      }
+    } else if (offsetType === "NW") {
+      fabricName = "NW";
     }
 
-    if (offsetType === "NW") {
-      return `${brandName}(NW)`;
-    } else if (offsetType === "NW_LAM") {
-      return `${brandName}(NW-LAM-${fabricName})`;
-    } else if (offsetType === "PLAIN_LAM") {
-      return `${brandName}(${fabricName}-P)`;
-    } else if (offsetType === "FABRIC") {
-      return `${brandName}(${fabricName})`;
-    }
-    return "";
+    return `${brandName}(${fabricName})()`;
   }, [offsetType, selectedFabricTypeId, selectedLamId, selectedBrandId, fabricTypes, laminationRolls, offsetProducts]);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -162,7 +158,7 @@ export function OffsetProductionForm({
           <Label className="text-xs font-semibold text-slate-700">Offset Type</Label>
           <Select value={offsetType} onValueChange={(val) => { setOffsetType(val); setSelectedFabricTypeId(""); setSelectedLamId(""); }}>
             <SelectTrigger className="h-10 border-slate-200">
-              <SelectValue />
+              <SelectValue placeholder="Select offset type" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="FABRIC">Fabric Roll</SelectItem>
@@ -197,7 +193,7 @@ export function OffsetProductionForm({
             disabled={!isFabricRequired}
           >
             <SelectTrigger className="h-10 border-slate-200 text-xs disabled:opacity-50">
-              <SelectValue placeholder={isFabricRequired ? "Select fabric type" : "Disabled"} />
+              <SelectValue placeholder={isFabricRequired ? "Select fabric type" : "No fabric type required"} />
             </SelectTrigger>
             <SelectContent>
               {fabricTypes.map((t) => (
@@ -218,7 +214,7 @@ export function OffsetProductionForm({
             disabled={!isLamRequired}
           >
             <SelectTrigger className="h-10 border-slate-200 font-mono text-xs disabled:opacity-50">
-              <SelectValue placeholder={isLamRequired ? "Select laminated roll" : "Disabled"} />
+              <SelectValue placeholder={isLamRequired ? "Select laminated roll" : "No lamination roll required"} />
             </SelectTrigger>
             <SelectContent>
               {filteredLamRolls.map((r) => (

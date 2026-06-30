@@ -18,6 +18,7 @@ export default async function FinishingProductionPage() {
     { data: activeFabricTypes },
     { data: rawNWMaterials },
     { data: todayFinishingEntries },
+    { data: availableRolls },
   ] = await Promise.all([
     supabase
       .from("lamination_rolls")
@@ -43,10 +44,21 @@ export default async function FinishingProductionPage() {
       .is("deleted_at", null)
       .order("created_at", { ascending: false })
       .limit(50),
+    supabase
+      .from("fabric_rolls")
+      .select("fabric_type_id")
+      .eq("status", "available")
+      .is("deleted_at", null),
   ]);
 
+  const availableFabricTypeIds = Array.from(
+    new Set((availableRolls ?? []).map((r: any) => r.fabric_type_id).filter(Boolean))
+  );
+
   const laminationRolls = (activeLamRolls ?? []) as any[];
-  const fabricTypes = (activeFabricTypes ?? []) as any[];
+  const fabricTypes = ((activeFabricTypes ?? []) as any[]).filter((t) =>
+    availableFabricTypeIds.includes(t.id)
+  );
   const rawMaterials = (rawNWMaterials ?? []) as any[];
   const finishingRows = (todayFinishingEntries ?? []) as any[];
 
@@ -82,20 +94,16 @@ export default async function FinishingProductionPage() {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-slate-50/50">
-                    <TableHead>Date</TableHead>
-                    <TableHead>Bundle ID (Source)</TableHead>
-                    <TableHead>Type</TableHead>
+                    <TableHead>Bundle ID</TableHead>
                     <TableHead className="text-right">No. of Bags</TableHead>
-                    <TableHead className="text-right">Weight (kg)</TableHead>
+                    <TableHead className="text-right">KGs</TableHead>
                     <TableHead className="text-center">Action</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {finishingRows.map((row) => (
                     <TableRow key={row.id}>
-                      <TableCell>{formatDate(row.entry_date)}</TableCell>
                       <TableCell className="font-mono font-bold text-emerald-950">{row.bundle_id}</TableCell>
-                      <TableCell className="font-semibold text-xs">{row.finish_type?.replace(/_/g, "/")}</TableCell>
                       <TableCell className="text-right font-mono">{row.num_bags}</TableCell>
                       <TableCell className="text-right font-mono">{row.weight_kg}</TableCell>
                       <TableCell className="text-center">

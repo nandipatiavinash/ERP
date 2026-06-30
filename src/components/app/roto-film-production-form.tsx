@@ -160,7 +160,7 @@ export function RotoFilmProductionForm({
           <Label className="text-xs font-semibold text-slate-700">Film Type</Label>
           <Select value={filmType} onValueChange={setFilmType}>
             <SelectTrigger className="h-10 border-slate-200">
-              <SelectValue />
+              <SelectValue placeholder="Select film type" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="gloss">Gloss</SelectItem>
@@ -174,7 +174,7 @@ export function RotoFilmProductionForm({
           <Label className="text-xs font-semibold text-slate-700">Colour</Label>
           <Select value={selectedColorId} onValueChange={setSelectedColorId}>
             <SelectTrigger className="h-10 border-slate-200">
-              <SelectValue placeholder="None" />
+              <SelectValue placeholder="Select color" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="none">None (No color suffix)</SelectItem>

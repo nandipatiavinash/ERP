@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useMemo } from "react";
 import { saveFinishingBundle } from "@/app/(app)/_actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 
 type LaminationRoll = {
   id: string;
@@ -48,6 +49,31 @@ export function FinishingProductionForm({
   );
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const livePreviewId = useMemo(() => {
+    let brandName = "PLAIN";
+    let fabricName = "FABRIC-TYPE";
+    if (finishType === "LAMINATED") {
+      const lam = laminationRolls.find((r) => r.id === selectedLamId);
+      if (lam) {
+        const match = lam.roll_id.match(/^([^(]+)\(([^)]+)\)/);
+        if (match) {
+          brandName = match[1].trim();
+          fabricName = match[2];
+        } else {
+          brandName = lam.roll_id;
+          fabricName = "LAMINATED";
+        }
+      }
+    } else if (finishType === "PLAIN") {
+      const ft = fabricTypes.find((t) => t.id === selectedFabricTypeId);
+      if (ft) fabricName = ft.fabric_name;
+    } else if (finishType === "NW") {
+      brandName = "NW";
+      const rm = rawMaterials.find((r) => r.id === selectedRawMaterialId);
+      if (rm) fabricName = rm.material_name;
+    }
+    return `${brandName}(${fabricName})()`;
+  }, [finishType, selectedLamId, selectedFabricTypeId, selectedRawMaterialId, laminationRolls, fabricTypes, rawMaterials]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,21 +114,11 @@ export function FinishingProductionForm({
         fd.append("weight_kg", String(w));
         fd.append("entry_date", entryDate);
 
-        // Fetch bundleId preview for toast/onSuccess
-        let sourceName = "";
-        if (finishType === "LAMINATED") {
-          sourceName = laminationRolls.find((r) => r.id === selectedLamId)?.roll_id ?? "";
-        } else if (finishType === "PLAIN") {
-          sourceName = fabricTypes.find((t) => t.id === selectedFabricTypeId)?.fabric_name ?? "";
-        } else if (finishType === "NW") {
-          sourceName = rawMaterials.find((r) => r.id === selectedRawMaterialId)?.material_name ?? "";
-        }
-
         await saveFinishingBundle(fd);
-        setSuccessMsg(`Finishing bundle created: ${sourceName}`);
+        setSuccessMsg(`Finishing bundle created successfully: ${livePreviewId}`);
 
         if (onSuccess) {
-          onSuccess({ bundleId: sourceName, numBags: bags, weight: w });
+          onSuccess({ bundleId: livePreviewId, numBags: bags, weight: w });
         }
 
         // Reset
@@ -132,7 +148,7 @@ export function FinishingProductionForm({
           <Label className="text-xs font-semibold text-slate-700">Finishing Type</Label>
           <Select value={finishType} onValueChange={(val) => { setFinishType(val); setSelectedLamId("none"); setSelectedFabricTypeId("none"); setSelectedRawMaterialId("none"); }}>
             <SelectTrigger className="h-10 border-slate-200">
-              <SelectValue />
+              <SelectValue placeholder="Select finishing type" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="PLAIN">PLAIN</SelectItem>
@@ -223,6 +239,14 @@ export function FinishingProductionForm({
             className="h-10 text-sm border-slate-200"
           />
         </div>
+      </div>
+
+      {/* Live Preview Roll ID */}
+      <div className="p-3 bg-amber-50/50 rounded-xl border border-amber-200/40 flex flex-col gap-1">
+        <span className="text-[10px] uppercase font-bold tracking-wider text-amber-700">Generated ID Preview</span>
+        <Badge className="w-fit text-sm font-mono border border-amber-200 bg-amber-100/50 text-amber-900 py-1 px-2.5 rounded-md">
+          {livePreviewId}
+        </Badge>
       </div>
 
       <Button

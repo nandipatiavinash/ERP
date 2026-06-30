@@ -70,7 +70,7 @@ export default async function OffsetPrintingConsumptionPage({
       .limit(100),
   ]);
 
-  const materials = (rawMaterialsRes.data ?? []) as any[];
+  const materials = ((rawMaterialsRes.data ?? []) as any[]).filter((m) => Number(m.current_stock ?? 0) > 0);
   const rawRows = (rawConsumptionsRes.data ?? []) as any[];
   const availableFabric = (availableFabricRes.data ?? []) as any[];
   const consumedFabric = (consumedFabricRes.data ?? []) as any[];

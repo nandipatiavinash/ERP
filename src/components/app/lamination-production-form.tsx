@@ -57,20 +57,15 @@ export function LaminationProductionForm({
     const fabName = fabType ? fabType.fabric_name : "FABRIC-TYPE";
 
     const filmRoll = filmRolls.find((r) => r.id === selectedFilmId);
-    const filmId = filmRoll ? filmRoll.roll_id : "FILM-ROLL";
-
-    if (lamType === "BOX") {
-      return `${filmId}(${fabName})(B)`;
-    } else if (lamType === "F_S") {
-      return `${filmId}(${fabName})(F/S)`;
-    } else if (lamType === "H_S") {
-      return `${filmId}(${fabName})(H/S)`;
+    let brandName = "PLAIN";
+    if (filmRoll) {
+      const match = filmRoll.roll_id.match(/^([^(]+)/);
+      if (match) brandName = match[1].trim();
     } else if (lamType === "NW") {
-      return `(${fabName})(NW)`;
-    } else if (lamType === "PLAIN") {
-      return `(${fabName})(P)`;
+      brandName = "NW";
     }
-    return "";
+
+    return `${brandName}(${fabName})()`;
   }, [lamType, selectedFabricTypeId, selectedFilmId, fabricTypes, filmRolls]);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -149,7 +144,7 @@ export function LaminationProductionForm({
           <Label className="text-xs font-semibold text-slate-700">Lamination Type</Label>
           <Select value={lamType} onValueChange={(val) => { setLamType(val); setSelectedFabricTypeId(""); setSelectedFilmId(""); setSelectedRawMaterialId(""); }}>
             <SelectTrigger className="h-10 border-slate-200">
-              <SelectValue />
+              <SelectValue placeholder="Select lamination type" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="PLAIN">PLAIN</SelectItem>
@@ -187,32 +182,13 @@ export function LaminationProductionForm({
             disabled={!isFilmRequired}
           >
             <SelectTrigger className="h-10 border-slate-200 font-mono text-xs disabled:opacity-50">
-              <SelectValue placeholder={isFilmRequired ? "Select metallic roll" : "Disabled"} />
+              <SelectValue placeholder={isFilmRequired ? "Select metallic roll" : "No film roll required"} />
             </SelectTrigger>
             <SelectContent>
               {filmRolls.map((f) => (
                 <SelectItem key={f.id} value={f.id} className="font-mono text-xs">
                   {f.roll_id} ({f.weight_kg}kg · {f.meters}m)
                 </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Non-Woven Raw Material (only for NW type) */}
-        <div className="space-y-1">
-          <Label className="text-xs font-semibold text-slate-700">NW Raw Material (For NW Type)</Label>
-          <Select
-            value={selectedRawMaterialId}
-            onValueChange={setSelectedRawMaterialId}
-            disabled={!isNWRequired}
-          >
-            <SelectTrigger className="h-10 border-slate-200 disabled:opacity-50">
-              <SelectValue placeholder={isNWRequired ? "Select NW raw mat" : "Disabled"} />
-            </SelectTrigger>
-            <SelectContent>
-              {rawMaterials.map((rm) => (
-                <SelectItem key={rm.id} value={rm.id}>{rm.material_name}</SelectItem>
               ))}
             </SelectContent>
           </Select>

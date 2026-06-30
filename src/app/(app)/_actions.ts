@@ -2667,20 +2667,27 @@ export async function saveLaminationProduction(formData: FormData) {
     filmRollIdStr = (filmRoll as any).roll_id;
   }
 
-  let newRollId = "";
-  if (lamType === "BOX") {
-    newRollId = `${filmRollIdStr}(${fabricTypeName})(B)`;
-  } else if (lamType === "F_S") {
-    newRollId = `${filmRollIdStr}(${fabricTypeName})(F/S)`;
-  } else if (lamType === "H_S") {
-    newRollId = `${filmRollIdStr}(${fabricTypeName})(H/S)`;
+  // Determine brand name from source film roll or default to PLAIN/NW
+  let brandName = "PLAIN";
+  if (filmRollIdValue) {
+    const { data: metallicInfo } = await (supabase
+      .from("roto_metallic_rolls") as any)
+      .select("roto_film_rolls(roto_products(brand))")
+      .eq("id", filmRollIdValue)
+      .single();
+    brandName = (metallicInfo as any)?.roto_film_rolls?.roto_products?.brand || "PLAIN";
   } else if (lamType === "NW") {
-    newRollId = `(${fabricTypeName})(NW)`;
-  } else if (lamType === "PLAIN") {
-    newRollId = `(${fabricTypeName})(P)`;
-  } else {
-    throw new Error("Unsupported lamination type.");
+    brandName = "NW";
   }
+
+  const baseId = `${brandName}(${fabricTypeName})`;
+  const { count } = await (supabase
+    .from("lamination_rolls") as any)
+    .select("id", { count: "exact", head: true })
+    .like("roll_id", `${baseId}%`);
+
+  const seq = (count ?? 0) + 1;
+  const newRollId = `${baseId}(${seq})`;
 
   const { error: insertError } = await (supabase
     .from("lamination_rolls") as any)
@@ -2767,18 +2774,15 @@ export async function saveOffsetProduction(formData: FormData) {
     fabricTypeName = (lr as any).fabric_types?.fabric_name ?? "";
   }
 
-  let newRollId = "";
-  if (offsetType === "NW") {
-    newRollId = `${brandName}(NW)`;
-  } else if (offsetType === "NW_LAM") {
-    newRollId = `${brandName}(NW-LAM-${fabricTypeName})`;
-  } else if (offsetType === "PLAIN_LAM") {
-    newRollId = `${brandName}(${fabricTypeName}-P)`;
-  } else if (offsetType === "FABRIC") {
-    newRollId = `${brandName}(${fabricTypeName})`;
-  } else {
-    throw new Error("Unsupported offset printing type.");
-  }
+  const fabricNameVal = offsetType === "NW" ? "NW" : fabricTypeName;
+  const baseId = `${brandName}(${fabricNameVal})`;
+  const { count } = await (supabase
+    .from("offset_rolls") as any)
+    .select("id", { count: "exact", head: true })
+    .like("roll_id", `${baseId}%`);
+
+  const seq = (count ?? 0) + 1;
+  const newRollId = `${baseId}(${seq})`;
 
   const { error: insertError } = await (supabase
     .from("offset_rolls") as any)
@@ -2834,30 +2838,50 @@ export async function saveFinishingBundle(formData: FormData) {
 
   const supabase = await createClient();
 
-  let bundleId = "";
+  let brandName = "PLAIN";
+  let fabricTypeName = "";
+
   if (finishType === "LAMINATED") {
     if (!sourceLamRollId) throw new Error("Source laminated roll is required.");
     const { data: lr } = await (supabase.from("lamination_rolls") as any).select("roll_id").eq("id", sourceLamRollId).single();
     if (!lr) throw new Error("Source laminated roll not found.");
-    bundleId = (lr as any).roll_id;
+    const match = (lr as any).roll_id.match(/^([^(]+)\(([^)]+)\)/);
+    if (match) {
+      brandName = match[1].trim();
+      fabricTypeName = match[2];
+    } else {
+      brandName = (lr as any).roll_id;
+      fabricTypeName = "LAMINATED";
+    }
   } else if (finishType === "PLAIN") {
     if (!fabricTypeId) throw new Error("Source fabric type is required.");
     const { data: ft } = await (supabase.from("fabric_types") as any).select("fabric_name").eq("id", fabricTypeId).single();
     if (!ft) throw new Error("Source fabric type not found.");
-    bundleId = (ft as any).fabric_name;
+    brandName = "PLAIN";
+    fabricTypeName = (ft as any).fabric_name;
   } else if (finishType === "NW") {
     if (!sourceNwMaterialId) throw new Error("Source non-woven material is required.");
     const { data: rm } = await (supabase.from("raw_materials") as any).select("material_name").eq("id", sourceNwMaterialId).single();
     if (!rm) throw new Error("Non-woven material not found.");
-    bundleId = (rm as any).material_name;
+    brandName = "NW";
+    fabricTypeName = (rm as any).material_name;
   } else {
     throw new Error("Unsupported finishing type.");
   }
 
+  const baseId = `${brandName}(${fabricTypeName})`;
+  const { count } = await (supabase
+    .from("finishing_bundles") as any)
+    .select("id", { count: "exact", head: true })
+    .like("bundle_id", `${baseId}%`);
+
+  const seq = (count ?? 0) + 1;
+  const newBundleId = `${baseId}(${seq})`;
+
   const { error: insertError } = await (supabase
     .from("finishing_bundles") as any)
     .insert({
-      bundle_id: bundleId,
+      bundle_id: newBundleId,
       finish_type: finishType,
       source_lam_roll_id: finishType === "LAMINATED" ? sourceLamRollId : null,
       fabric_type_id: finishType === "PLAIN" ? fabricTypeId : null,

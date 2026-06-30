@@ -18,6 +18,7 @@ export default async function LaminationProductionPage() {
     { data: activeMetallicRolls },
     { data: rawNWMaterials },
     { data: todayLaminationEntries },
+    { data: availableRolls },
   ] = await Promise.all([
     supabase
       .from("fabric_types")
@@ -43,9 +44,20 @@ export default async function LaminationProductionPage() {
       .is("deleted_at", null)
       .order("created_at", { ascending: false })
       .limit(50),
+    supabase
+      .from("fabric_rolls")
+      .select("fabric_type_id")
+      .eq("status", "available")
+      .is("deleted_at", null),
   ]);
 
-  const fabricTypes = (activeFabricTypes ?? []) as any[];
+  const availableFabricTypeIds = Array.from(
+    new Set((availableRolls ?? []).map((r: any) => r.fabric_type_id).filter(Boolean))
+  );
+
+  const fabricTypes = ((activeFabricTypes ?? []) as any[]).filter((t) =>
+    availableFabricTypeIds.includes(t.id)
+  );
   const metallicRolls = (activeMetallicRolls ?? []) as any[];
   const rawMaterials = (rawNWMaterials ?? []) as any[];
   const laminationRows = (todayLaminationEntries ?? []) as any[];
@@ -82,12 +94,7 @@ export default async function LaminationProductionPage() {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-slate-50/50">
-                    <TableHead>Date</TableHead>
                     <TableHead>Laminated Roll ID</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Fabric Type</TableHead>
-                    <TableHead>Source Film (Metallic)</TableHead>
-                    <TableHead>NW Material</TableHead>
                     <TableHead className="text-right">KGs</TableHead>
                     <TableHead className="text-right">Meters</TableHead>
                     <TableHead className="text-center">Action</TableHead>
@@ -96,12 +103,7 @@ export default async function LaminationProductionPage() {
                 <TableBody>
                   {laminationRows.map((row) => (
                     <TableRow key={row.id}>
-                      <TableCell>{formatDate(row.entry_date)}</TableCell>
                       <TableCell className="font-mono font-bold text-emerald-950">{row.roll_id}</TableCell>
-                      <TableCell className="font-semibold text-xs">{row.lam_type?.replace(/_/g, "/")}</TableCell>
-                      <TableCell className="text-xs">{row.fabric_types?.fabric_name ?? "-"}</TableCell>
-                      <TableCell className="font-mono text-xs">{row.roto_metallic_rolls?.roll_id ?? "-"}</TableCell>
-                      <TableCell className="text-xs">{row.raw_materials?.material_name ?? "-"}</TableCell>
                       <TableCell className="text-right font-mono">{row.weight_kg}</TableCell>
                       <TableCell className="text-right font-mono">{row.meters}</TableCell>
                       <TableCell className="text-center">
