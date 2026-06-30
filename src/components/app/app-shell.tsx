@@ -132,7 +132,11 @@ export function AppShell({
 
   useEffect(() => {
     if (lowStockItems && lowStockItems.length > 0) {
-      setShowLowStockAlert(true);
+      const shown = sessionStorage.getItem("lowStockAlertShown");
+      if (!shown) {
+        setShowLowStockAlert(true);
+        sessionStorage.setItem("lowStockAlertShown", "true");
+      }
     }
   }, [lowStockItems]);
   const groups = useMemo(() => {
@@ -229,7 +233,12 @@ export function AppShell({
           </div>
           <div className="flex shrink-0 items-center gap-2">
             <Badge>{user.roles.name}</Badge>
-            <form action={signOut}>
+            <form
+              action={signOut}
+              onSubmit={() => {
+                sessionStorage.removeItem("lowStockAlertShown");
+              }}
+            >
               <Button variant="outline" size="sm">
                 Logout
               </Button>

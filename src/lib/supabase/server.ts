@@ -15,11 +15,16 @@ export async function createClient() {
         },
         setAll(cookiesToSet) {
           try {
-            cookiesToSet.forEach(({ name, value, options }) => cookieStore.set(name, value, options));
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, { ...options, maxAge: 60 * 60 * 24 })
+            );
           } catch {
             // Server components cannot always mutate cookies; middleware handles refresh.
           }
         },
+      },
+      cookieOptions: {
+        maxAge: 60 * 60 * 24, // 1 day
       },
     },
   );
