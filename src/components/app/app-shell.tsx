@@ -109,16 +109,32 @@ function NavLinks({ groups, onNavigate }: { groups: NavGroup[]; onNavigate?: () 
   );
 }
 
+interface LowStockItem {
+  name: string;
+  stock: number;
+  limit: number;
+  unit: string;
+}
+
 export function AppShell({
   user,
   permissions,
   children,
+  lowStockItems = [],
 }: {
   user: AppUser & { roles: { name: RoleName } };
   permissions: string[];
   children: React.ReactNode;
+  lowStockItems?: LowStockItem[];
 }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [showLowStockAlert, setShowLowStockAlert] = useState(false);
+
+  useEffect(() => {
+    if (lowStockItems && lowStockItems.length > 0) {
+      setShowLowStockAlert(true);
+    }
+  }, [lowStockItems]);
   const groups = useMemo(() => {
     return navGroups
       .map((group) => {
@@ -222,6 +238,56 @@ export function AppShell({
         </header>
         <main className="p-4 lg:p-6">{children}</main>
       </div>
+
+      {showLowStockAlert && (
+        <div className="fixed top-4 right-4 z-[999] w-80 max-h-[420px] overflow-y-auto rounded-xl border border-red-200 bg-white p-4 shadow-xl ring-1 ring-black/5 animate-in fade-in slide-in-from-top-4 duration-300">
+          <div className="flex items-start justify-between">
+            <div className="flex gap-2.5">
+              <span className="text-xl">⚠️</span>
+              <div>
+                <h4 className="text-sm font-bold text-red-900">Low Stock Alert</h4>
+                <p className="mt-0.5 text-xs text-red-700">
+                  {lowStockItems.length} {lowStockItems.length === 1 ? "item is" : "items are"} below critical levels:
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowLowStockAlert(false)}
+              className="text-slate-400 hover:text-slate-600 transition-colors p-0.5 rounded-full hover:bg-slate-100"
+              aria-label="Close alert"
+            >
+              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <div className="mt-3 space-y-2 border-t pt-3 max-h-[200px] overflow-y-auto pr-1">
+            {lowStockItems.map((item, idx) => (
+              <div key={idx} className="flex justify-between text-xs text-slate-800">
+                <span className="font-medium truncate max-w-[160px]" title={item.name}>{item.name}</span>
+                <span className="font-mono text-red-600 font-semibold shrink-0">
+                  {item.stock} {item.unit} <span className="text-slate-400 font-normal">/ {item.limit}</span>
+                </span>
+              </div>
+            ))}
+          </div>
+          <div className="mt-3.5 flex justify-end gap-2 border-t pt-3">
+            <button
+              onClick={() => setShowLowStockAlert(false)}
+              className="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 border rounded-md transition-all"
+            >
+              Dismiss
+            </button>
+            <Link
+              href="/admin/critical-levels"
+              onClick={() => setShowLowStockAlert(false)}
+              className="px-3 py-1.5 text-xs font-semibold bg-red-600 text-white hover:bg-red-700 rounded-md shadow-sm transition-all"
+            >
+              View Inventory
+            </Link>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
