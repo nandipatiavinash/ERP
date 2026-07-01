@@ -219,14 +219,14 @@ export function SalesEntryClient({ pendingOrders, billedOrders, rolls, fabricTyp
     });
   };
 
-  // Group billed orders by bill number
+  // Group billed orders by order number
   const groupedBilledOrders = useMemo(() => {
     const groups: Record<string, any> = {};
     for (const order of billedOrders) {
-      const billNo = order.bill_number;
-      if (!billNo) continue;
-      if (!groups[billNo]) {
-        groups[billNo] = {
+      const orderNo = order.order_number;
+      if (!orderNo) continue;
+      if (!groups[orderNo]) {
+        groups[orderNo] = {
           ...order,
           bill_value: order.bill_value ?? 0,
           order_ids: [order.id],
@@ -235,13 +235,10 @@ export function SalesEntryClient({ pendingOrders, billedOrders, rolls, fabricTyp
           sales_order_items: [...(order.sales_order_items ?? [])],
         };
       } else {
-        groups[billNo].order_ids.push(order.id);
-        groups[billNo].order_numbers.push(order.order_number);
-        groups[billNo].sales_order_items.push(...(order.sales_order_items ?? []));
-        groups[billNo].bill_value += (order.bill_value ?? 0);
-        if (!groups[billNo].order_numbers.includes(order.order_number)) {
-          groups[billNo].order_number = groups[billNo].order_numbers.join(", ");
-        }
+        groups[orderNo].order_ids.push(order.id);
+        groups[orderNo].order_numbers.push(order.order_number);
+        groups[orderNo].sales_order_items.push(...(order.sales_order_items ?? []));
+        groups[orderNo].bill_value += (order.bill_value ?? 0);
       }
     }
     return Object.values(groups);
@@ -254,8 +251,8 @@ export function SalesEntryClient({ pendingOrders, billedOrders, rolls, fabricTyp
     if (pending) return pending;
 
     const billed = billedOrders.find((o) => o.id === printOrderId);
-    if (billed && billed.bill_number) {
-      const siblings = billedOrders.filter((o) => o.bill_number === billed.bill_number);
+    if (billed && billed.order_number) {
+      const siblings = billedOrders.filter((o) => o.order_number === billed.order_number);
       return {
         ...billed,
         order_number: Array.from(new Set(siblings.map((o) => o.order_number))).join(", "),

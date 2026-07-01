@@ -101,14 +101,14 @@ export function SalesConfirmationReportClient({
     });
   }, [displayedOrders, clientSearch]);
 
-  // Group displayed orders by bill number
+  // Group displayed orders by order number
   const groupedOrders = useMemo(() => {
     const groups: Record<string, any> = {};
     for (const order of filteredDisplayedOrders) {
-      const billNo = order.bill_number;
-      if (!billNo) continue;
-      if (!groups[billNo]) {
-        groups[billNo] = {
+      const orderNo = order.order_number;
+      if (!orderNo) continue;
+      if (!groups[orderNo]) {
+        groups[orderNo] = {
           ...order,
           bill_value: order.bill_value ?? 0,
           order_ids: [order.id],
@@ -117,13 +117,10 @@ export function SalesConfirmationReportClient({
           sales_order_items: [...(order.sales_order_items ?? [])],
         };
       } else {
-        groups[billNo].order_ids.push(order.id);
-        groups[billNo].order_numbers.push(order.order_number);
-        groups[billNo].sales_order_items.push(...(order.sales_order_items ?? []));
-        groups[billNo].bill_value += (order.bill_value ?? 0);
-        if (!groups[billNo].order_numbers.includes(order.order_number)) {
-          groups[billNo].order_number = groups[billNo].order_numbers.join(", ");
-        }
+        groups[orderNo].order_ids.push(order.id);
+        groups[orderNo].order_numbers.push(order.order_number);
+        groups[orderNo].sales_order_items.push(...(order.sales_order_items ?? []));
+        groups[orderNo].bill_value += (order.bill_value ?? 0);
       }
     }
     return Object.values(groups);
@@ -137,7 +134,7 @@ export function SalesConfirmationReportClient({
           ? b.order_date.localeCompare(a.order_date)
           : a.order_date.localeCompare(b.order_date);
       }
-      return (a.bill_number || "").localeCompare(b.bill_number || "");
+      return (a.order_number || "").localeCompare(b.order_number || "");
     });
 
     return sorted.filter((group) => {
@@ -149,15 +146,15 @@ export function SalesConfirmationReportClient({
   const completedGroupCount = useMemo(() => {
     const groups: Record<string, any> = {};
     for (const order of orders) {
-      const billNo = order.bill_number;
-      if (!billNo) continue;
-      if (!groups[billNo]) {
-        groups[billNo] = {
+      const orderNo = order.order_number;
+      if (!orderNo) continue;
+      if (!groups[orderNo]) {
+        groups[orderNo] = {
           ...order,
           sales_order_items: [...(order.sales_order_items ?? [])],
         };
       } else {
-        groups[billNo].sales_order_items.push(...(order.sales_order_items ?? []));
+        groups[orderNo].sales_order_items.push(...(order.sales_order_items ?? []));
       }
     }
     return Object.values(groups).filter(isOrderRatesConfirmed).length;

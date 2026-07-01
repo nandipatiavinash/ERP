@@ -1,4 +1,4 @@
-import { linkEmployeeUser } from "@/app/(app)/_actions";
+import { linkEmployeeUser, changeUserPassword } from "@/app/(app)/_actions";
 import { ConfirmSubmitButton } from "@/components/app/confirm-submit-button";
 import { PageHeader } from "@/components/app/page-header";
 import { StatusBadge } from "@/components/app/status-badge";
@@ -33,13 +33,44 @@ export default async function CredentialsPage() {
           {users.length === 0 ? <EmptyState /> : (
             <div className="overflow-x-auto">
               <Table>
-                <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Email</TableHead><TableHead>Phone</TableHead><TableHead>Role</TableHead><TableHead>Employee Link</TableHead><TableHead>Status</TableHead></TableRow></TableHeader>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Password</TableHead>
+                    <TableHead>Change Password</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead>Employee Link</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
                 <TableBody>
                   {users.map((user) => (
                     <TableRow key={user.id}>
-                      <TableCell>{user.full_name}</TableCell>
-                      <TableCell>{user.email}</TableCell>
-                      <TableCell>{user.phone ?? "-"}</TableCell>
+                      <TableCell className="font-semibold">{user.full_name}</TableCell>
+                      <TableCell className="font-medium">{user.email}</TableCell>
+                      <TableCell className="font-mono text-sm">{user.password ?? "—"}</TableCell>
+                      <TableCell className="min-w-64">
+                        <form action={changeUserPassword} className="flex gap-2">
+                          <input type="hidden" name="user_id" value={user.id} />
+                          <input
+                            type="text"
+                            name="new_password"
+                            placeholder="New Password"
+                            required
+                            minLength={8}
+                            className="h-9 w-40 rounded-md border bg-background px-3 text-xs font-mono"
+                          />
+                          <ConfirmSubmitButton
+                            size="sm"
+                            variant="secondary"
+                            confirmTitle="Change user password?"
+                            confirmDescription={`This will update the login password for ${user.full_name} instantly.`}
+                          >
+                            Update
+                          </ConfirmSubmitButton>
+                        </form>
+                      </TableCell>
                       <TableCell className="capitalize">{user.roles?.name}</TableCell>
                       <TableCell className="min-w-72">
                         <form action={linkEmployeeUser} className="flex flex-col gap-2 sm:flex-row">

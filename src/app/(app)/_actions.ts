@@ -603,6 +603,7 @@ export async function createErpUser(_: unknown, formData: FormData) {
     email: parsed.data.email,
     phone: parsed.data.phone ?? null,
     status: parsed.data.status,
+    password: parsed.data.password,
   } as any);
 
   if (profileError) {
@@ -611,7 +612,44 @@ export async function createErpUser(_: unknown, formData: FormData) {
   }
 
   revalidatePath("/users");
+  revalidatePath("/admin/credentials");
   return { success: "Supabase Auth user created. Share the password securely with the user." };
+}
+
+export async function changeUserPassword(formData: FormData) {
+  const user = await requirePermission("admin.credentials");
+  const userId = String(formData.get("user_id") ?? "");
+  const newPassword = String(formData.get("new_password") ?? "").trim();
+
+  if (!userId || !newPassword) {
+    throw new Error("User ID and new password are required.");
+  }
+  if (newPassword.length < 8) {
+    throw new Error("Password must be at least 8 characters long.");
+  }
+
+  const admin = createAdminClient();
+
+  // 1. Update password in Supabase Auth
+  const { error: authError } = await admin.auth.admin.updateUserById(userId, {
+    password: newPassword
+  });
+
+  if (authError) {
+    throw new Error("Failed to update password in Auth: " + authError.message);
+  }
+
+  // 2. Update password in public.users profile
+  const { error: profileError } = await (admin
+    .from("users") as any)
+    .update({ password: newPassword, updated_by: user.id })
+    .eq("id", userId);
+
+  if (profileError) {
+    throw new Error("Failed to update password in profile: " + profileError.message);
+  }
+
+  revalidatePath("/admin/credentials");
 }
 
 export async function createRole(formData: FormData) {
@@ -1839,21 +1877,19 @@ export async function deleteSalesOrderCompletely(orderId: string) {
     }
   }
 
-  if (billNumber) {
-    const { data: journalRows } = await (supabase
+  const { data: journalRows } = await (supabase
+    .from("accounts_journal") as any)
+    .select("journal_no")
+    .or(`description.like."%${orderData.order_number}%"${billNumber ? `,description.eq."${billNumber}",description.like."${billNumber} (%)"` : ""}`);
+  
+  const journalNos = (journalRows || []).map((r: any) => r.journal_no);
+  if (journalNos.length > 0) {
+    const { error: journalDelErr } = await (supabase
       .from("accounts_journal") as any)
-      .select("journal_no")
-      .or(`description.eq."${billNumber}",description.like."${billNumber} (%)"`);
-    
-    const journalNos = (journalRows || []).map((r: any) => r.journal_no);
-    if (journalNos.length > 0) {
-      const { error: journalDelErr } = await (supabase
-        .from("accounts_journal") as any)
-        .delete()
-        .in("journal_no", journalNos);
-      if (journalDelErr) {
-        throw new Error("Failed to delete related journal entries: " + journalDelErr.message);
-      }
+      .delete()
+      .in("journal_no", journalNos);
+    if (journalDelErr) {
+      throw new Error("Failed to delete related journal entries: " + journalDelErr.message);
     }
   }
 
@@ -1905,21 +1941,7 @@ export async function saveSalesConfirmationRates(
   const billNumber = order.bill_number;
   const customerId = order.customer_id;
 
-  // Fetch all sibling orders sharing this bill number and customer ID to update and consolidate them
-  let siblingOrders = [order];
-  if (billNumber) {
-    const { data: siblings } = await (supabase
-      .from("sales_orders") as any)
-      .select("*, customers(*), sales_order_items(*)")
-      .eq("bill_number", billNumber)
-      .eq("customer_id", customerId)
-      .eq("status", "confirmed")
-      .is("deleted_at", null);
-    if (siblings && siblings.length > 0) {
-      siblingOrders = siblings;
-    }
-  }
-
+  const siblingOrders = [order];
   const siblingIds = siblingOrders.map(o => o.id);
 
   // Update GST rate across all sibling orders
@@ -1989,16 +2011,14 @@ export async function saveSalesConfirmationRates(
   const combinedBillValue = siblingOrders.reduce((sum, o) => sum + Number(o.bill_value ?? 0), 0);
   const balance = calculatedTotal - combinedBillValue;
 
-  if (billNumber) {
-    // Delete any existing balance adjustments for this bill to prevent duplication
-    await (supabase
-      .from("accounts_journal") as any)
-      .delete()
-      .or(`description.eq."Balance adjustment for Bill ${billNumber}",description.like."Balance adjustment for Bill ${billNumber} (%)"`);
-  }
+  // Delete any existing balance adjustments for this dispatch to prevent duplication
+  await (supabase
+    .from("accounts_journal") as any)
+    .delete()
+    .or(`description.eq."Balance adjustment for Dispatch ${order.order_number}",description.like."Balance adjustment for Dispatch ${order.order_number} (%)"`);
 
   // 4. Auto-generate a single consolidated journal entry if combined balance is > +/- 100
-  if (Math.abs(balance) > 100 && billNumber) {
+  if (Math.abs(balance) > 100) {
     const customerName = order.customers?.customer_name ?? "Unknown";
 
     const { data: salesAcData } = await (supabase
@@ -2022,7 +2042,7 @@ export async function saveSalesConfirmationRates(
         account_name: customerName,
         entry_type: "debit",
         amount: absBalance,
-        description: `Balance adjustment for Bill ${billNumber}`,
+        description: `Balance adjustment for Dispatch ${order.order_number}`,
         created_by: user.id,
         updated_by: user.id,
       });
@@ -2033,7 +2053,7 @@ export async function saveSalesConfirmationRates(
         account_name: salesAc?.customer_name ?? "Sales A/c",
         entry_type: "credit",
         amount: absBalance,
-        description: `Balance adjustment for Bill ${billNumber} (${customerName})`,
+        description: `Balance adjustment for Dispatch ${order.order_number} (${customerName})`,
         created_by: user.id,
         updated_by: user.id,
       });
@@ -2046,7 +2066,7 @@ export async function saveSalesConfirmationRates(
         account_name: salesAc?.customer_name ?? "Sales A/c",
         entry_type: "debit",
         amount: absBalance,
-        description: `Balance adjustment for Bill ${billNumber} (${customerName})`,
+        description: `Balance adjustment for Dispatch ${order.order_number} (${customerName})`,
         created_by: user.id,
         updated_by: user.id,
       });
@@ -2057,7 +2077,7 @@ export async function saveSalesConfirmationRates(
         account_name: customerName,
         entry_type: "credit",
         amount: absBalance,
-        description: `Balance adjustment for Bill ${billNumber}`,
+        description: `Balance adjustment for Dispatch ${order.order_number}`,
         created_by: user.id,
         updated_by: user.id,
       });
@@ -3403,7 +3423,7 @@ export async function saveSalesOrderBillingDirect(formData: FormData) {
       account_name: customerAc?.customer_name ?? customerName,
       entry_type: "debit",
       amount: billValue,
-      description: billNumber,
+      description: `Bill ${billNumber} for Dispatch ${orders[0].order_number}`,
       created_by: user.id,
       updated_by: user.id,
     },
@@ -3414,7 +3434,7 @@ export async function saveSalesOrderBillingDirect(formData: FormData) {
       account_name: salesAc?.customer_name ?? "Sales A/c",
       entry_type: "credit",
       amount: billValue,
-      description: `${billNumber} (${customerAc?.customer_name ?? customerName})`,
+      description: `Bill ${billNumber} for Dispatch ${orders[0].order_number} (${customerAc?.customer_name ?? customerName})`,
       created_by: user.id,
       updated_by: user.id,
     },

@@ -13,15 +13,19 @@ import { cn } from "@/lib/utils";
 import type { AppUser, RoleName } from "@/lib/database.types";
 import { navGroups, type NavGroup } from "@/lib/navigation";
 
-function Brand() {
+function Brand({ onClick }: { onClick?: () => void }) {
   return (
-    <div className="flex h-16 items-center gap-3 border-b px-4">
+    <Link
+      href="/dashboard"
+      onClick={onClick}
+      className="flex h-16 items-center gap-3 border-b px-4 hover:bg-muted/40 transition-colors"
+    >
       <BrandLogo className="h-10 w-10 shrink-0 rounded-full" />
       <div className="min-w-0">
         <div className="truncate text-sm font-semibold">RK Global</div>
         <div className="truncate text-xs text-muted-foreground">Fabric ERP</div>
       </div>
-    </div>
+    </Link>
   );
 }
 
@@ -127,6 +131,7 @@ export function AppShell({
   children: React.ReactNode;
   lowStockItems?: LowStockItem[];
 }) {
+  const pathname = usePathname();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [showLowStockAlert, setShowLowStockAlert] = useState(false);
 
@@ -222,7 +227,7 @@ export function AppShell({
               </DialogTrigger>
               <DialogContent className="left-0 top-0 h-full w-[min(20rem,88vw)] translate-x-0 translate-y-0 overflow-y-auto rounded-none p-0">
                 <DialogTitle className="sr-only">Navigation</DialogTitle>
-                <Brand />
+                <Brand onClick={() => setMobileNavOpen(false)} />
                 <NavLinks groups={groups} onNavigate={() => setMobileNavOpen(false)} />
               </DialogContent>
             </Dialog>
@@ -248,7 +253,7 @@ export function AppShell({
         <main className="p-4 lg:p-6">{children}</main>
       </div>
 
-      {showLowStockAlert && (
+      {showLowStockAlert && pathname === "/dashboard" && (
         <div className="fixed top-4 right-4 z-[999] w-80 max-h-[420px] overflow-y-auto rounded-xl border border-red-200 bg-white p-4 shadow-xl ring-1 ring-black/5 animate-in fade-in slide-in-from-top-4 duration-300">
           <div className="flex items-start justify-between">
             <div className="flex gap-2.5">

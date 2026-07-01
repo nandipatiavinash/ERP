@@ -287,13 +287,14 @@ export function DeliveryEntryWorkspace({
         const confirmedOrder = activeCustomerOrders.find((o) =>
           (o.sales_order_items ?? []).some((item) => selectedItemIds.includes(item.id))
         );
-        if (confirmedOrder) {
+                if (confirmedOrder) {
           setPrintOrderId(confirmedOrder.id);
         }
 
         setSelectedItemIds([]);
         setAllocation({});
         setSelectedCustomerId(null);
+        setIsSidebarCollapsed(false);
       } catch (err: any) {
         setErrorMsg(err.message || "Failed to confirm sales delivery.");
       }

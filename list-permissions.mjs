@@ -17,6 +17,6 @@ const serviceRoleKey = env.SUPABASE_SERVICE_ROLE_KEY;
 
 const supabase = createClient(url, serviceRoleKey);
 
-const { data, error } = await supabase.from("permissions").select("id, name, module, action, description").order("module");
+const { data, error } = await supabase.from("permissions").select("id, module, action, description").order("module");
 console.log("All permissions:", data);
 console.log("Error:", error);
