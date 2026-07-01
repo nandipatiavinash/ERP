@@ -134,6 +134,23 @@ export function AppShell({
   const pathname = usePathname();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [showLowStockAlert, setShowLowStockAlert] = useState(false);
+  const [successAlert, setSuccessAlert] = useState<{ isOpen: boolean; message: string }>({
+    isOpen: false,
+    message: "",
+  });
+
+  useEffect(() => {
+    const handleSuccessAlert = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      setSuccessAlert({
+        isOpen: true,
+        message: detail?.message || "Submitted successfully!",
+      });
+    };
+
+    window.addEventListener("show-success-alert", handleSuccessAlert);
+    return () => window.removeEventListener("show-success-alert", handleSuccessAlert);
+  }, []);
 
   useEffect(() => {
     if (lowStockItems && lowStockItems.length > 0) {
@@ -299,6 +316,26 @@ export function AppShell({
             >
               View Inventory
             </Link>
+          </div>
+        </div>
+      )}
+
+      {successAlert.isOpen && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="w-[320px] rounded-xl border bg-white p-6 shadow-2xl scale-in-center animate-in zoom-in-95 duration-200 text-center flex flex-col items-center">
+            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 mb-4 border border-emerald-100 shadow-inner">
+              <svg className="h-10 w-10 text-emerald-600 animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-bold text-slate-900">Success!</h3>
+            <p className="mt-2 text-sm text-slate-600">{successAlert.message}</p>
+            <button
+              onClick={() => setSuccessAlert((prev) => ({ ...prev, isOpen: false }))}
+              className="mt-5 w-full rounded-md bg-emerald-600 py-2 text-sm font-semibold text-white hover:bg-emerald-700 shadow transition-all active:scale-[0.98]"
+            >
+              OK
+            </button>
           </div>
         </div>
       )}

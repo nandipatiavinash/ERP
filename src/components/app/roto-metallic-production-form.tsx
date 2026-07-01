@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { showSuccess } from "@/lib/toast";
 import { saveRotoMetallicProduction } from "@/app/(app)/_actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -88,7 +89,7 @@ export function RotoMetallicProductionForm({
         fd.append("entry_date", entryDate);
 
         await saveRotoMetallicProduction(fd);
-        alert("Submitted successfully!");
+        showSuccess("Submitted successfully!");
         setSuccessMsg(`Roto Metallic roll created: ${livePreviewId}`);
 
         if (onSuccess) {

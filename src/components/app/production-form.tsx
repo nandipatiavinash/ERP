@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { showSuccess } from "@/lib/toast";
 import { saveProduction } from "@/app/(app)/_actions";
 import { ConfirmSubmitButton } from "@/components/app/confirm-submit-button";
 import { Input } from "@/components/ui/input";
@@ -99,7 +100,7 @@ export function ProductionForm({
         formData.set("id", row.id);
       }
       await saveProduction(formData);
-      alert("Submitted successfully!");
+      showSuccess("Submitted successfully!");
 
       // Reset the form state upon successful submission (only for creating new records)
       if (!row?.id) {

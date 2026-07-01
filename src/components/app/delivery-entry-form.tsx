@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { showSuccess } from "@/lib/toast";
 import { Plus, Trash2, PackagePlus } from "lucide-react";
 import { createSalesOrder } from "@/app/(app)/_actions";
 import { ConfirmSubmitButton } from "@/components/app/confirm-submit-button";
@@ -106,7 +107,7 @@ export function DeliveryEntryForm({
     const formData = new FormData(form);
     try {
       await createSalesOrder(formData);
-      alert("Submitted successfully!");
+      showSuccess("Submitted successfully!");
       form.reset();
       setConfirmedRows([]);
       setDraft({ department: "fabric", productId: "", quantity: "" });

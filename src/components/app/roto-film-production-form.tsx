@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { showSuccess } from "@/lib/toast";
 import { saveRotoFilmProduction } from "@/app/(app)/_actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -128,7 +129,7 @@ export function RotoFilmProductionForm({
         fd.append("entry_date", entryDate);
 
         await saveRotoFilmProduction(fd);
-        alert("Submitted successfully!");
+        showSuccess("Submitted successfully!");
         setSuccessMsg(`Roto Film roll created: ${livePreviewId}`);
 
         if (onSuccess) {

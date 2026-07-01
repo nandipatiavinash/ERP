@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition, useMemo } from "react";
+import { showSuccess } from "@/lib/toast";
 import { saveLaminationProduction } from "@/app/(app)/_actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -115,7 +116,7 @@ export function LaminationProductionForm({
         fd.append("entry_date", entryDate);
 
         await saveLaminationProduction(fd);
-        alert("Submitted successfully!");
+        showSuccess("Submitted successfully!");
         setSuccessMsg(`Lamination roll created: ${livePreviewId}`);
 
         if (onSuccess) {

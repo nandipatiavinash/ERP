@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { showSuccess } from "@/lib/toast";
 import { saveRawMaterialConsumption } from "@/app/(app)/_actions";
 import { ConfirmSubmitButton } from "@/components/app/confirm-submit-button";
 import { Input } from "@/components/ui/input";
@@ -57,7 +58,7 @@ export function ConsumptionForm({ department, materials, row, rows }: Consumptio
       }
       formData.set("department", department);
       await saveRawMaterialConsumption(formData);
-      alert("Submitted successfully!");
+      showSuccess("Submitted successfully!");
 
       if (!row?.id) {
         setMaterialId("");

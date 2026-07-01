@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { showSuccess } from "@/lib/toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -217,7 +218,7 @@ export function FinishingConsumptionClient({
                         if (!ok) return;
                       }
                       await consumeFabricRoll(rollId, "finishing");
-                      alert("Submitted successfully!");
+                      showSuccess("Submitted successfully!");
                       setSelectedFabricTypeFilter("none");
                     }
                   }}
@@ -330,7 +331,7 @@ export function FinishingConsumptionClient({
                         if (!ok) return;
                       }
                       await consumeLaminationRoll(rollId);
-                      alert("Submitted successfully!");
+                      showSuccess("Submitted successfully!");
                       setSelectedBrandFilter("none");
                     }
                   }}
@@ -441,7 +442,7 @@ export function FinishingConsumptionClient({
                         if (!ok) return;
                       }
                       await consumeOffsetRoll(rollId);
-                      alert("Submitted successfully!");
+                      showSuccess("Submitted successfully!");
                     }
                   }}
                   className="flex flex-wrap items-end gap-4"

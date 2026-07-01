@@ -3,6 +3,7 @@
 import { useState, useTransition, useMemo } from "react";
 import { Printer, FileText, ChevronDown, ChevronRight, Receipt, Package } from "lucide-react";
 import { saveSalesOrderBillingDirect } from "@/app/(app)/_actions";
+import { showSuccess } from "@/lib/toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -200,7 +201,7 @@ export function SalesEntryClient({ pendingOrders, billedOrders, rolls, fabricTyp
         fd.append("bill_value", String(val));
         if (skipJournal) fd.append("skip_journal", "1");
         await saveSalesOrderBillingDirect(fd);
-        alert("Submitted successfully!");
+        showSuccess("Submitted successfully!");
         setSuccessMsg(
           skipJournal
             ? "Sales billing saved (bill number 0 or value 0 — no journal entry recorded)."

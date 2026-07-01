@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
+import { showSuccess } from "@/lib/toast";
 import { useRouter } from "next/navigation";
 import { ChevronDown, ChevronRight, Percent, Check } from "lucide-react";
 import { Label } from "@/components/ui/label";
@@ -244,7 +245,7 @@ export function SalesConfirmationReportClient({
       const gstRate = Number(gstRates[orderId] ?? 18);
 
       await saveSalesConfirmationRates(orderId, itemPrices, gstRate);
-      alert("Submitted successfully!");
+      showSuccess("Submitted successfully!");
 
       // Clear price inputs for this order
       setPrices((prev) => {

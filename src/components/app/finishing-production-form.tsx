@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition, useMemo } from "react";
+import { showSuccess } from "@/lib/toast";
 import { saveFinishingBundle } from "@/app/(app)/_actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -117,7 +118,7 @@ export function FinishingProductionForm({
         fd.append("entry_date", entryDate);
 
         await saveFinishingBundle(fd);
-        alert("Submitted successfully!");
+        showSuccess("Submitted successfully!");
         setSuccessMsg(`Finishing bundle created successfully: ${livePreviewId}`);
 
         if (onSuccess) {

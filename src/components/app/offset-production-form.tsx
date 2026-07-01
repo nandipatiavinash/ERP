@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition, useMemo } from "react";
+import { showSuccess } from "@/lib/toast";
 import { saveOffsetProduction } from "@/app/(app)/_actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -173,7 +174,7 @@ export function OffsetProductionForm({
         fd.append("entry_date", entryDate);
 
         await saveOffsetProduction(fd);
-        alert("Submitted successfully!");
+        showSuccess("Submitted successfully!");
         setSuccessMsg(`Offset roll created: ${livePreviewId}`);
 
         if (onSuccess) {
