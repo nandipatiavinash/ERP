@@ -134,6 +134,7 @@ export function DeliveryEntryForm({
             id="customer_id"
             name="customer_id"
             required
+            defaultValue=""
             className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
           >
             <option value="" disabled>Select Firm</option>

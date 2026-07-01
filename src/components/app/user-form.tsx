@@ -32,7 +32,7 @@ export function UserForm({ roles }: { roles: RoleOption[] }) {
       </div>
       <div className="space-y-2">
         <Label htmlFor="role_id">Role</Label>
-        <select id="role_id" name="role_id" required className="h-10 w-full rounded-md border bg-background px-3 text-sm">
+        <select id="role_id" name="role_id" required defaultValue="" className="h-10 w-full rounded-md border bg-background px-3 text-sm">
           <option value="" disabled>Select role</option>
           {roles.map((role) => (
             <option key={role.id} value={role.id}>{role.name}</option>
