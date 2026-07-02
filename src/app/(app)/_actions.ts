@@ -580,6 +580,55 @@ export async function saveRawMaterialPurchase(formData: FormData) {
   revalidatePath("/reports");
 }
 
+export async function deleteRawMaterialPurchase(purchaseId: string) {
+  const user = await requirePermission("accounts.purchase");
+  if (!purchaseId) throw new Error("Purchase ID is required.");
+
+  const supabase = await createClient();
+
+  // Fetch the purchase to get the bill_number for journal cleanup
+  const { data: purchase, error: fetchError } = await (supabase
+    .from("raw_material_purchases") as any)
+    .select("id, bill_number, supplier_name")
+    .eq("id", purchaseId)
+    .single();
+
+  if (fetchError || !purchase) {
+    throw new Error("Purchase entry not found.");
+  }
+
+  // Hard-delete the purchase row — DB trigger (apply_raw_material_purchase) reverts stock
+  const { error: deleteError } = await (supabase
+    .from("raw_material_purchases") as any)
+    .delete()
+    .eq("id", purchaseId);
+
+  if (deleteError) throw new Error(deleteError.message);
+
+  // Also delete the auto-generated journal entries that reference this bill
+  if (purchase.bill_number) {
+    const { data: journalRows } = await (supabase
+      .from("accounts_journal") as any)
+      .select("journal_no")
+      .or(`description.like."%${purchase.bill_number}%"`)
+      .is("deleted_at", null);
+
+    const journalNos = [...new Set((journalRows || []).map((r: any) => r.journal_no))];
+    if (journalNos.length > 0) {
+      await (supabase
+        .from("accounts_journal") as any)
+        .delete()
+        .in("journal_no", journalNos);
+    }
+  }
+
+  revalidatePath("/raw-materials");
+  revalidatePath("/accounts/purchase");
+  revalidatePath("/accounts/journal");
+  revalidatePath("/dashboard");
+  revalidatePath("/reports");
+}
+
 export async function createErpUser(_: unknown, formData: FormData) {
   await requirePermission("admin.credentials");
 

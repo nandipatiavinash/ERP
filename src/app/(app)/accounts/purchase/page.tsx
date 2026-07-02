@@ -7,6 +7,8 @@ import { requirePermission, getSessionPermissions } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, formatNumber, todayInIndia } from "@/lib/utils";
 import { DateFilter } from "@/components/app/date-filter";
+import { DeletePurchaseButton } from "./delete-purchase-button";
+
 
 function getEnteredBillValue(remarks: string | null, fallback: string | number) {
   const match = remarks?.match(/\[TOTAL_BILL_VALUE:([0-9]+(?:\.[0-9]+)?)\]/);
@@ -131,24 +133,34 @@ export default async function PurchaseEntryPage({
                     <TableHead>Qty</TableHead>
                     <TableHead>Rate</TableHead>
                     <TableHead>Total</TableHead>
+                    <TableHead className="w-16"></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {purchaseRows.map((purchase) => (
-                    <TableRow key={purchase.id}>
-                      <TableCell>{formatDate(purchase.purchase_date)}</TableCell>
-                      <TableCell>
-                        {purchase.raw_materials?.material_name ?? "-"} {purchase.raw_materials?.department ? `(${purchase.raw_materials.department})` : ""}
-                      </TableCell>
-                      <TableCell>{purchase.supplier_name ?? "-"}</TableCell>
-                      <TableCell>{purchase.bill_number ?? "-"}</TableCell>
-                      <TableCell>
-                        {formatNumber(purchase.quantity, 0)} {purchase.raw_materials?.unit ?? ""}
-                      </TableCell>
-                      <TableCell>{"\u20b9"}{formatNumber(purchase.rate, 2)}</TableCell>
-                      <TableCell>{"\u20b9"}{formatNumber(getEnteredBillValue(purchase.remarks, purchase.total_amount), 2)}</TableCell>
-                    </TableRow>
-                  ))}
+                  {purchaseRows.map((purchase) => {
+                    const dept = purchase.raw_materials?.department
+                      ? purchase.raw_materials.department.toUpperCase()
+                      : "";
+                    const matName = purchase.raw_materials?.material_name ?? "-";
+                    const materialLabel = dept ? `${dept}-${matName}` : matName;
+
+                    return (
+                      <TableRow key={purchase.id}>
+                        <TableCell>{formatDate(purchase.purchase_date)}</TableCell>
+                        <TableCell className="font-medium">{materialLabel}</TableCell>
+                        <TableCell>{purchase.supplier_name ?? "-"}</TableCell>
+                        <TableCell>{purchase.bill_number ?? "-"}</TableCell>
+                        <TableCell>
+                          {formatNumber(purchase.quantity, 0)} {purchase.raw_materials?.unit ?? ""}
+                        </TableCell>
+                        <TableCell>{"₹"}{formatNumber(purchase.rate, 2)}</TableCell>
+                        <TableCell>{"₹"}{formatNumber(getEnteredBillValue(purchase.remarks, purchase.total_amount), 2)}</TableCell>
+                        <TableCell>
+                          <DeletePurchaseButton purchaseId={purchase.id} />
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </div>
@@ -158,4 +170,3 @@ export default async function PurchaseEntryPage({
     </div>
   );
 }
-

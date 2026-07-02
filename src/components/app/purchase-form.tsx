@@ -44,6 +44,17 @@ export function PurchaseForm({
 
   const selectedMaterial = materials.find((m) => m.id === draft.raw_material_id);
 
+  // Format label as "DEPARTMENT-MaterialName" (e.g. "FABRIC-Filler")
+  const formatMaterialLabel = (mat: MaterialOption) => {
+    const dept = mat.department ? mat.department.toUpperCase() : "";
+    return dept ? `${dept}-${mat.material_name}` : mat.material_name;
+  };
+
+  // Sort materials ascending by the formatted label
+  const sortedMaterials = [...materials].sort((a, b) =>
+    formatMaterialLabel(a).localeCompare(formatMaterialLabel(b))
+  );
+
   const handleAddItem = () => {
     if (!draft.raw_material_id || !draft.quantity || !draft.rate) return;
     if (Number(draft.quantity) <= 0 || Number(draft.rate) <= 0) return;
@@ -54,7 +65,7 @@ export function PurchaseForm({
       {
         key: `item-${Date.now()}-${Math.random()}`,
         raw_material_id: draft.raw_material_id,
-        material_label: mat.material_name,
+        material_label: formatMaterialLabel(mat),
         unit: mat.unit && mat.unit !== "-" ? mat.unit : "",
         quantity: String(Math.round(Number(draft.quantity))),
         rate: draft.rate,
@@ -164,9 +175,9 @@ export function PurchaseForm({
               className="h-10 w-full rounded-md border bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
             >
               <option value="" disabled>Select material</option>
-              {materials.map((material) => (
+              {sortedMaterials.map((material) => (
                 <option key={material.id} value={material.id}>
-                  {material.material_name} ({material.unit && material.unit !== "-" ? `${material.unit} - ` : ""}{material.department ?? ""})
+                  {formatMaterialLabel(material)}{material.unit && material.unit !== "-" ? ` (${material.unit})` : ""}
                 </option>
               ))}
             </select>
@@ -209,17 +220,6 @@ export function PurchaseForm({
             <Plus className="h-4 w-4" /> Add Item
           </Button>
         </div>
-
-        {/* --- Hidden inputs for confirmed items (submitted with form) --- */}
-        {items.map((item) => (
-          <input key={`hidden-${item.key}`} type="hidden" name="raw_material_id" value={item.raw_material_id} />
-        ))}
-        {items.map((item) => (
-          <input key={`hidden-qty-${item.key}`} type="hidden" name="quantity" value={item.quantity} />
-        ))}
-        {items.map((item) => (
-          <input key={`hidden-rate-${item.key}`} type="hidden" name="rate" value={item.rate} />
-        ))}
 
         {/* --- Added items list (below input row) --- */}
         {items.length > 0 && (
