@@ -3,7 +3,7 @@ export function BrandLogo({ className = "h-10 w-10" }: { className?: string }) {
     <img
       src="/rk-global-circular.png"
       alt="RK Global"
-      className={className}
+      className={`${className} object-contain`}
       loading="eager"
       decoding="async"
     />
