@@ -404,7 +404,7 @@ export async function linkEmployeeUser(formData: FormData) {
 
 export async function saveProduction(formData: FormData) {
   const id = String(formData.get("id") ?? "");
-  const user = await requirePermission(`production.${id ? "edit" : "create"}`);
+  const user = await requirePermission("fabric.production");
   const supabase = await createClient();
   const fields = ["fabric_type_id", "loom_id", "gross_weight", "core_weight", "end_meters", "remarks"];
   if (user.roles?.name === "admin") fields.push("initial_meters");
@@ -426,8 +426,21 @@ export async function saveProduction(formData: FormData) {
 }
 
 export async function softDeleteProduction(formData: FormData) {
-  const user = await requirePermission("production.edit");
+  const user = await requirePermission("fabric.production");
   const id = String(formData.get("id") ?? "");
+  const supabase = await createClient();
+
+  const { data: roll } = await (supabase
+    .from("fabric_rolls") as any)
+    .select("status")
+    .eq("production_entry_id", id)
+    .maybeSingle();
+
+  if (roll) {
+    if ((roll as any).status === "sold") throw new Error("This roll has been sold and cannot be deleted.");
+    if ((roll as any).status === "consumed") throw new Error("This roll has been consumed in downstream stages and cannot be deleted.");
+  }
+
   const adminSupabase = createAdminClient();
   const { error } = await (adminSupabase
     .from("loom_production_entries") as any)
@@ -568,7 +581,7 @@ export async function saveRawMaterialPurchase(formData: FormData) {
 }
 
 export async function createErpUser(_: unknown, formData: FormData) {
-  await requirePermission("users.create");
+  await requirePermission("admin.credentials");
 
   const parsed = createUserSchema.safeParse({
     full_name: formData.get("full_name"),
@@ -614,6 +627,25 @@ export async function createErpUser(_: unknown, formData: FormData) {
   revalidatePath("/users");
   revalidatePath("/admin/credentials");
   return { success: "Supabase Auth user created. Share the password securely with the user." };
+}
+
+export async function deleteErpUser(userId: string) {
+  const user = await requirePermission("admin.credentials");
+  const supabase = await createClient();
+
+  if (user.id === userId) {
+    throw new Error("You cannot delete your own logged-in user profile.");
+  }
+
+  const { error } = await (supabase
+    .from("users") as any)
+    .update({ deleted_at: new Date().toISOString() } as any)
+    .eq("id", userId);
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/users");
+  revalidatePath("/admin/credentials");
 }
 
 export async function changeUserPassword(formData: FormData) {
@@ -1236,10 +1268,19 @@ export async function confirmSalesDelivery(
 }
 
 export async function saveRawMaterialConsumption(formData: FormData) {
-  const user = await requirePermission("production.edit");
+  const department = String(formData.get("department") ?? "");
+  const permissionMap: Record<string, string> = {
+    fabric: "fabric.consumption",
+    roto_printing: "roto_printing.consumption",
+    lamination: "lamination.consumption",
+    offset_printing: "offset_printing.consumption",
+    finishing: "finishing.consumption",
+  };
+  const permission = permissionMap[department] || "fabric.consumption";
+  const user = await requirePermission(permission);
+
   const id = String(formData.get("id") ?? "");
   const rawMaterialId = String(formData.get("raw_material_id") ?? "");
-  const department = String(formData.get("department") ?? "");
   const quantity = Number(formData.get("quantity") ?? 0);
   const consumptionDate = String(formData.get("consumption_date") ?? "");
   const remarks = String(formData.get("remarks") ?? "");
@@ -1279,20 +1320,30 @@ export async function saveRawMaterialConsumption(formData: FormData) {
 }
 
 export async function softDeleteRawMaterialConsumption(formData: FormData) {
-  const user = await requirePermission("production.edit");
   const id = String(formData.get("id") ?? "");
   const supabase = await createClient();
 
-  // Fetch the entry first to verify its consumption date
+  // Fetch the entry first to verify its consumption date and get department
   const { data: entry, error: fetchError } = await (supabase
     .from("raw_material_consumptions") as any)
-    .select("consumption_date")
+    .select("department, consumption_date")
     .eq("id", id)
     .maybeSingle();
 
   if (fetchError || !entry) {
     throw new Error("Consumption log not found.");
   }
+
+  const department = entry.department ?? "";
+  const permissionMap: Record<string, string> = {
+    fabric: "fabric.consumption",
+    roto_printing: "roto_printing.consumption",
+    lamination: "lamination.consumption",
+    offset_printing: "offset_printing.consumption",
+    finishing: "finishing.consumption",
+  };
+  const permission = permissionMap[department] || "fabric.consumption";
+  const user = await requirePermission(permission);
 
   if (entry.consumption_date !== todayInIndia()) {
     throw new Error("You can only delete consumption logs on the day they are created.");
@@ -1316,10 +1367,18 @@ export async function softDeleteRawMaterialConsumption(formData: FormData) {
 }
 
 export async function saveStageProduction(formData: FormData) {
-  const user = await requirePermission("production.edit");
+  const stage = String(formData.get("stage") ?? "");
+  const permissionMap: Record<string, string> = {
+    roto_printing: "roto_printing.production",
+    lamination: "lamination.production",
+    offset_printing: "offset_printing.production",
+    finishing: "finishing.production",
+  };
+  const permission = permissionMap[stage] || "fabric.production";
+  const user = await requirePermission(permission);
+
   const id = String(formData.get("id") ?? "");
   const rollId = String(formData.get("roll_id") ?? "");
-  const stage = String(formData.get("stage") ?? "");
   const productId = String(formData.get("product_id") ?? "");
   const entryDate = String(formData.get("entry_date") ?? "");
   const remarks = String(formData.get("remarks") ?? "");
@@ -1371,9 +1430,25 @@ export async function saveStageProduction(formData: FormData) {
 }
 
 export async function softDeleteStageProduction(formData: FormData) {
-  const user = await requirePermission("production.edit");
   const id = String(formData.get("id") ?? "");
   const supabase = await createClient();
+
+  const { data: entry } = await (supabase
+    .from("stage_production_entries") as any)
+    .select("stage")
+    .eq("id", id)
+    .maybeSingle();
+
+  const stage = entry?.stage ?? "";
+  const permissionMap: Record<string, string> = {
+    roto_printing: "roto_printing.production",
+    lamination: "lamination.production",
+    offset_printing: "offset_printing.production",
+    finishing: "finishing.production",
+  };
+  const permission = permissionMap[stage] || "fabric.production";
+  const user = await requirePermission(permission);
+
   const { error } = await (supabase
     .from("stage_production_entries") as any)
     .delete()
@@ -2483,7 +2558,7 @@ export async function saveProfitLoss(
 }
 
 export async function saveRotoFilmProduction(formData: FormData) {
-  const user = await requirePermission("production.edit");
+  const user = await requirePermission("roto_printing.production");
   const brandId = String(formData.get("brand_id") ?? "");
   const filmType = String(formData.get("film_type") ?? "").toLowerCase();
   const colorId = formData.get("color_id") ? String(formData.get("color_id")) : null;
@@ -2561,8 +2636,16 @@ export async function saveRotoFilmProduction(formData: FormData) {
 }
 
 export async function deleteRotoFilmProduction(id: string) {
-  const user = await requirePermission("production.edit");
+  const user = await requirePermission("roto_printing.production");
   const supabase = await createClient();
+
+  const { data: roll } = await (supabase.from("roto_film_rolls") as any).select("status").eq("id", id).maybeSingle();
+  if (!roll) throw new Error("Film roll not found.");
+  if ((roll as any).status === "sold") throw new Error("This roll has been sold and cannot be deleted.");
+  if ((roll as any).status === "consumed") throw new Error("This roll has been consumed in metallic printing and cannot be deleted.");
+
+  const { data: hasMetallic } = await (supabase.from("roto_metallic_rolls") as any).select("id").eq("source_film_roll_id", id).maybeSingle();
+  if (hasMetallic) throw new Error("This roll is referenced by a metallic printed roll and cannot be deleted.");
 
   const { error } = await (supabase
     .from("roto_film_rolls") as any)
@@ -2577,7 +2660,7 @@ export async function deleteRotoFilmProduction(id: string) {
 }
 
 export async function saveRotoMetallicProduction(formData: FormData) {
-  const user = await requirePermission("production.edit");
+  const user = await requirePermission("roto_printing.production");
   const sourceFilmRollId = String(formData.get("source_film_roll_id") ?? "");
   const isSplit = formData.get("is_split") === "1" || formData.get("is_split") === "true";
   const weightKg = Number(formData.get("weight_kg") ?? 0);
@@ -2625,8 +2708,16 @@ export async function saveRotoMetallicProduction(formData: FormData) {
 }
 
 export async function deleteRotoMetallicProduction(id: string) {
-  const user = await requirePermission("production.edit");
+  const user = await requirePermission("roto_printing.production");
   const supabase = await createClient();
+
+  const { data: roll } = await (supabase.from("roto_metallic_rolls") as any).select("status").eq("id", id).maybeSingle();
+  if (!roll) throw new Error("Metallic roll not found.");
+  if ((roll as any).status === "sold") throw new Error("This roll has been sold and cannot be deleted.");
+  if ((roll as any).status === "consumed") throw new Error("This roll has been consumed in lamination and cannot be deleted.");
+
+  const { data: hasLamination } = await (supabase.from("lamination_rolls") as any).select("id").eq("film_roll_id", id).maybeSingle();
+  if (hasLamination) throw new Error("This roll is referenced by a laminated roll and cannot be deleted.");
 
   const { error } = await (supabase
     .from("roto_metallic_rolls") as any)
@@ -2641,7 +2732,7 @@ export async function deleteRotoMetallicProduction(id: string) {
 }
 
 export async function saveLaminationProduction(formData: FormData) {
-  const user = await requirePermission("production.edit");
+  const user = await requirePermission("lamination.production");
   const lamType = String(formData.get("lam_type") ?? "");
   const fabricTypeId = String(formData.get("fabric_type_id") ?? "");
   const filmRollId = formData.get("film_roll_id") ? String(formData.get("film_roll_id")) : null;
@@ -2733,8 +2824,19 @@ export async function saveLaminationProduction(formData: FormData) {
 }
 
 export async function deleteLaminationProduction(id: string) {
-  const user = await requirePermission("production.edit");
+  const user = await requirePermission("lamination.production");
   const supabase = await createClient();
+
+  const { data: roll } = await (supabase.from("lamination_rolls") as any).select("status").eq("id", id).maybeSingle();
+  if (!roll) throw new Error("Lamination roll not found.");
+  if ((roll as any).status === "sold") throw new Error("This roll has been sold and cannot be deleted.");
+  if ((roll as any).status === "consumed") throw new Error("This roll has been consumed in offset/finishing and cannot be deleted.");
+
+  const { data: hasOffset } = await (supabase.from("offset_rolls") as any).select("id").eq("source_lam_roll_id", id).maybeSingle();
+  if (hasOffset) throw new Error("This roll is referenced by an offset printed roll and cannot be deleted.");
+
+  const { data: hasFinishing } = await (supabase.from("finishing_bundles") as any).select("id").eq("source_lam_roll_id", id).maybeSingle();
+  if (hasFinishing) throw new Error("This roll is referenced by a finishing bundle and cannot be deleted.");
 
   const { error } = await (supabase
     .from("lamination_rolls") as any)
@@ -2750,7 +2852,7 @@ export async function deleteLaminationProduction(id: string) {
 }
 
 export async function saveOffsetProduction(formData: FormData) {
-  const user = await requirePermission("production.edit");
+  const user = await requirePermission("offset_printing.production");
   const offsetType = String(formData.get("offset_type") ?? "");
   const brandId = String(formData.get("brand_id") ?? "");
   const fabricTypeId = formData.get("fabric_type_id") ? String(formData.get("fabric_type_id")) : null;
@@ -2826,8 +2928,16 @@ export async function saveOffsetProduction(formData: FormData) {
 }
 
 export async function deleteOffsetProduction(id: string) {
-  const user = await requirePermission("production.edit");
+  const user = await requirePermission("offset_printing.production");
   const supabase = await createClient();
+
+  const { data: roll } = await (supabase.from("offset_rolls") as any).select("status").eq("id", id).maybeSingle();
+  if (!roll) throw new Error("Offset roll not found.");
+  if ((roll as any).status === "sold") throw new Error("This roll has been sold and cannot be deleted.");
+  if ((roll as any).status === "consumed") throw new Error("This roll has been consumed in finishing and cannot be deleted.");
+
+  const { data: hasFinishing } = await (supabase.from("finishing_bundles") as any).select("id").eq("source_offset_roll_id", id).maybeSingle();
+  if (hasFinishing) throw new Error("This roll is referenced by a finishing bundle and cannot be deleted.");
 
   const { error } = await (supabase
     .from("offset_rolls") as any)
@@ -2842,7 +2952,7 @@ export async function deleteOffsetProduction(id: string) {
 }
 
 export async function saveFinishingBundle(formData: FormData) {
-  const user = await requirePermission("production.edit");
+  const user = await requirePermission("finishing.production");
   const finishType = String(formData.get("finish_type") ?? "");
   const sourceLamRollId = formData.get("source_lam_roll_id") ? String(formData.get("source_lam_roll_id")) : null;
   const fabricTypeId = formData.get("fabric_type_id") ? String(formData.get("fabric_type_id")) : null;
@@ -2915,8 +3025,12 @@ export async function saveFinishingBundle(formData: FormData) {
 }
 
 export async function deleteFinishingBundle(id: string) {
-  const user = await requirePermission("production.edit");
+  const user = await requirePermission("finishing.production");
   const supabase = await createClient();
+
+  const { data: bundle } = await (supabase.from("finishing_bundles") as any).select("status").eq("id", id).maybeSingle();
+  if (!bundle) throw new Error("Finishing bundle not found.");
+  if ((bundle as any).status === "sold") throw new Error("This bundle has been sold and cannot be deleted.");
 
   const { error } = await (supabase
     .from("finishing_bundles") as any)
@@ -2930,7 +3044,13 @@ export async function deleteFinishingBundle(id: string) {
 }
 
 export async function consumeFabricRoll(rollId: string, stage: string) {
-  const user = await requirePermission("production.edit");
+  const permissionMap: Record<string, string> = {
+    lamination: "lamination.consumption",
+    offset: "offset_printing.consumption",
+    finishing: "finishing.consumption",
+  };
+  const permission = permissionMap[stage] || "fabric.consumption";
+  const user = await requirePermission(permission);
   const supabase = await createClient();
 
   const { error } = await (supabase
@@ -2947,8 +3067,16 @@ export async function consumeFabricRoll(rollId: string, stage: string) {
 }
 
 export async function revertFabricRollConsumption(rollId: string) {
-  const user = await requirePermission("production.edit");
   const supabase = await createClient();
+  const { data: roll } = await (supabase.from("fabric_rolls") as any).select("current_stage").eq("id", rollId).maybeSingle();
+  const stage = (roll as any)?.current_stage ?? "loom";
+  const permissionMap: Record<string, string> = {
+    lamination: "lamination.consumption",
+    offset: "offset_printing.consumption",
+    finishing: "finishing.consumption",
+  };
+  const permission = permissionMap[stage] || "fabric.consumption";
+  const user = await requirePermission(permission);
 
   const { error } = await (supabase
     .from("fabric_rolls") as any)
@@ -2964,7 +3092,7 @@ export async function revertFabricRollConsumption(rollId: string) {
 }
 
 export async function consumeMetallicRoll(rollId: string) {
-  const user = await requirePermission("production.edit");
+  const user = await requirePermission("lamination.consumption");
   const supabase = await createClient();
 
   const { error } = await (supabase
@@ -2979,7 +3107,7 @@ export async function consumeMetallicRoll(rollId: string) {
 }
 
 export async function revertMetallicRollConsumption(rollId: string) {
-  const user = await requirePermission("production.edit");
+  const user = await requirePermission("lamination.consumption");
   const supabase = await createClient();
 
   const { error } = await (supabase
@@ -2994,7 +3122,7 @@ export async function revertMetallicRollConsumption(rollId: string) {
 }
 
 export async function consumeRotoFilmRoll(rollId: string) {
-  const user = await requirePermission("production.edit");
+  const user = await requirePermission("lamination.consumption");
   const supabase = await createClient();
 
   const { error } = await (supabase
@@ -3009,7 +3137,7 @@ export async function consumeRotoFilmRoll(rollId: string) {
 }
 
 export async function revertRotoFilmRollConsumption(rollId: string) {
-  const user = await requirePermission("production.edit");
+  const user = await requirePermission("lamination.consumption");
   const supabase = await createClient();
 
   const { error } = await (supabase
@@ -3023,8 +3151,9 @@ export async function revertRotoFilmRollConsumption(rollId: string) {
   revalidatePath("/lamination/consumption");
 }
 
-export async function consumeLaminationRoll(rollId: string) {
-  const user = await requirePermission("production.edit");
+export async function consumeLaminationRoll(rollId: string, stage: string = "offset") {
+  const permission = stage === "finishing" ? "finishing.consumption" : "offset_printing.consumption";
+  const user = await requirePermission(permission);
   const supabase = await createClient();
 
   const { error } = await (supabase
@@ -3039,8 +3168,9 @@ export async function consumeLaminationRoll(rollId: string) {
   revalidatePath("/finishing/consumption");
 }
 
-export async function revertLaminationRollConsumption(rollId: string) {
-  const user = await requirePermission("production.edit");
+export async function revertLaminationRollConsumption(rollId: string, stage: string = "offset") {
+  const permission = stage === "finishing" ? "finishing.consumption" : "offset_printing.consumption";
+  const user = await requirePermission(permission);
   const supabase = await createClient();
 
   const { error } = await (supabase
@@ -3056,7 +3186,7 @@ export async function revertLaminationRollConsumption(rollId: string) {
 }
 
 export async function consumeOffsetRoll(rollId: string) {
-  const user = await requirePermission("production.edit");
+  const user = await requirePermission("finishing.consumption");
   const supabase = await createClient();
 
   const { error } = await (supabase
@@ -3071,7 +3201,7 @@ export async function consumeOffsetRoll(rollId: string) {
 }
 
 export async function revertOffsetRollConsumption(rollId: string) {
-  const user = await requirePermission("production.edit");
+  const user = await requirePermission("finishing.consumption");
   const supabase = await createClient();
 
   const { error } = await (supabase

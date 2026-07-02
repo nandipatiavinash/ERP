@@ -65,9 +65,6 @@ export default async function RotoPrintingStockPage() {
                 <TableHeader>
                   <TableRow className="bg-slate-50/50">
                     <TableHead>Roll ID</TableHead>
-                    <TableHead>Brand</TableHead>
-                    <TableHead>Film Type</TableHead>
-                    <TableHead>Color</TableHead>
                     <TableHead className="text-right">Weight (kg)</TableHead>
                     <TableHead className="text-right">Meters</TableHead>
                     <TableHead>Date Logged</TableHead>
@@ -77,9 +74,6 @@ export default async function RotoPrintingStockPage() {
                   {films.map((roll) => (
                     <TableRow key={roll.id}>
                       <TableCell className="font-mono font-bold text-emerald-950">{roll.roll_id}</TableCell>
-                      <TableCell>{roll.roto_products?.brand ?? "-"}</TableCell>
-                      <TableCell className="capitalize">{roll.film_type}</TableCell>
-                      <TableCell>{roll.roto_colors?.color_name ?? "-"}</TableCell>
                       <TableCell className="text-right font-mono">{formatNumber(roll.weight_kg, 2)}</TableCell>
                       <TableCell className="text-right font-mono">{formatNumber(roll.meters, 0)}</TableCell>
                       <TableCell>{formatDate(roll.entry_date)}</TableCell>

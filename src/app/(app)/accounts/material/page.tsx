@@ -1,4 +1,4 @@
-import { requirePermission } from "@/lib/auth";
+import { requirePermission, getSessionPermissions } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { todayInIndia } from "@/lib/utils";
 import { PageHeader } from "@/components/app/page-header";
@@ -11,6 +11,7 @@ export default async function MaterialSalesPage({
   searchParams: Promise<{ date?: string }>;
 }) {
   await requirePermission("accounts.material");
+  const permissions = await getSessionPermissions();
   const supabase = await createClient();
   const params = await searchParams;
   const date = params.date || todayInIndia();
@@ -103,9 +104,11 @@ export default async function MaterialSalesPage({
         description="Record raw material or waste sales directly into ledger accounts."
       />
 
-      <div className="flex justify-end">
-        <DateFilter date={date} baseUrl="/accounts/material" />
-      </div>
+      {permissions.includes("reports.filter_by_date") && (
+        <div className="flex justify-end">
+          <DateFilter date={date} baseUrl="/accounts/material" />
+        </div>
+      )}
 
       <MaterialSalesForm
         clients={clients}

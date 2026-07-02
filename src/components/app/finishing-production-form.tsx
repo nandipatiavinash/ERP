@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { isRedirectError } from "@/lib/utils";
 
 type LaminationRoll = {
   id: string;
@@ -89,20 +90,7 @@ export function FinishingProductionForm({
       return;
     }
 
-    // Client-side duplicate check
-    if (rows) {
-      const isDup = rows.some((r: any) =>
-        r.finish_type === finishType &&
-        (finishType === "LAMINATED" ? r.source_lam_roll_id === selectedLamId : true) &&
-        (finishType === "PLAIN" ? r.fabric_type_id === selectedFabricTypeId : true) &&
-        Math.floor(Number(r.num_bags)) === Math.floor(bags) &&
-        Math.floor(Number(r.weight_kg) * 100) === Math.floor(w * 100)
-      );
-      if (isDup) {
-        const ok = window.confirm("This entry appears to be a duplicate (an identical entry already exists for today). Do you still want to submit?");
-        if (!ok) return;
-      }
-    }
+
 
     startTransition(async () => {
       try {
@@ -131,6 +119,7 @@ export function FinishingProductionForm({
         setNumBags("");
         setWeightKg("");
       } catch (err: any) {
+        if (isRedirectError(err)) throw err;
         setErrorMsg(err.message || "Failed to save.");
       }
     });

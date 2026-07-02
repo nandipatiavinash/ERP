@@ -1,6 +1,6 @@
 import { PageHeader } from "@/components/app/page-header";
 import { DateFilter } from "@/components/app/date-filter";
-import { requirePermission } from "@/lib/auth";
+import { requirePermission, getSessionPermissions } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { todayInIndia } from "@/lib/utils";
 import { LaminationConsumptionClient } from "./LaminationConsumptionClient";
@@ -11,6 +11,7 @@ export default async function LaminationConsumptionPage({
   searchParams: Promise<{ date?: string }>;
 }) {
   await requirePermission("lamination.consumption");
+  const permissions = await getSessionPermissions();
   const supabase = await createClient();
   const params = await searchParams;
   const date = params.date || todayInIndia();
@@ -112,9 +113,11 @@ export default async function LaminationConsumptionPage({
         description="Log and review consumed raw materials, fabric rolls, and printed film rolls in lamination."
       />
 
-      <div className="flex justify-end">
-        <DateFilter date={date} baseUrl="/lamination/consumption" />
-      </div>
+      {permissions.includes("reports.filter_by_date") && (
+        <div className="flex justify-end">
+          <DateFilter date={date} baseUrl="/lamination/consumption" />
+        </div>
+      )}
 
       <LaminationConsumptionClient
         date={date}

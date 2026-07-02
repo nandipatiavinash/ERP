@@ -1,11 +1,8 @@
-import { createRole } from "@/app/(app)/_actions";
-import { ConfirmSubmitButton } from "@/components/app/confirm-submit-button";
+import { CreateRoleForm } from "@/components/app/create-role-form";
 import { PageHeader } from "@/components/app/page-header";
 import { StatusBadge } from "@/components/app/status-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { requirePermission } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { ChevronRight, Users } from "lucide-react";
@@ -38,19 +35,7 @@ export default async function PermissionsPage() {
       <Card className="mb-6">
         <CardHeader><CardTitle>Create Role</CardTitle></CardHeader>
         <CardContent>
-          <form action={createRole} className="grid gap-4 md:grid-cols-[1fr_2fr_auto] md:items-end">
-            <div className="space-y-2">
-              <Label htmlFor="name">Role Name</Label>
-              <Input id="name" name="name" placeholder="e.g. Fabric Operator" required />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="description">Description</Label>
-              <Input id="description" name="description" placeholder="Optional role description" />
-            </div>
-            <ConfirmSubmitButton confirmTitle="Create role?" confirmDescription="Confirm the role name before creating it.">
-              Create Role
-            </ConfirmSubmitButton>
-          </form>
+          <CreateRoleForm />
         </CardContent>
       </Card>
 

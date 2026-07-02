@@ -7,7 +7,7 @@ import { ConfirmSubmitButton } from "@/components/app/confirm-submit-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { todayInIndia, formatNumber } from "@/lib/utils";
+import { todayInIndia, formatNumber, isRedirectError } from "@/lib/utils";
 
 type MaterialOption = { id: string; material_name: string; unit: string; current_stock?: number };
 
@@ -38,18 +38,6 @@ export function ConsumptionForm({ department, materials, row, rows }: Consumptio
     }
     setErrorText(null);
 
-    // Client-side duplicate check
-    if (!row?.id && rows) {
-      const isDup = rows.some((r: any) =>
-        r.raw_material_id === materialId &&
-        Math.floor(Number(r.quantity) * 100) === Math.floor(Number(qtyNum) * 100)
-      );
-      if (isDup) {
-        const ok = window.confirm("This entry appears to be a duplicate (an identical entry already exists for today). Do you still want to submit?");
-        if (!ok) return;
-      }
-    }
-
     setIsSaving(true);
     try {
       const formData = new FormData(event.currentTarget);
@@ -69,6 +57,7 @@ export function ConsumptionForm({ department, materials, row, rows }: Consumptio
         if (remarksEl) remarksEl.value = "";
       }
     } catch (err: any) {
+      if (isRedirectError(err)) throw err;
       setErrorText(err.message || "Failed to save consumption log.");
     } finally {
       setIsSaving(false);

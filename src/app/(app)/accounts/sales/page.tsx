@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { PageHeader } from "@/components/app/page-header";
-import { requirePermission } from "@/lib/auth";
+import { requirePermission, getSessionPermissions } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, formatNumber, todayInIndia } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -15,6 +15,7 @@ export default async function AccountsSalesPage({
   searchParams: Promise<{ date?: string }>;
 }) {
   await requirePermission("accounts.sales");
+  const permissions = await getSessionPermissions();
   const supabase = await createClient();
   const params = await searchParams;
   const date = params.date || todayInIndia();
@@ -84,9 +85,11 @@ export default async function AccountsSalesPage({
       />
 
       <div className="flex flex-col gap-4">
-        <div className="flex justify-end">
-          <DateFilter date={date} baseUrl="/accounts/sales" />
-        </div>
+        {permissions.includes("reports.filter_by_date") && (
+          <div className="flex justify-end">
+            <DateFilter date={date} baseUrl="/accounts/sales" />
+          </div>
+        )}
 
         <SalesEntryClient
           pendingOrders={(pendingOrders ?? []) as any[]}

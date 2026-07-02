@@ -3,7 +3,7 @@ import { PageHeader } from "@/components/app/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { requirePermission } from "@/lib/auth";
+import { requirePermission, getSessionPermissions } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, formatNumber, todayInIndia } from "@/lib/utils";
 import { DateFilter } from "@/components/app/date-filter";
@@ -19,6 +19,7 @@ export default async function PurchaseEntryPage({
   searchParams: Promise<{ date?: string }>;
 }) {
   await requirePermission("accounts.purchase"); // Matches navGroups permission for this page
+  const permissions = await getSessionPermissions();
   const supabase = await createClient();
   const params = await searchParams;
   const date = params.date || todayInIndia();
@@ -111,7 +112,9 @@ export default async function PurchaseEntryPage({
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
           <CardTitle>Recent Purchases</CardTitle>
-          <DateFilter date={date} baseUrl="/accounts/purchase" />
+          {permissions.includes("reports.filter_by_date") && (
+            <DateFilter date={date} baseUrl="/accounts/purchase" />
+          )}
         </CardHeader>
         <CardContent>
           {purchaseRows.length === 0 ? (

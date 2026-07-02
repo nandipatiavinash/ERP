@@ -6,7 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { PageHeader } from "@/components/app/page-header";
 import { DateFilter } from "@/components/app/date-filter";
 import { softDeleteRawMaterialConsumption } from "@/app/(app)/_actions";
-import { requirePermission } from "@/lib/auth";
+import { requirePermission, getSessionPermissions } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, formatNumber, todayInIndia } from "@/lib/utils";
 
@@ -16,6 +16,7 @@ export default async function FabricConsumptionPage({
   searchParams: Promise<{ date?: string }>;
 }) {
   await requirePermission("fabric.consumption");
+  const permissions = await getSessionPermissions();
   const supabase = await createClient();
   const params = await searchParams;
   const date = params.date || todayInIndia();
@@ -48,9 +49,11 @@ export default async function FabricConsumptionPage({
         description="Log and monitor the consumption of raw materials in the fabric production process."
       />
 
-      <div className="flex justify-end mb-4">
-        <DateFilter date={date} baseUrl="/fabric/consumption" />
-      </div>
+      {permissions.includes("reports.filter_by_date") && (
+        <div className="flex justify-end mb-4">
+          <DateFilter date={date} baseUrl="/fabric/consumption" />
+        </div>
+      )}
 
       {isToday ? (
         <Card className="mb-5">

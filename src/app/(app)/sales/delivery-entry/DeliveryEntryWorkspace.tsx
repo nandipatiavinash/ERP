@@ -74,6 +74,7 @@ interface DeliveryEntryWorkspaceProps {
   date?: string;
   initialOrderId?: string;
   singleViewMode?: boolean;
+  permissions?: string[];
 }
 
 function getRollSerialValue(rollNumber: string) {
@@ -98,6 +99,7 @@ export function DeliveryEntryWorkspace({
   date = todayInIndia(),
   initialOrderId,
   singleViewMode = false,
+  permissions = [],
 }: DeliveryEntryWorkspaceProps) {
   const [activeTab, setActiveTab] = useState<"pending" | "confirmed">("pending");
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -930,7 +932,9 @@ export function DeliveryEntryWorkspace({
                 </CardTitle>
                 <p className="text-sm text-muted-foreground mt-1">Confirmed dispatches for the selected date.</p>
               </div>
-              <DateFilter date={date} baseUrl="/sales/delivery-entry?tab=completed" />
+              {permissions?.includes("reports.filter_by_date") && (
+                <DateFilter date={date} baseUrl="/sales/delivery-entry?tab=completed" />
+              )}
             </CardHeader>
             <CardContent>
               {confirmedOrders.length === 0 ? (

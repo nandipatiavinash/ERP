@@ -64,6 +64,7 @@ export const ALL_PAGE_PERMISSIONS: string[] = [
   // Reports
   "reports.sales_confirmation", "reports.accounts", "reports.opening_balance",
   "reports.stock", "reports.closing_stock", "reports.profit_loss", "reports.balance_sheet",
+  "reports.filter_by_date",
   // Dashboard
   "dashboard.view",
 ];
@@ -77,7 +78,7 @@ export function fallbackPermissions(role: RoleName | undefined) {
     "lamination.production", "lamination.consumption", "lamination.stock",
     "offset_printing.production", "offset_printing.consumption", "offset_printing.stock",
     "finishing.production", "finishing.consumption", "finishing.stock",
-    "reports.stock", "reports.closing_stock",
+    "reports.stock", "reports.closing_stock", "reports.filter_by_date",
   ];
   return [];
 }

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { requirePermission } from "@/lib/auth";
+import { requirePermission, getSessionPermissions } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { todayInIndia } from "@/lib/utils";
 import { PageHeader } from "@/components/app/page-header";
@@ -15,6 +15,7 @@ export default async function BalanceSheetPage({
   searchParams: Promise<{ date?: string }>;
 }) {
   await requirePermission("reports.balance_sheet");
+  const permissions = await getSessionPermissions();
   const params = await searchParams;
   const date = params.date || todayInIndia();
 
@@ -47,9 +48,11 @@ export default async function BalanceSheetPage({
           title="Balance Sheet"
           description="Company balance sheet statement of liabilities and assets."
         />
-        <div className="flex justify-end">
-          <DateFilter date={date} baseUrl="/reports/balance-sheet" />
-        </div>
+        {permissions.includes("reports.filter_by_date") && (
+          <div className="flex justify-end">
+            <DateFilter date={date} baseUrl="/reports/balance-sheet" />
+          </div>
+        )}
         <Card className="border-amber-200 bg-amber-50/30">
           <CardContent className="flex flex-col items-center justify-center py-12 text-center space-y-4">
             <AlertCircle className="h-12 w-12 text-amber-600" />
@@ -115,9 +118,11 @@ export default async function BalanceSheetPage({
       </div>
 
       <div className="flex flex-col gap-4">
-        <div className="flex justify-end no-print">
-          <DateFilter date={date} baseUrl="/reports/balance-sheet" />
-        </div>
+        {permissions.includes("reports.filter_by_date") && (
+          <div className="flex justify-end no-print">
+            <DateFilter date={date} baseUrl="/reports/balance-sheet" />
+          </div>
+        )}
 
         <BalanceSheetClient
           date={date}

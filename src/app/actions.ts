@@ -30,7 +30,7 @@ export async function signIn(_: unknown, formData: FormData) {
     return { error: "Your login exists in Supabase Auth, but no active ERP profile/role is assigned. Ask an admin to activate your ERP user." };
   }
 
-  redirect("/dashboard");
+  redirect("/");
 }
 
 export async function signOut() {

@@ -1,16 +1,17 @@
-import { linkEmployeeUser, changeUserPassword } from "@/app/(app)/_actions";
-import { ConfirmSubmitButton } from "@/components/app/confirm-submit-button";
 import { PageHeader } from "@/components/app/page-header";
-import { StatusBadge } from "@/components/app/status-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { UserForm } from "@/components/app/user-form";
-import { requirePermission } from "@/lib/auth";
+import { UserRowActions } from "@/components/app/user-row-actions";
+import { getSessionUser, requirePermission } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function CredentialsPage() {
   await requirePermission("admin.credentials");
+  const sessionUser = await getSessionUser();
+  const sessionUserId = sessionUser?.id ?? "";
+
   const supabase = await createClient();
   const [{ data }, { data: roles }, { data: employees }] = await Promise.all([
     supabase.from("users").select("*, roles(name)").is("deleted_at", null).order("full_name", { ascending: true }),
@@ -20,6 +21,7 @@ export default async function CredentialsPage() {
   const users = (data ?? []) as any[];
   const employeeRows = (employees ?? []) as any[];
   const linkedEmployeeByUser = new Map(employeeRows.filter((employee) => employee.user_id).map((employee) => [employee.user_id, employee]));
+
   return (
     <>
       <PageHeader title="Login Credentials" description="Create Supabase Auth users and link them to ERP roles." />
@@ -42,51 +44,18 @@ export default async function CredentialsPage() {
                     <TableHead>Role</TableHead>
                     <TableHead>Employee Link</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead className="text-center">Action</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {users.map((user) => (
                     <TableRow key={user.id}>
-                      <TableCell className="font-semibold">{user.full_name}</TableCell>
-                      <TableCell className="font-medium">{user.email}</TableCell>
-                      <TableCell className="font-mono text-sm">{user.password ?? "—"}</TableCell>
-                      <TableCell className="min-w-64">
-                        <form action={changeUserPassword} className="flex gap-2">
-                          <input type="hidden" name="user_id" value={user.id} />
-                          <input
-                            type="text"
-                            name="new_password"
-                            placeholder="New Password"
-                            required
-                            minLength={8}
-                            className="h-9 w-40 rounded-md border bg-background px-3 text-xs font-mono"
-                          />
-                          <ConfirmSubmitButton
-                            size="sm"
-                            variant="secondary"
-                            confirmTitle="Change user password?"
-                            confirmDescription={`This will update the login password for ${user.full_name} instantly.`}
-                          >
-                            Update
-                          </ConfirmSubmitButton>
-                        </form>
-                      </TableCell>
-                      <TableCell className="capitalize">{user.roles?.name}</TableCell>
-                      <TableCell className="min-w-72">
-                        <form action={linkEmployeeUser} className="flex flex-col gap-2 sm:flex-row">
-                          <input type="hidden" name="user_id" value={user.id} />
-                          <select name="employee_id" defaultValue={linkedEmployeeByUser.get(user.id)?.id ?? ""} className="h-9 w-full rounded-md border bg-background px-3 text-sm">
-                            <option value="">No employee link</option>
-                            {employeeRows.map((employee) => (
-                              <option key={employee.id} value={employee.id}>
-                                {employee.employee_code} - {employee.name}
-                              </option>
-                            ))}
-                          </select>
-                          <ConfirmSubmitButton size="sm" variant="outline" confirmTitle="Update employee link?" confirmDescription="Confirm this user-to-employee attendance link before saving.">Link</ConfirmSubmitButton>
-                        </form>
-                      </TableCell>
-                      <TableCell><StatusBadge value={user.status} /></TableCell>
+                      <UserRowActions
+                        user={user}
+                        sessionUserId={sessionUserId}
+                        employeeRows={employeeRows}
+                        linkedEmployee={linkedEmployeeByUser.get(user.id)}
+                      />
                     </TableRow>
                   ))}
                 </TableBody>

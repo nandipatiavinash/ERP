@@ -50,10 +50,6 @@ export default async function LaminationStockPage() {
                 <TableHeader>
                   <TableRow className="bg-slate-50/50">
                     <TableHead>Roll ID</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Source Fabric</TableHead>
-                    <TableHead>Source Film (Metallic)</TableHead>
-                    <TableHead>NW Material</TableHead>
                     <TableHead className="text-right">Weight (kg)</TableHead>
                     <TableHead className="text-right">Meters</TableHead>
                     <TableHead>Date Laminated</TableHead>
@@ -63,10 +59,6 @@ export default async function LaminationStockPage() {
                   {stockRows.map((roll) => (
                     <TableRow key={roll.id}>
                       <TableCell className="font-mono font-bold text-emerald-950">{roll.roll_id}</TableCell>
-                      <TableCell className="font-semibold text-xs">{roll.lam_type?.replace(/_/g, "/")}</TableCell>
-                      <TableCell className="font-mono text-xs">{roll.fabric_types?.fabric_name ?? "-"}</TableCell>
-                      <TableCell className="font-mono text-xs">{roll.roto_metallic_rolls?.roll_id ?? "-"}</TableCell>
-                      <TableCell className="text-xs">{roll.raw_materials?.material_name ?? "-"}</TableCell>
                       <TableCell className="text-right font-mono">{formatNumber(roll.weight_kg, 2)}</TableCell>
                       <TableCell className="text-right font-mono">{formatNumber(roll.meters, 0)}</TableCell>
                       <TableCell>{formatDate(roll.entry_date)}</TableCell>

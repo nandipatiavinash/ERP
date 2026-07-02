@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { isRedirectError } from "@/lib/utils";
 
 type FilmRoll = {
   id: string;
@@ -66,18 +67,7 @@ export function RotoMetallicProductionForm({
       return;
     }
 
-    // Client-side duplicate check
-    if (rows) {
-      const isDup = rows.some((r: any) =>
-        r.source_film_roll_id === selectedFilmId &&
-        Math.floor(Number(r.weight_kg) * 100) === Math.floor(w * 100) &&
-        Math.floor(Number(r.meters) * 100) === Math.floor(m * 100)
-      );
-      if (isDup) {
-        const ok = window.confirm("This entry appears to be a duplicate (an identical entry already exists for today). Do you still want to submit?");
-        if (!ok) return;
-      }
-    }
+
 
     startTransition(async () => {
       try {
@@ -102,6 +92,7 @@ export function RotoMetallicProductionForm({
         setMeters("");
         setIsSplit(false);
       } catch (err: any) {
+        if (isRedirectError(err)) throw err;
         setErrorMsg(err.message || "Failed to save.");
       }
     });

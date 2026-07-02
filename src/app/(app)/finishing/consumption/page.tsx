@@ -1,6 +1,6 @@
 import { PageHeader } from "@/components/app/page-header";
 import { DateFilter } from "@/components/app/date-filter";
-import { requirePermission } from "@/lib/auth";
+import { requirePermission, getSessionPermissions } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { todayInIndia } from "@/lib/utils";
 import { FinishingConsumptionClient } from "./FinishingConsumptionClient";
@@ -11,6 +11,7 @@ export default async function FinishingConsumptionPage({
   searchParams: Promise<{ date?: string }>;
 }) {
   await requirePermission("finishing.consumption");
+  const permissions = await getSessionPermissions();
   const supabase = await createClient();
   const params = await searchParams;
   const date = params.date || todayInIndia();
@@ -102,9 +103,11 @@ export default async function FinishingConsumptionPage({
         description="Log and review consumed raw materials, fabric rolls, laminated rolls, and offset rolls in finishing."
       />
 
-      <div className="flex justify-end">
-        <DateFilter date={date} baseUrl="/finishing/consumption" />
-      </div>
+      {permissions.includes("reports.filter_by_date") && (
+        <div className="flex justify-end">
+          <DateFilter date={date} baseUrl="/finishing/consumption" />
+        </div>
+      )}
 
       <FinishingConsumptionClient
         date={date}

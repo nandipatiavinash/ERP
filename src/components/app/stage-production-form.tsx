@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { saveStageProduction } from "@/app/(app)/_actions";
 import { ConfirmSubmitButton } from "@/components/app/confirm-submit-button";
+import { isRedirectError } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -60,6 +61,7 @@ export function StageProductionForm({
         setPackaging("");
       }
     } catch (err: any) {
+      if (isRedirectError(err)) throw err;
       setErrorText(err.message || "Failed to save production entry.");
     } finally {
       setIsSaving(false);

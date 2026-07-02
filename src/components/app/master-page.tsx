@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useTransition } from "react";
 import Link from "next/link";
 import { Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -16,6 +17,7 @@ import { StatusBadge } from "@/components/app/status-badge";
 import { saveMaster, deactivateMaster } from "@/app/(app)/_actions";
 import type { ModuleConfig } from "@/lib/modules";
 import { formatDate, formatNumber } from "@/lib/utils";
+import { showSuccess } from "@/lib/toast";
 
 type Row = Record<string, unknown> & { id: string };
 
@@ -39,18 +41,95 @@ function Field({ field, value, isEdit = false }: { field: ModuleConfig["fields"]
   );
 }
 
-function RecordForm({ config, row, isEdit = false }: { config: ModuleConfig; row?: Row; isEdit?: boolean }) {
-  const action = saveMaster.bind(null, config.key);
+function RecordForm({ config, row, isEdit = false, onSaved }: { config: ModuleConfig; row?: Row; isEdit?: boolean; onSaved?: () => void }) {
+  const [isPending, startTransition] = useTransition();
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setErrorMsg(null);
+    const formData = new FormData(event.currentTarget);
+    if (row?.id) {
+      formData.set("id", row.id);
+    }
+
+    startTransition(async () => {
+      try {
+        await saveMaster(config.key, formData);
+        showSuccess(row ? "Record updated successfully!" : "Record created successfully!");
+        // Clear non-edit form inputs
+        if (!row) {
+          event.currentTarget.reset();
+        }
+        onSaved?.();
+      } catch (err: any) {
+        setErrorMsg(err.message || "Failed to save record.");
+      }
+    });
+  };
+
   return (
-    <form action={action} className={`grid gap-4 ${isEdit ? "grid-cols-1" : "md:grid-cols-2"} text-left`}>
+    <form onSubmit={handleSubmit} className={`grid gap-4 ${isEdit ? "grid-cols-1" : "md:grid-cols-2"} text-left`}>
       {row ? <input type="hidden" name="id" value={row.id} /> : null}
       {config.fields.map((field) => <Field key={field.name} field={field} value={row?.[field.name]} isEdit={isEdit} />)}
+      {errorMsg && <p className="text-sm text-destructive md:col-span-2">{errorMsg}</p>}
       <div className={`flex items-end ${isEdit ? "" : "md:col-span-2"}`}>
-        <ConfirmSubmitButton confirmTitle={row ? "Save record changes?" : "Create new record?"} confirmDescription="Review the details before confirming this record change.">
-          {row ? "Save Changes" : "Add Record"}
+        <ConfirmSubmitButton disabled={isPending} confirmTitle={row ? "Save record changes?" : "Create new record?"} confirmDescription="Review the details before confirming this record change.">
+          {isPending ? "Saving..." : row ? "Save Changes" : "Add Record"}
         </ConfirmSubmitButton>
       </div>
     </form>
+  );
+}
+
+function RowActions({ config, row }: { config: ModuleConfig; row: Row }) {
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isPending, startTransition] = useTransition();
+
+  return (
+    <div className="flex items-center justify-center gap-2">
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogTrigger asChild>
+          <Button size="sm" variant="outline" className="text-xs font-semibold h-8">
+            Edit
+          </Button>
+        </DialogTrigger>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit {config.title.replace("Management", "").trim()}</DialogTitle>
+            <DialogDescription>Modify the fields below to update the record details.</DialogDescription>
+          </DialogHeader>
+          <div className="mt-2">
+            <RecordForm config={config} row={row} isEdit={true} onSaved={() => setIsDialogOpen(false)} />
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <form onSubmit={(e) => {
+        e.preventDefault();
+        startTransition(async () => {
+          try {
+            const fd = new FormData(e.currentTarget);
+            await deactivateMaster(config.key, fd);
+            showSuccess("Record deactivated successfully!");
+          } catch (err: any) {
+            alert(err.message || "Failed to deactivate record.");
+          }
+        });
+      }}>
+        <input type="hidden" name="id" value={row.id} />
+        <ConfirmSubmitButton
+          disabled={isPending}
+          size="sm"
+          variant="outline"
+          className="h-8 border-red-200 hover:bg-red-50 text-red-600"
+          confirmTitle="Deactivate this record?"
+          confirmDescription="This record will be deactivated from active workflows."
+        >
+          {isPending ? "Deactivating..." : "Deactivate"}
+        </ConfirmSubmitButton>
+      </form>
+    </div>
   );
 }
 
@@ -170,39 +249,9 @@ export function MasterPage({
                           {formatRecordValue(row, column.key)}
                         </TableCell>
                       ))}
-                      <TableCell className="text-center">
-                        <div className="flex items-center justify-center gap-2">
-                          <Dialog>
-                            <DialogTrigger asChild>
-                              <Button size="sm" variant="outline" className="text-xs font-semibold h-8">
-                                Edit
-                              </Button>
-                            </DialogTrigger>
-                            <DialogContent>
-                              <DialogHeader>
-                                <DialogTitle>Edit {config.title.replace("Management", "").trim()}</DialogTitle>
-                                <DialogDescription>Modify the fields below to update the record details.</DialogDescription>
-                              </DialogHeader>
-                              <div className="mt-2">
-                                <RecordForm config={config} row={row} />
-                              </div>
-                            </DialogContent>
-                          </Dialog>
-
-                          <form action={deactivateMaster.bind(null, config.key)}>
-                            <input type="hidden" name="id" value={row.id} />
-                            <ConfirmSubmitButton
-                              size="sm"
-                              variant="outline"
-                              className="h-8 border-red-200 hover:bg-red-50 text-red-600"
-                              confirmTitle="Deactivate this record?"
-                              confirmDescription="This record will be deactivated from active workflows."
-                            >
-                              Deactivate
-                            </ConfirmSubmitButton>
-                          </form>
-                        </div>
-                      </TableCell>
+                       <TableCell className="text-center">
+                         <RowActions config={config} row={row} />
+                       </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { showSuccess } from "@/lib/toast";
 import { saveProduction } from "@/app/(app)/_actions";
 import { ConfirmSubmitButton } from "@/components/app/confirm-submit-button";
+import { isRedirectError } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -115,6 +116,7 @@ export function ProductionForm({
       // Notify parent (e.g. dialog) that save succeeded
       onSaved?.();
     } catch (err: any) {
+      if (isRedirectError(err)) throw err;
       setErrorText(err.message || "Failed to save production entry.");
     } finally {
       setIsSaving(false);

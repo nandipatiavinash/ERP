@@ -5,7 +5,7 @@ import { StatusBadge } from "@/components/app/status-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { requirePermission } from "@/lib/auth";
+import { requirePermission, getSessionPermissions } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, formatNumber, todayInIndia } from "@/lib/utils";
 import { DateFilter } from "@/components/app/date-filter";
@@ -16,6 +16,7 @@ export default async function OrderConfirmationPage({
   searchParams: Promise<{ date?: string }>;
 }) {
   await requirePermission("sales.order_confirmation");
+  const permissions = await getSessionPermissions();
   const supabase = await createClient();
   const params = await searchParams;
   const date = params.date || todayInIndia();
@@ -104,7 +105,9 @@ export default async function OrderConfirmationPage({
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
           <CardTitle>Recent Orders</CardTitle>
-          <DateFilter date={date} baseUrl="/sales/order-confirmation" />
+          {permissions.includes("reports.filter_by_date") && (
+            <DateFilter date={date} baseUrl="/sales/order-confirmation" />
+          )}
         </CardHeader>
         <CardContent>
           {orderRows.length === 0 ? (

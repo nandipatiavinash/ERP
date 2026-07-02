@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { isRedirectError } from "@/lib/utils";
 
 type FabricType = {
   id: string;
@@ -144,20 +145,7 @@ export function OffsetProductionForm({
       return;
     }
 
-    // Client-side duplicate check
-    if (rows) {
-      const isDup = rows.some((r: any) =>
-        r.offset_type === offsetType &&
-        r.brand_id === selectedBrandId &&
-        (isFabricRequired ? r.fabric_type_id === selectedFabricTypeId : true) &&
-        (isLamRequired ? r.source_lam_roll_id === selectedLamId : true) &&
-        Math.floor(Number(r.weight_kg) * 100) === Math.floor(w * 100)
-      );
-      if (isDup) {
-        const ok = window.confirm("This entry appears to be a duplicate (an identical entry already exists for today). Do you still want to submit?");
-        if (!ok) return;
-      }
-    }
+
 
     startTransition(async () => {
       try {
@@ -187,6 +175,7 @@ export function OffsetProductionForm({
         setSelectedLamId("");
         setWeightKg("");
       } catch (err: any) {
+        if (isRedirectError(err)) throw err;
         setErrorMsg(err.message || "Failed to save.");
       }
     });

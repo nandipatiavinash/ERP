@@ -36,6 +36,8 @@ const DEPT_LABELS: Record<string, string> = {
   finishing: "Finishing",
 };
 
+import { isRedirectError } from "@/lib/utils";
+
 export function DeliveryEntryForm({
   customers,
   fabricProducts,
@@ -112,6 +114,7 @@ export function DeliveryEntryForm({
       setConfirmedRows([]);
       setDraft({ department: "fabric", productId: "", quantity: "" });
     } catch (err: any) {
+      if (isRedirectError(err)) throw err;
       setErrorMsg(err.message || "Failed to create sales order.");
     } finally {
       setIsPending(false);

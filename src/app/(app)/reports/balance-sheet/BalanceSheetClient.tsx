@@ -65,7 +65,7 @@ export function BalanceSheetClient({
       const amt = Number(entry.amount);
       let accId = entry.account_id;
 
-      if (!accId && entry.account_name) {
+      if ((!accId || !accountBalances[accId]) && entry.account_name) {
         const match = accounts.find(
           (acc) =>
             acc.customer_name.toLowerCase().trim() === entry.account_name.toLowerCase().trim() ||

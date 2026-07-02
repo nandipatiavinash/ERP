@@ -48,7 +48,6 @@ export function FinishingConsumptionClient({
 }: FinishingConsumptionClientProps) {
   const [activeTab, setActiveTab] = useState<string>("raw");
   const [selectedFabricTypeFilter, setSelectedFabricTypeFilter] = useState<string>("none");
-  const [selectedBrandFilter, setSelectedBrandFilter] = useState<string>("none");
 
   // Group fabric types
   const fabricTypesInStock = useMemo(() => {
@@ -70,32 +69,10 @@ export function FinishingConsumptionClient({
     return sorted.filter((roll) => roll.fabric_type_id === selectedFabricTypeFilter);
   }, [availableFabric, selectedFabricTypeFilter]);
 
-  // Group laminated brand
-  const laminatedBrands = useMemo(() => {
-    const brandsSet = new Set<string>();
-    availableLam.forEach((roll) => {
-      const match = roll.roll_id.match(/^([^(]+)/);
-      if (match) {
-        brandsSet.add(match[1].trim());
-      } else {
-        brandsSet.add(roll.roll_id);
-      }
-    });
-    return Array.from(brandsSet);
-  }, [availableLam]);
-
   // Filter laminated rolls
   const filteredLamRolls = useMemo(() => {
-    const sorted = [...availableLam].sort((a, b) => (a.roll_id ?? "").localeCompare(b.roll_id ?? "", undefined, { numeric: true, sensitivity: "base" }));
-    if (selectedBrandFilter === "none" || !selectedBrandFilter) {
-      return [];
-    }
-    return sorted.filter((roll) => {
-      const match = roll.roll_id.match(/^([^(]+)/);
-      const bName = match ? match[1].trim() : roll.roll_id;
-      return bName === selectedBrandFilter;
-    });
-  }, [availableLam, selectedBrandFilter]);
+    return [...availableLam].sort((a, b) => (a.roll_id ?? "").localeCompare(b.roll_id ?? "", undefined, { numeric: true, sensitivity: "base" }));
+  }, [availableLam]);
 
   const sortedOffset = [...availableOffset].sort((a, b) => (a.roll_id ?? "").localeCompare(b.roll_id ?? "", undefined, { numeric: true, sensitivity: "base" }));
 
@@ -322,43 +299,23 @@ export function FinishingConsumptionClient({
               <div className="bg-slate-50/50 p-4 rounded-xl border border-slate-100">
                 <h4 className="text-sm font-semibold text-slate-800 mb-3">Consume Laminated Roll</h4>
                 <form
-                  action={async (fd) => {
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    const fd = new FormData(e.currentTarget);
                     const rollId = String(fd.get("roll_id") ?? "");
                     if (rollId) {
-                      const isDup = consumedLam.some(r => r.id === rollId);
-                      if (isDup) {
-                        const ok = window.confirm("This roll has already been marked as consumed today. Do you still want to submit?");
-                        if (!ok) return;
-                      }
                       await consumeLaminationRoll(rollId);
                       showSuccess("Submitted successfully!");
-                      setSelectedBrandFilter("none");
                     }
                   }}
                   className="flex flex-wrap items-end gap-4"
                 >
-                  <div className="flex-1 min-w-[200px] space-y-1">
-                    <Label className="text-xs font-semibold text-slate-700">Laminated Brand</Label>
-                    <select
-                      value={selectedBrandFilter}
-                      onChange={(e) => setSelectedBrandFilter(e.target.value)}
-                      className="w-full h-10 rounded-lg border border-slate-200 px-3 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500 bg-white"
-                    >
-                      <option value="none">Select laminated brand</option>
-                      {laminatedBrands.map((b) => (
-                        <option key={b} value={b}>
-                          {b}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="flex-1 min-w-[200px] space-y-1">
+                  <div className="flex-1 min-w-[280px] space-y-1">
                     <Label className="text-xs font-semibold text-slate-700">Laminated Roll</Label>
                     <select
                       name="roll_id"
-                      className="w-full h-10 rounded-lg border border-slate-200 px-3 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500 font-mono bg-white disabled:opacity-50"
+                      className="w-full h-10 rounded-lg border border-slate-200 px-3 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500 font-mono bg-white"
                       required
-                      disabled={selectedBrandFilter === "none"}
                     >
                       <option value="">Select available roll</option>
                       {filteredLamRolls.map((r) => (

@@ -5,7 +5,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { PageHeader } from "@/components/app/page-header";
 import { softDeleteJournalEntryGroup } from "@/app/(app)/_actions";
-import { requirePermission } from "@/lib/auth";
+import { requirePermission, getSessionPermissions } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, formatNumber, todayInIndia } from "@/lib/utils";
 import { DateFilter } from "@/components/app/date-filter";
@@ -36,6 +36,7 @@ export default async function AccountsJournalPage(props: {
   searchParams?: Promise<{ edit?: string; date?: string }>;
 }) {
   await requirePermission("accounts.journal");
+  const permissions = await getSessionPermissions();
   const searchParams = await props.searchParams;
   const editJournalNo = searchParams?.edit ?? "";
   const date = searchParams?.date || todayInIndia();
@@ -160,7 +161,9 @@ export default async function AccountsJournalPage(props: {
               Debits: ₹{formatNumber(totalDebit, 2)} | Credits: ₹{formatNumber(totalCredit, 2)}
             </span>
           </CardTitle>
-          <DateFilter date={date} baseUrl="/accounts/journal" />
+          {permissions.includes("reports.filter_by_date") && (
+            <DateFilter date={date} baseUrl="/accounts/journal" />
+          )}
         </CardHeader>
         <CardContent className="p-0">
           {groupedList.length === 0 ? (

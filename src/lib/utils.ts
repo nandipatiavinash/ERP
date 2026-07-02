@@ -49,3 +49,13 @@ export async function fetchPagedData<T = any>(
   }
   return allData;
 }
+
+export function isRedirectError(err: any): boolean {
+  return (
+    err &&
+    typeof err === "object" &&
+    "digest" in err &&
+    typeof err.digest === "string" &&
+    err.digest.startsWith("NEXT_REDIRECT")
+  );
+}

@@ -32,6 +32,7 @@ type SalesOrder = {
   bill_value: number;
   gst_rate?: number;
   customers?: {
+    id: string;
     customer_name: string;
     alias?: string;
     phone?: string;
@@ -49,6 +50,7 @@ interface SalesConfirmationReportClientProps {
   rotoProducts: Array<{ id: string; brand: string; width: number; height: number }>;
   offsetProducts: Array<{ id: string; brand: string; width: number; height: number }>;
   rolls: Array<{ id: string; weight: number }>;
+  permissions?: string[];
 }
 
 export function SalesConfirmationReportClient({
@@ -60,6 +62,7 @@ export function SalesConfirmationReportClient({
   rotoProducts,
   offsetProducts,
   rolls,
+  permissions = [],
 }: SalesConfirmationReportClientProps) {
   const router = useRouter();
   
@@ -90,15 +93,27 @@ export function SalesConfirmationReportClient({
 
   const [clientSearch, setClientSearch] = useState("");
 
+  const clientOptions = useMemo(() => {
+    const clientsMap = new Map<string, { id: string; name: string; alias?: string }>();
+    const allOrders = [...orders, ...pendingOrders];
+    allOrders.forEach((o) => {
+      if (o.customers) {
+        clientsMap.set(o.customers.id, {
+          id: o.customers.id,
+          name: o.customers.customer_name,
+          alias: o.customers.alias,
+        });
+      }
+    });
+    return Array.from(clientsMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [orders, pendingOrders]);
+
   const displayedOrders = activeTab === "pending" ? pendingOrders : orders;
 
   const filteredDisplayedOrders = useMemo(() => {
-    if (!clientSearch.trim()) return displayedOrders;
+    if (!clientSearch) return displayedOrders;
     return displayedOrders.filter((order) => {
-      const name = order.customers?.customer_name?.toLowerCase() ?? "";
-      const alias = order.customers?.alias?.toLowerCase() ?? "";
-      const query = clientSearch.toLowerCase();
-      return name.includes(query) || alias.includes(query);
+      return order.customers?.id === clientSearch;
     });
   }, [displayedOrders, clientSearch]);
 
@@ -305,13 +320,19 @@ export function SalesConfirmationReportClient({
         </div>
 
         <div className="flex items-center gap-3 pb-1">
-          <Input
-            placeholder="Filter by client..."
+          <select
             value={clientSearch}
             onChange={(e) => setClientSearch(e.target.value)}
-            className="w-48 h-9 text-xs border-slate-200"
-          />
-          {activeTab === "completed" && (
+            className="w-48 h-9 text-xs border border-slate-200 rounded-md bg-background px-2.5 py-1 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+          >
+            <option value="">All Clients</option>
+            {clientOptions.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name} {c.alias ? `(${c.alias})` : ""}
+              </option>
+            ))}
+          </select>
+          {activeTab === "completed" && permissions?.includes("reports.filter_by_date") && (
             <DateFilter date={date} baseUrl="/reports/sales-confirmation?tab=completed" />
           )}
         </div>
