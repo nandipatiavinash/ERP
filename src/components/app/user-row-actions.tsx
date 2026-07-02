@@ -6,6 +6,7 @@ import { ConfirmSubmitButton } from "@/components/app/confirm-submit-button";
 import { TableCell } from "@/components/ui/table";
 import { StatusBadge } from "@/components/app/status-badge";
 import { showSuccess } from "@/lib/toast";
+import { Eye, EyeOff } from "lucide-react";
 
 type EmployeeOption = { id: string; user_id: string | null; employee_code: string; name: string };
 
@@ -27,6 +28,7 @@ export function UserRowActions({
   const [isPendingDelete, startTransitionDelete] = useTransition();
 
   const [passwordVal, setPasswordVal] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleChangePassword = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -75,8 +77,23 @@ export function UserRowActions({
     <>
       <TableCell className="font-semibold">{user.full_name}</TableCell>
       <TableCell className="font-medium">{user.email}</TableCell>
-      <TableCell className="font-mono text-sm">{user.password ?? "—"}</TableCell>
-      <TableCell className="min-w-64">
+      <TableCell className="font-mono text-sm min-w-[120px]">
+        {user.password ? (
+          <div className="flex items-center gap-2">
+            <span>{showPassword ? user.password : "••••••••"}</span>
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="text-slate-400 hover:text-slate-600 transition-colors focus:outline-none"
+            >
+              {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+          </div>
+        ) : (
+          "—"
+        )}
+      </TableCell>
+      <TableCell className="w-[190px]">
         <form onSubmit={handleChangePassword} className="flex gap-2">
           <input
             type="text"
@@ -86,7 +103,7 @@ export function UserRowActions({
             onChange={(e) => setPasswordVal(e.target.value)}
             required
             minLength={8}
-            className="h-9 w-40 rounded-md border bg-background px-3 text-xs font-mono"
+            className="h-9 w-28 rounded-md border bg-background px-3 text-xs font-mono"
             disabled={isPendingPass}
           />
           <ConfirmSubmitButton
@@ -96,17 +113,17 @@ export function UserRowActions({
             confirmTitle="Change user password?"
             confirmDescription={`This will update the login password for ${user.full_name} instantly.`}
           >
-            {isPendingPass ? "Updating..." : "Update"}
+            {isPendingPass ? "..." : "Update"}
           </ConfirmSubmitButton>
         </form>
       </TableCell>
       <TableCell className="capitalize">{user.roles?.name}</TableCell>
-      <TableCell className="min-w-72">
-        <form onSubmit={handleLinkEmployee} className="flex flex-col gap-2 sm:flex-row">
+      <TableCell className="w-[240px]">
+        <form onSubmit={handleLinkEmployee} className="flex gap-1.5">
           <select
             name="employee_id"
             defaultValue={linkedEmployee?.id ?? ""}
-            className="h-9 w-full rounded-md border bg-background px-3 text-sm"
+            className="h-9 w-44 rounded-md border bg-background px-2 text-xs"
             disabled={isPendingLink}
           >
             <option value="">No employee link</option>
@@ -123,7 +140,7 @@ export function UserRowActions({
             confirmTitle="Update employee link?"
             confirmDescription="Confirm this user-to-employee attendance link before saving."
           >
-            {isPendingLink ? "Linking..." : "Link"}
+            {isPendingLink ? "..." : "Link"}
           </ConfirmSubmitButton>
         </form>
       </TableCell>
