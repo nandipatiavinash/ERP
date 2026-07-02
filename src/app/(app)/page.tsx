@@ -12,7 +12,7 @@ export default async function HomePage() {
       </div>
       <div className="space-y-4 max-w-2xl">
         <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight text-slate-800 leading-none">
-          Welcome <span className="text-emerald-600">{displayName}</span> to <span className="text-slate-900">RK Global</span>
+          Welcome <span className="text-emerald-600">{displayName}</span>
         </h1>
       </div>
     </div>
