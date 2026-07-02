@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 
-type MaterialOption = { id: string; material_name: string; unit: string };
+type MaterialOption = { id: string; material_name: string; unit: string; department?: string | null };
 type CustomerOption = { id: string; customer_name: string; alias?: string | null };
 
 type PurchaseItem = {
@@ -78,6 +78,12 @@ export function PurchaseForm({
 
     try {
       const formData = new FormData(event.currentTarget);
+      items.forEach((item) => {
+        formData.append("raw_material_id", item.raw_material_id);
+        formData.append("quantity", item.quantity);
+        formData.append("rate", item.rate);
+      });
+
       await saveRawMaterialPurchase(formData);
       setItems([]);
       setDraft({ raw_material_id: "", quantity: "", rate: "" });
@@ -160,7 +166,7 @@ export function PurchaseForm({
               <option value="" disabled>Select material</option>
               {materials.map((material) => (
                 <option key={material.id} value={material.id}>
-                  {material.material_name} ({material.unit})
+                  {material.material_name} ({material.unit && material.unit !== "-" ? `${material.unit} - ` : ""}{material.department ?? ""})
                 </option>
               ))}
             </select>

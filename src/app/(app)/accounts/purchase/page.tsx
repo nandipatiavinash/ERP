@@ -27,7 +27,7 @@ export default async function PurchaseEntryPage({
   const [{ data: materials }, { data: customers }, { data: purchases }] = await Promise.all([
     supabase
       .from("raw_materials")
-      .select("id, material_name, unit, status")
+      .select("id, material_name, unit, department, status")
       .eq("status", "active")
       .is("deleted_at", null)
       .order("material_name", { ascending: true }),
@@ -40,7 +40,7 @@ export default async function PurchaseEntryPage({
       .order("customer_name"),
     supabase
       .from("raw_material_purchases")
-      .select("id, purchase_date, supplier_name, bill_number, quantity, rate, total_amount, remarks, raw_materials(material_name, unit)")
+      .select("id, purchase_date, supplier_name, bill_number, quantity, rate, total_amount, remarks, raw_materials(material_name, unit, department)")
       .eq("purchase_date", date)
       .is("deleted_at", null)
       .order("created_at", { ascending: false }),
@@ -138,7 +138,7 @@ export default async function PurchaseEntryPage({
                     <TableRow key={purchase.id}>
                       <TableCell>{formatDate(purchase.purchase_date)}</TableCell>
                       <TableCell>
-                        {purchase.raw_materials?.material_name ?? "-"}
+                        {purchase.raw_materials?.material_name ?? "-"} {purchase.raw_materials?.department ? `(${purchase.raw_materials.department})` : ""}
                       </TableCell>
                       <TableCell>{purchase.supplier_name ?? "-"}</TableCell>
                       <TableCell>{purchase.bill_number ?? "-"}</TableCell>
