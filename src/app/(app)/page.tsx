@@ -14,9 +14,6 @@ export default async function HomePage() {
         <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold tracking-tight text-slate-800 leading-none">
           Welcome <span className="text-emerald-600">{displayName}</span> to <span className="text-slate-900">RK Global</span>
         </h1>
-        <p className="text-slate-500 text-base sm:text-lg md:text-xl font-medium">
-          Your unified control center for production, stock, and ledger accounts.
-        </p>
       </div>
     </div>
   );
