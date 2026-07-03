@@ -169,40 +169,26 @@ export async function saveMaster(moduleKey: string, formData: FormData) {
   const supabase = await createClient();
   const payload = validateMasterPayload(moduleKey, readPayload(formData, config.fields.map((field) => field.name))) as any;
 
-  let oldAlias: string | null = null;
-  let oldCustomerName: string | null = null;
-  if (moduleKey === "customers" && id) {
-    const { data } = await (supabase
-      .from("customers") as any)
-      .select("customer_name, alias, is_internal")
-      .eq("id", id)
-      .maybeSingle();
-    if (data && data.is_internal === "client a/c") {
-      oldAlias = data.alias;
-      oldCustomerName = data.customer_name;
-    }
-  }
-
-  if (moduleKey === "fabric-types" && !id) {
-    payload.width = 1;
-    payload.gsm = 1;
-    payload.selling_price = 0;
-  }
-  if (moduleKey === "raw-materials" && !payload.unit) {
-    payload.unit = "-";
-  }
-  payload.updated_by = user.id;
-  const table = config.table as any;
-
   let finalPayload = { ...payload };
   if (moduleKey === "customers") {
     if (finalPayload.customer_name) {
       finalPayload.customer_name = String(finalPayload.customer_name).toUpperCase().trim();
     }
-    if (finalPayload.alias) {
-      finalPayload.alias = String(finalPayload.alias).toUpperCase().trim();
+    if (finalPayload.linked_customer_id === "") {
+      finalPayload.linked_customer_id = null;
     }
   }
+
+  if (moduleKey === "fabric-types" && !id) {
+    finalPayload.width = 1;
+    finalPayload.gsm = 1;
+    finalPayload.selling_price = 0;
+  }
+  if (moduleKey === "raw-materials" && !finalPayload.unit) {
+    finalPayload.unit = "-";
+  }
+  finalPayload.updated_by = user.id;
+  const table = config.table as any;
 
   const buildQuery = (p: Record<string, unknown>) =>
     id
@@ -222,76 +208,6 @@ export async function saveMaster(moduleKey: string, formData: FormData) {
   if (error) {
     console.error('saveMaster error for module', moduleKey, ':', error);
     throw new Error(`Failed to save ${moduleKey}: ${error.message}`);
-  }
-
-  // Handle client alias account auto-generation
-  if (moduleKey === "customers") {
-    const isInternal = String(finalPayload.is_internal ?? "");
-    const customerName = String(finalPayload.customer_name ?? "").trim();
-    const newAlias = String(finalPayload.alias ?? "").trim();
-
-    if (isInternal === "client a/c" && !customerName.toLowerCase().endsWith(" a/c")) {
-      const aliasAccountName = newAlias ? `${newAlias} A/c` : `${customerName} A/c`;
-      let oldAliasAccountName: string | null = null;
-      if (oldCustomerName) {
-        oldAliasAccountName = oldAlias 
-          ? `${oldAlias} A/c` 
-          : (oldCustomerName.toLowerCase().endsWith(" a/c") ? oldCustomerName : `${oldCustomerName} A/c`);
-      }
-
-      if (oldAliasAccountName && oldAliasAccountName.toLowerCase() !== aliasAccountName.toLowerCase()) {
-        // Alias/name was updated, so rename the old associated account if it exists
-        const { data: existingOldAccount } = await (supabase
-          .from("customers") as any)
-          .select("id")
-          .eq("customer_name", oldAliasAccountName)
-          .is("deleted_at", null)
-          .maybeSingle();
-
-        if (existingOldAccount) {
-          await (supabase
-            .from("customers") as any)
-            .update({ customer_name: aliasAccountName, updated_by: user.id })
-            .eq("id", existingOldAccount.id);
-        } else {
-          // Check if the new one exists, otherwise create it
-          const { data: existingNewAccount } = await (supabase
-            .from("customers") as any)
-            .select("id")
-            .eq("customer_name", aliasAccountName)
-            .is("deleted_at", null)
-            .maybeSingle();
-
-          if (!existingNewAccount) {
-            await (supabase.from("customers") as any).insert({
-              customer_name: aliasAccountName,
-              is_internal: "client a/c",
-              status: "active",
-              created_by: user.id,
-              updated_by: user.id,
-            });
-          }
-        }
-      } else {
-        // Create the new alias account if it doesn't exist
-        const { data: existingNewAccount } = await (supabase
-          .from("customers") as any)
-          .select("id")
-          .eq("customer_name", aliasAccountName)
-          .is("deleted_at", null)
-          .maybeSingle();
-
-        if (!existingNewAccount) {
-          await (supabase.from("customers") as any).insert({
-            customer_name: aliasAccountName,
-            is_internal: "client a/c",
-            status: "active",
-            created_by: user.id,
-            updated_by: user.id,
-          });
-        }
-      }
-    }
   }
 
   revalidatePath(config.path);
@@ -536,6 +452,7 @@ export async function saveRawMaterialPurchase(formData: FormData) {
       raw_material_id: id,
       quantity: qty,
       rate: rt,
+      total_amount: totalBillValue,
       remarks: finalRemarks,
       created_by: user.id,
       updated_by: user.id,
@@ -549,10 +466,22 @@ export async function saveRawMaterialPurchase(formData: FormData) {
   try {
     const [purchaseAcResult, supplierAcResult] = await Promise.all([
       supabase.from("customers").select("id, customer_name").ilike("customer_name", "Purchase A/c").is("deleted_at", null).maybeSingle(),
-      supabase.from("customers").select("id, customer_name").ilike("customer_name", supplier_name).is("deleted_at", null).maybeSingle()
+      supabase.from("customers").select("id, customer_name, linked_customer_id").ilike("customer_name", supplier_name).is("deleted_at", null).maybeSingle()
     ]);
     const purchaseAc = purchaseAcResult.data as any;
-    const supplierAc = supplierAcResult.data as any;
+    let supplierAc = supplierAcResult.data as any;
+
+    if (supplierAc && supplierAc.linked_customer_id) {
+      const { data: parent } = await supabase
+        .from("customers")
+        .select("id, customer_name")
+        .eq("id", supplierAc.linked_customer_id)
+        .is("deleted_at", null)
+        .maybeSingle();
+      if (parent) {
+        supplierAc = parent;
+      }
+    }
 
     const journalNo = await generateNextJournalNo(supabase);
     const journalInserts = [
@@ -607,6 +536,11 @@ export async function deleteRawMaterialPurchase(purchaseId: string) {
 
   if (fetchError || !purchase) {
     throw new Error("Purchase entry not found.");
+  }
+
+  // Enforce today-only deletion limit for purchase entries
+  if (purchase.purchase_date !== todayInIndia()) {
+    throw new Error("Purchase entries can only be deleted on the same day they were purchased.");
   }
 
   // 1. Soft-delete first to trigger the plpgsql stock updates trigger (apply_raw_material_purchase)
@@ -1536,32 +1470,36 @@ export async function saveStageProduction(formData: FormData) {
 }
 
 export async function softDeleteStageProduction(formData: FormData) {
-  // AZ-03 / ISS-010 / SEC-14: requirePermission BEFORE any data fetch (TOCTOU fix).
   const id = String(formData.get("id") ?? "");
   if (!id) throw new Error("Production entry ID is required.");
 
-  // Auth check first — before any DB read
-  await requirePermission("roto_printing.production");
-
-  const supabase = await createClient();
-
-  const { data: entry } = await (supabase
+  const adminSupabase = createAdminClient();
+  const { data: entry, error: fetchError } = await (adminSupabase
     .from("stage_production_entries") as any)
     .select("stage")
     .eq("id", id)
     .maybeSingle();
 
-  // Verify the session also holds the stage-specific permission
-  const stage = entry?.stage ?? "";
+  if (fetchError || !entry) {
+    throw new Error("Production entry not found.");
+  }
+
+  const stage = entry.stage ?? "";
   const permissionMap: Record<string, string> = {
     roto_printing: "roto_printing.production",
     lamination: "lamination.production",
     offset_printing: "offset_printing.production",
     finishing: "finishing.production",
   };
-  const permission = permissionMap[stage] || "fabric.production";
+  const permission = permissionMap[stage];
+  if (!permission) {
+    throw new Error("Invalid production stage.");
+  }
+
+  // Enforce the correct permission before executing the delete
   await requirePermission(permission);
 
+  const supabase = await createClient();
   const { error } = await (supabase
     .from("stage_production_entries") as any)
     .delete()
@@ -2407,7 +2345,7 @@ export async function saveMaterialSalesEntry(formData: FormData) {
   // Retrieve customer info
   const { data: customerResult, error: customerErr } = await (supabase
     .from("customers") as any)
-    .select("customer_name")
+    .select("id, customer_name, linked_customer_id")
     .eq("id", customer_id)
     .single();
 
@@ -2415,8 +2353,24 @@ export async function saveMaterialSalesEntry(formData: FormData) {
     throw new Error("Customer not found.");
   }
 
-  const customer = customerResult as any;
-  const customerName = customer.customer_name;
+  let customer = customerResult as any;
+  let customerName = customer.customer_name;
+  let customerAccountId = customer.id;
+
+  if (customer.linked_customer_id) {
+    const { data: parentResult } = await (supabase
+      .from("customers") as any)
+      .select("id, customer_name")
+      .eq("id", customer.linked_customer_id)
+      .is("deleted_at", null)
+      .maybeSingle();
+    const parent = parentResult as any;
+    if (parent) {
+      customer = parent;
+      customerName = parent.customer_name;
+      customerAccountId = parent.id;
+    }
+  }
 
   // Retrieve Sales A/c info (case-insensitive)
   const { data: salesAcResult, error: salesAcErr } = await (supabase
@@ -2437,7 +2391,7 @@ export async function saveMaterialSalesEntry(formData: FormData) {
     {
       journal_no: journalNo,
       entry_date: sale_date,
-      account_id: customer_id,
+      account_id: customerAccountId,
       account_name: customerName,
       entry_type: "debit",
       amount: amount,
@@ -3701,11 +3655,23 @@ export async function saveSalesOrderBillingDirect(formData: FormData) {
   }
 
   const [customerAcResult, salesAcResult] = await Promise.all([
-    supabase.from("customers").select("id, customer_name").ilike("customer_name", customerName).is("deleted_at", null).maybeSingle(),
+    supabase.from("customers").select("id, customer_name, linked_customer_id").ilike("customer_name", customerName).is("deleted_at", null).maybeSingle(),
     supabase.from("customers").select("id, customer_name").ilike("customer_name", "Sales A/c").is("deleted_at", null).maybeSingle()
   ]);
-  const customerAc = customerAcResult.data as any;
+  let customerAc = customerAcResult.data as any;
   const salesAc = salesAcResult.data as any;
+
+  if (customerAc && customerAc.linked_customer_id) {
+    const { data: parent } = await supabase
+      .from("customers")
+      .select("id, customer_name")
+      .eq("id", customerAc.linked_customer_id)
+      .is("deleted_at", null)
+      .maybeSingle();
+    if (parent) {
+      customerAc = parent;
+    }
+  }
 
   const journalNo = await generateNextJournalNo(supabase);
   const journalInserts = [

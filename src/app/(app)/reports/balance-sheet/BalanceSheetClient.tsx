@@ -330,7 +330,7 @@ export function BalanceSheetClient({
                   }}
                 >
                   {row.liab?.amount != null
-                    ? `₹${formatNumber(row.liab.amount, 2)}`
+                    ? `₹${formatNumber(row.liab.amount, 0)}`
                     : row.liab != null
                     ? "—"
                     : ""}
@@ -347,7 +347,7 @@ export function BalanceSheetClient({
                   }}
                 >
                   {row.asset?.amount != null
-                    ? `₹${formatNumber(row.asset.amount, 2)}`
+                    ? `₹${formatNumber(row.asset.amount, 0)}`
                     : row.asset != null
                     ? "—"
                     : ""}
@@ -360,7 +360,7 @@ export function BalanceSheetClient({
         {/* Balance status */}
         {!isBalanced && (
           <div style={{ marginTop: "8px", fontSize: "11px", color: "#b91c1c", fontWeight: 700, fontFamily: "serif", textAlign: "right" }}>
-            Note: Difference of ₹{formatNumber(difference, 2)} — Balance Sheet not balanced.
+            Note: Difference of ₹{formatNumber(difference, 0)} — Balance Sheet not balanced.
           </div>
         )}
 
@@ -411,7 +411,7 @@ export function BalanceSheetClient({
                 </span>
               ) : (
                 <span className="text-xs font-bold text-rose-600 bg-rose-50 border border-rose-200 px-3 py-1 rounded-full">
-                  Difference: ₹{formatNumber(difference, 2)}
+                  Difference: ₹{formatNumber(difference, 0)}
                 </span>
               )}
               <Button onClick={() => window.print()} variant="outline" size="sm" className="flex items-center gap-1.5 border-slate-200 shadow-none">
@@ -446,7 +446,7 @@ export function BalanceSheetClient({
                       </span>
                     </div>
                     <span className="font-bold text-slate-900 font-mono">
-                      ₹{formatNumber(calculations.capital.crSum, 2)}
+                      ₹{formatNumber(calculations.capital.crSum, 0)}
                     </span>
                   </button>
 
@@ -455,7 +455,7 @@ export function BalanceSheetClient({
                       {sortedCapitalCr.map((item) => (
                         <div key={item.id} className="py-2 flex justify-between text-slate-600">
                           <span className="capitalize">{item.name} {item.alias ? `(${item.alias})` : ""}</span>
-                          <span className="font-semibold font-mono">₹{formatNumber(item.amount, 2)}</span>
+                          <span className="font-semibold font-mono">₹{formatNumber(item.amount, 0)}</span>
                         </div>
                       ))}
                     </div>
@@ -468,7 +468,7 @@ export function BalanceSheetClient({
                     2. Profit &amp; Loss A/c (Net Profit)
                   </span>
                   <span className="font-bold text-slate-900 font-mono">
-                    {netProfit > 0 ? `₹${formatNumber(netProfit, 2)}` : "—"}
+                    {netProfit > 0 ? `₹${formatNumber(netProfit, 0)}` : "—"}
                   </span>
                 </div>
 
@@ -489,7 +489,7 @@ export function BalanceSheetClient({
                       </span>
                     </div>
                     <span className="font-bold text-slate-900 font-mono">
-                      ₹{formatNumber(calculations.loan.crSum, 2)}
+                      ₹{formatNumber(calculations.loan.crSum, 0)}
                     </span>
                   </button>
 
@@ -498,7 +498,7 @@ export function BalanceSheetClient({
                       {sortedLoanCr.map((item) => (
                         <div key={item.id} className="py-2 flex justify-between text-slate-600">
                           <span className="capitalize">{item.name} {item.alias ? `(${item.alias})` : ""}</span>
-                          <span className="font-semibold font-mono">₹{formatNumber(item.amount, 2)}</span>
+                          <span className="font-semibold font-mono">₹{formatNumber(item.amount, 0)}</span>
                         </div>
                       ))}
                     </div>
@@ -522,7 +522,7 @@ export function BalanceSheetClient({
                       </span>
                     </div>
                     <span className="font-bold text-slate-900 font-mono">
-                      ₹{formatNumber(calculations.client.crSum, 2)}
+                      ₹{formatNumber(calculations.client.crSum, 0)}
                     </span>
                   </button>
 
@@ -531,7 +531,7 @@ export function BalanceSheetClient({
                       {sortedClientCr.map((item) => (
                         <div key={item.id} className="py-2 flex justify-between text-slate-600">
                           <span className="capitalize">{item.name} {item.alias ? `(${item.alias})` : ""}</span>
-                          <span className="font-semibold font-mono">₹{formatNumber(item.amount, 2)}</span>
+                          <span className="font-semibold font-mono">₹{formatNumber(item.amount, 0)}</span>
                         </div>
                       ))}
                     </div>
@@ -555,7 +555,7 @@ export function BalanceSheetClient({
                       </span>
                     </div>
                     <span className="font-bold text-slate-900 font-mono">
-                      ₹{formatNumber(calculations.otherBs.crSum, 2)}
+                      ₹{formatNumber(calculations.otherBs.crSum, 0)}
                     </span>
                   </button>
 
@@ -564,7 +564,7 @@ export function BalanceSheetClient({
                       {sortedOtherCr.map((item) => (
                         <div key={item.id} className="py-2 flex justify-between text-slate-600">
                           <span className="capitalize">{item.name} {item.alias ? `(${item.alias})` : ""}</span>
-                          <span className="font-semibold font-mono">₹{formatNumber(item.amount, 2)}</span>
+                          <span className="font-semibold font-mono">₹{formatNumber(item.amount, 0)}</span>
                         </div>
                       ))}
                     </div>
@@ -575,7 +575,7 @@ export function BalanceSheetClient({
               {/* Liabilities Grand Total */}
               <div className="bg-slate-50 border-t border-slate-200 px-4 py-3 flex justify-between items-center font-black text-sm text-slate-900">
                 <span className="uppercase tracking-wider">Total Liabilities</span>
-                <span className="font-mono text-base">₹{formatNumber(totalLiabilities, 2)}</span>
+                <span className="font-mono text-base">₹{formatNumber(totalLiabilities, 0)}</span>
               </div>
             </div>
 
@@ -593,7 +593,7 @@ export function BalanceSheetClient({
                     1. Closing Stock Value
                   </span>
                   <span className="font-bold text-slate-900 font-mono">
-                    ₹{formatNumber(closingStockValue, 2)}
+                    ₹{formatNumber(closingStockValue, 0)}
                   </span>
                 </div>
 
@@ -603,7 +603,7 @@ export function BalanceSheetClient({
                     2. Profit &amp; Loss A/c (Net Loss)
                   </span>
                   <span className="font-bold text-slate-900 font-mono">
-                    {netLoss > 0 ? `₹${formatNumber(netLoss, 2)}` : "—"}
+                    {netLoss > 0 ? `₹${formatNumber(netLoss, 0)}` : "—"}
                   </span>
                 </div>
 
@@ -624,7 +624,7 @@ export function BalanceSheetClient({
                       </span>
                     </div>
                     <span className="font-bold text-slate-900 font-mono">
-                      ₹{formatNumber(calculations.loan.drSum, 2)}
+                      ₹{formatNumber(calculations.loan.drSum, 0)}
                     </span>
                   </button>
 
@@ -633,7 +633,7 @@ export function BalanceSheetClient({
                       {sortedLoanDr.map((item) => (
                         <div key={item.id} className="py-2 flex justify-between text-slate-600">
                           <span className="capitalize">{item.name} {item.alias ? `(${item.alias})` : ""}</span>
-                          <span className="font-semibold font-mono">₹{formatNumber(item.amount, 2)}</span>
+                          <span className="font-semibold font-mono">₹{formatNumber(item.amount, 0)}</span>
                         </div>
                       ))}
                     </div>
@@ -657,7 +657,7 @@ export function BalanceSheetClient({
                       </span>
                     </div>
                     <span className="font-bold text-slate-900 font-mono">
-                      ₹{formatNumber(calculations.client.drSum, 2)}
+                      ₹{formatNumber(calculations.client.drSum, 0)}
                     </span>
                   </button>
 
@@ -666,7 +666,7 @@ export function BalanceSheetClient({
                       {sortedClientDr.map((item) => (
                         <div key={item.id} className="py-2 flex justify-between text-slate-600">
                           <span className="capitalize">{item.name} {item.alias ? `(${item.alias})` : ""}</span>
-                          <span className="font-semibold font-mono">₹{formatNumber(item.amount, 2)}</span>
+                          <span className="font-semibold font-mono">₹{formatNumber(item.amount, 0)}</span>
                         </div>
                       ))}
                     </div>
@@ -690,7 +690,7 @@ export function BalanceSheetClient({
                       </span>
                     </div>
                     <span className="font-bold text-slate-900 font-mono">
-                      ₹{formatNumber(calculations.otherBs.drSum, 2)}
+                      ₹{formatNumber(calculations.otherBs.drSum, 0)}
                     </span>
                   </button>
 
@@ -699,7 +699,7 @@ export function BalanceSheetClient({
                       {sortedOtherDr.map((item) => (
                         <div key={item.id} className="py-2 flex justify-between text-slate-600">
                           <span className="capitalize">{item.name} {item.alias ? `(${item.alias})` : ""}</span>
-                          <span className="font-semibold font-mono">₹{formatNumber(item.amount, 2)}</span>
+                          <span className="font-semibold font-mono">₹{formatNumber(item.amount, 0)}</span>
                         </div>
                       ))}
                     </div>
@@ -710,7 +710,7 @@ export function BalanceSheetClient({
               {/* Assets Grand Total */}
               <div className="bg-slate-50 border-t border-slate-200 px-4 py-3 flex justify-between items-center font-black text-sm text-slate-900">
                 <span className="uppercase tracking-wider">Total Assets</span>
-                <span className="font-mono text-base">₹{formatNumber(totalAssets, 2)}</span>
+                <span className="font-mono text-base">₹{formatNumber(totalAssets, 0)}</span>
               </div>
             </div>
           </div>

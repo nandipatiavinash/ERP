@@ -131,7 +131,7 @@ export const modules: Record<string, ModuleConfig> = {
     role: ["admin"],
     fields: [
       { name: "customer_name", label: "Firm Name", type: "text", required: true },
-      { name: "alias", label: "Alias/Short Name", type: "text" },
+      { name: "linked_customer_id", label: "Linked Account", type: "select" },
       { name: "phone", label: "Phone", type: "text" },
       { name: "gst_number", label: "GST Number", type: "text" },
       { name: "address", label: "Address", type: "textarea" },
@@ -146,13 +146,13 @@ export const modules: Record<string, ModuleConfig> = {
     ],
     columns: [
       { key: "customer_name", label: "Firm Name" },
-      { key: "alias", label: "Alias" },
+      { key: "linked_customer_id", label: "Linked Account ID" },
       { key: "phone", label: "Phone" },
       { key: "gst_number", label: "GST" },
       { key: "is_internal", label: "Account Type" },
       { key: "status", label: "Status" },
     ],
-    searchColumns: ["customer_name", "alias", "phone", "gst_number"],
+    searchColumns: ["customer_name", "linked_customer_id", "phone", "gst_number"],
   },
   "roto-colors": {
     key: "roto-colors",

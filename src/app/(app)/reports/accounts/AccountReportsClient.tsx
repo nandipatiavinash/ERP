@@ -304,28 +304,28 @@ export function AccountReportsClient({
             <optgroup label="Profit & Loss Accounts">
               {groupedAccounts["profit and loss a/c"].map((acc) => (
                 <option key={acc.id} value={acc.id}>
-                  {acc.customer_name}
+                  {acc.customer_name} {acc.alias ? `(${acc.alias})` : ""}
                 </option>
               ))}
             </optgroup>
             <optgroup label="Capital Accounts">
               {groupedAccounts["capital a/c"].map((acc) => (
                 <option key={acc.id} value={acc.id}>
-                  {acc.customer_name}
+                  {acc.customer_name} {acc.alias ? `(${acc.alias})` : ""}
                 </option>
               ))}
             </optgroup>
             <optgroup label="Loan Accounts">
               {groupedAccounts["loan a/c"].map((acc) => (
                 <option key={acc.id} value={acc.id}>
-                  {acc.customer_name}
+                  {acc.customer_name} {acc.alias ? `(${acc.alias})` : ""}
                 </option>
               ))}
             </optgroup>
             <optgroup label="Balance Sheet Accounts">
               {groupedAccounts["balance sheet a/c"].map((acc) => (
                 <option key={acc.id} value={acc.id}>
-                  {acc.customer_name}
+                  {acc.customer_name} {acc.alias ? `(${acc.alias})` : ""}
                 </option>
               ))}
             </optgroup>

@@ -156,7 +156,11 @@ export default async function PurchaseEntryPage({
                         <TableCell>{"₹"}{formatNumber(purchase.rate, 2)}</TableCell>
                         <TableCell>{"₹"}{formatNumber(getEnteredBillValue(purchase.remarks, purchase.total_amount), 2)}</TableCell>
                         <TableCell>
-                          <DeletePurchaseButton purchaseId={purchase.id} />
+                          {purchase.purchase_date === todayInIndia() ? (
+                            <DeletePurchaseButton purchaseId={purchase.id} />
+                          ) : (
+                            <span className="text-xs text-slate-400 italic">Locked</span>
+                          )}
                         </TableCell>
                       </TableRow>
                     );
