@@ -1,28 +1,31 @@
 import { requirePermission, getSessionPermissions } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { todayInIndia } from "@/lib/utils";
-import { DateFilter } from "@/components/app/date-filter";
 import { PageHeader } from "@/components/app/page-header";
 import { SalesConfirmationReportClient } from "./SalesConfirmationReportClient";
 
 export default async function SalesConfirmationReportPage({
   searchParams,
 }: {
-  searchParams: Promise<{ date?: string; tab?: string }>;
+  searchParams: Promise<{ date?: string; from?: string; to?: string; tab?: string }>;
 }) {
   await requirePermission("reports.sales_confirmation");
   const permissions = await getSessionPermissions();
   const supabase = await createClient();
   const params = await searchParams;
-  const date = params.date || todayInIndia();
+
+  const today = todayInIndia();
+  const from = params.from || params.date || (today.slice(0, 8) + "01"); // Default to start of month
+  const to = params.to || params.date || today;
   const tab = params.tab || "pending";
 
-  // Fetch billed sales orders for this date
+  // Fetch billed sales orders in range
   const { data: orders } = await supabase
     .from("sales_orders")
     .select("*, customers(*), sales_order_items(*)")
     .eq("status", "confirmed")
-    .eq("order_date", date)
+    .gte("order_date", from)
+    .lte("order_date", to)
     .not("bill_number", "is", null)
     .is("deleted_at", null)
     .order("order_number", { ascending: true });
@@ -79,12 +82,12 @@ export default async function SalesConfirmationReportPage({
     }
     const results = await Promise.all(
       chunks.map(chunk =>
-        supabase
-          .from("fabric_rolls")
-          .select("id, weight")
-          .in("id", chunk)
-          .is("deleted_at", null)
-      )
+          supabase
+            .from("fabric_rolls")
+            .select("id, weight")
+            .in("id", chunk)
+            .is("deleted_at", null)
+        )
     );
     rolls = results.flatMap(res => res.data ?? []);
   }
@@ -100,7 +103,8 @@ export default async function SalesConfirmationReportPage({
         <SalesConfirmationReportClient
           orders={billedOrders}
           pendingOrders={pendingOrders}
-          date={date}
+          from={from}
+          to={to}
           tab={tab}
           fabrics={fabrics || []}
           rotoProducts={roto || []}

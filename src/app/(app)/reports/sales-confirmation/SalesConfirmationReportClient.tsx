@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useTransition } from "react";
 import { showSuccess } from "@/lib/toast";
 import { useRouter } from "next/navigation";
 import { ChevronDown, ChevronRight, Percent, Check } from "lucide-react";
@@ -9,9 +9,9 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { formatNumber, formatDate } from "@/lib/utils";
+import { formatNumber, formatDate, cn } from "@/lib/utils";
 import { saveSalesConfirmationRates } from "@/app/(app)/_actions";
-import { DateFilter } from "@/components/app/date-filter";
+import { DateRangeFilter } from "@/components/app/date-range-filter";
 
 type OrderItem = {
   id: string;
@@ -44,7 +44,8 @@ type SalesOrder = {
 interface SalesConfirmationReportClientProps {
   orders: SalesOrder[];
   pendingOrders: SalesOrder[];
-  date: string;
+  from: string;
+  to: string;
   tab: string;
   fabrics: Array<{ id: string; fabric_name: string; selling_price: number }>;
   rotoProducts: Array<{ id: string; brand: string; width: number; height: number }>;
@@ -56,7 +57,8 @@ interface SalesConfirmationReportClientProps {
 export function SalesConfirmationReportClient({
   orders,
   pendingOrders,
-  date,
+  from,
+  to,
   tab,
   fabrics,
   rotoProducts,
@@ -65,6 +67,7 @@ export function SalesConfirmationReportClient({
   permissions = [],
 }: SalesConfirmationReportClientProps) {
   const router = useRouter();
+  const [isPending, startTransition] = useTransition();
   
   const activeTab = tab === "completed" ? "completed" : "pending";
 
@@ -293,12 +296,16 @@ export function SalesConfirmationReportClient({
   };
 
   return (
-    <div className="space-y-6">
+    <div className={cn("space-y-6 transition-opacity", isPending && "opacity-60")}>
       {/* Premium Tab Switcher */}
       <div className="flex items-center justify-between border-b border-slate-200">
         <div className="flex">
           <button
-            onClick={() => router.push(`/reports/sales-confirmation?tab=pending&date=${date}`)}
+            onClick={() => {
+              startTransition(() => {
+                router.push(`/reports/sales-confirmation?tab=pending&from=${from}&to=${to}` as any);
+              });
+            }}
             className={`px-5 py-2.5 font-bold text-sm border-b-2 transition-all ${
               activeTab === "pending"
                 ? "border-emerald-600 text-emerald-600"
@@ -308,7 +315,11 @@ export function SalesConfirmationReportClient({
             Pending Confirmation ({sortedOrders.length})
           </button>
           <button
-            onClick={() => router.push(`/reports/sales-confirmation?tab=completed&date=${date}`)}
+            onClick={() => {
+              startTransition(() => {
+                router.push(`/reports/sales-confirmation?tab=completed&from=${from}&to=${to}` as any);
+              });
+            }}
             className={`px-5 py-2.5 font-bold text-sm border-b-2 transition-all ${
               activeTab === "completed"
                 ? "border-emerald-600 text-emerald-600"
@@ -333,7 +344,7 @@ export function SalesConfirmationReportClient({
             ))}
           </select>
           {activeTab === "completed" && permissions?.includes("reports.filter_by_date") && (
-            <DateFilter date={date} baseUrl="/reports/sales-confirmation?tab=completed" />
+            <DateRangeFilter from={from} to={to} baseUrl="/reports/sales-confirmation?tab=completed" />
           )}
         </div>
       </div>
