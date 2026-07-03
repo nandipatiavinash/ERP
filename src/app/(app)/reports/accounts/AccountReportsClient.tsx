@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/app/page-header";
 import { DateRangeFilter } from "@/components/app/date-range-filter";
@@ -8,7 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Label } from "@/components/ui/label";
-import { formatNumber } from "@/lib/utils";
+import { formatNumber, cn } from "@/lib/utils";
 
 interface Account {
   id: string;
@@ -52,6 +52,7 @@ export function AccountReportsClient({
   entries,
 }: AccountReportsClientProps) {
   const router = useRouter();
+  const [isPending, startTransition] = useTransition();
 
   // Group accounts by type (is_internal)
   const groupedAccounts = useMemo(() => {
@@ -272,11 +273,13 @@ export function AccountReportsClient({
   }, [categorySummary]);
 
   const handleAccountChange = (id: string) => {
-    router.push(`/reports/accounts?from=${from}&to=${to}&accountId=${id}` as any);
+    startTransition(() => {
+      router.push(`/reports/accounts?from=${from}&to=${to}&accountId=${id}` as any);
+    });
   };
 
   return (
-    <div className="space-y-6">
+    <div className={cn("space-y-6 transition-opacity", isPending && "opacity-60")}>
       <PageHeader
         title="Account Reports"
         description="View account ledger statements, debit/credit details, opening values, and transaction daybooks."
@@ -284,8 +287,9 @@ export function AccountReportsClient({
 
       <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between bg-slate-50 p-4 rounded-lg border border-slate-200">
         <div className="flex flex-col gap-1 w-full md:w-auto">
-          <Label htmlFor="account-select" className="font-semibold text-sm text-slate-700">
+          <Label htmlFor="account-select" className="font-semibold text-sm text-slate-700 flex items-center gap-1.5">
             Select Account / Client:
+            {isPending && <span className="text-xs text-primary animate-pulse">Loading report...</span>}
           </Label>
           <select
             id="account-select"
