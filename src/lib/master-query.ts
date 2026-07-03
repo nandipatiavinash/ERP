@@ -1,10 +1,7 @@
 import type { ModuleConfig } from "@/lib/modules";
 
-export const MASTER_PAGE_SIZE = 10;
-
 type MasterParams = {
   search?: string;
-  page?: string;
   sort?: string;
   direction?: "asc" | "desc";
 };
@@ -26,24 +23,20 @@ export async function fetchMasterRows({
   params: MasterParams;
   defaultSort: string;
 }) {
-  const page = Math.max(Number(params.page ?? 1) || 1, 1);
-  const offset = (page - 1) * MASTER_PAGE_SIZE;
   const direction: "asc" | "desc" = params.direction === "desc" ? "desc" : "asc";
   const sort = config.columns.some((column) => column.key === params.sort) ? String(params.sort) : defaultSort;
   const search = cleanSearch(params.search ?? "");
 
   let query = supabase
     .from(config.table)
-    .select(select, { count: "exact" })
+    .select(select)
     .is("deleted_at", null);
 
   if (search) {
-    query = query.or(config.searchColumns.map((column) => `${column}.ilike.%${search}%`).join(","));
+    query = query.or(config.searchColumns.map((column: string) => `${column}.ilike.%${search}%`).join(","));
   }
 
-  let response = await query
-    .order(sort, { ascending: direction === "asc" })
-    .range(offset, offset + MASTER_PAGE_SIZE - 1);
+  let response = await query.order(sort, { ascending: direction === "asc" });
 
   if (
     response.error &&
@@ -51,24 +44,20 @@ export async function fetchMasterRows({
   ) {
     let fallbackQuery = supabase
       .from(config.table)
-      .select(select, { count: "exact" });
+      .select(select);
 
     if (search) {
-      fallbackQuery = fallbackQuery.or(config.searchColumns.map((column) => `${column}.ilike.%${search}%`).join(","));
+      fallbackQuery = fallbackQuery.or(config.searchColumns.map((column: string) => `${column}.ilike.%${search}%`).join(","));
     }
 
-    response = await fallbackQuery
-      .order(sort, { ascending: direction === "asc" })
-      .range(offset, offset + MASTER_PAGE_SIZE - 1);
+    response = await fallbackQuery.order(sort, { ascending: direction === "asc" });
   }
 
-  const { data, error, count } = response;
+  const { data, error } = response;
   if (error) throw new Error(error.message);
 
   return {
     rows: data ?? [],
-    totalRows: count ?? 0,
-    page,
     sort,
     direction,
   };

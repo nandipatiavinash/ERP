@@ -19,29 +19,7 @@ import { RotoProductsClient } from "./RotoProductsClient";
 import { OffsetProductsClient } from "./OffsetProductsClient";
 
 
-type Params = { tab?: string; search?: string; page?: string; sort?: string; direction?: "asc" | "desc" };
-
-function ProductPager({ tab, page, totalRows, shownRows }: { tab: string; page: number; totalRows: number; shownRows: number }) {
-  const totalPages = Math.max(Math.ceil(totalRows / 10), 1);
-  const href = (nextPage: number) => `/admin/products?tab=${tab}${nextPage > 1 ? `&page=${nextPage}` : ""}`;
-  return (
-    <div className="mt-4 flex flex-col gap-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-      <div>Showing {shownRows} of {totalRows} records</div>
-      <div className="flex gap-2">
-        {page <= 1 ? (
-          <button className="h-9 rounded-md border px-3 opacity-50" disabled>Previous</button>
-        ) : (
-          <Link href={href(page - 1) as any} className="inline-flex h-9 items-center rounded-md border px-3">Previous</Link>
-        )}
-        {page >= totalPages ? (
-          <button className="h-9 rounded-md border px-3 opacity-50" disabled>Next</button>
-        ) : (
-          <Link href={href(page + 1) as any} className="inline-flex h-9 items-center rounded-md border px-3">Next</Link>
-        )}
-      </div>
-    </div>
-  );
-}
+type Params = { tab?: string; search?: string; sort?: string; direction?: "asc" | "desc" };
 
 export default async function ProductsAdminPage({ searchParams }: { searchParams: Promise<Params> }) {
   await requirePermission("admin.products");
@@ -53,10 +31,8 @@ export default async function ProductsAdminPage({ searchParams }: { searchParams
   let fabricData: any[] = [];
   let rotoData: any[] = [];
   let offsetData: any[] = [];
-  let fabricTotal = 0;
   let rotoTotal = 0;
   let offsetTotal = 0;
-  const productPage = Math.max(Number(params.page ?? 1) || 1, 1);
 
   // Fetch customer clients list for selection dropdown
   const { data: dbCustomers } = await supabase
@@ -125,7 +101,6 @@ export default async function ProductsAdminPage({ searchParams }: { searchParams
       .order("color_name");
     colorsList = colorsData ?? [];
 
-    const offset = (productPage - 1) * 10;
     const { data, count } = await supabase
       .from("roto_products")
       .select(`
@@ -138,17 +113,14 @@ export default async function ProductsAdminPage({ searchParams }: { searchParams
           roto_colors(id, color_name)
         )
       `, { count: "exact" })
-      .order("brand", { ascending: true })
-      .range(offset, offset + 9);
+      .order("brand", { ascending: true });
     rotoData = data ?? [];
     rotoTotal = count ?? 0;
   } else if (tab === "offset") {
-    const offset = (productPage - 1) * 10;
     const { data, count } = await supabase
       .from("offset_products")
       .select("id, brand, width, height, image_url, status, customer_id, customers:customer_id(customer_name, alias)", { count: "exact" })
-      .order("brand", { ascending: true })
-      .range(offset, offset + 9);
+      .order("brand", { ascending: true });
     offsetData = data ?? [];
     offsetTotal = count ?? 0;
   }
@@ -182,10 +154,8 @@ export default async function ProductsAdminPage({ searchParams }: { searchParams
           config={modules["fabric-types"]}
           rows={fabricData as never}
           search={params.search ?? ""}
-          page={Number(params.page ?? 1)}
           sort={params.sort}
           direction={params.direction}
-          totalRows={fabricTotal}
           queryParams={{ tab: "fabric" }}
         />
       )}
@@ -195,7 +165,6 @@ export default async function ProductsAdminPage({ searchParams }: { searchParams
           rotoData={rotoData}
           clientList={clientList}
           colorsList={colorsList}
-          productPage={productPage}
           rotoTotal={rotoTotal}
         />
       )}
@@ -204,7 +173,6 @@ export default async function ProductsAdminPage({ searchParams }: { searchParams
         <OffsetProductsClient
           offsetData={offsetData}
           clientList={clientList}
-          productPage={productPage}
           offsetTotal={offsetTotal}
         />
       )}

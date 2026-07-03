@@ -4,7 +4,7 @@ import { modules } from "@/lib/modules";
 import { fetchMasterRows } from "@/lib/master-query";
 import { createClient } from "@/lib/supabase/server";
 
-type Params = { search?: string; page?: string; sort?: string; direction?: "asc" | "desc" };
+type Params = { search?: string; sort?: string; direction?: "asc" | "desc" };
 
 export default async function RawMaterialsAdminPage({ searchParams }: { searchParams: Promise<Params> }) {
   await requirePermission("admin.raw_materials");
@@ -22,10 +22,8 @@ export default async function RawMaterialsAdminPage({ searchParams }: { searchPa
       config={modules["raw-materials"]}
       rows={result.rows as never}
       search={params.search ?? ""}
-      page={result.page}
       sort={result.sort}
       direction={result.direction}
-      totalRows={result.totalRows}
     />
   );
 }

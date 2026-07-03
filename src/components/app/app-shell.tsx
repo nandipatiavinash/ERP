@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState, Suspense } from "react";
 import { Menu, ChevronDown, ChevronRight } from "lucide-react";
 import { signOut } from "@/app/actions";
@@ -31,7 +31,6 @@ function Brand({ onClick }: { onClick?: () => void }) {
 
 function NavLinks({ groups, onNavigate }: { groups: NavGroup[]; onNavigate?: () => void }) {
   const pathname = usePathname();
-  const router = useRouter();
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
   // Auto-expand group containing active route on load/change
@@ -50,9 +49,7 @@ function NavLinks({ groups, onNavigate }: { groups: NavGroup[]; onNavigate?: () 
     <nav className="space-y-1.5 p-3 overflow-y-auto max-h-[calc(100vh-4rem)]">
       <Link
         href="/dashboard"
-        prefetch={false}
-        onPointerEnter={() => router.prefetch("/dashboard")}
-        onFocus={() => router.prefetch("/dashboard")}
+        prefetch={true}
         onClick={onNavigate}
         className={cn(
           "flex min-h-10 items-center rounded-md px-3 py-2 text-sm font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
@@ -91,9 +88,7 @@ function NavLinks({ groups, onNavigate }: { groups: NavGroup[]; onNavigate?: () 
                     <Link
                       key={item.href}
                       href={item.href as any}
-                      prefetch={false}
-                      onPointerEnter={() => router.prefetch(item.href as any)}
-                      onFocus={() => router.prefetch(item.href as any)}
+                      prefetch={true}
                       onClick={onNavigate}
                       className={cn(
                         "flex min-h-9 items-center rounded-md px-3 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",

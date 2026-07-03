@@ -14,19 +14,58 @@ import {
 export async function saveProduction(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   const user = await requirePermission("fabric.production");
-  const fields = ["fabric_type_id", "loom_id", "gross_weight", "core_weight", "end_meters", "remarks"];
-  if (user.roles?.name === "admin") fields.push("initial_meters");
-  const payload = {
-    ...assertValid(productionSchema, readPayload(formData, fields)),
+  const isAdmin = user.roles?.name === "admin";
+  
+  // Always include initial_meters in the parsed fields so we can handle it on the server
+  const fields = ["fabric_type_id", "loom_id", "gross_weight", "core_weight", "end_meters", "remarks", "initial_meters"];
+  const parsed = assertValid(productionSchema, readPayload(formData, fields));
+  
+  const adminSupabase = createAdminClient();
+
+  // Fetch the last end_meters for this loom to compute/validate initial_meters
+  const { data: lastEntry } = await (adminSupabase
+    .from("loom_production_entries") as any)
+    .select("end_meters")
+    .eq("loom_id", parsed.loom_id)
+    .is("deleted_at", null)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const lastEnd = Number((lastEntry as any)?.end_meters ?? 0);
+
+  const payload: Record<string, any> = {
+    fabric_type_id: parsed.fabric_type_id,
+    loom_id: parsed.loom_id,
+    gross_weight: parsed.gross_weight,
+    core_weight: parsed.core_weight,
+    end_meters: parsed.end_meters,
+    remarks: parsed.remarks,
     updated_by: user.id,
   };
 
-  // Use admin client so custom roles are not blocked by RLS.
-  // requirePermission() above already enforces app-level access control.
-  const adminSupabase = createAdminClient();
+  if (!id) {
+    // INSERT Path
+    if (isAdmin) {
+      const initialMtrs = parsed.initial_meters ?? lastEnd;
+      payload.initial_meters = initialMtrs;
+      payload.initial_meter_overridden = initialMtrs !== lastEnd;
+    } else {
+      payload.initial_meters = lastEnd;
+      payload.initial_meter_overridden = false;
+    }
+  } else {
+    // UPDATE Path
+    if (isAdmin && parsed.initial_meters !== undefined) {
+      payload.initial_meters = parsed.initial_meters;
+      payload.initial_meter_overridden = parsed.initial_meters !== lastEnd;
+    }
+    // For non-admin, initial_meters is omitted from update payload, preserving database value
+  }
+
   const query = id
     ? (adminSupabase.from("loom_production_entries") as any).update(payload as any).eq("id", id)
-    : (adminSupabase.from("loom_production_entries") as any).insert({ ...payload, created_by: user.id, updated_by: user.id } as any);
+    : (adminSupabase.from("loom_production_entries") as any).insert({ ...payload, created_by: user.id } as any);
 
   const { error } = await query;
   if (error) throw new Error(error.message);

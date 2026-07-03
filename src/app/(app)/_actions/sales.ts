@@ -295,7 +295,9 @@ export async function confirmSalesDelivery(
       .insert({
         customer_id: order.customer_id,
         order_date: order.order_date,
-        order_number: order.order_number,
+        // order_number intentionally omitted — the DB trigger (prepare_sales_order)
+        // will auto-generate a new unique number. Copying the parent order_number
+        // would violate the UNIQUE constraint (CONFLICT-12 fix).
         status: "draft",
         created_by: user.id,
         updated_by: user.id,
@@ -418,7 +420,7 @@ export async function prepareSalesOrderDraftBilling(formData: FormData) {
 
     if (unselectedInThisOrder.length > 0) {
       const clonePayload = {
-        order_number: parentOrder.order_number,
+        // order_number intentionally omitted — DB trigger auto-generates a unique number
         order_date: parentOrder.order_date,
         customer_id: parentOrder.customer_id,
         status: "confirmed",

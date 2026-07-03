@@ -4,17 +4,18 @@ import { modules } from "@/lib/modules";
 import { fetchMasterRows } from "@/lib/master-query";
 import { createClient } from "@/lib/supabase/server";
 
-type Params = { search?: string; page?: string; sort?: string; direction?: "asc" | "desc" };
+type Params = { search?: string; sort?: string; direction?: "asc" | "desc" };
 
 export default async function ClientsPage({ searchParams }: { searchParams: Promise<Params> }) {
   await requirePermission("admin.clients");
   const supabase = await createClient();
   const params = await searchParams;
 
-  // Fetch active customers to populate the linked accounts dropdown select
-  const { data: activeCustomers } = await supabase
+  // Only "reference a/c" accounts appear in the Linked Account dropdown
+  const { data: referenceAccounts } = await supabase
     .from("customers")
     .select("id, customer_name")
+    .eq("is_internal", "reference a/c")
     .is("deleted_at", null)
     .order("customer_name");
 
@@ -26,7 +27,7 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
           ...field,
           options: [
             { label: "-- None (Main Account) --", value: "" },
-            ...(activeCustomers as any[] ?? []).map((c) => ({
+            ...(referenceAccounts as any[] ?? []).map((c) => ({
               label: c.customer_name,
               value: c.id,
             })),
@@ -50,10 +51,8 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
       config={customersConfig}
       rows={result.rows as never}
       search={params.search ?? ""}
-      page={result.page}
       sort={result.sort}
       direction={result.direction}
-      totalRows={result.totalRows}
     />
   );
 }

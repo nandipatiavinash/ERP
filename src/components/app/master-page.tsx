@@ -112,9 +112,9 @@ function RowActions({ config, row }: { config: ModuleConfig; row: Row }) {
           try {
             const fd = new FormData(e.currentTarget);
             await deactivateMaster(config.key, fd);
-            showSuccess("Record deactivated successfully!");
+            showSuccess("Record deleted successfully!");
           } catch (err: any) {
-            alert(err.message || "Failed to deactivate record.");
+            alert(err.message || "Failed to delete record.");
           }
         });
       }}>
@@ -124,10 +124,10 @@ function RowActions({ config, row }: { config: ModuleConfig; row: Row }) {
           size="sm"
           variant="outline"
           className="h-8 border-red-200 hover:bg-red-50 text-red-600"
-          confirmTitle="Deactivate this record?"
-          confirmDescription="This record will be deactivated from active workflows."
+          confirmTitle="Delete this record?"
+          confirmDescription="This will permanently delete the record. This action cannot be undone."
         >
-          {isPending ? "Deactivating..." : "Deactivate"}
+          {isPending ? "Deleting..." : "Delete"}
         </ConfirmSubmitButton>
       </form>
     </div>
@@ -162,51 +162,40 @@ export function MasterPage({
   config,
   rows,
   search,
-  page = 1,
   sort,
   direction = "asc",
-  totalRows,
   queryParams,
 }: {
   config: ModuleConfig;
   rows: Row[];
   search: string;
-  page?: number;
   sort?: string;
   direction?: "asc" | "desc";
-  totalRows?: number;
   queryParams?: Record<string, string | undefined>;
 }) {
-  const pageSize = 10;
-  const serverPaginated = totalRows !== undefined;
-  const filteredRows = serverPaginated
-    ? rows
-    : rows
-      .filter((row) => matchesSearch(row, config.searchColumns, search))
-      .sort((a, b) => {
-        if (!sort) return 0;
-        const left = String(a[sort] ?? "");
-        const right = String(b[sort] ?? "");
-        return direction === "asc" ? left.localeCompare(right) : right.localeCompare(left);
-      });
-  const resultCount = totalRows ?? filteredRows.length;
-  const totalPages = Math.max(Math.ceil(resultCount / pageSize), 1);
-  const currentPage = Math.min(Math.max(page, 1), totalPages);
-  const pagedRows = serverPaginated ? filteredRows : filteredRows.slice((currentPage - 1) * pageSize, currentPage * pageSize);
-  const query = (nextPage: number, nextSort = sort, nextDirection = direction) => {
+  const filteredRows = rows
+    .filter((row) => matchesSearch(row, config.searchColumns, search))
+    .sort((a, b) => {
+      if (!sort) return 0;
+      const left = String(a[sort] ?? "");
+      const right = String(b[sort] ?? "");
+      return direction === "asc" ? left.localeCompare(right) : right.localeCompare(left);
+    });
+
+  const query = (nextSort = sort, nextDirection = direction) => {
     const params = new URLSearchParams();
     for (const [key, value] of Object.entries(queryParams ?? {})) {
       if (value) params.set(key, value);
     }
     if (search) params.set("search", search);
-    if (nextPage > 1) params.set("page", String(nextPage));
     if (nextSort) params.set("sort", nextSort);
     if (nextSort) params.set("direction", nextDirection);
     return `${config.path}${params.size ? `?${params.toString()}` : ""}`;
   };
+
   return (
     <>
-      <PageHeader title={config.title} description="Admin master data. Records are deactivated with soft delete, never hard deleted." />
+      <PageHeader title={config.title} description="Admin master data. Records are permanently deleted when removed." />
 
       <Card className="mb-5">
         <CardHeader><CardTitle>Add {config.title.replace("Management", "").trim()}</CardTitle></CardHeader>
@@ -216,7 +205,7 @@ export function MasterPage({
       <Card>
         <CardHeader>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <CardTitle>Records</CardTitle>
+            <CardTitle>Records <span className="text-sm font-normal text-muted-foreground">({filteredRows.length})</span></CardTitle>
             <form className="relative w-full sm:w-72">
               <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input name="search" defaultValue={search} placeholder="Search" className="pl-9" />
@@ -224,7 +213,7 @@ export function MasterPage({
           </div>
         </CardHeader>
         <CardContent>
-          {resultCount === 0 ? <EmptyState /> : (
+          {filteredRows.length === 0 ? <EmptyState /> : (
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
@@ -233,8 +222,11 @@ export function MasterPage({
                       const nextDirection = sort === column.key && direction === "asc" ? "desc" : "asc";
                       return (
                         <TableHead key={column.key} className="text-center">
-                          <Link href={query(1, column.key, nextDirection) as any} className="inline-flex items-center justify-center gap-1 hover:text-foreground w-full">
+                          <Link href={query(column.key, nextDirection) as any} className="inline-flex items-center justify-center gap-1 hover:text-foreground w-full">
                             {column.label}
+                            {sort === column.key && (
+                              <span className="text-xs">{direction === "asc" ? "↑" : "↓"}</span>
+                            )}
                           </Link>
                         </TableHead>
                       );
@@ -243,7 +235,7 @@ export function MasterPage({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {pagedRows.map((row) => (
+                  {filteredRows.map((row) => (
                     <TableRow key={row.id}>
                       {config.columns.map((column) => (
                         <TableCell key={column.key} className="text-center">
@@ -257,47 +249,6 @@ export function MasterPage({
                   ))}
                 </TableBody>
               </Table>
-              <div className="mt-4 flex flex-col gap-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-                <div>Showing {pagedRows.length} of {resultCount} records</div>
-                <div className="flex items-center gap-1.5">
-                  {currentPage <= 1 ? (
-                    <Button variant="outline" size="sm" disabled>Previous</Button>
-                  ) : (
-                    <Button asChild variant="outline" size="sm">
-                      <Link href={query(currentPage - 1) as any}>Previous</Link>
-                    </Button>
-                  )}
-
-                  {Array.from({ length: totalPages }, (_, i) => {
-                    const pageNum = i + 1;
-                    const isCurrent = pageNum === currentPage;
-                    return (
-                      <Button
-                        key={pageNum}
-                        asChild={!isCurrent}
-                        variant={isCurrent ? "default" : "outline"}
-                        size="sm"
-                        className={isCurrent ? "pointer-events-none font-bold" : ""}
-                        disabled={isCurrent}
-                      >
-                        {isCurrent ? (
-                          <span>{pageNum}</span>
-                        ) : (
-                          <Link href={query(pageNum) as any}>{pageNum}</Link>
-                        )}
-                      </Button>
-                    );
-                  })}
-
-                  {currentPage >= totalPages ? (
-                    <Button variant="outline" size="sm" disabled>Next</Button>
-                  ) : (
-                    <Button asChild variant="outline" size="sm">
-                      <Link href={query(currentPage + 1) as any}>Next</Link>
-                    </Button>
-                  )}
-                </div>
-              </div>
             </div>
           )}
         </CardContent>

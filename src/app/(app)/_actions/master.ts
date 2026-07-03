@@ -68,7 +68,7 @@ export async function saveMaster(moduleKey: string, formData: FormData) {
 export async function deactivateMaster(moduleKey: string, formData: FormData) {
   // SEC-15 / ISS-020: validate moduleKey against allowlist before using it
   if (!ALLOWED_MODULE_KEYS.has(moduleKey)) throw new Error("Invalid module key.");
-  const user = await requirePermission(`${modulePermissionKey(moduleKey)}.delete`);
+  await requirePermission(`${modulePermissionKey(moduleKey)}.delete`);
 
   const config = modules[moduleKey];
   const id = String(formData.get("id") ?? "");
@@ -76,7 +76,7 @@ export async function deactivateMaster(moduleKey: string, formData: FormData) {
   const table = config.table as any;
   const { error } = await (supabase
     .from(table) as any)
-    .update({ deleted_at: new Date().toISOString(), updated_by: user.id } as any)
+    .delete()
     .eq("id", id);
   if (error) throw new Error(error.message);
   revalidatePath(config.path);

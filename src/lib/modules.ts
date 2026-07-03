@@ -141,6 +141,7 @@ export const modules: Record<string, ModuleConfig> = {
         { label: "capital a/c", value: "capital a/c" },
         { label: "loan a/c", value: "loan a/c" },
         { label: "balance sheet a/c", value: "balance sheet a/c" },
+        { label: "reference a/c", value: "reference a/c" },
       ], required: true },
       { name: "status", label: "Status", type: "select", options: statusOptions, required: true },
     ],

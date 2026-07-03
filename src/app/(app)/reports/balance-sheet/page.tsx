@@ -102,6 +102,7 @@ export default async function BalanceSheetPage({
   const { data: accounts } = await supabase
     .from("customers")
     .select("id, customer_name, alias, opening_debit, opening_credit, is_internal")
+    .eq("status", "active")
     .is("deleted_at", null);
 
   // 3. Fetch aggregated journal entries up to the selected date

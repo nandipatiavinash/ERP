@@ -6,11 +6,8 @@ import { createClient } from "@/lib/supabase/server";
 import { revalidateAllReports } from "./helpers";
 
 export async function saveJournalEntry(formData: FormData) {
-  // API-05 NOTE: Should be "accounts.journal" but that permission does not yet
-  // exist in the DB permissions table. Kept as "sales.edit" to avoid blocking
-  // all users. Add "accounts.journal" to the permissions table first, assign it
-  // to the relevant roles, then switch this string.
-  const user = await requirePermission("sales.edit");
+  const user = await requirePermission("accounts.journal");
+
   const journalNo = String(formData.get("journal_no") ?? "");
   const entryDate = String(formData.get("entry_date") ?? "");
   const rowsJson = String(formData.get("rows_json") ?? "");
@@ -106,12 +103,12 @@ export async function saveJournalEntry(formData: FormData) {
 }
 
 export async function softDeleteJournalEntry(formData: FormData) {
-  const user = await requirePermission("sales.edit");
+  const user = await requirePermission("accounts.journal");
   const id = String(formData.get("id") ?? "");
   const supabase = await createClient();
   const { error } = await (supabase
     .from("accounts_journal") as any)
-    .delete()
+    .update({ deleted_at: new Date().toISOString(), updated_by: user.id })
     .eq("id", id);
 
   if (error) throw new Error(error.message);
@@ -122,7 +119,7 @@ export async function softDeleteJournalEntry(formData: FormData) {
 }
 
 export async function softDeleteJournalEntryGroup(formData: FormData) {
-  const user = await requirePermission("sales.edit");
+  const user = await requirePermission("accounts.journal");
   const journalNo = String(formData.get("journal_no") ?? "");
   if (!journalNo) throw new Error("Missing journal number.");
   const supabase = await createClient();
