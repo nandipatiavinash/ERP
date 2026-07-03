@@ -1,13 +1,14 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { PageHeader } from "@/components/app/page-header";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { formatNumber, todayInIndia } from "@/lib/utils";
+import { formatNumber, todayInIndia, cn } from "@/lib/utils";
+import { Loader2 } from "lucide-react";
 import { saveClosingStock } from "@/app/(app)/_actions";
 
 interface RawMaterial {
@@ -125,12 +126,14 @@ export function ClosingStockReportClient({
   submittedStock,
 }: ClosingStockReportClientProps) {
   const router = useRouter();
+  const [isPending, startTransition] = useTransition();
   const [customPrices, setCustomPrices] = useState<Record<string, string>>(() => {
     return submittedStock?.customPrices ? submittedStock.customPrices : {};
   });
   const [submitted, setSubmitted] = useState(() => !!submittedStock);
   const [isSaving, setIsSaving] = useState(false);
   const today = todayInIndia();
+  const isPastDate = date < today;
 
   useEffect(() => {
     setCustomPrices(submittedStock?.customPrices ? submittedStock.customPrices : {});
@@ -139,7 +142,11 @@ export function ClosingStockReportClient({
 
 
   const handleDateChange = (newDate: string) => {
-    router.push(`/reports/closing-stock?date=${newDate}` as any);
+    if (newDate && newDate.length === 10) {
+      startTransition(() => {
+        router.push(`/reports/closing-stock?date=${newDate}` as any);
+      });
+    }
   };
 
   const setPrice = (key: string, val: string) =>
@@ -361,23 +368,25 @@ export function ClosingStockReportClient({
 
   return (
 
-    <div className="space-y-6 pb-10">
+    <div className={cn("space-y-6 pb-10 transition-opacity", isPending && "opacity-60")}>
       <PageHeader
         title="Closing Stock"
         description="Department-wise stock valuation with Work In Progress (WIP) and GST-inclusive grand total."
       />
 
       {/* Date Selector */}
-      <div className="flex items-center gap-3 bg-white border border-slate-200 rounded-lg px-4 py-3 shadow-sm w-fit">
-        <Label htmlFor="date-select" className="font-semibold text-sm text-slate-700 shrink-0">
+      <div className={cn("flex items-center gap-3 bg-white border border-slate-200 rounded-lg px-4 py-3 shadow-sm w-fit transition-opacity", isPending && "opacity-60")}>
+        <Label htmlFor="date-select" className="font-semibold text-sm text-slate-700 shrink-0 flex items-center gap-1.5">
           Select Stock Date:
+          {isPending && <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />}
         </Label>
         <Input
           id="date-select"
           type="date"
-          value={date}
+          defaultValue={date}
+          disabled={isPending}
           onChange={(e) => handleDateChange(e.target.value)}
-          className="w-44 h-9 text-sm border-slate-200 shadow-none"
+          className="w-44 h-9 text-sm border-slate-200 shadow-none cursor-pointer"
         />
       </div>
 
@@ -442,7 +451,8 @@ export function ClosingStockReportClient({
                               type="number"
                               min="0"
                               step="any"
-                              className="w-28 h-7 text-right text-sm py-0 px-2 border border-slate-200 rounded bg-white font-semibold ml-auto shadow-none"
+                              disabled={isPastDate}
+                              className="w-28 h-7 text-right text-sm py-0 px-2 border border-slate-200 rounded bg-white font-semibold ml-auto shadow-none disabled:bg-slate-50 disabled:text-slate-500"
                               value={
                                 customPrices[row.key] !== undefined
                                   ? customPrices[row.key]
@@ -496,7 +506,8 @@ export function ClosingStockReportClient({
                   type="number"
                   min="0"
                   step="any"
-                  className="w-28 h-7 text-right text-sm py-0 px-2 border border-slate-200 rounded bg-white font-semibold ml-auto shadow-none"
+                  disabled={isPastDate}
+                  className="w-28 h-7 text-right text-sm py-0 px-2 border border-slate-200 rounded bg-white font-semibold ml-auto shadow-none disabled:bg-slate-50 disabled:text-slate-500"
                   value={
                     customPrices["wip"] !== undefined
                       ? customPrices["wip"]
@@ -594,7 +605,13 @@ export function ClosingStockReportClient({
 
         {/* Submit Button */}
         <div className="flex justify-end px-5 py-4 border-t border-slate-200 bg-white">
-          {submitted ? (
+          {isPastDate ? (
+            <div className="flex items-center gap-4 bg-amber-50 border border-amber-200 px-4 py-2 rounded-md">
+              <span className="text-sm font-semibold text-amber-700">
+                ⚠️ Historical closing stock is locked and cannot be modified.
+              </span>
+            </div>
+          ) : submitted ? (
             <div className="flex items-center gap-4">
               <span className="text-sm font-semibold text-emerald-600">✓ Submitted successfully</span>
               <Button onClick={handleSubmit} disabled={isSaving} variant="outline" className="px-8 border-slate-200">
