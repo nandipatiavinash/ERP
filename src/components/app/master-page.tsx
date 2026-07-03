@@ -48,7 +48,8 @@ function RecordForm({ config, row, isEdit = false, onSaved }: { config: ModuleCo
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setErrorMsg(null);
-    const formData = new FormData(event.currentTarget);
+    const form = event.currentTarget;
+    const formData = new FormData(form);
     if (row?.id) {
       formData.set("id", row.id);
     }
@@ -59,7 +60,7 @@ function RecordForm({ config, row, isEdit = false, onSaved }: { config: ModuleCo
         showSuccess(row ? "Record updated successfully!" : "Record created successfully!");
         // Clear non-edit form inputs
         if (!row) {
-          event.currentTarget.reset();
+          form.reset();
         }
         onSaved?.();
       } catch (err: any) {

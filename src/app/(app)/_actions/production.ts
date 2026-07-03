@@ -14,7 +14,6 @@ import {
 export async function saveProduction(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   const user = await requirePermission("fabric.production");
-  const supabase = await createClient();
   const fields = ["fabric_type_id", "loom_id", "gross_weight", "core_weight", "end_meters", "remarks"];
   if (user.roles?.name === "admin") fields.push("initial_meters");
   const payload = {
@@ -22,9 +21,12 @@ export async function saveProduction(formData: FormData) {
     updated_by: user.id,
   };
 
+  // Use admin client so custom roles are not blocked by RLS.
+  // requirePermission() above already enforces app-level access control.
+  const adminSupabase = createAdminClient();
   const query = id
-    ? (supabase.from("loom_production_entries") as any).update(payload as any).eq("id", id)
-    : (supabase.from("loom_production_entries") as any).insert({ ...payload, created_by: user.id, updated_by: user.id } as any);
+    ? (adminSupabase.from("loom_production_entries") as any).update(payload as any).eq("id", id)
+    : (adminSupabase.from("loom_production_entries") as any).insert({ ...payload, created_by: user.id, updated_by: user.id } as any);
 
   const { error } = await query;
   if (error) throw new Error(error.message);
@@ -125,7 +127,9 @@ export async function saveRotoFilmProduction(formData: FormData) {
     rollId += `(${colorName.trim()})`;
   }
 
-  const { error: insertError } = await (supabase
+  // Use admin client for write so custom roles are not blocked by RLS.
+  const adminSupabase = createAdminClient();
+  const { error: insertError } = await (adminSupabase
     .from("roto_film_rolls") as any)
     .insert({
       roll_id: rollId,
@@ -148,7 +152,7 @@ export async function saveRotoFilmProduction(formData: FormData) {
 }
 
 export async function deleteRotoFilmProduction(id: string) {
-  const user = await requirePermission("roto_printing.production");
+  await requirePermission("roto_printing.production");
   const supabase = await createClient();
 
   const { data: roll } = await (supabase.from("roto_film_rolls") as any).select("status").eq("id", id).maybeSingle();
@@ -159,7 +163,8 @@ export async function deleteRotoFilmProduction(id: string) {
   const { data: hasMetallic } = await (supabase.from("roto_metallic_rolls") as any).select("id").eq("source_film_roll_id", id).maybeSingle();
   if (hasMetallic) throw new Error("This roll is referenced by a metallic printed roll and cannot be deleted.");
 
-  const { error } = await (supabase
+  const adminSupabase = createAdminClient();
+  const { error } = await (adminSupabase
     .from("roto_film_rolls") as any)
     .delete()
     .eq("id", id);
@@ -197,7 +202,9 @@ export async function saveRotoMetallicProduction(formData: FormData) {
 
   const newRollId = `${(filmRoll as any).roll_id.trim()}(Mt)`;
 
-  const { error: insertError } = await (supabase
+  // Use admin client for write so custom roles are not blocked by RLS.
+  const adminSupabase = createAdminClient();
+  const { error: insertError } = await (adminSupabase
     .from("roto_metallic_rolls") as any)
     .insert({
       roll_id: newRollId,
@@ -219,7 +226,7 @@ export async function saveRotoMetallicProduction(formData: FormData) {
 }
 
 export async function deleteRotoMetallicProduction(id: string) {
-  const user = await requirePermission("roto_printing.production");
+  await requirePermission("roto_printing.production");
   const supabase = await createClient();
 
   const { data: roll } = await (supabase.from("roto_metallic_rolls") as any).select("status").eq("id", id).maybeSingle();
@@ -230,7 +237,8 @@ export async function deleteRotoMetallicProduction(id: string) {
   const { data: hasLamination } = await (supabase.from("lamination_rolls") as any).select("id").eq("film_roll_id", id).maybeSingle();
   if (hasLamination) throw new Error("This roll is referenced by a laminated roll and cannot be deleted.");
 
-  const { error } = await (supabase
+  const adminSupabase = createAdminClient();
+  const { error } = await (adminSupabase
     .from("roto_metallic_rolls") as any)
     .delete()
     .eq("id", id);
@@ -306,7 +314,9 @@ export async function saveLaminationProduction(formData: FormData) {
   const seq = (count ?? 0) + 1;
   const newRollId = `${baseId}(${seq})`;
 
-  const { error: insertError } = await (supabase
+  // Use admin client for write so custom roles are not blocked by RLS.
+  const adminSupabase = createAdminClient();
+  const { error: insertError } = await (adminSupabase
     .from("lamination_rolls") as any)
     .insert({
       roll_id: newRollId,
@@ -331,7 +341,7 @@ export async function saveLaminationProduction(formData: FormData) {
 }
 
 export async function deleteLaminationProduction(id: string) {
-  const user = await requirePermission("lamination.production");
+  await requirePermission("lamination.production");
   const supabase = await createClient();
 
   const { data: roll } = await (supabase.from("lamination_rolls") as any).select("status").eq("id", id).maybeSingle();
@@ -345,7 +355,8 @@ export async function deleteLaminationProduction(id: string) {
   const { data: hasFinishing } = await (supabase.from("finishing_bundles") as any).select("id").eq("source_lam_roll_id", id).maybeSingle();
   if (hasFinishing) throw new Error("This roll is referenced by a finishing bundle and cannot be deleted.");
 
-  const { error } = await (supabase
+  const adminSupabase = createAdminClient();
+  const { error } = await (adminSupabase
     .from("lamination_rolls") as any)
     .delete()
     .eq("id", id);
@@ -411,7 +422,9 @@ export async function saveOffsetProduction(formData: FormData) {
   const seq = (count ?? 0) + 1;
   const newRollId = `${baseId}(${seq})`;
 
-  const { error: insertError } = await (supabase
+  // Use admin client for write so custom roles are not blocked by RLS.
+  const adminSupabase = createAdminClient();
+  const { error: insertError } = await (adminSupabase
     .from("offset_rolls") as any)
     .insert({
       roll_id: newRollId,
@@ -434,7 +447,7 @@ export async function saveOffsetProduction(formData: FormData) {
 }
 
 export async function deleteOffsetProduction(id: string) {
-  const user = await requirePermission("offset_printing.production");
+  await requirePermission("offset_printing.production");
   const supabase = await createClient();
 
   const { data: roll } = await (supabase.from("offset_rolls") as any).select("status").eq("id", id).maybeSingle();
@@ -445,7 +458,8 @@ export async function deleteOffsetProduction(id: string) {
   const { data: hasFinishing } = await (supabase.from("finishing_bundles") as any).select("id").eq("source_offset_roll_id", id).maybeSingle();
   if (hasFinishing) throw new Error("This roll is referenced by a finishing bundle and cannot be deleted.");
 
-  const { error } = await (supabase
+  const adminSupabase = createAdminClient();
+  const { error } = await (adminSupabase
     .from("offset_rolls") as any)
     .delete()
     .eq("id", id);
@@ -509,7 +523,9 @@ export async function saveFinishingBundle(formData: FormData) {
   const seq = (count ?? 0) + 1;
   const newBundleId = `${baseId}(${seq})`;
 
-  const { error: insertError } = await (supabase
+  // Use admin client for write so custom roles are not blocked by RLS.
+  const adminSupabase = createAdminClient();
+  const { error: insertError } = await (adminSupabase
     .from("finishing_bundles") as any)
     .insert({
       bundle_id: newBundleId,
@@ -531,14 +547,15 @@ export async function saveFinishingBundle(formData: FormData) {
 }
 
 export async function deleteFinishingBundle(id: string) {
-  const user = await requirePermission("finishing.production");
+  await requirePermission("finishing.production");
   const supabase = await createClient();
 
   const { data: bundle } = await (supabase.from("finishing_bundles") as any).select("status").eq("id", id).maybeSingle();
   if (!bundle) throw new Error("Finishing bundle not found.");
   if ((bundle as any).status === "sold") throw new Error("This bundle has been sold and cannot be deleted.");
 
-  const { error } = await (supabase
+  const adminSupabase = createAdminClient();
+  const { error } = await (adminSupabase
     .from("finishing_bundles") as any)
     .delete()
     .eq("id", id);
@@ -580,7 +597,6 @@ export async function saveStageProduction(formData: FormData) {
     throw new Error("Missing required production entry fields.");
   }
 
-  const supabase = await createClient();
   const payload = {
     roll_id: rollId,
     stage,
@@ -591,9 +607,11 @@ export async function saveStageProduction(formData: FormData) {
     updated_by: user.id,
   };
 
+  // Use admin client for write so custom roles are not blocked by RLS.
+  const adminSupabase = createAdminClient();
   const query = id
-    ? (supabase.from("stage_production_entries") as any).update(payload).eq("id", id)
-    : (supabase.from("stage_production_entries") as any).insert({ ...payload, created_by: user.id });
+    ? (adminSupabase.from("stage_production_entries") as any).update(payload).eq("id", id)
+    : (adminSupabase.from("stage_production_entries") as any).insert({ ...payload, created_by: user.id });
 
   const { error } = await query;
   if (error) throw new Error(error.message);
@@ -640,8 +658,8 @@ export async function softDeleteStageProduction(formData: FormData) {
 
   await requirePermission(permission);
 
-  const supabase = await createClient();
-  const { error } = await (supabase
+  const deleteSupabase = createAdminClient();
+  const { error } = await (deleteSupabase
     .from("stage_production_entries") as any)
     .delete()
     .eq("id", id);

@@ -58,12 +58,13 @@ export function OffsetProductsClient({
   // Handle Add Product Submit
   const handleAddSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    const formData = new FormData(e.currentTarget);
+    const form = e.currentTarget;
+    const formData = new FormData(form);
 
     startTransition(async () => {
       try {
         await saveOffsetProduct(formData);
-        e.currentTarget.reset();
+        form.reset();
         router.refresh();
       } catch (err: any) {
         alert(err.message || "Failed to add offset product");

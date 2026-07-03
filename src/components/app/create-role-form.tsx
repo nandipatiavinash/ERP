@@ -14,13 +14,14 @@ export function CreateRoleForm() {
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setErrorMsg(null);
-    const formData = new FormData(event.currentTarget);
+    const form = event.currentTarget;
+    const formData = new FormData(form);
 
     startTransition(async () => {
       try {
         await createRole(formData);
         showSuccess("Role created successfully!");
-        event.currentTarget.reset();
+        form.reset();
       } catch (err: any) {
         setErrorMsg(err.message || "Failed to create role.");
       }

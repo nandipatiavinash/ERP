@@ -17,7 +17,8 @@ export function UserForm({ roles }: { roles: RoleOption[] }) {
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setErrorMsg(null);
-    const formData = new FormData(event.currentTarget);
+    const form = event.currentTarget;
+    const formData = new FormData(form);
 
     startTransition(async () => {
       try {
@@ -26,7 +27,7 @@ export function UserForm({ roles }: { roles: RoleOption[] }) {
           setErrorMsg(res.error);
         } else {
           showSuccess("User created successfully!");
-          event.currentTarget.reset();
+          form.reset();
         }
       } catch (err: any) {
         setErrorMsg(err.message || "Failed to create user.");
