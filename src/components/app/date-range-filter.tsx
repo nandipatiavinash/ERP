@@ -1,9 +1,10 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useTransition } from "react";
+import { useTransition, useState, useEffect } from "react";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -16,21 +17,19 @@ interface DateRangeFilterProps {
 export function DateRangeFilter({ from, to, baseUrl }: DateRangeFilterProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const [fromVal, setFromVal] = useState(from);
+  const [toVal, setToVal] = useState(to);
 
-  const handleFromChange = (newFrom: string) => {
-    if (newFrom && newFrom.length === 10) {
+  useEffect(() => {
+    setFromVal(from);
+    setToVal(to);
+  }, [from, to]);
+
+  const handleApply = () => {
+    if (fromVal && fromVal.length === 10 && toVal && toVal.length === 10) {
       const separator = baseUrl.includes("?") ? "&" : "?";
       startTransition(() => {
-        router.push(`${baseUrl}${separator}from=${newFrom}&to=${to}` as any);
-      });
-    }
-  };
-
-  const handleToChange = (newTo: string) => {
-    if (newTo && newTo.length === 10) {
-      const separator = baseUrl.includes("?") ? "&" : "?";
-      startTransition(() => {
-        router.push(`${baseUrl}${separator}from=${from}&to=${newTo}` as any);
+        router.push(`${baseUrl}${separator}from=${fromVal}&to=${toVal}` as any);
       });
     }
   };
@@ -45,9 +44,14 @@ export function DateRangeFilter({ from, to, baseUrl }: DateRangeFilterProps) {
         <Input
           id="from-date"
           type="date"
-          defaultValue={from}
+          value={fromVal}
           disabled={isPending}
-          onChange={(e) => handleFromChange(e.target.value)}
+          onChange={(e) => setFromVal(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              handleApply();
+            }
+          }}
           className="w-40 h-8 text-sm cursor-pointer"
         />
       </div>
@@ -58,12 +62,25 @@ export function DateRangeFilter({ from, to, baseUrl }: DateRangeFilterProps) {
         <Input
           id="to-date"
           type="date"
-          defaultValue={to}
+          value={toVal}
           disabled={isPending}
-          onChange={(e) => handleToChange(e.target.value)}
+          onChange={(e) => setToVal(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              handleApply();
+            }
+          }}
           className="w-40 h-8 text-sm cursor-pointer"
         />
       </div>
+      <Button
+        size="sm"
+        onClick={handleApply}
+        disabled={isPending || (fromVal === from && toVal === to) || fromVal.length !== 10 || toVal.length !== 10}
+        className="h-8 px-3 text-xs ml-auto"
+      >
+        Apply
+      </Button>
     </div>
   );
 }

@@ -134,17 +134,21 @@ export function ClosingStockReportClient({
   const [isSaving, setIsSaving] = useState(false);
   const today = todayInIndia();
   const isPastDate = date < today;
+  const [dateVal, setDateVal] = useState(date);
 
   useEffect(() => {
     setCustomPrices(submittedStock?.customPrices ? submittedStock.customPrices : {});
     setSubmitted(!!submittedStock);
   }, [submittedStock]);
 
+  useEffect(() => {
+    setDateVal(date);
+  }, [date]);
 
-  const handleDateChange = (newDate: string) => {
-    if (newDate && newDate.length === 10) {
+  const handleApplyDate = () => {
+    if (dateVal && dateVal.length === 10) {
       startTransition(() => {
-        router.push(`/reports/closing-stock?date=${newDate}` as any);
+        router.push(`/reports/closing-stock?date=${dateVal}` as any);
       });
     }
   };
@@ -383,11 +387,24 @@ export function ClosingStockReportClient({
         <Input
           id="date-select"
           type="date"
-          defaultValue={date}
+          value={dateVal}
           disabled={isPending}
-          onChange={(e) => handleDateChange(e.target.value)}
+          onChange={(e) => setDateVal(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              handleApplyDate();
+            }
+          }}
           className="w-44 h-9 text-sm border-slate-200 shadow-none cursor-pointer"
         />
+        <Button
+          size="sm"
+          onClick={handleApplyDate}
+          disabled={isPending || dateVal === date || dateVal.length !== 10}
+          className="h-9 px-3 text-xs"
+        >
+          Apply
+        </Button>
       </div>
 
       {/* Main Stock Table */}
