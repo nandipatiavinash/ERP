@@ -108,12 +108,11 @@ const employeeUserLinkSchema = z.object({
   employee_id: z.string().uuid().optional(),
 });
 
-// SEC-15 / ISS-020: Explicit allowlist of valid module keys — prevents client from
-// passing arbitrary table names to saveMaster() / deactivateMaster().
+// SEC-15 / ISS-020: Explicit allowlist of valid module keys — must stay in sync
+// with the keys defined in src/lib/modules.ts. Prevents a client from passing
+// arbitrary table names to saveMaster() / deactivateMaster().
 const ALLOWED_MODULE_KEYS = new Set([
-  "looms", "fabric-types", "raw-materials", "employees", "customers",
-  "roto-colors", "roto-film-rolls", "roto-metallic-rolls",
-  "lamination-rolls", "offset-rolls",
+  "looms", "fabric-types", "raw-materials", "employees", "customers", "roto-colors",
 ]);
 
 function modulePermissionKey(moduleKey: string) {
@@ -1521,7 +1520,9 @@ export async function softDeleteStageProduction(formData: FormData) {
 }
 
 export async function saveJournalEntry(formData: FormData) {
-  const user = await requirePermission("sales.edit");
+  // API-05: Journal entry is an accounting function, not a sales function.
+  // Changed from "sales.edit" to "accounts.journal" for correct RBAC semantics.
+  const user = await requirePermission("accounts.journal");
   const journalNo = String(formData.get("journal_no") ?? "");
   const entryDate = String(formData.get("entry_date") ?? "");
   const rowsJson = String(formData.get("rows_json") ?? "");
