@@ -105,10 +105,7 @@ export default async function FinishingProductionPage() {
                       <TableCell className="text-right font-mono">{row.num_bags}</TableCell>
                       <TableCell className="text-right font-mono">{row.weight_kg}</TableCell>
                       <TableCell className="text-center">
-                        <form action={async (fd) => {
-                          "use server";
-                          await deleteFinishingBundle(row.id);
-                        }}>
+                        <form action={deleteFinishingBundle.bind(null, row.id)}>
                           <ConfirmSubmitButton
                             size="sm"
                             variant="destructive"

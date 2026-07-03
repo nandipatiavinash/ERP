@@ -111,10 +111,7 @@ export default async function OffsetPrintingProductionPage() {
                       <TableCell className="font-mono font-bold text-emerald-950">{row.roll_id}</TableCell>
                       <TableCell className="text-right font-mono">{row.weight_kg}</TableCell>
                       <TableCell className="text-center">
-                        <form action={async (fd) => {
-                          "use server";
-                          await deleteOffsetProduction(row.id);
-                        }}>
+                        <form action={deleteOffsetProduction.bind(null, row.id)}>
                           <ConfirmSubmitButton
                             size="sm"
                             variant="destructive"

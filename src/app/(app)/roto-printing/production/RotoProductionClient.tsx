@@ -96,9 +96,7 @@ export function RotoProductionClient({
                           <TableCell className="text-right font-mono">{row.weight_kg}</TableCell>
                           <TableCell className="text-right font-mono">{row.meters}</TableCell>
                           <TableCell className="text-center">
-                            <form action={async () => {
-                              await deleteRotoFilmProduction(row.id);
-                            }}>
+                            <form action={deleteRotoFilmProduction.bind(null, row.id)}>
                               <ConfirmSubmitButton
                                 size="sm"
                                 variant="destructive"
@@ -157,9 +155,7 @@ export function RotoProductionClient({
                           <TableCell className="text-right font-mono">{row.weight_kg}</TableCell>
                           <TableCell className="text-right font-mono">{row.meters}</TableCell>
                           <TableCell className="text-center">
-                            <form action={async () => {
-                                await deleteRotoMetallicProduction(row.id);
-                            }}>
+                            <form action={deleteRotoMetallicProduction.bind(null, row.id)}>
                               <ConfirmSubmitButton
                                 size="sm"
                                 variant="destructive"

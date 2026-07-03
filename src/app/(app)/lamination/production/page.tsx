@@ -105,10 +105,7 @@ export default async function LaminationProductionPage() {
                       <TableCell className="text-right font-mono">{row.weight_kg}</TableCell>
                       <TableCell className="text-right font-mono">{row.meters}</TableCell>
                       <TableCell className="text-center">
-                        <form action={async (fd) => {
-                          "use server";
-                          await deleteLaminationProduction(row.id);
-                        }}>
+                        <form action={deleteLaminationProduction.bind(null, row.id)}>
                           <ConfirmSubmitButton
                             size="sm"
                             variant="destructive"
