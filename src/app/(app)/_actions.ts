@@ -108,6 +108,14 @@ const employeeUserLinkSchema = z.object({
   employee_id: z.string().uuid().optional(),
 });
 
+// SEC-15 / ISS-020: Explicit allowlist of valid module keys — prevents client from
+// passing arbitrary table names to saveMaster() / deactivateMaster().
+const ALLOWED_MODULE_KEYS = new Set([
+  "looms", "fabric-types", "raw-materials", "employees", "customers",
+  "roto-colors", "roto-film-rolls", "roto-metallic-rolls",
+  "lamination-rolls", "offset-rolls",
+]);
+
 function modulePermissionKey(moduleKey: string) {
   return moduleKey.replaceAll("-", "_");
 }
@@ -152,6 +160,8 @@ function validateMasterPayload(moduleKey: string, payload: Record<string, unknow
 }
 
 export async function saveMaster(moduleKey: string, formData: FormData) {
+  // SEC-15 / ISS-020: validate moduleKey against allowlist before using it
+  if (!ALLOWED_MODULE_KEYS.has(moduleKey)) throw new Error("Invalid module key.");
   const id = String(formData.get("id") ?? "");
   const user = await requirePermission(`${modulePermissionKey(moduleKey)}.${id ? "edit" : "create"}`);
 
@@ -288,6 +298,8 @@ export async function saveMaster(moduleKey: string, formData: FormData) {
 }
 
 export async function deactivateMaster(moduleKey: string, formData: FormData) {
+  // SEC-15 / ISS-020: validate moduleKey against allowlist before using it
+  if (!ALLOWED_MODULE_KEYS.has(moduleKey)) throw new Error("Invalid module key.");
   const user = await requirePermission(`${modulePermissionKey(moduleKey)}.delete`);
 
   const config = modules[moduleKey];
@@ -658,6 +670,8 @@ export async function createErpUser(_: unknown, formData: FormData) {
   const authUserId = authData.user?.id;
   if (!authUserId) return { error: "Supabase did not return a user id." };
 
+  // SEC-01 / API-12: Do NOT store the plaintext password in public.users.
+  // Authentication is handled entirely by Supabase Auth (hashed).
   const { error: profileError } = await admin.from("users").upsert({
     id: authUserId,
     role_id: parsed.data.role_id,
@@ -665,7 +679,7 @@ export async function createErpUser(_: unknown, formData: FormData) {
     email: parsed.data.email,
     phone: parsed.data.phone ?? null,
     status: parsed.data.status,
-    password: parsed.data.password,
+    // password field intentionally omitted — stored hashed in Supabase Auth only
   } as any);
 
   if (profileError) {
@@ -720,14 +734,16 @@ export async function changeUserPassword(formData: FormData) {
     throw new Error("Failed to update password in Auth: " + authError.message);
   }
 
-  // 2. Update password in public.users profile
+  // SEC-01 / API-11: Do NOT write the plaintext password to public.users.
+  // Only update updated_by to record who changed the password.
   const { error: profileError } = await (admin
     .from("users") as any)
-    .update({ password: newPassword, updated_by: user.id })
+    .update({ updated_by: user.id })
     .eq("id", userId);
 
   if (profileError) {
-    throw new Error("Failed to update password in profile: " + profileError.message);
+    // Non-fatal — Auth password was already updated successfully
+    console.error("Failed to update updated_by on user profile:", profileError.message);
   }
 
   revalidatePath("/admin/credentials");
@@ -835,9 +851,18 @@ export async function saveRotoProduct(formData: FormData) {
 
   let imageUrl = String(formData.get("image_url") ?? "");
 
+  // FU-01 / FU-02 / FU-04 / SEC-07 / SEC-08 / SEC-09: validate file uploads
+  const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"]);
+  const ALLOWED_IMAGE_EXTS = new Set(["jpg", "jpeg", "png", "webp", "gif"]);
+  const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
+
   if (file && file.size > 0) {
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
+    if (file.size > MAX_FILE_SIZE) throw new Error("Image file must be 5 MB or smaller.");
+    if (!ALLOWED_IMAGE_TYPES.has(file.type)) throw new Error("Only JPEG, PNG, WebP, or GIF images are allowed.");
+    const fileExt = (file.name.split(".").pop() ?? "").toLowerCase();
+    if (!ALLOWED_IMAGE_EXTS.has(fileExt)) throw new Error("Invalid image file extension.");
+    // SEC-07: Use crypto.randomUUID() instead of Math.random() for filenames
+    const fileName = `${crypto.randomUUID()}.${fileExt}`;
     const filePath = `roto/${fileName}`;
 
     await adminSupabase.storage.createBucket("products", { public: true }).catch(() => {});
@@ -904,8 +929,11 @@ export async function saveRotoProduct(formData: FormData) {
     let colorImageUrl = String(formData.get(`existing_image_${colorId}`) ?? "");
 
     if (colorFile && colorFile.size > 0) {
-      const fileExt = colorFile.name.split('.').pop();
-      const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
+      if (colorFile.size > MAX_FILE_SIZE) throw new Error("Color image file must be 5 MB or smaller.");
+      if (!ALLOWED_IMAGE_TYPES.has(colorFile.type)) throw new Error("Only JPEG, PNG, WebP, or GIF images are allowed.");
+      const fileExt = (colorFile.name.split(".").pop() ?? "").toLowerCase();
+      if (!ALLOWED_IMAGE_EXTS.has(fileExt)) throw new Error("Invalid color image file extension.");
+      const fileName = `${crypto.randomUUID()}.${fileExt}`;
       const filePath = `roto/${rotoProductId}/${colorId}/${fileName}`;
 
       await adminSupabase.storage.createBucket("products", { public: true }).catch(() => {});
@@ -968,9 +996,17 @@ export async function saveOffsetProduct(formData: FormData) {
 
   let imageUrl = String(formData.get("image_url") ?? "");
 
+  // FU-01 / FU-02 / FU-04 / SEC-07: validate offset product image uploads
+  const ALLOWED_IMAGE_TYPES_OFF = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"]);
+  const ALLOWED_IMAGE_EXTS_OFF = new Set(["jpg", "jpeg", "png", "webp", "gif"]);
+  const MAX_FILE_SIZE_OFF = 5 * 1024 * 1024;
+
   if (file && file.size > 0) {
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${Math.random().toString(36).substring(2)}.${fileExt}`;
+    if (file.size > MAX_FILE_SIZE_OFF) throw new Error("Image file must be 5 MB or smaller.");
+    if (!ALLOWED_IMAGE_TYPES_OFF.has(file.type)) throw new Error("Only JPEG, PNG, WebP, or GIF images are allowed.");
+    const fileExt = (file.name.split(".").pop() ?? "").toLowerCase();
+    if (!ALLOWED_IMAGE_EXTS_OFF.has(fileExt)) throw new Error("Invalid image file extension.");
+    const fileName = `${crypto.randomUUID()}.${fileExt}`;
     const filePath = `offset/${fileName}`;
 
     await adminSupabase.storage.createBucket("products", { public: true }).catch(() => {});
@@ -1369,10 +1405,18 @@ export async function saveRawMaterialConsumption(formData: FormData) {
 }
 
 export async function softDeleteRawMaterialConsumption(formData: FormData) {
+  // AZ-03 / ISS-010 / SEC-14: requirePermission BEFORE any data fetch (TOCTOU fix).
+  // We call it with a broad consumption permission; if we need the exact department
+  // we refetch below. The important thing is the session is authenticated first.
   const id = String(formData.get("id") ?? "");
+  if (!id) throw new Error("Consumption ID is required.");
+
+  // Auth check first — before any DB read
+  await requirePermission("fabric.consumption");
+
   const supabase = await createClient();
 
-  // Fetch the entry first to verify its consumption date and get department
+  // Now fetch the entry to get department and validate the date
   const { data: entry, error: fetchError } = await (supabase
     .from("raw_material_consumptions") as any)
     .select("department, consumption_date")
@@ -1383,6 +1427,7 @@ export async function softDeleteRawMaterialConsumption(formData: FormData) {
     throw new Error("Consumption log not found.");
   }
 
+  // Verify the session also holds the department-specific permission
   const department = entry.department ?? "";
   const permissionMap: Record<string, string> = {
     fabric: "fabric.consumption",
@@ -1392,7 +1437,7 @@ export async function softDeleteRawMaterialConsumption(formData: FormData) {
     finishing: "finishing.consumption",
   };
   const permission = permissionMap[department] || "fabric.consumption";
-  const user = await requirePermission(permission);
+  await requirePermission(permission);
 
   if (entry.consumption_date !== todayInIndia()) {
     throw new Error("You can only delete consumption logs on the day they are created.");
@@ -1479,7 +1524,13 @@ export async function saveStageProduction(formData: FormData) {
 }
 
 export async function softDeleteStageProduction(formData: FormData) {
+  // AZ-03 / ISS-010 / SEC-14: requirePermission BEFORE any data fetch (TOCTOU fix).
   const id = String(formData.get("id") ?? "");
+  if (!id) throw new Error("Production entry ID is required.");
+
+  // Auth check first — before any DB read
+  await requirePermission("roto_printing.production");
+
   const supabase = await createClient();
 
   const { data: entry } = await (supabase
@@ -1488,6 +1539,7 @@ export async function softDeleteStageProduction(formData: FormData) {
     .eq("id", id)
     .maybeSingle();
 
+  // Verify the session also holds the stage-specific permission
   const stage = entry?.stage ?? "";
   const permissionMap: Record<string, string> = {
     roto_printing: "roto_printing.production",
@@ -1496,7 +1548,7 @@ export async function softDeleteStageProduction(formData: FormData) {
     finishing: "finishing.production",
   };
   const permission = permissionMap[stage] || "fabric.production";
-  const user = await requirePermission(permission);
+  await requirePermission(permission);
 
   const { error } = await (supabase
     .from("stage_production_entries") as any)
@@ -1683,7 +1735,15 @@ export async function softDeleteJournalEntryGroup(formData: FormData) {
 
 
 // --- Helper: generate next journal number ---
+// DB-02 / DB-03 / PERF-01: Use the DB RPC get_next_journal_no() (migration 035)
+// instead of fetching ALL journal rows and computing max in application code.
+// This eliminates the O(N) full-table scan and the race condition.
 async function generateNextJournalNo(supabase: any): Promise<string> {
+  const { data, error } = await supabase.rpc("get_next_journal_no");
+  if (!error && data) {
+    return String(data);
+  }
+  // Fallback to app-level computation only if RPC is unavailable
   const { data: dbJournals } = await supabase
     .from("accounts_journal")
     .select("journal_no")
@@ -2001,19 +2061,45 @@ export async function deleteSalesOrderCompletely(orderId: string) {
     }
   }
 
-  const { data: journalRows } = await (supabase
+  // SEC-10 / API-08 / ISS-015: Use separate chained .filter() calls instead of
+  // template-literal string interpolation in .or() to prevent query injection.
+  let journalQuery = (supabase
     .from("accounts_journal") as any)
     .select("journal_no")
-    .or(`description.like."%${orderData.order_number}%"${billNumber ? `,description.eq."${billNumber}",description.like."${billNumber} (%)"` : ""}`);
-  
-  const journalNos = (journalRows || []).map((r: any) => r.journal_no);
-  if (journalNos.length > 0) {
-    const { error: journalDelErr } = await (supabase
+    .ilike("description", `%${orderData.order_number}%`);
+  if (billNumber) {
+    const { data: billJournalRows } = await (supabase
       .from("accounts_journal") as any)
-      .delete()
-      .in("journal_no", journalNos);
-    if (journalDelErr) {
-      throw new Error("Failed to delete related journal entries: " + journalDelErr.message);
+      .select("journal_no")
+      .ilike("description", `%${billNumber}%`);
+    const extraNos = (billJournalRows || []).map((r: any) => r.journal_no);
+    const { data: orderJournalRows } = await journalQuery;
+    const journalRows = [
+      ...(orderJournalRows || []),
+      ...(billJournalRows || []),
+    ];
+    const journalNos = [...new Set(journalRows.map((r: any) => r.journal_no))];
+    if (journalNos.length > 0) {
+      const { error: journalDelErr } = await (supabase
+        .from("accounts_journal") as any)
+        .delete()
+        .in("journal_no", journalNos);
+      if (journalDelErr) {
+        throw new Error("Failed to delete related journal entries: " + journalDelErr.message);
+      }
+    }
+  } else {
+    const { data: journalRows } = await journalQuery;
+  
+    const journalNos = (journalRows || []).map((r: any) => r.journal_no);
+    if (journalNos.length > 0) {
+      const { error: journalDelErr } = await (supabase
+        .from("accounts_journal") as any)
+        .delete()
+        .in("journal_no", journalNos);
+      if (journalDelErr) {
+        throw new Error("Failed to delete related journal entries: " + journalDelErr.message);
+      }
     }
   }
 
@@ -2419,7 +2505,9 @@ export async function deleteMaterialSalesEntry(formData: FormData) {
 }
 
 export async function clearSystemTransactions() {
-  const user = await requirePermission("users.view");
+  // SEC-04 / AZ-01 / ISS-004: This is a catastrophic mass-delete. Require admin-only.
+  // Changed from "users.view" (any operator) to "admin.credentials" (admin only).
+  const user = await requirePermission("admin.credentials");
 
   const supabase = await createClient();
 
@@ -3116,6 +3204,12 @@ export async function consumeFabricRoll(rollId: string, stage: string) {
 }
 
 export async function revertFabricRollConsumption(rollId: string) {
+  // AZ-03 / ISS-010 / SEC-14: requirePermission BEFORE any data fetch (TOCTOU fix).
+  if (!rollId) throw new Error("Roll ID is required.");
+
+  // Auth check first — before any DB read
+  await requirePermission("fabric.consumption");
+
   const supabase = await createClient();
   const { data: roll } = await (supabase.from("fabric_rolls") as any).select("current_stage").eq("id", rollId).maybeSingle();
   const stage = (roll as any)?.current_stage ?? "loom";

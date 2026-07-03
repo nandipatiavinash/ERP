@@ -52,6 +52,12 @@ export async function resetPassword(_: unknown, formData: FormData) {
   return { success: "Password reset email sent." };
 }
 
+// ISS-009 / AZ-02 / SEC-22: Require a valid authenticated session before
+// invalidating paths. Without this, any unauthenticated caller could hammer
+// the cache and cause a denial-of-service via repeated revalidations.
 export async function revalidateApp(paths: string[]) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorized.");
   for (const path of paths) revalidatePath(path);
 }
