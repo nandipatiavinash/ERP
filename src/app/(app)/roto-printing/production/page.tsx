@@ -6,6 +6,12 @@ import { RotoProductionClient } from "./RotoProductionClient";
 export default async function RotoPrintingProductionPage() {
   await requirePermission("roto_printing.production");
   const supabase = await createClient();
+  const today = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
 
   const [
     { data: activeProducts },
@@ -19,8 +25,8 @@ export default async function RotoPrintingProductionPage() {
     supabase.from("roto_colors").select("id, color_name").eq("status", "active").order("color_name"),
     supabase.from("customers").select("id, customer_name, alias").is("deleted_at", null).order("customer_name"),
     supabase.from("roto_film_rolls").select("id, roll_id, weight_kg, meters").eq("status", "available").is("deleted_at", null).order("created_at", { ascending: false }),
-    supabase.from("roto_film_rolls").select("*, roto_products(brand), roto_colors(color_name)").is("deleted_at", null).order("created_at", { ascending: false }).limit(30),
-    supabase.from("roto_metallic_rolls").select("*, roto_film_rolls(roll_id)").is("deleted_at", null).order("created_at", { ascending: false }).limit(30),
+    supabase.from("roto_film_rolls").select("*, roto_products(brand), roto_colors(color_name)").is("deleted_at", null).eq("entry_date", today).order("created_at", { ascending: false }),
+    supabase.from("roto_metallic_rolls").select("*, roto_film_rolls(roll_id)").is("deleted_at", null).eq("entry_date", today).order("created_at", { ascending: false }),
   ]);
 
   const rotoProducts = (activeProducts ?? []) as any[];

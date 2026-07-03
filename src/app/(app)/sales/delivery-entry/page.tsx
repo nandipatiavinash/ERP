@@ -6,13 +6,14 @@ import { DeliveryEntryWorkspace } from "./DeliveryEntryWorkspace";
 export default async function DeliveryEntryPage({
   searchParams,
 }: {
-  searchParams: Promise<{ date?: string }>;
+  searchParams: Promise<{ from?: string; to?: string }>;
 }) {
   await requirePermission("sales.delivery_entry");
   const permissions = await getSessionPermissions();
   const supabase = await createClient();
   const params = await searchParams;
-  const date = params.date || todayInIndia();
+  const from = params.from || todayInIndia();
+  const to = params.to || todayInIndia();
 
   // 1. Fetch draft orders
   const { data: draftOrders, error: draftError } = await supabase
@@ -25,12 +26,13 @@ export default async function DeliveryEntryPage({
 
   if (draftError) throw new Error(draftError.message);
 
-  // 2. Fetch confirmed orders for the selected date
+  // 2. Fetch confirmed orders for the selected date range
   const { data: confirmedOrders, error: confirmedError } = await supabase
     .from("sales_orders")
     .select("*, customers(*), sales_order_items(*)")
     .eq("status", "confirmed")
-    .eq("order_date", date)
+    .gte("order_date", from)
+    .lte("order_date", to)
     .is("deleted_at", null)
     .order("order_date", { ascending: false })
     .order("order_number", { ascending: true });
@@ -116,7 +118,8 @@ export default async function DeliveryEntryPage({
         rotoProducts={(rotoProducts.data ?? []) as any[]}
         offsetProducts={(offsetProducts.data ?? []) as any[]}
         rolls={rolls}
-        date={date}
+        from={from}
+        to={to}
         permissions={permissions}
       />
     </div>

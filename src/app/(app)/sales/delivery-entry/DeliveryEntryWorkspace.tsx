@@ -12,7 +12,7 @@ import { SalesPrintView } from "@/components/app/sales-print-view";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { DateFilter } from "@/components/app/date-filter";
+import { DateRangeFilter } from "@/components/app/date-range-filter";
 import { EmptyState } from "@/components/ui/empty-state";
 import { todayInIndia } from "@/lib/utils";
 
@@ -71,7 +71,8 @@ interface DeliveryEntryWorkspaceProps {
   rotoProducts: { id: string; brand: string; width: number; height: number }[];
   offsetProducts: { id: string; brand: string; width: number; height: number }[];
   rolls: Roll[];
-  date?: string;
+  from?: string;
+  to?: string;
   initialOrderId?: string;
   singleViewMode?: boolean;
   permissions?: string[];
@@ -96,7 +97,8 @@ export function DeliveryEntryWorkspace({
   rotoProducts,
   offsetProducts,
   rolls,
-  date = todayInIndia(),
+  from = todayInIndia(),
+  to = todayInIndia(),
   initialOrderId,
   singleViewMode = false,
   permissions = [],
@@ -933,14 +935,14 @@ export function DeliveryEntryWorkspace({
                 <p className="text-sm text-muted-foreground mt-1">Confirmed dispatches for the selected date.</p>
               </div>
               {permissions?.includes("reports.filter_by_date") && (
-                <DateFilter date={date} baseUrl="/sales/delivery-entry?tab=completed" />
+                <DateRangeFilter from={from} to={to} baseUrl="/sales/delivery-entry?tab=completed" />
               )}
             </CardHeader>
             <CardContent>
               {confirmedOrders.length === 0 ? (
                 <EmptyState
-                  title="No confirmed deliveries today"
-                  description="Deliveries confirmed on this date will appear here."
+                  title="No confirmed deliveries found"
+                  description="Deliveries confirmed within this date range will appear here."
                 />
               ) : (
                 <div className="overflow-x-auto rounded-lg border border-slate-200">

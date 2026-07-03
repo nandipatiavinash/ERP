@@ -12,6 +12,12 @@ import { formatDate } from "@/lib/utils";
 export default async function LaminationProductionPage() {
   await requirePermission("lamination.production");
   const supabase = await createClient();
+  const today = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
 
   const [
     { data: activeFabricTypes },
@@ -35,8 +41,8 @@ export default async function LaminationProductionPage() {
       .from("lamination_rolls")
       .select("*, fabric_types(fabric_name), roto_metallic_rolls(roll_id)")
       .is("deleted_at", null)
-      .order("created_at", { ascending: false })
-      .limit(50),
+      .eq("entry_date", today)
+      .order("created_at", { ascending: false }),
     supabase
       .from("fabric_rolls")
       .select("fabric_type_id")

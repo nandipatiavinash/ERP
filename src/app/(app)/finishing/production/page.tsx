@@ -12,6 +12,12 @@ import { formatDate } from "@/lib/utils";
 export default async function FinishingProductionPage() {
   await requirePermission("finishing.production");
   const supabase = await createClient();
+  const today = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Kolkata",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
 
   const [
     { data: activeLamRolls },
@@ -35,8 +41,8 @@ export default async function FinishingProductionPage() {
       .from("finishing_bundles")
       .select("*, lamination_rolls(roll_id), fabric_types(fabric_name)")
       .is("deleted_at", null)
-      .order("created_at", { ascending: false })
-      .limit(50),
+      .eq("entry_date", today)
+      .order("created_at", { ascending: false }),
     supabase
       .from("fabric_rolls")
       .select("fabric_type_id")
