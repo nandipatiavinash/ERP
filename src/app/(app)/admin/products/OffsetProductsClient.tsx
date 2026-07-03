@@ -36,15 +36,11 @@ interface OffsetProduct {
 interface OffsetProductsClientProps {
   offsetData: OffsetProduct[];
   clientList: Client[];
-  productPage: number;
-  offsetTotal: number;
 }
 
 export function OffsetProductsClient({
   offsetData,
   clientList,
-  productPage,
-  offsetTotal,
 }: OffsetProductsClientProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -53,7 +49,6 @@ export function OffsetProductsClient({
   const [editingProduct, setEditingProduct] = useState<OffsetProduct | null>(null);
   const [previewImage, setPreviewImage] = useState<{ src: string; title: string } | null>(null);
 
-  const totalPages = Math.max(Math.ceil(offsetTotal / 10), 1);
 
   // Handle Add Product Submit
   const handleAddSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -261,59 +256,9 @@ export function OffsetProductsClient({
             </div>
           )}
 
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="mt-4 flex flex-col gap-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                Showing {offsetData.length} of {offsetTotal} records
-              </div>
-              <div className="flex items-center gap-1.5">
-                {productPage <= 1 ? (
-                  <Button variant="outline" size="sm" disabled>Previous</Button>
-                ) : (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => router.push(`/admin/products?tab=offset&page=${productPage - 1}` as any)}
-                  >
-                    Previous
-                  </Button>
-                )}
-
-                {Array.from({ length: totalPages }, (_, i) => {
-                  const pageNum = i + 1;
-                  const isCurrent = pageNum === productPage;
-                  return (
-                    <Button
-                      key={pageNum}
-                      type="button"
-                      variant={isCurrent ? "default" : "outline"}
-                      size="sm"
-                      className={isCurrent ? "pointer-events-none font-bold" : ""}
-                      disabled={isCurrent}
-                      onClick={() => router.push(`/admin/products?tab=offset&page=${pageNum}` as any)}
-                    >
-                      {pageNum}
-                    </Button>
-                  );
-                })}
-
-                {productPage >= totalPages ? (
-                  <Button variant="outline" size="sm" disabled>Next</Button>
-                ) : (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => router.push(`/admin/products?tab=offset&page=${productPage + 1}` as any)}
-                  >
-                    Next
-                  </Button>
-                )}
-              </div>
-            </div>
-          )}
+          <div className="mt-4 text-sm text-muted-foreground">
+            Showing {offsetData.length} records
+          </div>
         </CardContent>
       </Card>
 

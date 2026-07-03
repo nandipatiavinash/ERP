@@ -92,7 +92,6 @@ export default async function ProductsAdminPage({ searchParams }: { searchParams
   if (tab === "fabric") {
     const result = await fetchMasterRows({ supabase, config: modules["fabric-types"], select: "id, fabric_name, description, status", params, defaultSort: "fabric_name" });
     fabricData = result.rows;
-    fabricTotal = result.totalRows;
   } else if (tab === "roto") {
     const { data: colorsData } = await supabase
       .from("roto_colors")
@@ -101,7 +100,7 @@ export default async function ProductsAdminPage({ searchParams }: { searchParams
       .order("color_name");
     colorsList = colorsData ?? [];
 
-    const { data, count } = await supabase
+    const { data } = await supabase
       .from("roto_products")
       .select(`
         id, brand, width, height, num_cylinders, image_url, status, customer_id, 
@@ -112,17 +111,15 @@ export default async function ProductsAdminPage({ searchParams }: { searchParams
           image_url,
           roto_colors(id, color_name)
         )
-      `, { count: "exact" })
+      `)
       .order("brand", { ascending: true });
     rotoData = data ?? [];
-    rotoTotal = count ?? 0;
   } else if (tab === "offset") {
-    const { data, count } = await supabase
+    const { data } = await supabase
       .from("offset_products")
-      .select("id, brand, width, height, image_url, status, customer_id, customers:customer_id(customer_name, alias)", { count: "exact" })
+      .select("id, brand, width, height, image_url, status, customer_id, customers:customer_id(customer_name, alias)")
       .order("brand", { ascending: true });
     offsetData = data ?? [];
-    offsetTotal = count ?? 0;
   }
 
   const tabClass = (key: string) =>
@@ -165,7 +162,6 @@ export default async function ProductsAdminPage({ searchParams }: { searchParams
           rotoData={rotoData}
           clientList={clientList}
           colorsList={colorsList}
-          rotoTotal={rotoTotal}
         />
       )}
 
@@ -173,7 +169,6 @@ export default async function ProductsAdminPage({ searchParams }: { searchParams
         <OffsetProductsClient
           offsetData={offsetData}
           clientList={clientList}
-          offsetTotal={offsetTotal}
         />
       )}
     </>

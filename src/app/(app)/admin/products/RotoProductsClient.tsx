@@ -52,16 +52,12 @@ interface RotoProductsClientProps {
   rotoData: RotoProduct[];
   clientList: Client[];
   colorsList: Color[];
-  productPage: number;
-  rotoTotal: number;
 }
 
 export function RotoProductsClient({
   rotoData,
   clientList,
   colorsList,
-  productPage,
-  rotoTotal,
 }: RotoProductsClientProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -78,8 +74,6 @@ export function RotoProductsClient({
   // Preview Image Modal state
   const [previewImage, setPreviewImage] = useState<{ src: string; title: string } | null>(null);
 
-  // Pagination helper
-  const totalPages = Math.max(Math.ceil(rotoTotal / 10), 1);
 
   // Add color to Add Form list
   const handleAddColorToAddForm = () => {
@@ -398,59 +392,9 @@ export function RotoProductsClient({
             </div>
           )}
 
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="mt-4 flex flex-col gap-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                Showing {rotoData.length} of {rotoTotal} records
-              </div>
-              <div className="flex items-center gap-1.5">
-                {productPage <= 1 ? (
-                  <Button variant="outline" size="sm" disabled>Previous</Button>
-                ) : (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => router.push(`/admin/products?tab=roto&page=${productPage - 1}` as any)}
-                  >
-                    Previous
-                  </Button>
-                )}
-
-                {Array.from({ length: totalPages }, (_, i) => {
-                  const pageNum = i + 1;
-                  const isCurrent = pageNum === productPage;
-                  return (
-                    <Button
-                      key={pageNum}
-                      type="button"
-                      variant={isCurrent ? "default" : "outline"}
-                      size="sm"
-                      className={isCurrent ? "pointer-events-none font-bold" : ""}
-                      disabled={isCurrent}
-                      onClick={() => router.push(`/admin/products?tab=roto&page=${pageNum}` as any)}
-                    >
-                      {pageNum}
-                    </Button>
-                  );
-                })}
-
-                {productPage >= totalPages ? (
-                  <Button variant="outline" size="sm" disabled>Next</Button>
-                ) : (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => router.push(`/admin/products?tab=roto&page=${productPage + 1}` as any)}
-                  >
-                    Next
-                  </Button>
-                )}
-              </div>
-            </div>
-          )}
+          <div className="mt-4 text-sm text-muted-foreground">
+            Showing {rotoData.length} records
+          </div>
         </CardContent>
       </Card>
 
