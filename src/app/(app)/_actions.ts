@@ -598,10 +598,10 @@ export async function deleteRawMaterialPurchase(purchaseId: string) {
 
   const supabase = await createClient();
 
-  // Fetch the purchase to get the bill_number for journal cleanup
+  // Fetch the purchase to get the details for journal cleanup
   const { data: purchase, error: fetchError } = await (supabase
     .from("raw_material_purchases") as any)
-    .select("id, bill_number, supplier_name")
+    .select("id, bill_number, supplier_name, purchase_date")
     .eq("id", purchaseId)
     .single();
 
@@ -609,7 +609,15 @@ export async function deleteRawMaterialPurchase(purchaseId: string) {
     throw new Error("Purchase entry not found.");
   }
 
-  // Hard-delete the purchase row — DB trigger (apply_raw_material_purchase) reverts stock
+  // 1. Soft-delete first to trigger the plpgsql stock updates trigger (apply_raw_material_purchase)
+  const { error: softDeleteError } = await (supabase
+    .from("raw_material_purchases") as any)
+    .update({ deleted_at: new Date().toISOString() } as any)
+    .eq("id", purchaseId);
+
+  if (softDeleteError) throw new Error(softDeleteError.message);
+
+  // 2. Hard-delete the purchase row
   const { error: deleteError } = await (supabase
     .from("raw_material_purchases") as any)
     .delete()
@@ -621,11 +629,15 @@ export async function deleteRawMaterialPurchase(purchaseId: string) {
   if (purchase.bill_number) {
     const { data: journalRows } = await (supabase
       .from("accounts_journal") as any)
-      .select("journal_no")
-      .or(`description.like."%${purchase.bill_number}%"`)
+      .select("journal_no, account_name")
+      .eq("entry_date", purchase.purchase_date)
+      .eq("description", purchase.bill_number)
       .is("deleted_at", null);
 
-    const journalNos = [...new Set((journalRows || []).map((r: any) => r.journal_no))];
+    const filteredRows = (journalRows || []).filter((r: any) =>
+      r.account_name?.toLowerCase().trim() === purchase.supplier_name?.toLowerCase().trim()
+    );
+    const journalNos = [...new Set(filteredRows.map((r: any) => r.journal_no))];
     if (journalNos.length > 0) {
       await (supabase
         .from("accounts_journal") as any)
@@ -2032,7 +2044,7 @@ export async function deleteSalesOrderCompletely(orderId: string) {
 
   const { data: order, error: orderError } = await (supabase
     .from("sales_orders") as any)
-    .select("id, bill_number, sales_order_items(id, selected_roll_ids)")
+    .select("id, order_number, order_date, bill_number, customers(customer_name), sales_order_items(id, selected_roll_ids)")
     .eq("id", orderId)
     .single();
 
@@ -2042,6 +2054,8 @@ export async function deleteSalesOrderCompletely(orderId: string) {
 
   const orderData = order as any;
   const billNumber = orderData.bill_number;
+  const orderDate = orderData.order_date;
+  const customerName = orderData.customers?.customer_name ?? "";
   const items = orderData.sales_order_items || [];
 
   const rollIds: string[] = [];
@@ -2070,13 +2084,19 @@ export async function deleteSalesOrderCompletely(orderId: string) {
   if (billNumber) {
     const { data: billJournalRows } = await (supabase
       .from("accounts_journal") as any)
-      .select("journal_no")
-      .ilike("description", `%${billNumber}%`);
-    const extraNos = (billJournalRows || []).map((r: any) => r.journal_no);
+      .select("journal_no, account_name")
+      .eq("entry_date", orderDate)
+      .eq("description", billNumber)
+      .is("deleted_at", null);
+    
+    const filteredBillRows = (billJournalRows || []).filter((r: any) =>
+      r.account_name?.toLowerCase().trim() === customerName.toLowerCase().trim()
+    );
+    const extraNos = filteredBillRows.map((r: any) => r.journal_no);
     const { data: orderJournalRows } = await journalQuery;
     const journalRows = [
       ...(orderJournalRows || []),
-      ...(billJournalRows || []),
+      ...filteredBillRows,
     ];
     const journalNos = [...new Set(journalRows.map((r: any) => r.journal_no))];
     if (journalNos.length > 0) {
