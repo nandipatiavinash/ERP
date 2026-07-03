@@ -1,14 +1,10 @@
--- DB-11: Add UNIQUE constraint on accounts_journal.journal_no
--- This enforces at DB level that no two journal entries can share the same
--- journal_no, closing the race condition window that existed when the number
--- was generated purely in application code.
--- NOTE: Run only after verifying there are no existing duplicates:
---   SELECT journal_no, COUNT(*) FROM accounts_journal GROUP BY journal_no HAVING COUNT(*) > 1;
-CREATE UNIQUE INDEX IF NOT EXISTS accounts_journal_journal_no_unique
-  ON public.accounts_journal (journal_no)
-  WHERE deleted_at IS NULL;
+-- ============================================================
+-- Migration 004: Performance indexes only
+-- (UNIQUE index on journal_no removed -- journal entries
+--  legitimately have multiple rows per journal_no: debit + credit pairs)
+-- ============================================================
 
--- DB-13 / Missing indexes: Add indexes that the audit identified as missing
+-- DB-13 / Missing indexes: Add indexes identified in audit report
 -- for common query patterns (ledger lookups, date-range reports, filtering).
 
 -- accounts_journal: entry_date (date-range reports)
