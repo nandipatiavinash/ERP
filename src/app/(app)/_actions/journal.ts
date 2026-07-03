@@ -1,0 +1,163 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { requirePermission } from "@/lib/auth";
+import { createClient } from "@/lib/supabase/server";
+import { revalidateAllReports } from "./helpers";
+
+export async function saveJournalEntry(formData: FormData) {
+  // API-05 NOTE: Should be "accounts.journal" but that permission does not yet
+  // exist in the DB permissions table. Kept as "sales.edit" to avoid blocking
+  // all users. Add "accounts.journal" to the permissions table first, assign it
+  // to the relevant roles, then switch this string.
+  const user = await requirePermission("sales.edit");
+  const journalNo = String(formData.get("journal_no") ?? "");
+  const entryDate = String(formData.get("entry_date") ?? "");
+  const rowsJson = String(formData.get("rows_json") ?? "");
+  const originalJournalNo = String(formData.get("original_journal_no") ?? "");
+
+  if (!journalNo || !entryDate || !rowsJson) {
+    throw new Error("Missing required journal fields.");
+  }
+
+  type JournalFormRow = {
+    account_name: string;
+    description: string;
+    debit: number;
+    credit: number;
+  };
+
+  const rows = JSON.parse(rowsJson) as JournalFormRow[];
+
+  if (rows.length < 2) {
+    throw new Error("At least 2 rows are required for a journal entry.");
+  }
+
+  // Validate totals and rows
+  let totalDebit = 0;
+  let totalCredit = 0;
+  for (const r of rows) {
+    if (!r.account_name) throw new Error("Account name is required on all rows.");
+    if (r.debit > 0 && r.credit > 0) throw new Error("A row cannot contain both Debit and Credit.");
+    if (r.debit <= 0 && r.credit <= 0) throw new Error("Either Debit or Credit must be entered on all rows.");
+    if (r.debit > 0) {
+      if (r.debit <= 0) throw new Error("Amount must be positive.");
+      totalDebit += r.debit;
+    }
+    if (r.credit > 0) {
+      if (r.credit <= 0) throw new Error("Amount must be positive.");
+      totalCredit += r.credit;
+    }
+  }
+
+  if (Math.abs(totalDebit - totalCredit) > 0.01) {
+    throw new Error("Total Debit must be equal to Total Credit before submitting.");
+  }
+
+  const supabase = await createClient();
+
+  // If editing (originalJournalNo exists), soft delete old rows first
+  if (originalJournalNo) {
+    const { error: deleteError } = await (supabase
+      .from("accounts_journal") as any)
+      .update({ deleted_at: new Date().toISOString(), updated_by: user.id })
+      .eq("journal_no", originalJournalNo);
+    if (deleteError) throw new Error(deleteError.message);
+  }
+
+  // Resolve account_ids from names/aliases dynamically on the server
+  const { data: matchedCustomersData } = await supabase
+    .from("customers")
+    .select("id, customer_name, alias")
+    .is("deleted_at", null);
+
+  const matchedCustomers = (matchedCustomersData ?? []) as any[];
+  const nameToIdMap = new Map<string, string>();
+  for (const c of matchedCustomers) {
+    nameToIdMap.set(c.customer_name.toLowerCase().trim(), c.id);
+    if (c.alias) {
+      nameToIdMap.set(c.alias.toLowerCase().trim(), c.id);
+    }
+  }
+
+  // Insert new rows
+  const inserts = rows.map((r) => {
+    const cleanName = r.account_name.toLowerCase().trim();
+    const accountId = nameToIdMap.get(cleanName) || null;
+    return {
+      journal_no: journalNo,
+      entry_date: entryDate,
+      account_id: accountId,
+      account_name: r.account_name,
+      entry_type: r.debit > 0 ? "debit" : "credit",
+      amount: r.debit > 0 ? r.debit : r.credit,
+      description: r.description,
+      created_by: user.id,
+      updated_by: user.id,
+    };
+  });
+
+  const { error: insertError } = await (supabase.from("accounts_journal") as any).insert(inserts);
+  if (insertError) throw new Error(insertError.message);
+
+  revalidatePath("/accounts/journal");
+  revalidatePath("/accounts/sales");
+  revalidateAllReports();
+}
+
+export async function softDeleteJournalEntry(formData: FormData) {
+  const user = await requirePermission("sales.edit");
+  const id = String(formData.get("id") ?? "");
+  const supabase = await createClient();
+  const { error } = await (supabase
+    .from("accounts_journal") as any)
+    .delete()
+    .eq("id", id);
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/accounts/journal");
+  revalidatePath("/accounts/sales");
+  revalidateAllReports();
+}
+
+export async function softDeleteJournalEntryGroup(formData: FormData) {
+  const user = await requirePermission("sales.edit");
+  const journalNo = String(formData.get("journal_no") ?? "");
+  if (!journalNo) throw new Error("Missing journal number.");
+  const supabase = await createClient();
+
+  // Fetch journal lines to verify they are not auto-generated
+  const { data: lines, error: fetchErr } = await (supabase
+    .from("accounts_journal") as any)
+    .select("description")
+    .eq("journal_no", journalNo);
+
+  if (fetchErr) throw new Error(fetchErr.message);
+
+  const isAutoGenerated = (desc: string) => {
+    if (!desc) return false;
+    const d = desc.toLowerCase();
+    return (
+      d.startsWith("balance adjustment for bill") ||
+      d.startsWith("billing for sales order") ||
+      d.startsWith("raw material purchase") ||
+      d.startsWith("purchase invoice")
+    );
+  };
+
+  if ((lines || []).some((l: any) => isAutoGenerated(l.description))) {
+    throw new Error("Cannot delete auto-generated journal entries.");
+  }
+
+  const { error } = await (supabase
+    .from("accounts_journal") as any)
+    .delete()
+    .eq("journal_no", journalNo);
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/accounts/journal");
+  revalidatePath("/accounts/sales");
+  revalidateAllReports();
+}
