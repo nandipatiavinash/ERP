@@ -103,7 +103,7 @@ export async function softDeleteRawMaterialConsumption(formData: FormData) {
     finishing: "finishing.consumption",
   };
   const permission = permissionMap[department] || "fabric.consumption";
-  await requirePermission(permission);
+  const user = await requirePermission(permission);
 
   if (entry.consumption_date !== todayInIndia()) {
     throw new Error("You can only delete consumption logs on the day they are created.");
@@ -111,10 +111,11 @@ export async function softDeleteRawMaterialConsumption(formData: FormData) {
 
   const { error } = await (supabase
     .from("raw_material_consumptions") as any)
-    .delete()
+    .update({ deleted_at: new Date().toISOString(), updated_by: user.id } as any)
     .eq("id", id);
 
   if (error) throw new Error(error.message);
+
 
   revalidatePath("/fabric/consumption");
   revalidatePath("/roto-printing/consumption");

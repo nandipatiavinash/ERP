@@ -42,26 +42,35 @@ export async function createSalesOrder(formData: FormData) {
 
   const supabase = await createClient();
 
-  const dateParts = orderDate.split("-");
-  const mmDd = `${dateParts[1]}-${dateParts[2]}`;
-  const { data: existing } = await (supabase
-    .from("sales_orders") as any)
-    .select("order_number")
-    .eq("order_date", orderDate)
-    .is("deleted_at", null);
-  
-  let maxSeq = 0;
-  for (const order of (existing || []) as any[]) {
-    const num = order.order_number;
-    if (num.startsWith(`${mmDd}-`)) {
-      const parts = num.split("-");
-      const seq = Number(parts[2]);
-      if (!isNaN(seq) && seq > maxSeq) {
-        maxSeq = seq;
+  let orderNumber = "";
+  const { data: orderNumberData, error: orderNumberErr } = await (supabase as any).rpc("get_next_order_no", { p_order_date: orderDate });
+  if (!orderNumberErr && orderNumberData) {
+    orderNumber = String(orderNumberData);
+
+  } else {
+    // Fallback if RPC is not loaded yet in DB
+    const dateParts = orderDate.split("-");
+    const mmDd = `${dateParts[1]}-${dateParts[2]}`;
+    const { data: existing } = await (supabase
+      .from("sales_orders") as any)
+      .select("order_number")
+      .eq("order_date", orderDate)
+      .is("deleted_at", null);
+    
+    let maxSeq = 0;
+    for (const order of (existing || []) as any[]) {
+      const num = order.order_number;
+      if (num.startsWith(`${mmDd}-`)) {
+        const parts = num.split("-");
+        const seq = Number(parts[2]);
+        if (!isNaN(seq) && seq > maxSeq) {
+          maxSeq = seq;
+        }
       }
     }
+    orderNumber = `${mmDd}-${String(maxSeq + 1).padStart(2, "0")}`;
   }
-  const orderNumber = `${mmDd}-${String(maxSeq + 1).padStart(2, "0")}`;
+
 
   const { data: orderHeader, error: headerError } = await (supabase
     .from("sales_orders") as any)
@@ -1032,6 +1041,12 @@ export async function deleteMaterialSalesEntry(formData: FormData) {
 }
 
 async function generateNextDispatchNumber(supabase: any, deliveryDate: string): Promise<string> {
+  const { data: dispatchNoData, error: dispatchNoErr } = await (supabase as any).rpc("get_next_dispatch_no", { p_delivery_date: deliveryDate });
+  if (!dispatchNoErr && dispatchNoData) {
+    return String(dispatchNoData);
+  }
+
+  // Fallback
   const dateParts = deliveryDate.split("-");
   const mmDd = `${dateParts[1]}-${dateParts[2]}`;
   const { data: existing } = await supabase
@@ -1051,6 +1066,7 @@ async function generateNextDispatchNumber(supabase: any, deliveryDate: string): 
   }
   return `DP-${mmDd}-${String(maxSeq + 1).padStart(2, "0")}`;
 }
+
 
 export async function confirmMultipleSalesDeliveries(
   selectedItemIds: string[],

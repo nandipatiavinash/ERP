@@ -76,8 +76,9 @@ export async function deactivateMaster(moduleKey: string, formData: FormData) {
   const table = config.table as any;
   const { error } = await (supabase
     .from(table) as any)
-    .delete()
+    .update({ deleted_at: new Date().toISOString(), updated_by: user.id } as any)
     .eq("id", id);
   if (error) throw new Error(error.message);
   revalidatePath(config.path);
 }
+

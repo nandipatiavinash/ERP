@@ -129,7 +129,8 @@ export function assertValid<T>(schema: z.ZodType<T>, value: unknown) {
 
 export async function assertAttendanceAccess(supabase: any, user: AppUser, employeeId: string) {
   const permissions = await getSessionPermissions(user);
-  if (permissions.includes("employees.view") || permissions.includes("users.view")) return;
+  if (user.roles?.name === "admin" || permissions.includes("employees.edit")) return;
+
 
   const { data, error } = await (supabase
     .from("employees")
