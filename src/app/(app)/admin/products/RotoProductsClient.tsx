@@ -61,6 +61,9 @@ export function RotoProductsClient({
 }: RotoProductsClientProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const [currentPage, setCurrentPage] = useState(1);
+  const totalPages = Math.max(Math.ceil(rotoData.length / 10), 1);
+  const paginatedData = rotoData.slice((currentPage - 1) * 10, currentPage * 10);
 
   // State for Add Product form
   const [addColors, setAddColors] = useState<{ id: string; name: string }[]>([]);
@@ -318,7 +321,7 @@ export function RotoProductsClient({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {rotoData.map((row) => (
+                  {paginatedData.map((row) => (
                     <TableRow key={row.id} className="hover:bg-slate-50/30">
                       <TableCell>
                         {row.image_url ? (
@@ -392,9 +395,52 @@ export function RotoProductsClient({
             </div>
           )}
 
-          <div className="mt-4 text-sm text-muted-foreground">
-            Showing {rotoData.length} records
-          </div>
+          {totalPages > 1 && (
+            <div className="mt-4 flex flex-col gap-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                Showing {paginatedData.length} of {rotoData.length} records
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={currentPage <= 1}
+                  onClick={() => setCurrentPage((p) => p - 1)}
+                >
+                  Previous
+                </Button>
+
+                {Array.from({ length: totalPages }, (_, i) => {
+                  const pageNum = i + 1;
+                  const isCurrent = pageNum === currentPage;
+                  return (
+                    <Button
+                      key={pageNum}
+                      type="button"
+                      variant={isCurrent ? "default" : "outline"}
+                      size="sm"
+                      className={isCurrent ? "pointer-events-none font-bold" : ""}
+                      disabled={isCurrent}
+                      onClick={() => setCurrentPage(pageNum)}
+                    >
+                      {pageNum}
+                    </Button>
+                  );
+                })}
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={currentPage >= totalPages}
+                  onClick={() => setCurrentPage((p) => p + 1)}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 

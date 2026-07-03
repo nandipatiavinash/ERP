@@ -173,6 +173,15 @@ export function MasterPage({
   direction?: "asc" | "desc";
   queryParams?: Record<string, string | undefined>;
 }) {
+  const [currentPage, setCurrentPage] = useState(1);
+  const [lastSearch, setLastSearch] = useState(search);
+
+  // Reset page if search changes
+  if (search !== lastSearch) {
+    setLastSearch(search);
+    setCurrentPage(1);
+  }
+
   const filteredRows = rows
     .filter((row) => matchesSearch(row, config.searchColumns, search))
     .sort((a, b) => {
@@ -181,6 +190,9 @@ export function MasterPage({
       const right = String(b[sort] ?? "");
       return direction === "asc" ? left.localeCompare(right) : right.localeCompare(left);
     });
+
+  const totalPages = Math.max(Math.ceil(filteredRows.length / 10), 1);
+  const paginatedRows = filteredRows.slice((currentPage - 1) * 10, currentPage * 10);
 
   const query = (nextSort = sort, nextDirection = direction) => {
     const params = new URLSearchParams();
@@ -235,7 +247,7 @@ export function MasterPage({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredRows.map((row) => (
+                  {paginatedRows.map((row) => (
                     <TableRow key={row.id}>
                       {config.columns.map((column) => (
                         <TableCell key={column.key} className="text-center">
@@ -249,6 +261,53 @@ export function MasterPage({
                   ))}
                 </TableBody>
               </Table>
+            </div>
+          )}
+
+          {totalPages > 1 && (
+            <div className="mt-4 flex flex-col gap-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                Showing {paginatedRows.length} of {filteredRows.length} records
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={currentPage <= 1}
+                  onClick={() => setCurrentPage((p) => p - 1)}
+                >
+                  Previous
+                </Button>
+
+                {Array.from({ length: totalPages }, (_, i) => {
+                  const pageNum = i + 1;
+                  const isCurrent = pageNum === currentPage;
+                  return (
+                    <Button
+                      key={pageNum}
+                      type="button"
+                      variant={isCurrent ? "default" : "outline"}
+                      size="sm"
+                      className={isCurrent ? "pointer-events-none font-bold" : ""}
+                      disabled={isCurrent}
+                      onClick={() => setCurrentPage(pageNum)}
+                    >
+                      {pageNum}
+                    </Button>
+                  );
+                })}
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={currentPage >= totalPages}
+                  onClick={() => setCurrentPage((p) => p + 1)}
+                >
+                  Next
+                </Button>
+              </div>
             </div>
           )}
         </CardContent>

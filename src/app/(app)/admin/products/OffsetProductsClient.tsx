@@ -44,6 +44,9 @@ export function OffsetProductsClient({
 }: OffsetProductsClientProps) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
+  const [currentPage, setCurrentPage] = useState(1);
+  const totalPages = Math.max(Math.ceil(offsetData.length / 10), 1);
+  const paginatedData = offsetData.slice((currentPage - 1) * 10, currentPage * 10);
 
   // Dialog and Preview states
   const [editingProduct, setEditingProduct] = useState<OffsetProduct | null>(null);
@@ -182,7 +185,7 @@ export function OffsetProductsClient({
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {offsetData.map((row) => (
+                  {paginatedData.map((row) => (
                     <TableRow key={row.id} className="hover:bg-slate-50/30">
                       <TableCell>
                         {row.image_url ? (
@@ -256,9 +259,52 @@ export function OffsetProductsClient({
             </div>
           )}
 
-          <div className="mt-4 text-sm text-muted-foreground">
-            Showing {offsetData.length} records
-          </div>
+          {totalPages > 1 && (
+            <div className="mt-4 flex flex-col gap-3 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                Showing {paginatedData.length} of {offsetData.length} records
+              </div>
+              <div className="flex items-center gap-1.5">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={currentPage <= 1}
+                  onClick={() => setCurrentPage((p) => p - 1)}
+                >
+                  Previous
+                </Button>
+
+                {Array.from({ length: totalPages }, (_, i) => {
+                  const pageNum = i + 1;
+                  const isCurrent = pageNum === currentPage;
+                  return (
+                    <Button
+                      key={pageNum}
+                      type="button"
+                      variant={isCurrent ? "default" : "outline"}
+                      size="sm"
+                      className={isCurrent ? "pointer-events-none font-bold" : ""}
+                      disabled={isCurrent}
+                      onClick={() => setCurrentPage(pageNum)}
+                    >
+                      {pageNum}
+                    </Button>
+                  );
+                })}
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={currentPage >= totalPages}
+                  onClick={() => setCurrentPage((p) => p + 1)}
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
