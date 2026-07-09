@@ -113,6 +113,14 @@ export async function requirePermission(permission: string) {
   return user;
 }
 
+export async function requireAnyPermission(requiredPermissions: string[]) {
+  const user = await requireUser();
+  if (user.roles?.name === "admin") return user;
+  const permissions = await getSessionPermissions(user);
+  if (!requiredPermissions.some((p) => permissions.includes(p))) redirect("/403");
+  return user;
+}
+
 export function isAdmin(user: AppUser | null) {
   return user?.roles?.name === "admin";
 }

@@ -6,13 +6,14 @@ import { PageHeader } from "@/components/app/page-header";
 import { ProductionForm } from "@/components/app/production-form";
 import { StatusBadge } from "@/components/app/status-badge";
 import { softDeleteProduction } from "@/app/(app)/_actions";
-import { isAdmin, requirePermission } from "@/lib/auth";
+import { isAdmin, requirePermission, getSessionPermissions } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, formatNumber } from "@/lib/utils";
 
 export default async function FabricProductionPage() {
   const user = await requirePermission("fabric.production");
-  const admin = isAdmin(user);
+  const permissions = await getSessionPermissions();
+  const admin = isAdmin(user) || permissions.includes("admin.looms");
   const supabase = await createClient();
   const today = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Kolkata",

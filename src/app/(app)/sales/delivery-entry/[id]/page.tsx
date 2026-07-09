@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { notFound } from "next/navigation";
-import { requirePermission } from "@/lib/auth";
+import { requirePermission, getSessionPermissions } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { DeliveryEntryWorkspace } from "../DeliveryEntryWorkspace";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ export default async function OrderWorkspacePage({
   params: Promise<{ id: string }>;
 }) {
   await requirePermission("sales.delivery_entry");
+  const permissions = await getSessionPermissions();
   const { id } = await params;
   const supabase = await createClient();
   const [
@@ -105,6 +106,7 @@ export default async function OrderWorkspacePage({
         rolls={Array.from(rollsById.values())}
         initialOrderId={id}
         singleViewMode={true}
+        permissions={permissions}
       />
     </div>
   );

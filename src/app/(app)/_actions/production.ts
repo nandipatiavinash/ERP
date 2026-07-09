@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requirePermission } from "@/lib/auth";
+import { requirePermission, getSessionPermissions } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -14,7 +14,8 @@ import {
 export async function saveProduction(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   const user = await requirePermission("fabric.production");
-  const isAdmin = user.roles?.name === "admin";
+  const permissions = await getSessionPermissions(user);
+  const isAdmin = user.roles?.name === "admin" || permissions.includes("admin.looms");
   
   // Always include initial_meters in the parsed fields so we can handle it on the server
   const fields = ["fabric_type_id", "loom_id", "gross_weight", "core_weight", "end_meters", "remarks", "initial_meters"];

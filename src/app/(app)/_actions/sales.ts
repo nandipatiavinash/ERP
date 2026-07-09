@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requirePermission } from "@/lib/auth";
+import { requirePermission, requireAnyPermission } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import {
   assertValid,
@@ -14,7 +14,7 @@ import {
 
 export async function saveSale(formData: FormData) {
   const id = String(formData.get("id") ?? "");
-  const user = await requirePermission(`sales.${id ? "edit" : "create"}`);
+  const user = await requireAnyPermission(id ? ["sales.edit"] : ["sales.create", "sales.order_confirmation"]);
   const supabase = await createClient();
   const selectedRollIds = formData.getAll("selected_roll_ids").map(String);
   const payload = {
@@ -36,7 +36,7 @@ export async function saveSale(formData: FormData) {
 }
 
 export async function createSalesOrder(formData: FormData) {
-  const user = await requirePermission("sales.create");
+  const user = await requireAnyPermission(["sales.create", "sales.order_confirmation"]);
   const customerId = String(formData.get("customer_id") ?? "");
   const orderDate = String(formData.get("order_date") ?? "");
 
@@ -110,7 +110,7 @@ export async function createSalesOrder(formData: FormData) {
 }
 
 export async function deleteSalesOrderItem(itemId: string) {
-  const user = await requirePermission("sales.edit");
+  const user = await requireAnyPermission(["sales.edit", "sales.order_confirmation"]);
   const supabase = await createClient();
 
   const { data: item, error: itemError } = await (supabase
@@ -166,7 +166,7 @@ export async function confirmSalesDelivery(
   itemRolls: Record<string, string[]>,
   itemRemainingActions: Record<string, "backorder" | "close"> = {}
 ) {
-  const user = await requirePermission("sales.edit");
+  const user = await requireAnyPermission(["sales.edit", "sales.delivery_entry"]);
   const supabase = await createClient();
 
   const { data: order, error: orderFetchError } = await (supabase
@@ -707,7 +707,7 @@ export async function saveSalesConfirmationRates(
   itemPrices: Record<string, number>,
   gstRate: number
 ) {
-  const user = await requirePermission("sales.edit");
+  const user = await requireAnyPermission(["sales.edit", "reports.sales_confirmation"]);
   const supabase = await createClient();
 
   const { data: order, error: orderFetchError } = await (supabase
@@ -865,7 +865,7 @@ export async function saveSalesConfirmationRates(
 }
 
 export async function saveMaterialSalesEntry(formData: FormData) {
-  const user = await requirePermission("sales.create");
+  const user = await requireAnyPermission(["sales.create", "accounts.material"]);
 
   const sale_date = String(formData.get("sale_date") ?? todayInIndia());
   const bill_number = String(formData.get("bill_number") ?? "").trim();
@@ -1012,7 +1012,7 @@ export async function saveMaterialSalesEntry(formData: FormData) {
 }
 
 export async function deleteMaterialSalesEntry(formData: FormData) {
-  const user = await requirePermission("sales.edit");
+  const user = await requireAnyPermission(["sales.edit", "accounts.material"]);
   const id = String(formData.get("id") ?? "");
   const journalNo = String(formData.get("journal_no") ?? "");
 
@@ -1076,7 +1076,7 @@ export async function confirmMultipleSalesDeliveries(
   itemRemainingActions: Record<string, "backorder" | "close"> = {},
   deliveryDate?: string
 ) {
-  const user = await requirePermission("sales.edit");
+  const user = await requireAnyPermission(["sales.edit", "sales.delivery_entry"]);
   const supabase = await createClient();
 
   if (selectedItemIds.length === 0) {
@@ -1282,7 +1282,7 @@ export async function confirmMultipleSalesDeliveries(
 }
 
 export async function saveSalesOrderBillingDirect(formData: FormData) {
-  const user = await requirePermission("sales.edit");
+  const user = await requireAnyPermission(["sales.edit", "accounts.sales"]);
   const orderIdsStr = String(formData.get("order_ids") ?? "");
   const billNumber = String(formData.get("bill_number") ?? "").trim();
   const billValue = Number(formData.get("bill_value") ?? 0);

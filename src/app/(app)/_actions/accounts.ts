@@ -1,11 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requirePermission } from "@/lib/auth";
+import { requirePermission, requireAnyPermission } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 
 export async function saveAccountOpeningBalance(formData: FormData) {
-  const user = await requirePermission("customers.edit");
+  const user = await requireAnyPermission(["customers.edit", "reports.opening_balance"]);
   const id = String(formData.get("id") ?? "");
   const openingDebit = Number(formData.get("opening_debit") ?? 0);
   const openingCredit = Number(formData.get("opening_credit") ?? 0);
@@ -37,8 +37,8 @@ export async function saveAccountOpeningBalance(formData: FormData) {
 
 export async function clearSystemTransactions() {
   // SEC-04 / AZ-01 / ISS-004: This is a catastrophic mass-delete. Require admin-only.
-  // Changed from "users.view" (any operator) to "admin.credentials" (admin only).
-  const user = await requirePermission("admin.credentials");
+  // Changed from "users.view" (any operator) to "admin.reset" (reset permitted roles).
+  const user = await requirePermission("admin.reset");
 
   const supabase = await createClient();
 

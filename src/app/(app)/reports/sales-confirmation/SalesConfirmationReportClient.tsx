@@ -148,11 +148,10 @@ export function SalesConfirmationReportClient({
   // Sort and filter orders
   const sortedOrders = useMemo(() => {
     const sorted = [...groupedOrders].sort((a, b) => {
-      if (a.order_date !== b.order_date) {
-        return activeTab === "completed"
-          ? b.order_date.localeCompare(a.order_date)
-          : a.order_date.localeCompare(b.order_date);
-      }
+      const nameA = a.customers?.customer_name || "";
+      const nameB = b.customers?.customer_name || "";
+      const nameComp = nameA.localeCompare(nameB);
+      if (nameComp !== 0) return nameComp;
       return (a.order_number || "").localeCompare(b.order_number || "");
     });
 

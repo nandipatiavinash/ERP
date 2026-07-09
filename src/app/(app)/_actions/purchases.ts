@@ -1,12 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requirePermission } from "@/lib/auth";
+import { requirePermission, requireAnyPermission } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { generateNextJournalNo, todayInIndia } from "./helpers";
 
 export async function saveRawMaterialPurchase(formData: FormData) {
-  const user = await requirePermission("raw_materials.edit");
+  const user = await requireAnyPermission(["raw_materials.edit", "accounts.purchase"]);
 
   const purchase_date = String(formData.get("purchase_date") ?? "");
   const supplier_name = String(formData.get("supplier_name") ?? "");
@@ -106,11 +106,7 @@ export async function saveRawMaterialPurchase(formData: FormData) {
     console.error("Auto-journal for purchase failed:", _journalErr);
   }
 
-  revalidatePath("/raw-materials");
-  revalidatePath("/accounts/purchase");
-  revalidatePath("/accounts/journal");
-  revalidatePath("/dashboard");
-  revalidatePath("/reports");
+  revalidatePath("/", "layout");
 }
 
 export async function deleteRawMaterialPurchase(purchaseId: string) {
@@ -172,9 +168,5 @@ export async function deleteRawMaterialPurchase(purchaseId: string) {
     }
   }
 
-  revalidatePath("/raw-materials");
-  revalidatePath("/accounts/purchase");
-  revalidatePath("/accounts/journal");
-  revalidatePath("/dashboard");
-  revalidatePath("/reports");
+  revalidatePath("/", "layout");
 }

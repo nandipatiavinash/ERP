@@ -3,7 +3,6 @@ import { createClient } from "@/lib/supabase/server";
 import { OpeningBalanceClient } from "./OpeningBalanceClient";
 
 export default async function OpeningBalancePage() {
-  await requireRole(["admin"]);
   await requirePermission("reports.opening_balance");
 
   const supabase = await createClient();

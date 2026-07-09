@@ -19,6 +19,8 @@ const SECTION_META: Record<string, { label: string; order: number }> = {
   sales:           { label: "Sales",           order: 6 },
   accounts:        { label: "Accounts",        order: 7 },
   reports:         { label: "Reports",         order: 8 },
+  roto_products:   { label: "Roto Products",   order: 9 },
+  offset_products: { label: "Offset Products", order: 10 },
 };
 
 const ACTION_LABELS: Record<string, string> = {
