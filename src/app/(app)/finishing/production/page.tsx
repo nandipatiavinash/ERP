@@ -7,7 +7,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { FinishingProductionForm } from "@/components/app/finishing-production-form";
 import { deleteFinishingBundle } from "@/app/(app)/_actions";
 import { ConfirmSubmitButton } from "@/components/app/confirm-submit-button";
-import { formatDate } from "@/lib/utils";
 
 export default async function FinishingProductionPage() {
   await requirePermission("finishing.production");
@@ -21,9 +20,10 @@ export default async function FinishingProductionPage() {
 
   const [
     { data: activeLamRolls },
-    { data: activeFabricTypes },
+    { data: activeFabricRolls },
+    { data: activeOffsetRolls },
+    { data: activeFinishingProducts },
     { data: todayFinishingEntries },
-    { data: availableRolls },
   ] = await Promise.all([
     supabase
       .from("lamination_rolls")
@@ -32,39 +32,42 @@ export default async function FinishingProductionPage() {
       .is("deleted_at", null)
       .order("roll_id"),
     supabase
-      .from("fabric_types")
-      .select("id, fabric_name")
+      .from("fabric_rolls")
+      .select("id, roll_number, weight, fabric_types(fabric_name)")
+      .eq("status", "available")
+      .is("deleted_at", null)
+      .order("roll_number"),
+    supabase
+      .from("offset_rolls")
+      .select("id, roll_id, weight_kg")
+      .eq("status", "available")
+      .is("deleted_at", null)
+      .order("roll_id"),
+    supabase
+      .from("finishing_products")
+      .select("id, name")
       .eq("status", "active")
       .is("deleted_at", null)
-      .order("fabric_name"),
+      .order("name"),
     supabase
       .from("finishing_bundles")
-      .select("*, lamination_rolls(roll_id), fabric_types(fabric_name)")
+      .select("*, finishing_products(name), fabric_rolls(roll_number), lamination_rolls(roll_id), offset_rolls(roll_id)")
       .is("deleted_at", null)
       .eq("entry_date", today)
       .order("created_at", { ascending: false }),
-    supabase
-      .from("fabric_rolls")
-      .select("fabric_type_id")
-      .eq("status", "available")
-      .is("deleted_at", null),
   ]);
 
-  const availableFabricTypeIds = Array.from(
-    new Set((availableRolls ?? []).map((r: any) => r.fabric_type_id).filter(Boolean))
-  );
-
   const laminationRolls = (activeLamRolls ?? []) as any[];
-  const fabricTypes = ((activeFabricTypes ?? []) as any[]).filter((t) =>
-    availableFabricTypeIds.includes(t.id)
-  );
+  const fabricRolls = (activeFabricRolls ?? []) as any[];
+  const offsetRolls = (activeOffsetRolls ?? []) as any[];
+  const finishingProducts = (activeFinishingProducts ?? []) as any[];
   const finishingRows = (todayFinishingEntries ?? []) as any[];
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Finishing Production"
-        description="Log finishing bundles of bags from laminated rolls, plain fabric types, or NW raw materials."
+        description="Log finishing bundles of bags from laminated rolls, fabric rolls, or offset printing rolls."
       />
 
       <Card className="mb-5">
@@ -74,7 +77,9 @@ export default async function FinishingProductionPage() {
         <CardContent>
           <FinishingProductionForm
             laminationRolls={laminationRolls}
-            fabricTypes={fabricTypes}
+            fabricRolls={fabricRolls}
+            offsetRolls={offsetRolls}
+            finishingProducts={finishingProducts}
             rows={finishingRows}
           />
         </CardContent>
@@ -93,6 +98,7 @@ export default async function FinishingProductionPage() {
                 <TableHeader>
                   <TableRow className="bg-slate-50/50">
                     <TableHead>Bundle ID</TableHead>
+                    <TableHead>Product Specification</TableHead>
                     <TableHead className="text-right">No. of Bags</TableHead>
                     <TableHead className="text-right">KGs</TableHead>
                     <TableHead className="text-center">Action</TableHead>
@@ -102,6 +108,7 @@ export default async function FinishingProductionPage() {
                   {finishingRows.map((row) => (
                     <TableRow key={row.id}>
                       <TableCell className="font-mono font-bold text-emerald-950">{row.bundle_id}</TableCell>
+                      <TableCell className="font-medium text-slate-700">{row.finishing_products?.name || "Unspecified Bag"}</TableCell>
                       <TableCell className="text-right font-mono">{row.num_bags}</TableCell>
                       <TableCell className="text-right font-mono">{row.weight_kg}</TableCell>
                       <TableCell className="text-center">
@@ -110,7 +117,7 @@ export default async function FinishingProductionPage() {
                             size="sm"
                             variant="destructive"
                             confirmTitle="Delete finishing entry?"
-                            confirmDescription="This will delete this bundle and restore any source lamination roll back to available stock."
+                            confirmDescription="This will delete this bundle and restore the source roll back to available stock."
                           >
                             Delete
                           </ConfirmSubmitButton>
@@ -127,3 +134,4 @@ export default async function FinishingProductionPage() {
     </div>
   );
 }
+

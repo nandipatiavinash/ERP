@@ -293,13 +293,14 @@ export async function deleteRotoMetallicProduction(id: string) {
 export async function saveLaminationProduction(formData: FormData) {
   const user = await requirePermission("lamination.production");
   const lamType = String(formData.get("lam_type") ?? "");
+  const productId = String(formData.get("product_id") ?? "");
   const fabricTypeId = String(formData.get("fabric_type_id") ?? "");
   const filmRollId = formData.get("film_roll_id") ? String(formData.get("film_roll_id")) : null;
   const weightKg = Number(formData.get("weight_kg") ?? 0);
   const meters = Number(formData.get("meters") ?? 0);
   const entryDate = String(formData.get("entry_date") ?? todayInIndia());
 
-  if (!lamType || !fabricTypeId || weightKg <= 0 || meters <= 0) {
+  if (!lamType || !productId || !fabricTypeId || weightKg <= 0 || meters <= 0) {
     throw new Error("Invalid parameters.");
   }
 
@@ -360,6 +361,7 @@ export async function saveLaminationProduction(formData: FormData) {
     .from("lamination_rolls") as any)
     .insert({
       roll_id: newRollId,
+      product_id: productId,
       lam_type: lamType,
       fabric_type_id: fabricTypeId,
       film_roll_id: filmRollIdValue,
@@ -514,83 +516,112 @@ export async function deleteOffsetProduction(id: string) {
 export async function saveFinishingBundle(formData: FormData) {
   const user = await requirePermission("finishing.production");
   const finishType = String(formData.get("finish_type") ?? "");
+  const productId = String(formData.get("product_id") ?? "");
   const sourceLamRollId = formData.get("source_lam_roll_id") ? String(formData.get("source_lam_roll_id")) : null;
-  const fabricTypeId = formData.get("fabric_type_id") ? String(formData.get("fabric_type_id")) : null;
+  const sourceFabricRollId = formData.get("source_fabric_roll_id") ? String(formData.get("source_fabric_roll_id")) : null;
+  const sourceOffsetRollId = formData.get("source_offset_roll_id") ? String(formData.get("source_offset_roll_id")) : null;
   const numBags = Number(formData.get("num_bags") ?? 0);
   const weightKg = Number(formData.get("weight_kg") ?? 0);
   const entryDate = String(formData.get("entry_date") ?? todayInIndia());
 
-  if (!finishType || numBags <= 0 || weightKg <= 0) {
+  if (!finishType || !productId || numBags <= 0 || weightKg <= 0) {
     throw new Error("Invalid parameters.");
   }
 
   const supabase = await createClient();
 
-  let brandName = "PLAIN";
-  let fabricTypeName = "";
+  let parentId = "";
+  let fabricTypeId: string | null = null;
 
-  if (finishType === "LAMINATED") {
-    if (!sourceLamRollId) throw new Error("Source laminated roll is required.");
-    const { data: lr } = await (supabase.from("lamination_rolls") as any).select("roll_id").eq("id", sourceLamRollId).single();
-    if (!lr) throw new Error("Source laminated roll not found.");
-    const match = (lr as any).roll_id.match(/^([^(]+)\(([^)]+)\)/);
-    if (match) {
-      brandName = match[1].trim();
-      fabricTypeName = match[2];
-    } else {
-      brandName = (lr as any).roll_id;
-      fabricTypeName = "LAMINATED";
-    }
-  } else if (finishType === "PLAIN") {
-    if (!fabricTypeId) throw new Error("Source fabric type is required.");
-    const { data: ft } = await (supabase.from("fabric_types") as any).select("fabric_name").eq("id", fabricTypeId).single();
-    if (!ft) throw new Error("Source fabric type not found.");
-    brandName = "PLAIN";
-    fabricTypeName = (ft as any).fabric_name;
-  } else if (finishType === "NW") {
-    brandName = "NW";
-    fabricTypeName = "NW";
+  if (finishType === "LAMINATION") {
+    if (!sourceLamRollId) throw new Error("Source lamination roll is required.");
+    const { data: lr } = await (supabase.from("lamination_rolls") as any)
+      .select("roll_id, fabric_type_id")
+      .eq("id", sourceLamRollId)
+      .single();
+    if (!lr) throw new Error("Source lamination roll not found.");
+    parentId = (lr as any).roll_id;
+    fabricTypeId = (lr as any).fabric_type_id;
+  } else if (finishType === "FABRIC") {
+    if (!sourceFabricRollId) throw new Error("Source fabric roll is required.");
+    const { data: fr } = await (supabase.from("fabric_rolls") as any)
+      .select("roll_number, fabric_type_id, fabric_types(fabric_name)")
+      .eq("id", sourceFabricRollId)
+      .single();
+    if (!fr) throw new Error("Source fabric roll not found.");
+    const typeName = (fr as any).fabric_types?.fabric_name || "PLAIN";
+    parentId = `PLAIN(${typeName})(${(fr as any).roll_number})`;
+    fabricTypeId = (fr as any).fabric_type_id;
+  } else if (finishType === "OFFSET") {
+    if (!sourceOffsetRollId) throw new Error("Source offset roll is required.");
+    const { data: off } = await (supabase.from("offset_rolls") as any)
+      .select("roll_id, fabric_type_id")
+      .eq("id", sourceOffsetRollId)
+      .single();
+    if (!off) throw new Error("Source offset roll not found.");
+    parentId = (off as any).roll_id;
+    fabricTypeId = (off as any).fabric_type_id;
   } else {
     throw new Error("Unsupported finishing type.");
   }
 
-  const baseId = `${brandName.trim()}(${fabricTypeName.trim()})`;
   const { count } = await (supabase
     .from("finishing_bundles") as any)
     .select("id", { count: "exact", head: true })
-    .like("bundle_id", `${baseId}%`);
+    .like("bundle_id", `${parentId}(%)`);
 
   const seq = (count ?? 0) + 1;
-  const newBundleId = `${baseId}(${seq})`;
+  const newBundleId = `${parentId}(${seq})`;
 
-  // Use admin client for write so custom roles are not blocked by RLS.
   const adminSupabase = createAdminClient();
   const { error: insertError } = await (adminSupabase
     .from("finishing_bundles") as any)
     .insert({
       bundle_id: newBundleId,
       finish_type: finishType,
-      source_lam_roll_id: finishType === "LAMINATED" ? sourceLamRollId : null,
-      fabric_type_id: finishType === "PLAIN" ? fabricTypeId : null,
-      source_nw_material_id: null,
+      product_id: productId,
+      source_lam_roll_id: finishType === "LAMINATION" ? sourceLamRollId : null,
+      source_fabric_roll_id: finishType === "FABRIC" ? sourceFabricRollId : null,
+      source_offset_roll_id: finishType === "OFFSET" ? sourceOffsetRollId : null,
+      fabric_type_id: fabricTypeId,
       num_bags: numBags,
       weight_kg: weightKg,
       entry_date: entryDate,
+      status: "available",
       created_by: user.id,
       updated_by: user.id,
     } as any);
 
   if (insertError) throw new Error(insertError.message);
 
+  if (finishType === "LAMINATION") {
+    await (adminSupabase.from("lamination_rolls") as any)
+      .update({ status: "consumed" } as any)
+      .eq("id", sourceLamRollId);
+  } else if (finishType === "FABRIC") {
+    await (adminSupabase.from("fabric_rolls") as any)
+      .update({ status: "consumed", current_stage: "finishing" } as any)
+      .eq("id", sourceFabricRollId);
+  } else if (finishType === "OFFSET") {
+    await (adminSupabase.from("offset_rolls") as any)
+      .update({ status: "consumed" } as any)
+      .eq("id", sourceOffsetRollId);
+  }
+
   revalidatePath("/finishing/production");
   revalidatePath("/finishing/stock");
+  return { bundle_id: newBundleId };
 }
 
 export async function deleteFinishingBundle(id: string) {
   await requirePermission("finishing.production");
   const supabase = await createClient();
 
-  const { data: bundle } = await (supabase.from("finishing_bundles") as any).select("status").eq("id", id).maybeSingle();
+  const { data: bundle } = await (supabase.from("finishing_bundles") as any)
+    .select("status, finish_type, source_lam_roll_id, source_fabric_roll_id, source_offset_roll_id")
+    .eq("id", id)
+    .maybeSingle();
+
   if (!bundle) throw new Error("Finishing bundle not found.");
   if ((bundle as any).status === "sold") throw new Error("This bundle has been sold and cannot be deleted.");
 
@@ -601,6 +632,20 @@ export async function deleteFinishingBundle(id: string) {
     .eq("id", id);
 
   if (error) throw new Error(error.message);
+
+  if ((bundle as any).finish_type === "LAMINATION" && (bundle as any).source_lam_roll_id) {
+    await (adminSupabase.from("lamination_rolls") as any)
+      .update({ status: "available" } as any)
+      .eq("id", (bundle as any).source_lam_roll_id);
+  } else if ((bundle as any).finish_type === "FABRIC" && (bundle as any).source_fabric_roll_id) {
+    await (adminSupabase.from("fabric_rolls") as any)
+      .update({ status: "available", current_stage: "loom" } as any)
+      .eq("id", (bundle as any).source_fabric_roll_id);
+  } else if ((bundle as any).finish_type === "OFFSET" && (bundle as any).source_offset_roll_id) {
+    await (adminSupabase.from("offset_rolls") as any)
+      .update({ status: "available" } as any)
+      .eq("id", (bundle as any).source_offset_roll_id);
+  }
 
   revalidatePath("/finishing/production");
   revalidatePath("/finishing/stock");

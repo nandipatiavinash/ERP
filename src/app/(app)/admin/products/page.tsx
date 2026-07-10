@@ -31,6 +31,8 @@ export default async function ProductsAdminPage({ searchParams }: { searchParams
   let fabricData: any[] = [];
   let rotoData: any[] = [];
   let offsetData: any[] = [];
+  let laminationProdData: any[] = [];
+  let finishingProdData: any[] = [];
   let rotoTotal = 0;
   let offsetTotal = 0;
 
@@ -120,6 +122,12 @@ export default async function ProductsAdminPage({ searchParams }: { searchParams
       .select("id, brand, width, height, image_url, status, customer_id, customers:customer_id(customer_name, alias)")
       .order("brand", { ascending: true });
     offsetData = data ?? [];
+  } else if (tab === "lamination-film") {
+    const result = await fetchMasterRows({ supabase, config: modules["lamination-products"], select: "id, name, status", params, defaultSort: "name" });
+    laminationProdData = result.rows;
+  } else if (tab === "finished-bag") {
+    const result = await fetchMasterRows({ supabase, config: modules["finishing-products"], select: "id, name, status", params, defaultSort: "name" });
+    finishingProdData = result.rows;
   }
 
   const tabClass = (key: string) =>
@@ -143,6 +151,12 @@ export default async function ProductsAdminPage({ searchParams }: { searchParams
         </Link>
         <Link href={"/admin/products?tab=offset" as any} className={tabClass("offset")}>
           Offset Printing Products
+        </Link>
+        <Link href={"/admin/products?tab=lamination-film" as any} className={tabClass("lamination-film")}>
+          Lamination Film Products
+        </Link>
+        <Link href={"/admin/products?tab=finished-bag" as any} className={tabClass("finished-bag")}>
+          Finished Bag Products
         </Link>
       </div>
 
@@ -169,6 +183,28 @@ export default async function ProductsAdminPage({ searchParams }: { searchParams
         <OffsetProductsClient
           offsetData={offsetData}
           clientList={clientList}
+        />
+      )}
+
+      {tab === "lamination-film" && (
+        <MasterPage
+          config={modules["lamination-products"]}
+          rows={laminationProdData as never}
+          search={params.search ?? ""}
+          sort={params.sort}
+          direction={params.direction}
+          queryParams={{ tab: "lamination-film" }}
+        />
+      )}
+
+      {tab === "finished-bag" && (
+        <MasterPage
+          config={modules["finishing-products"]}
+          rows={finishingProdData as never}
+          search={params.search ?? ""}
+          sort={params.sort}
+          direction={params.direction}
+          queryParams={{ tab: "finished-bag" }}
         />
       )}
     </>

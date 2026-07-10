@@ -55,10 +55,18 @@ export default async function SalesConfirmationReportPage({
   }
 
   // Fetch product definitions for resolving names
-  const [{ data: fabrics }, { data: roto }, { data: offset }] = await Promise.all([
+  const [
+    { data: fabrics },
+    { data: roto },
+    { data: offset },
+    { data: laminationProds },
+    { data: finishingProds }
+  ] = await Promise.all([
     supabase.from("fabric_types").select("id, fabric_name, selling_price"),
     supabase.from("roto_products").select("id, brand, width, height"),
     supabase.from("offset_products").select("id, brand, width, height"),
+    supabase.from("lamination_products").select("id, name"),
+    supabase.from("finishing_products").select("id, name"),
   ]);
 
   // Extract selected roll IDs
@@ -109,6 +117,8 @@ export default async function SalesConfirmationReportPage({
           fabrics={fabrics || []}
           rotoProducts={roto || []}
           offsetProducts={offset || []}
+          laminationProducts={laminationProds || []}
+          finishingProducts={finishingProds || []}
           rolls={rolls}
           permissions={permissions}
         />

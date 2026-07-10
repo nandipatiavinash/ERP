@@ -50,6 +50,8 @@ interface SalesConfirmationReportClientProps {
   fabrics: Array<{ id: string; fabric_name: string; selling_price: number }>;
   rotoProducts: Array<{ id: string; brand: string; width: number; height: number }>;
   offsetProducts: Array<{ id: string; brand: string; width: number; height: number }>;
+  laminationProducts?: Array<{ id: string; name: string }>;
+  finishingProducts?: Array<{ id: string; name: string }>;
   rolls: Array<{ id: string; weight: number }>;
   permissions?: string[];
 }
@@ -63,6 +65,8 @@ export function SalesConfirmationReportClient({
   fabrics,
   rotoProducts,
   offsetProducts,
+  laminationProducts = [],
+  finishingProducts = [],
   rolls,
   permissions = [],
 }: SalesConfirmationReportClientProps) {
@@ -216,8 +220,12 @@ export function SalesConfirmationReportClient({
       const o = offsetProducts.find((x) => x.id === productId);
       return o ? `${o.brand} (${o.width}x${o.height} in)` : "Offset Product";
     } else if (dept === "lamination") {
+      const l = laminationProducts.find((x) => x.id === productId);
+      if (l) return l.name;
       return productId === "lam-film-25" ? "Laminated Film 2.5 mil" : "Laminated Film 3.0 mil";
     } else if (dept === "finishing") {
+      const f = finishingProducts.find((x) => x.id === productId);
+      if (f) return f.name;
       return productId === "finished-bags-28" ? "Finished Bags W-28" : "Finished Bags W-32";
     }
     return "Unknown Product";

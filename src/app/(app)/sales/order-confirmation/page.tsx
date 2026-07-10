@@ -21,11 +21,21 @@ export default async function OrderConfirmationPage({
   const params = await searchParams;
   const date = params.date || todayInIndia();
 
-  const [{ data: customers }, { data: fabrics }, { data: roto }, { data: offset }, { data: orders }] = await Promise.all([
+  const [
+    { data: customers },
+    { data: fabrics },
+    { data: roto },
+    { data: offset },
+    { data: laminationProds },
+    { data: finishingProds },
+    { data: orders }
+  ] = await Promise.all([
     supabase.from("customers").select("id, customer_name, alias").eq("status", "active").eq("is_internal", "client a/c").is("deleted_at", null).order("customer_name"),
     supabase.from("fabric_types").select("id, fabric_name").eq("status", "active").is("deleted_at", null).order("fabric_name"),
     supabase.from("roto_products").select("id, brand, width, height").eq("status", "active").order("brand"),
     supabase.from("offset_products").select("id, brand, width, height").eq("status", "active").order("brand"),
+    supabase.from("lamination_products").select("id, name").eq("status", "active").is("deleted_at", null).order("name"),
+    supabase.from("finishing_products").select("id, name").eq("status", "active").is("deleted_at", null).order("name"),
     supabase
       .from("sales_orders")
       .select("*, customers(customer_name, alias), sales_order_items(id, department, quantity)")
@@ -82,6 +92,8 @@ export default async function OrderConfirmationPage({
   const fabricOptions = ((fabrics ?? []) as any[]).map((f) => ({ id: f.id, label: f.fabric_name }));
   const rotoOptions = ((roto ?? []) as any[]).map((r) => ({ id: r.id, label: `${r.brand} (${r.width}x${r.height} mm)` }));
   const offsetOptions = ((offset ?? []) as any[]).map((o) => ({ id: o.id, label: `${o.brand} (${o.width}x${o.height} in)` }));
+  const laminationOptions = ((laminationProds ?? []) as any[]).map((l) => ({ id: l.id, label: l.name }));
+  const finishingOptions = ((finishingProds ?? []) as any[]).map((f) => ({ id: f.id, label: f.name }));
   const orderRows = (orders ?? []) as any[];
 
   return (
@@ -98,6 +110,8 @@ export default async function OrderConfirmationPage({
             fabricProducts={fabricOptions}
             rotoProducts={rotoOptions}
             offsetProducts={offsetOptions}
+            laminationProducts={laminationOptions}
+            finishingProducts={finishingOptions}
           />
         </CardContent>
       </Card>

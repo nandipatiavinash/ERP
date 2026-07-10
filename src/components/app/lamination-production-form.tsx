@@ -22,14 +22,15 @@ type FilmRoll = {
   meters: number;
 };
 
-type RawMaterial = {
+type LaminationProduct = {
   id: string;
-  material_name: string;
+  name: string;
 };
 
 interface LaminationProductionFormProps {
   fabricTypes: FabricType[];
   filmRolls: FilmRoll[];
+  laminationProducts: LaminationProduct[];
   onSuccess?: (newRollInfo: { rollId: string; weight: number; meters: number }) => void;
   rows?: any[];
 }
@@ -37,6 +38,7 @@ interface LaminationProductionFormProps {
 export function LaminationProductionForm({
   fabricTypes,
   filmRolls,
+  laminationProducts,
   onSuccess,
   rows,
 }: LaminationProductionFormProps) {
@@ -44,6 +46,7 @@ export function LaminationProductionForm({
   const [lamType, setLamType] = useState<string>("PLAIN");
   const [selectedFabricTypeId, setSelectedFabricTypeId] = useState<string>("");
   const [selectedFilmId, setSelectedFilmId] = useState<string>("");
+  const [selectedProductId, setSelectedProductId] = useState<string>("");
   const [weightKg, setWeightKg] = useState<string>("");
   const [meters, setMeters] = useState<string>("");
   const [entryDate, setEntryDate] = useState<string>(
@@ -74,6 +77,10 @@ export function LaminationProductionForm({
     setErrorMsg(null);
     setSuccessMsg(null);
 
+    if (!selectedProductId) {
+      setErrorMsg("Lamination Film Product is required.");
+      return;
+    }
     if (!selectedFabricTypeId) {
       setErrorMsg("Fabric Type is required.");
       return;
@@ -89,12 +96,11 @@ export function LaminationProductionForm({
       return;
     }
 
-
-
     startTransition(async () => {
       try {
         const fd = new FormData();
         fd.append("lam_type", lamType);
+        fd.append("product_id", selectedProductId);
         fd.append("fabric_type_id", selectedFabricTypeId);
         if (["BOX", "F_S", "H_S"].includes(lamType)) {
           fd.append("film_roll_id", selectedFilmId);
@@ -114,6 +120,7 @@ export function LaminationProductionForm({
         // Reset
         setSelectedFabricTypeId("");
         setSelectedFilmId("");
+        setSelectedProductId("");
         setWeightKg("");
         setMeters("");
       } catch (err: any) {
@@ -124,7 +131,6 @@ export function LaminationProductionForm({
   };
 
   const isFilmRequired = ["BOX", "F_S", "H_S"].includes(lamType);
-  const isNWRequired = lamType === "NW";
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 w-full bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
@@ -135,7 +141,24 @@ export function LaminationProductionForm({
         <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm">{successMsg}</div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        {/* Lamination Film Product Dropdown */}
+        <div className="space-y-1">
+          <Label className="text-xs font-semibold text-slate-700">Lamination Product</Label>
+          <Select value={selectedProductId} onValueChange={setSelectedProductId}>
+            <SelectTrigger className="h-10 border-slate-200">
+              <SelectValue placeholder="Select film product" />
+            </SelectTrigger>
+            <SelectContent>
+              {laminationProducts.map((p) => (
+                <SelectItem key={p.id} value={p.id}>
+                  {p.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
         {/* Lamination Type */}
         <div className="space-y-1">
           <Label className="text-xs font-semibold text-slate-700">Lamination Type</Label>
@@ -190,7 +213,9 @@ export function LaminationProductionForm({
             </SelectContent>
           </Select>
         </div>
+      </div>
 
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* KGs */}
         <div className="space-y-1">
           <Label htmlFor="weight_kg" className="text-xs font-semibold text-slate-700">Laminated Roll KGs</Label>

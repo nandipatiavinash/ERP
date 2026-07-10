@@ -40,6 +40,12 @@ type OrderItem = {
   product_id: string;
   quantity: number;
   selected_roll_ids: string[];
+  fabric_type_id?: string | null;
+  lamination_type?: string | null;
+  offset_type?: string | null;
+  film_type?: string | null;
+  is_metallic?: boolean;
+  roto_product_id?: string | null;
 };
 
 type Customer = {
@@ -70,6 +76,8 @@ interface DeliveryEntryWorkspaceProps {
   fabrics: { id: string; fabric_name: string }[];
   rotoProducts: { id: string; brand: string; width: number; height: number }[];
   offsetProducts: { id: string; brand: string; width: number; height: number }[];
+  laminationProducts?: { id: string; name: string }[];
+  finishingProducts?: { id: string; name: string }[];
   rolls: Roll[];
   from?: string;
   to?: string;
@@ -96,6 +104,8 @@ export function DeliveryEntryWorkspace({
   fabrics,
   rotoProducts,
   offsetProducts,
+  laminationProducts = [],
+  finishingProducts = [],
   rolls,
   from = todayInIndia(),
   to = todayInIndia(),
@@ -184,9 +194,13 @@ export function DeliveryEntryWorkspace({
       const o = offsetProducts.find((x) => x.id === productId);
       return o ? `${o.brand} (${o.width}x${o.height} in)` : "Offset Product";
     } else if (dept === "lamination") {
-      return productId === "lam-film-25" ? "Laminated Film 2.5 mil" : "Laminated Film 3.0 mil";
+      const l = (laminationProducts ?? []).find((x: any) => x.id === productId);
+      if (l) return l.name;
+      return productId === "lam-film-25" ? "Laminated Film 2.5 mil" : productId === "lam-film-30" ? "Laminated Film 3.0 mil" : "Lamination Product";
     } else if (dept === "finishing") {
-      return productId === "finished-bags-28" ? "Finished Bags W-28" : "Finished Bags W-32";
+      const f = (finishingProducts ?? []).find((x: any) => x.id === productId);
+      if (f) return f.name;
+      return productId === "finished-bags-28" ? "Finished Bags W-28" : productId === "finished-bags-32" ? "Finished Bags W-32" : "Finishing Product";
     }
     return "Unknown Product";
   };
@@ -322,14 +336,26 @@ export function DeliveryEntryWorkspace({
   };
 
   const getItemRolls = (item: OrderItem) => {
-    if (item.department !== "fabric") return [];
     return rolls
       .filter(
-        (r) =>
-          r.fabric_type_id === item.product_id &&
+        (r: any) =>
+          r.department === item.department &&
+          (!item.product_id || r.product_id === item.product_id) &&
+          (!item.fabric_type_id || r.fabric_type_id === item.fabric_type_id) &&
+          (!item.lamination_type || r.lam_type === item.lamination_type) &&
+          (!item.offset_type || item.offset_type === "none" || r.offset_type === item.offset_type) &&
+          (
+            (item.department !== "roto-printing" && item.department !== "lamination") ||
+            (
+              (!item.film_type || item.film_type === "none" || r.film_type === item.film_type) &&
+              (item.department !== "roto-printing" || !!r.is_metallic === !!item.is_metallic) &&
+              (item.department !== "lamination" || !item.roto_product_id || r.roto_product_id === item.roto_product_id) &&
+              (item.department !== "lamination" || !["BOX", "F_S", "H_S"].includes(item.lamination_type || "") || !!r.is_metallic === !!item.is_metallic)
+            )
+          ) &&
           (r.status === "available" || item.selected_roll_ids?.includes(r.id) || (allocation[item.id] ?? []).includes(r.id))
       )
-      .sort(sortRollsBySerial);
+      .sort((a, b) => a.roll_number.localeCompare(b.roll_number, undefined, { numeric: true, sensitivity: "base" }));
   };
 
   // Build product groups for print view
@@ -773,13 +799,15 @@ export function DeliveryEntryWorkspace({
                                         <div className="flex items-center gap-4 shrink-0 text-xs">
                                           <div className="text-right">
                                             <span className="text-muted-foreground block">Needed</span>
-                                            <span className="font-bold">{formatNumber(item.quantity)} kg</span>
+                                            <span className="font-bold">
+                                              {formatNumber(item.quantity)} {item.department === "finishing" ? "pcs" : "kg"}
+                                            </span>
                                           </div>
-                                          {isChecked && item.department === "fabric" && (
+                                          {isChecked && (
                                             <div className="text-right">
                                               <span className="text-muted-foreground block">Selected</span>
                                               <span className={`font-bold ${totalWeight >= item.quantity ? "text-emerald-700" : "text-amber-700"}`}>
-                                                {formatNumber(totalWeight)} kg
+                                                {formatNumber(item.department === "finishing" ? totalMeters : totalWeight)} {item.department === "finishing" ? "pcs" : "kg"}
                                               </span>
                                             </div>
                                           )}
@@ -796,25 +824,34 @@ export function DeliveryEntryWorkspace({
                                       {/* Card Content */}
                                       {isExpanded && isChecked && (
                                         <div className="p-4 space-y-4 border-t bg-slate-50/20">
-                                          {item.department === "fabric" && (
-                                            <div className="grid grid-cols-3 gap-4 bg-muted/40 p-3 rounded-lg text-xs font-semibold">
-                                              <div>
-                                                <div className="text-muted-foreground text-[10px]">Selected Rolls</div>
-                                                <div>{selectedRolls.length} rolls</div>
+                                          <div className="grid grid-cols-3 gap-4 bg-muted/40 p-3 rounded-lg text-xs font-semibold">
+                                            <div>
+                                              <div className="text-muted-foreground text-[10px]">
+                                                {item.department === "finishing" ? "Selected Bundles" : "Selected Rolls"}
+                                              </div>
+                                              <div>{selectedRolls.length} {item.department === "finishing" ? "bundles" : "rolls"}</div>
+                                            </div>
+                                            <div>
+                                              <div className="text-muted-foreground text-[10px]">
+                                                {item.department === "finishing" ? "Selected Bags (pcs)" : "Selected Weight (kg)"}
                                               </div>
                                               <div>
-                                                <div className="text-muted-foreground text-[10px]">Selected Weight</div>
-                                                <div>{formatNumber(totalWeight, 2)} kg</div>
+                                                {item.department === "finishing" 
+                                                  ? formatNumber(totalMeters, 0)
+                                                  : formatNumber(totalWeight, 2)
+                                                } {item.department === "finishing" ? "pcs" : "kg"}
                                               </div>
+                                            </div>
+                                            {item.department !== "finishing" && (
                                               <div>
                                                 <div className="text-muted-foreground text-[10px]">Selected Meters</div>
                                                 <div>{formatNumber(totalMeters, 2)} m</div>
                                               </div>
-                                            </div>
-                                          )}
+                                            )}
+                                          </div>
 
                                           {/* Partial Order Checkbox */}
-                                          {item.department === "fabric" && totalWeight < item.quantity && (
+                                          {((item.department === "finishing" ? totalMeters : totalWeight) < item.quantity) && (
                                             <div className="flex items-center gap-2 bg-amber-50/50 border border-amber-200/60 p-3 rounded-lg text-xs">
                                               <input
                                                 type="checkbox"
@@ -829,48 +866,49 @@ export function DeliveryEntryWorkspace({
                                                 className="h-4 w-4 rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
                                               />
                                               <Label htmlFor={`partial-order-checkbox-${item.id}`} className="font-semibold text-slate-800 cursor-pointer select-none">
-                                                Close the order (Remaining {formatNumber(item.quantity - totalWeight, 2)} kg will be discarded)
+                                                Close the order (Remaining {formatNumber(item.quantity - (item.department === "finishing" ? totalMeters : totalWeight), 2)} {item.department === "finishing" ? "pcs" : "kg"} will be discarded)
                                               </Label>
                                             </div>
                                           )}
 
                                           {/* Roll Selector Grid */}
-                                          {item.department !== "fabric" ? (
+                                          {itemRolls.length === 0 ? (
                                             <div className="text-xs text-muted-foreground py-3 text-center border border-dashed rounded-lg bg-white">
-                                              Marked ready for dispatch automatically.
-                                            </div>
-                                          ) : itemRolls.length === 0 ? (
-                                            <div className="text-xs text-muted-foreground py-3 text-center border border-dashed rounded-lg bg-white">
-                                              No available rolls in stock for this fabric type.
+                                              No available stock in system matching this product spec.
                                             </div>
                                           ) : (
                                             <div className="space-y-2">
                                               <Label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                                                Select fabric rolls from stock:
+                                                Select items from stock:
                                               </Label>
                                               <div className="overflow-x-auto border rounded-lg bg-white">
                                                 <table className="w-full text-left border-collapse text-xs">
                                                   <thead>
                                                     <tr className="bg-slate-100/50 border-b text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                                                       <th className="p-2.5 w-10 text-center">Select</th>
-                                                      <th className="p-2.5">Roll No</th>
-                                                      <th className="p-2.5 text-center">Gross Wt (kg)</th>
-                                                      <th className="p-2.5 text-center">Core Wt (kg)</th>
-                                                      <th className="p-2.5 text-center">Net Wt (kg)</th>
-                                                      <th className="p-2.5 text-center">Avg Meter Wt</th>
-                                                      <th className="p-2.5 text-center">Mtrs</th>
-                                                      <th className="p-2.5">Loom</th>
+                                                      <th className="p-2.5">
+                                                        {item.department === "finishing" ? "Bundle ID" : "Roll ID"}
+                                                      </th>
+                                                      <th className="p-2.5 text-center">Weight (kg)</th>
+                                                      {item.department !== "finishing" && (
+                                                        <th className="p-2.5 text-center">Meters</th>
+                                                      )}
+                                                      {item.department === "finishing" && (
+                                                        <th className="p-2.5 text-center">Quantity (pcs)</th>
+                                                      )}
+                                                      {item.department === "fabric" && (
+                                                        <>
+                                                          <th className="p-2.5 text-center">Gross Wt (kg)</th>
+                                                          <th className="p-2.5 text-center">Core Wt (kg)</th>
+                                                          <th className="p-2.5 text-center">Avg Meter Wt</th>
+                                                          <th className="p-2.5">Loom</th>
+                                                        </>
+                                                      )}
                                                     </tr>
                                                   </thead>
                                                   <tbody className="divide-y">
                                                     {itemRolls.map((roll) => {
                                                       const isSelected = selectedIds.includes(roll.id);
-                                                      const loomNo = roll.looms?.loom_number ?? "-";
-                                                      const grossWeight = roll.loom_production_entries?.gross_weight ?? roll.weight ?? 0;
-                                                      const coreWeight = roll.loom_production_entries?.core_weight ?? 0;
-                                                      const netWeight = roll.loom_production_entries?.net_weight ?? roll.weight ?? 0;
-                                                      const avgWeight = roll.loom_production_entries?.average_meter_weight ?? 0;
-                                                      const netMeters = roll.loom_production_entries?.net_meters ?? roll.meters ?? 0;
                                                       return (
                                                         <tr
                                                           key={roll.id}
@@ -888,12 +926,21 @@ export function DeliveryEntryWorkspace({
                                                             />
                                                           </td>
                                                           <td className="p-2.5 font-mono font-semibold text-slate-800">{roll.roll_number}</td>
-                                                          <td className="p-2.5 text-center font-mono">{formatNumber(grossWeight, 2)}</td>
-                                                          <td className="p-2.5 text-center font-mono">{formatNumber(coreWeight, 2)}</td>
-                                                          <td className="p-2.5 text-center font-mono font-semibold">{formatNumber(netWeight, 2)}</td>
-                                                          <td className="p-2.5 text-center font-mono">{formatNumber(Math.floor(avgWeight), 0)}</td>
-                                                          <td className="p-2.5 text-center font-mono">{formatNumber(netMeters, 0)}</td>
-                                                          <td className="p-2.5 font-medium">{loomNo}</td>
+                                                          <td className="p-2.5 text-center font-mono font-semibold">{formatNumber(roll.weight, 2)}</td>
+                                                          {item.department !== "finishing" && (
+                                                            <td className="p-2.5 text-center font-mono">{formatNumber(roll.meters, 0)}</td>
+                                                          )}
+                                                          {item.department === "finishing" && (
+                                                            <td className="p-2.5 text-center font-mono font-semibold">{formatNumber(roll.meters, 0)}</td>
+                                                          )}
+                                                          {item.department === "fabric" && (
+                                                            <>
+                                                              <td className="p-2.5 text-center font-mono">{formatNumber(roll.loom_production_entries?.gross_weight ?? roll.weight, 2)}</td>
+                                                              <td className="p-2.5 text-center font-mono">{formatNumber(roll.loom_production_entries?.core_weight ?? 0, 2)}</td>
+                                                              <td className="p-2.5 text-center font-mono">{formatNumber(Math.floor(roll.loom_production_entries?.average_meter_weight ?? 0), 0)}</td>
+                                                              <td className="p-2.5 font-medium">{roll.looms?.loom_number ?? "-"}</td>
+                                                            </>
+                                                          )}
                                                         </tr>
                                                       );
                                                     })}

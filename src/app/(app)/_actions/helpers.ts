@@ -115,6 +115,7 @@ export const employeeUserLinkSchema = z.object({
 // SEC-15 / ISS-020: Explicit allowlist of valid module keys
 export const ALLOWED_MODULE_KEYS = new Set([
   "looms", "fabric-types", "raw-materials", "employees", "customers", "roto-colors",
+  "lamination-products", "finishing-products",
 ]);
 
 export function modulePermissionKey(moduleKey: string) {

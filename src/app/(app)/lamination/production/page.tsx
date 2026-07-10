@@ -22,6 +22,7 @@ export default async function LaminationProductionPage() {
   const [
     { data: activeFabricTypes },
     { data: activeMetallicRolls },
+    { data: activeLaminationProducts },
     { data: todayLaminationEntries },
     { data: availableRolls },
   ] = await Promise.all([
@@ -38,8 +39,14 @@ export default async function LaminationProductionPage() {
       .is("deleted_at", null)
       .order("created_at", { ascending: false }),
     supabase
+      .from("lamination_products")
+      .select("id, name")
+      .eq("status", "active")
+      .is("deleted_at", null)
+      .order("name"),
+    supabase
       .from("lamination_rolls")
-      .select("*, fabric_types(fabric_name), roto_metallic_rolls(roll_id)")
+      .select("*, fabric_types(fabric_name), roto_metallic_rolls(roll_id), lamination_products(name)")
       .is("deleted_at", null)
       .eq("entry_date", today)
       .order("created_at", { ascending: false }),
@@ -58,6 +65,7 @@ export default async function LaminationProductionPage() {
     availableFabricTypeIds.includes(t.id)
   );
   const metallicRolls = (activeMetallicRolls ?? []) as any[];
+  const laminationProducts = (activeLaminationProducts ?? []) as any[];
   const laminationRows = (todayLaminationEntries ?? []) as any[];
 
   return (
@@ -75,6 +83,7 @@ export default async function LaminationProductionPage() {
           <LaminationProductionForm
             fabricTypes={fabricTypes}
             filmRolls={metallicRolls}
+            laminationProducts={laminationProducts}
             rows={laminationRows}
           />
         </CardContent>
@@ -93,6 +102,7 @@ export default async function LaminationProductionPage() {
                 <TableHeader>
                   <TableRow className="bg-slate-50/50">
                     <TableHead>Laminated Roll ID</TableHead>
+                    <TableHead>Product Specification</TableHead>
                     <TableHead className="text-right">KGs</TableHead>
                     <TableHead className="text-right">Meters</TableHead>
                     <TableHead className="text-center">Action</TableHead>
@@ -102,6 +112,7 @@ export default async function LaminationProductionPage() {
                   {laminationRows.map((row) => (
                     <TableRow key={row.id}>
                       <TableCell className="font-mono font-bold text-emerald-950">{row.roll_id}</TableCell>
+                      <TableCell className="font-medium text-slate-700">{row.lamination_products?.name || "Unspecified Film"}</TableCell>
                       <TableCell className="text-right font-mono">{row.weight_kg}</TableCell>
                       <TableCell className="text-right font-mono">{row.meters}</TableCell>
                       <TableCell className="text-center">

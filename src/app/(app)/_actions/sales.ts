@@ -38,7 +38,8 @@ export async function saveSale(formData: FormData) {
 export async function createSalesOrder(formData: FormData) {
   const user = await requireAnyPermission(["sales.create", "sales.order_confirmation"]);
   const customerId = String(formData.get("customer_id") ?? "");
-  const orderDate = String(formData.get("order_date") ?? "");
+  const rawDate = formData.get("order_date") ? String(formData.get("order_date")).trim() : "";
+  const orderDate = rawDate || todayInIndia();
 
   const supabase = await createClient();
 
@@ -87,15 +88,26 @@ export async function createSalesOrder(formData: FormData) {
 
   if (headerError) throw new Error(headerError.message);
 
-  const departments = formData.getAll("department").map(String);
-  const productIds = formData.getAll("product_id").map(String);
-  const quantities = formData.getAll("quantity").map(Number);
+  const itemsJson = String(formData.get("items_json") ?? "[]");
+  let items: any[] = [];
+  try {
+    items = JSON.parse(itemsJson);
+  } catch (e) {
+    throw new Error("Invalid items payload format.");
+  }
 
-  const itemsPayload = departments.map((dept, idx) => ({
+  const itemsPayload = items.map((item) => ({
     sales_order_id: (orderHeader as any).id,
-    department: dept,
-    product_id: productIds[idx],
-    quantity: quantities[idx],
+    department: item.department,
+    product_id: item.productId,
+    quantity: Number(item.quantity),
+    fabric_type_id: item.fabricTypeId || null,
+    roto_product_id: item.rotoProductId || null,
+    offset_product_id: item.offsetProductId || null,
+    film_type: item.filmType || null,
+    is_metallic: !!item.isMetallic,
+    lamination_type: item.laminationType || null,
+    offset_type: item.offsetType || null,
   }));
 
   if (itemsPayload.length > 0) {
@@ -115,7 +127,7 @@ export async function deleteSalesOrderItem(itemId: string) {
 
   const { data: item, error: itemError } = await (supabase
     .from("sales_order_items") as any)
-    .select("sales_order_id, selected_roll_ids")
+    .select("sales_order_id, selected_roll_ids, department, is_metallic")
     .eq("id", itemId)
     .maybeSingle();
 
@@ -126,9 +138,16 @@ export async function deleteSalesOrderItem(itemId: string) {
   const orderId = item.sales_order_id;
   const rollIds = (item.selected_roll_ids as string[]) || [];
 
-  if (rollIds.length > 0) {
+  let tblName = "";
+  if (item.department === "fabric") tblName = "fabric_rolls";
+  else if (item.department === "lamination") tblName = "lamination_rolls";
+  else if (item.department === "offset-printing") tblName = "offset_rolls";
+  else if (item.department === "finishing") tblName = "finishing_bundles";
+  else if (item.department === "roto-printing") tblName = item.is_metallic ? "roto_metallic_rolls" : "roto_film_rolls";
+
+  if (rollIds.length > 0 && tblName) {
     const { error: releaseError } = await (supabase
-      .from("fabric_rolls") as any)
+      .from(tblName) as any)
       .update({ status: "available", updated_by: user.id } as any)
       .in("id", rollIds);
     if (releaseError) throw new Error(releaseError.message);
@@ -181,20 +200,48 @@ export async function confirmSalesDelivery(
 
   const items = (order.sales_order_items || []) as any[];
 
-  const allNewRollIds = Object.values(itemRolls).flat();
+  // Retrieve roll weights from their respective tables
   const rollsData: Record<string, number> = {};
-  if (allNewRollIds.length > 0) {
-    const { data: rollData, error: rollError } = await (supabase
-      .from("fabric_rolls") as any)
-      .select("id, weight")
-      .in("id", allNewRollIds);
-    if (rollError) throw new Error("Failed to retrieve roll details.");
-    for (const r of rollData || []) {
-      rollsData[r.id] = Number(r.weight || 0);
+  for (const item of items) {
+    const newRollIds = itemRolls[item.id] || [];
+    if (newRollIds.length === 0) continue;
+
+    if (item.department === "fabric") {
+      const { data, error } = await (supabase.from("fabric_rolls") as any).select("id, weight").in("id", newRollIds);
+      if (error) throw new Error(`Failed to retrieve fabric roll details: ${error.message}`);
+      for (const r of data || []) rollsData[r.id] = Number(r.weight || 0);
+    } else if (item.department === "lamination") {
+      const { data, error } = await (supabase.from("lamination_rolls") as any).select("id, weight_kg").in("id", newRollIds);
+      if (error) throw new Error(`Failed to retrieve lamination roll details: ${error.message}`);
+      for (const r of data || []) rollsData[r.id] = Number(r.weight_kg || 0);
+    } else if (item.department === "offset-printing") {
+      const { data, error } = await (supabase.from("offset_rolls") as any).select("id, weight_kg").in("id", newRollIds);
+      if (error) throw new Error(`Failed to retrieve offset roll details: ${error.message}`);
+      for (const r of data || []) rollsData[r.id] = Number(r.weight_kg || 0);
+    } else if (item.department === "finishing") {
+      const { data, error } = await (supabase.from("finishing_bundles") as any).select("id, weight_kg").in("id", newRollIds);
+      if (error) throw new Error(`Failed to retrieve finishing bundle details: ${error.message}`);
+      for (const r of data || []) rollsData[r.id] = Number(r.weight_kg || 0);
+    } else if (item.department === "roto-printing") {
+      const table = item.is_metallic ? "roto_metallic_rolls" : "roto_film_rolls";
+      const { data, error } = await (supabase.from(table) as any).select("id, weight_kg").in("id", newRollIds);
+      if (error) throw new Error(`Failed to retrieve roto roll details: ${error.message}`);
+      for (const r of data || []) rollsData[r.id] = Number(r.weight_kg || 0);
     }
   }
 
-  const backorderItems: Array<{ department: string; product_id: string; quantity: number }> = [];
+  const backorderItems: Array<{ 
+    department: string; 
+    product_id: string; 
+    quantity: number;
+    fabric_type_id?: string | null;
+    roto_product_id?: string | null;
+    offset_product_id?: string | null;
+    film_type?: string | null;
+    is_metallic?: boolean;
+    lamination_type?: string | null;
+    offset_type?: string | null;
+  }> = [];
   const itemsToKeep: string[] = [];
 
   for (const item of items) {
@@ -202,7 +249,14 @@ export async function confirmSalesDelivery(
     const oldRollIds = (item.selected_roll_ids as string[]) || [];
     const action = itemRemainingActions[item.id] || "close";
 
-    if (item.department === "fabric") {
+    let tblName = "";
+    if (item.department === "fabric") tblName = "fabric_rolls";
+    else if (item.department === "lamination") tblName = "lamination_rolls";
+    else if (item.department === "offset-printing") tblName = "offset_rolls";
+    else if (item.department === "finishing") tblName = "finishing_bundles";
+    else if (item.department === "roto-printing") tblName = item.is_metallic ? "roto_metallic_rolls" : "roto_film_rolls";
+
+    if (tblName) {
       const deliveredWeight = newRollIds.reduce((sum, rid) => sum + (rollsData[rid] || 0), 0);
 
       if (deliveredWeight < item.quantity) {
@@ -223,6 +277,13 @@ export async function confirmSalesDelivery(
               department: item.department,
               product_id: item.product_id,
               quantity: remainingQty,
+              fabric_type_id: item.fabric_type_id,
+              roto_product_id: item.roto_product_id,
+              offset_product_id: item.offset_product_id,
+              film_type: item.film_type,
+              is_metallic: item.is_metallic,
+              lamination_type: item.lamination_type,
+              offset_type: item.offset_type,
             });
           } else {
             const { error: deleteItemError } = await (supabase
@@ -235,6 +296,13 @@ export async function confirmSalesDelivery(
               department: item.department,
               product_id: item.product_id,
               quantity: item.quantity,
+              fabric_type_id: item.fabric_type_id,
+              roto_product_id: item.roto_product_id,
+              offset_product_id: item.offset_product_id,
+              film_type: item.film_type,
+              is_metallic: item.is_metallic,
+              lamination_type: item.lamination_type,
+              offset_type: item.offset_type,
             });
           }
         } else {
@@ -271,7 +339,7 @@ export async function confirmSalesDelivery(
       const releasedRollIds = oldRollIds.filter((id) => !newRollIds.includes(id));
       if (releasedRollIds.length > 0) {
         const { error: releaseError } = await (supabase
-          .from("fabric_rolls") as any)
+          .from(tblName) as any)
           .update({ status: "available", updated_by: user.id } as any)
           .in("id", releasedRollIds);
         if (releaseError) throw new Error(releaseError.message);
@@ -279,7 +347,7 @@ export async function confirmSalesDelivery(
 
       if (newRollIds.length > 0) {
         const { error: allocateError } = await (supabase
-          .from("fabric_rolls") as any)
+          .from(tblName) as any)
           .update({ status: "sold", updated_by: user.id } as any)
           .in("id", newRollIds);
         if (allocateError) throw new Error(allocateError.message);
@@ -295,9 +363,6 @@ export async function confirmSalesDelivery(
       .insert({
         customer_id: order.customer_id,
         order_date: order.order_date,
-        // order_number intentionally omitted — the DB trigger (prepare_sales_order)
-        // will auto-generate a new unique number. Copying the parent order_number
-        // would violate the UNIQUE constraint (CONFLICT-12 fix).
         status: "draft",
         created_by: user.id,
         updated_by: user.id,
@@ -313,6 +378,13 @@ export async function confirmSalesDelivery(
       product_id: bo.product_id,
       quantity: bo.quantity,
       selected_roll_ids: [],
+      fabric_type_id: bo.fabric_type_id || null,
+      roto_product_id: bo.roto_product_id || null,
+      offset_product_id: bo.offset_product_id || null,
+      film_type: bo.film_type || null,
+      is_metallic: !!bo.is_metallic,
+      lamination_type: bo.lamination_type || null,
+      offset_type: bo.offset_type || null,
     }));
 
     const { error: boInsertError } = await (supabase
@@ -1093,6 +1165,13 @@ export async function confirmMultipleSalesDeliveries(
       quantity,
       price,
       selected_roll_ids,
+      fabric_type_id,
+      roto_product_id,
+      offset_product_id,
+      film_type,
+      is_metallic,
+      lamination_type,
+      offset_type,
       sales_orders(
         id,
         order_number,
@@ -1117,15 +1196,34 @@ export async function confirmMultipleSalesDeliveries(
   const gstRate = selectedItems[0]?.sales_orders?.gst_rate ?? 18;
 
   const allNewRollIds = Object.values(itemRolls).flat();
+
+  // Retrieve roll weights from their respective tables
   const rollsData: Record<string, number> = {};
-  if (allNewRollIds.length > 0) {
-    const { data: rollData, error: rollError } = await (supabase
-      .from("fabric_rolls") as any)
-      .select("id, weight")
-      .in("id", allNewRollIds);
-    if (rollError) throw new Error("Failed to retrieve roll details.");
-    for (const r of rollData || []) {
-      rollsData[r.id] = Number(r.weight || 0);
+  for (const item of selectedItems) {
+    const newRollIds = itemRolls[item.id] || [];
+    if (newRollIds.length === 0) continue;
+
+    if (item.department === "fabric") {
+      const { data, error } = await (supabase.from("fabric_rolls") as any).select("id, weight").in("id", newRollIds);
+      if (error) throw new Error(`Failed to retrieve fabric roll details: ${error.message}`);
+      for (const r of data || []) rollsData[r.id] = Number(r.weight || 0);
+    } else if (item.department === "lamination") {
+      const { data, error } = await (supabase.from("lamination_rolls") as any).select("id, weight_kg").in("id", newRollIds);
+      if (error) throw new Error(`Failed to retrieve lamination roll details: ${error.message}`);
+      for (const r of data || []) rollsData[r.id] = Number(r.weight_kg || 0);
+    } else if (item.department === "offset-printing") {
+      const { data, error } = await (supabase.from("offset_rolls") as any).select("id, weight_kg").in("id", newRollIds);
+      if (error) throw new Error(`Failed to retrieve offset roll details: ${error.message}`);
+      for (const r of data || []) rollsData[r.id] = Number(r.weight_kg || 0);
+    } else if (item.department === "finishing") {
+      const { data, error } = await (supabase.from("finishing_bundles") as any).select("id, weight_kg").in("id", newRollIds);
+      if (error) throw new Error(`Failed to retrieve finishing bundle details: ${error.message}`);
+      for (const r of data || []) rollsData[r.id] = Number(r.weight_kg || 0);
+    } else if (item.department === "roto-printing") {
+      const table = item.is_metallic ? "roto_metallic_rolls" : "roto_film_rolls";
+      const { data, error } = await (supabase.from(table) as any).select("id, weight_kg").in("id", newRollIds);
+      if (error) throw new Error(`Failed to retrieve roto roll details: ${error.message}`);
+      for (const r of data || []) rollsData[r.id] = Number(r.weight_kg || 0);
     }
   }
 
@@ -1169,7 +1267,14 @@ export async function confirmMultipleSalesDeliveries(
     const oldRollIds = (item.selected_roll_ids as string[]) || [];
     const action = itemRemainingActions[item.id] || "close";
 
-    if (item.department === "fabric") {
+    let tblName = "";
+    if (item.department === "fabric") tblName = "fabric_rolls";
+    else if (item.department === "lamination") tblName = "lamination_rolls";
+    else if (item.department === "offset-printing") tblName = "offset_rolls";
+    else if (item.department === "finishing") tblName = "finishing_bundles";
+    else if (item.department === "roto-printing") tblName = item.is_metallic ? "roto_metallic_rolls" : "roto_film_rolls";
+
+    if (tblName) {
       const deliveredWeight = newRollIds.reduce((sum, rid) => sum + (rollsData[rid] || 0), 0);
 
       if (deliveredWeight < item.quantity) {
@@ -1195,10 +1300,17 @@ export async function confirmMultipleSalesDeliveries(
                 quantity: remainingQty,
                 price: item.price,
                 selected_roll_ids: [],
+                fabric_type_id: item.fabric_type_id || null,
+                roto_product_id: item.roto_product_id || null,
+                offset_product_id: item.offset_product_id || null,
+                film_type: item.film_type || null,
+                is_metallic: !!item.is_metallic,
+                lamination_type: item.lamination_type || null,
+                offset_type: item.offset_type || null,
               });
             if (boInsertError) throw new Error("Failed to create backordered item.");
           } else {
-            // 0 delivered
+            // 0 delivered, keep on parent draft
           }
         } else {
           if (deliveredWeight > 0) {
@@ -1234,7 +1346,7 @@ export async function confirmMultipleSalesDeliveries(
       const releasedRollIds = oldRollIds.filter((id) => !newRollIds.includes(id));
       if (releasedRollIds.length > 0) {
         const { error: releaseError } = await (supabase
-          .from("fabric_rolls") as any)
+          .from(tblName) as any)
           .update({ status: "available", updated_by: user.id } as any)
           .in("id", releasedRollIds);
         if (releaseError) throw new Error(releaseError.message);
@@ -1242,7 +1354,7 @@ export async function confirmMultipleSalesDeliveries(
 
       if (newRollIds.length > 0) {
         const { error: allocateError } = await (supabase
-          .from("fabric_rolls") as any)
+          .from(tblName) as any)
           .update({ status: "sold", updated_by: user.id } as any)
           .in("id", newRollIds);
         if (allocateError) throw new Error(allocateError.message);

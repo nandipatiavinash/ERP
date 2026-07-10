@@ -114,6 +114,8 @@ interface StockReportClientProps {
   materialSales: MaterialSale[];
   rotoProducts?: RotoProduct[];
   offsetProducts?: OffsetProduct[];
+  laminationProducts?: Array<{ id: string; name: string }>;
+  finishingProducts?: Array<{ id: string; name: string }>;
 }
 
 export function StockReportClient({
@@ -129,6 +131,8 @@ export function StockReportClient({
   materialSales,
   rotoProducts = [],
   offsetProducts = [],
+  laminationProducts = [],
+  finishingProducts = [],
 }: StockReportClientProps) {
   const [activeSection, setActiveSection] = useState<"raw_material" | "stock" | "sale" | "clients">("raw_material");
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
@@ -202,8 +206,12 @@ export function StockReportClient({
       const o = offsetProducts?.find((x) => x.id === productId);
       return o ? `${o.brand} (${o.width}x${o.height} in)` : "Offset Product";
     } else if (dept === "lamination") {
+      const l = laminationProducts.find((x) => x.id === productId);
+      if (l) return l.name;
       return productId === "lam-film-25" ? "Laminated Film 2.5 mil" : "Laminated Film 3.0 mil";
     } else if (dept === "finishing") {
+      const f = finishingProducts.find((x) => x.id === productId);
+      if (f) return f.name;
       return productId === "finished-bags-28" ? "Finished Bags W-28" : "Finished Bags W-32";
     }
     return "Unknown Product";

@@ -24,6 +24,8 @@ export default async function StockReportPage({ searchParams }: { searchParams: 
     { data: materialSales },
     { data: rotoProducts },
     { data: offsetProducts },
+    laminationProds,
+    finishingProds
   ] = await Promise.all([
     supabase
       .from("raw_materials")
@@ -83,6 +85,12 @@ export default async function StockReportPage({ searchParams }: { searchParams: 
     supabase
       .from("offset_products")
       .select("id, brand, width, height"),
+    supabase
+      .from("lamination_products")
+      .select("id, name"),
+    supabase
+      .from("finishing_products")
+      .select("id, name"),
   ]);
 
   return (
@@ -99,6 +107,8 @@ export default async function StockReportPage({ searchParams }: { searchParams: 
       materialSales={(materialSales ?? []) as any[]}
       rotoProducts={(rotoProducts ?? []) as any[]}
       offsetProducts={(offsetProducts ?? []) as any[]}
+      laminationProducts={(laminationProds.data ?? []) as any[]}
+      finishingProducts={(finishingProds.data ?? []) as any[]}
     />
   );
 }

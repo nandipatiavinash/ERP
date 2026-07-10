@@ -15,7 +15,7 @@ export type FieldConfig = {
 export type ModuleConfig = {
   key: string;
   title: string;
-  table: keyof Database["public"]["Tables"];
+  table: string;
   path: string;
   role: RoleName[];
   fields: FieldConfig[];
@@ -172,6 +172,38 @@ export const modules: Record<string, ModuleConfig> = {
       { key: "status", label: "Status" },
     ],
     searchColumns: ["color_name", "description", "status"],
+  },
+  "lamination-products": {
+    key: "lamination-products",
+    title: "Lamination Film Product Management",
+    table: "lamination_products",
+    path: "/admin/products",
+    role: ["admin"],
+    fields: [
+      { name: "name", label: "Product Name", type: "text", required: true },
+      { name: "status", label: "Status", type: "select", options: statusOptions, required: true },
+    ],
+    columns: [
+      { key: "name", label: "Product Name" },
+      { key: "status", label: "Status" },
+    ],
+    searchColumns: ["name", "status"],
+  },
+  "finishing-products": {
+    key: "finishing-products",
+    title: "Finished Bag Product Management",
+    table: "finishing_products",
+    path: "/admin/products",
+    role: ["admin"],
+    fields: [
+      { name: "name", label: "Product Name", type: "text", required: true },
+      { name: "status", label: "Status", type: "select", options: statusOptions, required: true },
+    ],
+    columns: [
+      { key: "name", label: "Product Name" },
+      { key: "status", label: "Status" },
+    ],
+    searchColumns: ["name", "status"],
   },
 };
 
