@@ -18,20 +18,15 @@ export default async function LaminationStockPage() {
 
   if (error) throw new Error(error.message);
 
-  const groupsMap = new Map<string, { brand: string; fabric_type_id: string; fabric_name: string; rolls: number; weight: number; meters: number }>();
+  const groupsMap = new Map<string, { roll_id: string; fabric_type_id: string; fabric_name: string; rolls: number; weight: number; meters: number }>();
   for (const r of (rolls ?? []) as any[]) {
-    // Parse brand name from roll_id (which is before first '(')
-    const match = r.roll_id.match(/^([^(]+)/);
-    let brand = match ? match[1].trim() : "";
-    if (!brand) brand = "Fabric";
-
+    const key = r.roll_id || "Unspecified";
     const fId = r.fabric_type_id || "unspecified";
     const fName = r.fabric_types?.fabric_name || "Unspecified Fabric";
 
-    const key = `${brand}_${fId}`;
     if (!groupsMap.has(key)) {
       groupsMap.set(key, {
-        brand,
+        roll_id: key,
         fabric_type_id: fId,
         fabric_name: fName,
         rolls: 0,
@@ -45,9 +40,7 @@ export default async function LaminationStockPage() {
     g.meters += Number(r.meters || 0);
   }
   const stockRows = Array.from(groupsMap.values()).sort((a, b) => {
-    const brandComp = a.brand.localeCompare(b.brand);
-    if (brandComp !== 0) return brandComp;
-    return a.fabric_name.localeCompare(b.fabric_name);
+    return a.roll_id.localeCompare(b.roll_id);
   });
 
   const totalRolls = stockRows.reduce((sum, r) => sum + r.rolls, 0);
@@ -73,7 +66,7 @@ export default async function LaminationStockPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Brand</TableHead>
+                    <TableHead>Specification</TableHead>
                     <TableHead>Fabric Type</TableHead>
                     <TableHead className="text-right">Rolls Count</TableHead>
                     <TableHead className="text-right">Total Weight</TableHead>
@@ -83,9 +76,9 @@ export default async function LaminationStockPage() {
                 <TableBody>
                   {stockRows.map((row, idx) => (
                     <TableRow key={idx}>
-                      <TableCell className="font-semibold text-base">
-                        <Link href={`/lamination/stock/${row.fabric_type_id}?brand=${encodeURIComponent(row.brand)}` as any} prefetch={false} className="text-primary hover:underline">
-                          {row.brand}
+                      <TableCell className="font-semibold text-base font-mono text-emerald-950">
+                        <Link href={`/lamination/stock/${encodeURIComponent(row.roll_id)}` as any} prefetch={false} className="text-primary hover:underline">
+                          {row.roll_id}
                         </Link>
                       </TableCell>
                       <TableCell className="text-base font-medium">{row.fabric_name}</TableCell>

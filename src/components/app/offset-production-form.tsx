@@ -92,15 +92,21 @@ export function OffsetProductionForm({
     return [...offsetProducts].sort((a, b) => (a.brand || "").localeCompare(b.brand || ""));
   }, [offsetProducts]);
  
-  // Filter and sort lamination rolls based on offsetType
-  const sortedLaminationRolls = useMemo(() => {
+  // Filter, deduplicate by roll_id, and sort lamination rolls based on offsetType
+  const uniqueLaminationRolls = useMemo(() => {
     if (!laminationRolls) return [];
     const rolls = offsetType === "NW_LAM"
       ? laminationRolls.filter((r) => r.lam_type === "NW")
       : offsetType === "PLAIN_LAM"
       ? laminationRolls.filter((r) => r.lam_type === "PLAIN")
       : [];
-    return [...rolls].sort((a, b) => (a.roll_id || "").localeCompare(b.roll_id || ""));
+    const map = new Map<string, LaminationRoll>();
+    rolls.forEach((r) => {
+      if (!map.has(r.roll_id)) {
+        map.set(r.roll_id, r);
+      }
+    });
+    return Array.from(map.values()).sort((a, b) => (a.roll_id || "").localeCompare(b.roll_id || ""));
   }, [offsetType, laminationRolls]);
  
   // Find matching roll to extract fabric_type_id and name
@@ -272,9 +278,9 @@ export function OffsetProductionForm({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="none">Select laminated roll</SelectItem>
-              {sortedLaminationRolls.map((r) => (
+              {uniqueLaminationRolls.map((r) => (
                 <SelectItem key={r.id} value={r.id} className="text-xs font-mono">
-                  {r.roll_id} ({r.weight_kg} kg)
+                  {r.roll_id}
                 </SelectItem>
               ))}
             </SelectContent>
