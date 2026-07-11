@@ -561,109 +561,69 @@ export async function deleteOffsetProduction(id: string) {
 export async function saveFinishingBundle(formData: FormData) {
   const user = await requirePermission("finishing.production");
   const finishType = String(formData.get("finish_type") ?? "");
-  const fabricTypeId = String(formData.get("fabric_type_id") ?? "");
   const numBags = Number(formData.get("num_bags") ?? 0);
   const weightKg = Number(formData.get("weight_kg") ?? 0);
   const entryDate = String(formData.get("entry_date") ?? todayInIndia());
 
-  if (!finishType || !fabricTypeId || numBags <= 0 || weightKg <= 0) {
+  if (!finishType || numBags <= 0 || weightKg <= 0) {
     throw new Error("Invalid parameters.");
   }
 
   const supabase = await createClient();
 
-  const { data: fabricType, error: fabricError } = await (supabase
-    .from("fabric_types") as any)
-    .select("fabric_name")
-    .eq("id", fabricTypeId)
-    .single();
-
-  if (fabricError || !fabricType) {
-    throw new Error("Fabric type not found.");
-  }
-  const fabricTypeName = (fabricType as any).fabric_name;
-
-  let parentId = "";
+  let specId = "";
+  let fabricTypeId: string | null = formData.get("fabric_type_id") ? String(formData.get("fabric_type_id")) : null;
+  let sourceLamRollId: string | null = null;
+  let sourceOffsetRollId: string | null = null;
 
   if (finishType === "FABRIC") {
-    parentId = `PLAIN(${fabricTypeName})`;
+    if (!fabricTypeId) throw new Error("Fabric Type is required.");
+    const { data: ft } = await (supabase.from("fabric_types") as any).select("fabric_name").eq("id", fabricTypeId).single();
+    if (!ft) throw new Error("Fabric type not found.");
+    specId = `PLAIN(${(ft as any).fabric_name})`.toUpperCase();
+
   } else if (finishType === "LAMINATION") {
-    const laminationType = String(formData.get("lamination_type") ?? "");
-    if (!laminationType) throw new Error("Lamination Type is required.");
-    
-    let brandName = "PLAIN";
-    if (["BOX", "F_S", "H_S"].includes(laminationType)) {
-      const rotoProductId = formData.get("roto_product_id") ? String(formData.get("roto_product_id")) : null;
-      if (!rotoProductId) throw new Error("Brand is required.");
-      
-      const { data: filmRoll } = await (supabase
-        .from("roto_film_rolls") as any)
-        .select("roll_id")
-        .eq("id", rotoProductId)
-        .maybeSingle();
-
-      if (filmRoll) {
-        brandName = (filmRoll as any).roll_id;
-      } else {
-        const { data: rotoProduct } = await (supabase
-          .from("roto_products") as any)
-          .select("brand")
-          .eq("id", rotoProductId)
-          .maybeSingle();
-        brandName = rotoProduct ? (rotoProduct as any).brand : "PLAIN";
-      }
-    } else if (laminationType === "NW") {
-      brandName = "NW";
-    }
-
-    let suffix = "";
-    if (laminationType === "PLAIN") suffix = "";
-    else if (laminationType === "NW") suffix = "";
-    else if (laminationType === "BOX") suffix = "B";
-    else if (laminationType === "F_S") suffix = "F";
-    else if (laminationType === "H_S") suffix = "H";
-
-    if (laminationType === "PLAIN" || laminationType === "NW") {
-      parentId = `${brandName}(${fabricTypeName})`;
-    } else {
-      parentId = `${brandName}(${fabricTypeName})(${suffix})`;
-    }
-  } else if (finishType === "OFFSET") {
-    const offsetProductId = formData.get("offset_product_id") ? String(formData.get("offset_product_id")) : null;
-    if (!offsetProductId) throw new Error("Offset Brand is required.");
-    const { data: offsetProduct } = await (supabase
-      .from("offset_products") as any)
-      .select("brand")
-      .eq("id", offsetProductId)
+    const lamRollId = formData.get("lam_roll_id") ? String(formData.get("lam_roll_id")) : null;
+    if (!lamRollId) throw new Error("Lamination Roll is required.");
+    const { data: lamRoll } = await (supabase.from("lamination_rolls") as any)
+      .select("roll_id, fabric_type_id")
+      .eq("id", lamRollId)
       .single();
-    const brandName = offsetProduct ? (offsetProduct as any).brand : "Offset";
-    parentId = `${brandName}(${fabricTypeName})`;
+    if (!lamRoll) throw new Error("Lamination roll not found.");
+    specId = String((lamRoll as any).roll_id).toUpperCase();
+    fabricTypeId = (lamRoll as any).fabric_type_id || fabricTypeId;
+    sourceLamRollId = lamRollId;
+
+  } else if (finishType === "OFFSET") {
+    const offsetRollId = formData.get("offset_roll_id") ? String(formData.get("offset_roll_id")) : null;
+    if (!offsetRollId) throw new Error("Offset Roll is required.");
+    const { data: offsetRoll } = await (supabase.from("offset_rolls") as any)
+      .select("roll_id, fabric_type_id")
+      .eq("id", offsetRollId)
+      .single();
+    if (!offsetRoll) throw new Error("Offset roll not found.");
+    specId = String((offsetRoll as any).roll_id).toUpperCase();
+    fabricTypeId = (offsetRoll as any).fabric_type_id || fabricTypeId;
+    sourceOffsetRollId = offsetRollId;
+
   } else {
     throw new Error("Unsupported finishing type.");
   }
 
-  parentId = parentId.toUpperCase();
-
-  const { count } = await (supabase
-    .from("finishing_bundles") as any)
-    .select("id", { count: "exact", head: true })
-    .eq("bundle_id", parentId)
-    .is("deleted_at", null);
-
-  const seq = (count ?? 0) + 1;
-  const newBundleId = parentId;
+  // Build bundle_id: SPEC(Xpcs)(Y.00kg)
+  const bundleId = `${specId}(${numBags}pcs)(${weightKg.toFixed(2)}kg)`.toUpperCase();
 
   const adminSupabase = createAdminClient();
   const { error: insertError } = await (adminSupabase
     .from("finishing_bundles") as any)
     .insert({
-      bundle_id: newBundleId,
-      s_no: seq,
+      bundle_id: bundleId,
+      s_no: 1,
       finish_type: finishType,
       product_id: null,
-      source_lam_roll_id: null,
+      source_lam_roll_id: sourceLamRollId,
       source_fabric_roll_id: null,
-      source_offset_roll_id: null,
+      source_offset_roll_id: sourceOffsetRollId,
       fabric_type_id: fabricTypeId,
       num_bags: numBags,
       weight_kg: weightKg,
@@ -677,7 +637,7 @@ export async function saveFinishingBundle(formData: FormData) {
 
   revalidatePath("/finishing/production");
   revalidatePath("/finishing/stock");
-  return { bundle_id: newBundleId };
+  return { bundle_id: bundleId };
 }
 
 export async function deleteFinishingBundle(id: string) {

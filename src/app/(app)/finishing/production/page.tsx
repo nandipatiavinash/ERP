@@ -20,8 +20,8 @@ export default async function FinishingProductionPage() {
 
   const [
     { data: activeFabricTypes },
-    { data: activeRotoProducts },
-    { data: activeOffsetProducts },
+    { data: availableLaminationRolls },
+    { data: availableOffsetRolls },
     { data: todayFinishingEntries },
   ] = await Promise.all([
     supabase
@@ -31,14 +31,14 @@ export default async function FinishingProductionPage() {
       .is("deleted_at", null)
       .order("fabric_name"),
     supabase
-      .from("roto_film_rolls")
-      .select("id, roll_id, s_no")
+      .from("lamination_rolls")
+      .select("id, roll_id, fabric_type_id")
       .eq("status", "available")
       .is("deleted_at", null)
       .order("roll_id"),
     supabase
       .from("offset_rolls")
-      .select("id, roll_id, s_no")
+      .select("id, roll_id, fabric_type_id")
       .eq("status", "available")
       .is("deleted_at", null)
       .order("roll_id"),
@@ -51,8 +51,8 @@ export default async function FinishingProductionPage() {
   ]);
 
   const fabricTypes = (activeFabricTypes ?? []) as any[];
-  const rotoProducts = (activeRotoProducts ?? []) as any[];
-  const offsetProducts = (activeOffsetProducts ?? []) as any[];
+  const laminationRolls = (availableLaminationRolls ?? []) as any[];
+  const offsetRolls = (availableOffsetRolls ?? []) as any[];
   const finishingRows = (todayFinishingEntries ?? []) as any[];
 
   return (
@@ -69,8 +69,8 @@ export default async function FinishingProductionPage() {
         <CardContent>
           <FinishingProductionForm
             fabricTypes={fabricTypes}
-            rotoProducts={rotoProducts}
-            offsetProducts={offsetProducts}
+            laminationRolls={laminationRolls}
+            offsetRolls={offsetRolls}
             rows={finishingRows}
           />
         </CardContent>

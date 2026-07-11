@@ -15,45 +15,38 @@ type FabricType = {
   fabric_name: string;
 };
 
-type RotoProduct = {
+type LaminationRoll = {
   id: string;
   roll_id: string;
-  s_no: number;
+  fabric_type_id?: string | null;
 };
 
-type OffsetProduct = {
+type OffsetRoll = {
   id: string;
   roll_id: string;
-  s_no: number;
+  fabric_type_id?: string | null;
 };
 
 interface FinishingProductionFormProps {
   fabricTypes: FabricType[];
-  rotoProducts: RotoProduct[];
-  offsetProducts: OffsetProduct[];
+  laminationRolls: LaminationRoll[];
+  offsetRolls: OffsetRoll[];
   onSuccess?: (newBundleInfo: { bundleId: string; numBags: number; weight: number }) => void;
   rows?: any[];
 }
 
 export function FinishingProductionForm({
   fabricTypes,
-  rotoProducts,
-  offsetProducts,
+  laminationRolls,
+  offsetRolls,
   onSuccess,
   rows,
 }: FinishingProductionFormProps) {
   const [isPending, startTransition] = useTransition();
   const [finishType, setFinishType] = useState<string>("");
   const [selectedFabricTypeId, setSelectedFabricTypeId] = useState<string>("");
-  
-  // Lamination sub-specifications
-  const [laminationType, setLaminationType] = useState<string>("");
-  const [selectedRotoProductId, setSelectedRotoProductId] = useState<string>("");
-
-  // Offset sub-specifications
-  const [offsetType, setOffsetType] = useState<string>("");
-  const [selectedOffsetProductId, setSelectedOffsetProductId] = useState<string>("");
-
+  const [selectedLamRollId, setSelectedLamRollId] = useState<string>("");
+  const [selectedOffsetRollId, setSelectedOffsetRollId] = useState<string>("");
   const [numBags, setNumBags] = useState<string>("");
   const [weightKg, setWeightKg] = useState<string>("");
   const [entryDate, setEntryDate] = useState<string>(
@@ -62,111 +55,67 @@ export function FinishingProductionForm({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-  // Sort lists alphabetically
   const sortedFabricTypes = useMemo(() => {
-    return [...fabricTypes].sort((a, b) => a.fabric_name.localeCompare(b.fabric_name));
+    if (!fabricTypes) return [];
+    return [...fabricTypes].sort((a, b) => (a.fabric_name || "").localeCompare(b.fabric_name || ""));
   }, [fabricTypes]);
 
-  const sortedRotoProducts = useMemo(() => {
-    const map = new Map<string, RotoProduct>();
-    [...rotoProducts]
-      .sort((a, b) => a.s_no - b.s_no)
-      .forEach((p) => {
-        if (!map.has(p.roll_id)) {
-          map.set(p.roll_id, p);
-        }
-      });
-    return Array.from(map.values()).sort((a, b) => a.roll_id.localeCompare(b.roll_id));
-  }, [rotoProducts]);
+  const uniqueLaminationRolls = useMemo(() => {
+    if (!laminationRolls) return [];
+    const map = new Map<string, LaminationRoll>();
+    laminationRolls.forEach((r) => { if (!map.has(r.roll_id)) map.set(r.roll_id, r); });
+    return Array.from(map.values()).sort((a, b) => (a.roll_id || "").localeCompare(b.roll_id || ""));
+  }, [laminationRolls]);
 
-  const sortedOffsetProducts = useMemo(() => {
-    const map = new Map<string, OffsetProduct>();
-    [...offsetProducts]
-      .sort((a, b) => a.s_no - b.s_no)
-      .forEach((p) => {
-        if (!map.has(p.roll_id)) {
-          map.set(p.roll_id, p);
-        }
-      });
-    return Array.from(map.values()).sort((a, b) => a.roll_id.localeCompare(b.roll_id));
-  }, [offsetProducts]);
+  const uniqueOffsetRolls = useMemo(() => {
+    if (!offsetRolls) return [];
+    const map = new Map<string, OffsetRoll>();
+    offsetRolls.forEach((r) => { if (!map.has(r.roll_id)) map.set(r.roll_id, r); });
+    return Array.from(map.values()).sort((a, b) => (a.roll_id || "").localeCompare(b.roll_id || ""));
+  }, [offsetRolls]);
 
-  // Compute live preview of bundle_id prefix
+  const selectedLamRoll = useMemo(
+    () => laminationRolls?.find((r) => r.id === selectedLamRollId) || null,
+    [selectedLamRollId, laminationRolls]
+  );
+  const selectedOffsetRoll = useMemo(
+    () => offsetRolls?.find((r) => r.id === selectedOffsetRollId) || null,
+    [selectedOffsetRollId, offsetRolls]
+  );
+
   const livePreviewId = useMemo(() => {
-    if (!finishType || !selectedFabricTypeId) return "SELECT-SPEC";
-
-    const fab = fabricTypes.find((t) => t.id === selectedFabricTypeId);
-    const fabricName = fab ? fab.fabric_name : "FABRIC-TYPE";
+    const bags = parseInt(numBags, 10) || 0;
+    const kgs = parseFloat(weightKg) || 0;
+    const suffix = bags > 0 && kgs > 0 ? ` | ${bags} pcs | ${kgs} kg` : "";
 
     if (finishType === "FABRIC") {
-      return `PLAIN(${fabricName})`.toUpperCase();
+      const fab = fabricTypes?.find((t) => t.id === selectedFabricTypeId);
+      return fab ? `PLAIN(${fab.fabric_name})${suffix}`.toUpperCase() : "SELECT FABRIC TYPE";
     }
-
     if (finishType === "LAMINATION") {
-      let brandName = "PLAIN";
-      if (["BOX", "F_S", "H_S"].includes(laminationType)) {
-        const p = rotoProducts.find((x) => x.id === selectedRotoProductId);
-        brandName = p ? p.roll_id : "Select Brand";
-      } else if (laminationType === "NW") {
-        brandName = "NW";
-      }
-
-      let suffix = "";
-      if (laminationType === "PLAIN") suffix = "";
-      else if (laminationType === "NW") suffix = "";
-      else if (laminationType === "BOX") suffix = "B";
-      else if (laminationType === "F_S") suffix = "F";
-      else if (laminationType === "H_S") suffix = "H";
-
-      if (laminationType === "PLAIN" || laminationType === "NW") {
-        return `${brandName}(${fabricName})`.toUpperCase();
-      } else {
-        return `${brandName}(${fabricName})(${suffix})`.toUpperCase();
-      }
+      return selectedLamRoll ? `${selectedLamRoll.roll_id.toUpperCase()}${suffix}` : "SELECT LAMINATION ROLL";
     }
-
     if (finishType === "OFFSET") {
-      const p = offsetProducts.find((x) => x.id === selectedOffsetProductId);
-      const brandName = p ? p.roll_id : "Select Brand";
-      return `${brandName}(${fabricName})`.toUpperCase();
+      return selectedOffsetRoll ? `${selectedOffsetRoll.roll_id.toUpperCase()}${suffix}` : "SELECT OFFSET ROLL";
     }
+    return "SELECT TYPE";
+  }, [finishType, selectedFabricTypeId, selectedLamRoll, selectedOffsetRoll, fabricTypes, numBags, weightKg]);
 
-    return "SELECT-SPEC";
-  }, [finishType, selectedFabricTypeId, laminationType, selectedRotoProductId, offsetType, selectedOffsetProductId, fabricTypes, rotoProducts, offsetProducts]);
+  const resetSelections = () => {
+    setSelectedFabricTypeId("");
+    setSelectedLamRollId("");
+    setSelectedOffsetRollId("");
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
     setSuccessMsg(null);
 
-    if (!finishType) {
-      setErrorMsg("Finishing Type is required.");
-      return;
-    }
-    if (!selectedFabricTypeId) {
-      setErrorMsg("Fabric Type is required.");
-      return;
-    }
-    if (finishType === "LAMINATION") {
-      if (!laminationType) {
-        setErrorMsg("Lamination Type is required.");
-        return;
-      }
-      if (["BOX", "F_S", "H_S"].includes(laminationType) && !selectedRotoProductId) {
-        setErrorMsg("Laminated Brand is required.");
-        return;
-      }
-    }
-    if (finishType === "OFFSET") {
-      if (!offsetType) {
-        setErrorMsg("Offset Type is required.");
-        return;
-      }
-      if (!selectedOffsetProductId) {
-        setErrorMsg("Offset Brand is required.");
-        return;
-      }
-    }
+    if (!finishType) { setErrorMsg("Finishing Type is required."); return; }
+    if (finishType === "FABRIC" && !selectedFabricTypeId) { setErrorMsg("Fabric Type is required."); return; }
+    if (finishType === "LAMINATION" && !selectedLamRollId) { setErrorMsg("Lamination Roll is required."); return; }
+    if (finishType === "OFFSET" && !selectedOffsetRollId) { setErrorMsg("Offset Roll is required."); return; }
 
     const bags = parseInt(numBags, 10);
     const w = parseFloat(weightKg);
@@ -179,36 +128,27 @@ export function FinishingProductionForm({
       try {
         const fd = new FormData();
         fd.append("finish_type", finishType);
-        fd.append("fabric_type_id", selectedFabricTypeId);
         fd.append("num_bags", String(bags));
         fd.append("weight_kg", String(w));
         fd.append("entry_date", entryDate);
 
-        if (finishType === "LAMINATION") {
-          fd.append("lamination_type", laminationType);
-          if (["BOX", "F_S", "H_S"].includes(laminationType)) {
-            fd.append("roto_product_id", selectedRotoProductId);
-          }
+        if (finishType === "FABRIC") {
+          fd.append("fabric_type_id", selectedFabricTypeId);
+        } else if (finishType === "LAMINATION") {
+          fd.append("lam_roll_id", selectedLamRollId);
+          if (selectedLamRoll?.fabric_type_id) fd.append("fabric_type_id", selectedLamRoll.fabric_type_id);
         } else if (finishType === "OFFSET") {
-          fd.append("offset_type", offsetType);
-          fd.append("offset_product_id", selectedOffsetProductId);
+          fd.append("offset_roll_id", selectedOffsetRollId);
+          if (selectedOffsetRoll?.fabric_type_id) fd.append("fabric_type_id", selectedOffsetRoll.fabric_type_id);
         }
 
         const res = await saveFinishingBundle(fd);
         showSuccess("Submitted successfully!");
-        setSuccessMsg(`Finishing bundle created successfully: ${res?.bundle_id || livePreviewId}`);
+        setSuccessMsg(`Finishing bundle created: ${res?.bundle_id || livePreviewId}`);
+        if (onSuccess) onSuccess({ bundleId: res?.bundle_id || livePreviewId, numBags: bags, weight: w });
 
-        if (onSuccess) {
-          onSuccess({ bundleId: res?.bundle_id || livePreviewId, numBags: bags, weight: w });
-        }
-
-        // Reset
         setFinishType("");
-        setSelectedFabricTypeId("");
-        setLaminationType("");
-        setSelectedRotoProductId("");
-        setOffsetType("");
-        setSelectedOffsetProductId("");
+        resetSelections();
         setNumBags("");
         setWeightKg("");
       } catch (err: any) {
@@ -217,8 +157,6 @@ export function FinishingProductionForm({
       }
     });
   };
-
-  const isLamBrandRequired = ["BOX", "F_S", "H_S"].includes(laminationType);
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 w-full bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
@@ -230,12 +168,11 @@ export function FinishingProductionForm({
       )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Finishing Type Select */}
         <div className="space-y-1">
-          <Label className="text-xs font-semibold text-slate-700">Finishing Type</Label>
-          <Select value={finishType} onValueChange={(val) => { setFinishType(val); setSelectedFabricTypeId(""); setLaminationType(""); setSelectedRotoProductId(""); setOffsetType(""); setSelectedOffsetProductId(""); }}>
+          <Label className="text-xs font-semibold text-slate-700">Department / Type</Label>
+          <Select value={finishType} onValueChange={(val) => { setFinishType(val); resetSelections(); }}>
             <SelectTrigger className="h-10 border-slate-200">
-              <SelectValue placeholder="Select finishing type" />
+              <SelectValue placeholder="Select type" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="FABRIC">Fabric</SelectItem>
@@ -245,131 +182,74 @@ export function FinishingProductionForm({
           </Select>
         </div>
 
-        {/* Fabric Type dropdown */}
-        <div className="space-y-1">
-          <Label className="text-xs font-semibold text-slate-700">Select Fabric Type</Label>
-          <Select value={selectedFabricTypeId} onValueChange={setSelectedFabricTypeId}>
-            <SelectTrigger className="h-10 border-slate-200 text-xs">
-              <SelectValue placeholder="Select fabric type" />
-            </SelectTrigger>
-            <SelectContent>
-              {sortedFabricTypes.map((t) => (
-                <SelectItem key={t.id} value={t.id} className="text-xs">
-                  {t.fabric_name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Lamination fields */}
-        {finishType === "LAMINATION" && (
-          <>
-            <div className="space-y-1">
-              <Label className="text-xs font-semibold text-slate-700">Lamination Type</Label>
-              <Select value={laminationType} onValueChange={(val) => { setLaminationType(val); setSelectedRotoProductId(""); }}>
-                <SelectTrigger className="h-10 border-slate-200">
-                  <SelectValue placeholder="Select lamination type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="PLAIN">PLAIN</SelectItem>
-                  <SelectItem value="BOX">BOX</SelectItem>
-                  <SelectItem value="F_S">F/S</SelectItem>
-                  <SelectItem value="H_S">H/S</SelectItem>
-                  <SelectItem value="NW">NW</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-1">
-              <Label className="text-xs font-semibold text-slate-700">Laminated Brand (Printed Spec)</Label>
-              <Select
-                value={selectedRotoProductId}
-                onValueChange={setSelectedRotoProductId}
-                disabled={!isLamBrandRequired}
-              >
-                <SelectTrigger className="h-10 border-slate-200 text-xs disabled:opacity-50 font-mono">
-                  <SelectValue placeholder={isLamBrandRequired ? "Select roto spec" : "No specification required"} />
-                </SelectTrigger>
-                <SelectContent>
-                  {sortedRotoProducts.map((p) => (
-                    <SelectItem key={p.id} value={p.id} className="text-xs font-mono">
-                      {p.roll_id}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </>
+        {finishType === "FABRIC" && (
+          <div className="space-y-1">
+            <Label className="text-xs font-semibold text-slate-700">Fabric Type</Label>
+            <Select value={selectedFabricTypeId} onValueChange={setSelectedFabricTypeId}>
+              <SelectTrigger className="h-10 border-slate-200 text-xs font-mono">
+                <SelectValue placeholder="Select fabric type" />
+              </SelectTrigger>
+              <SelectContent>
+                {sortedFabricTypes.map((t) => (
+                  <SelectItem key={t.id} value={t.id} className="text-xs font-mono">{t.fabric_name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         )}
 
-        {/* Offset fields */}
-        {finishType === "OFFSET" && (
-          <>
-            <div className="space-y-1">
-              <Label className="text-xs font-semibold text-slate-700">Offset Type</Label>
-              <Select value={offsetType} onValueChange={setOffsetType}>
-                <SelectTrigger className="h-10 border-slate-200">
-                  <SelectValue placeholder="Select offset type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="FABRIC">Fabric</SelectItem>
-                  <SelectItem value="NW">NW</SelectItem>
-                  <SelectItem value="NW_LAM">NW_LAM</SelectItem>
-                  <SelectItem value="PLAIN_LAM">PLAIN_LAM</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-1">
-              <Label className="text-xs font-semibold text-slate-700">Offset Brand (Printed Spec)</Label>
-              <Select value={selectedOffsetProductId} onValueChange={setSelectedOffsetProductId}>
-                <SelectTrigger className="h-10 border-slate-200 text-xs font-mono">
-                  <SelectValue placeholder="Select offset spec" />
-                </SelectTrigger>
-                <SelectContent>
-                  {sortedOffsetProducts.map((p) => (
-                    <SelectItem key={p.id} value={p.id} className="text-xs font-mono">
-                      {p.roll_id}
-                    </SelectItem>
+        {finishType === "LAMINATION" && (
+          <div className="space-y-1">
+            <Label className="text-xs font-semibold text-slate-700">Lamination Roll ID</Label>
+            <Select value={selectedLamRollId} onValueChange={setSelectedLamRollId}>
+              <SelectTrigger className="h-10 border-slate-200 text-xs font-mono">
+                <SelectValue placeholder="Select lamination roll" />
+              </SelectTrigger>
+              <SelectContent>
+                {uniqueLaminationRolls.length === 0
+                  ? <SelectItem value="_none" disabled>No available lamination rolls</SelectItem>
+                  : uniqueLaminationRolls.map((r) => (
+                    <SelectItem key={r.id} value={r.id} className="text-xs font-mono">{r.roll_id}</SelectItem>
                   ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        {finishType === "OFFSET" && (
+          <div className="space-y-1">
+            <Label className="text-xs font-semibold text-slate-700">Offset Roll ID</Label>
+            <Select value={selectedOffsetRollId} onValueChange={setSelectedOffsetRollId}>
+              <SelectTrigger className="h-10 border-slate-200 text-xs font-mono">
+                <SelectValue placeholder="Select offset roll" />
+              </SelectTrigger>
+              <SelectContent>
+                {uniqueOffsetRolls.length === 0
+                  ? <SelectItem value="_none" disabled>No available offset rolls</SelectItem>
+                  : uniqueOffsetRolls.map((r) => (
+                    <SelectItem key={r.id} value={r.id} className="text-xs font-mono">{r.roll_id}</SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+          </div>
         )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* No. of Bags */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="space-y-1">
-          <Label htmlFor="num_bags" className="text-xs font-semibold text-slate-700">No. of Bags</Label>
-          <Input
-            id="num_bags"
-            type="number"
-            placeholder="0"
-            value={numBags}
-            onChange={(e) => setNumBags(e.target.value)}
-            className="h-10 text-sm border-slate-200"
-          />
+          <Label htmlFor="num_bags" className="text-xs font-semibold text-slate-700">Qty (Pieces / Bags)</Label>
+          <Input id="num_bags" type="number" placeholder="0" value={numBags} onChange={(e) => setNumBags(e.target.value)} className="h-10 text-sm border-slate-200" />
         </div>
-
-        {/* KGs */}
         <div className="space-y-1">
           <Label htmlFor="weight_kg" className="text-xs font-semibold text-slate-700">Weight (KGs)</Label>
-          <Input
-            id="weight_kg"
-            type="number"
-            step="0.01"
-            placeholder="0.00"
-            value={weightKg}
-            onChange={(e) => setWeightKg(e.target.value)}
-            className="h-10 text-sm border-slate-200"
-          />
+          <Input id="weight_kg" type="number" step="0.01" placeholder="0.00" value={weightKg} onChange={(e) => setWeightKg(e.target.value)} className="h-10 text-sm border-slate-200" />
+        </div>
+        <div className="space-y-1">
+          <Label htmlFor="entry_date" className="text-xs font-semibold text-slate-700">Entry Date</Label>
+          <Input id="entry_date" type="date" value={entryDate} onChange={(e) => setEntryDate(e.target.value)} className="h-10 text-sm border-slate-200" />
         </div>
       </div>
 
-      {/* Live Preview Bundle ID */}
       <div className="p-3 bg-amber-50/50 rounded-xl border border-amber-200/40 flex flex-col gap-1">
         <span className="text-[10px] uppercase font-bold tracking-wider text-amber-700">Generated ID Preview</span>
         <Badge className="w-fit text-sm font-mono border border-amber-200 bg-amber-100/50 text-amber-900 py-1 px-2.5 rounded-md">
@@ -377,11 +257,7 @@ export function FinishingProductionForm({
         </Badge>
       </div>
 
-      <Button
-        type="submit"
-        className="w-fit px-6 h-9 bg-emerald-600 hover:bg-emerald-700 text-white font-medium transition-colors"
-        disabled={isPending}
-      >
+      <Button type="submit" className="w-fit px-6 h-9 bg-emerald-600 hover:bg-emerald-700 text-white font-medium transition-colors" disabled={isPending}>
         {isPending ? "Submitting..." : "Submit Production"}
       </Button>
     </form>
