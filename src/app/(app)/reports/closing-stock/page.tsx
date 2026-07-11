@@ -70,13 +70,13 @@ export default async function ClosingStockReportPage({ searchParams }: { searchP
     fetchPagedData(
       supabase
         .from("offset_rolls")
-        .select("id, roll_id, fabric_type_id, weight_kg, meters, entry_date, status")
+        .select("id, roll_id, fabric_type_id, weight_kg, entry_date, status")
         .is("deleted_at", null)
     ),
     fetchPagedData(
       supabase
         .from("finishing_bundles")
-        .select("id, bundle_id, fabric_type_id, weight_kg, quantity, entry_date, status")
+        .select("id, bundle_id, fabric_type_id, weight_kg, num_bags, entry_date, status")
         .is("deleted_at", null)
     ),
     fetchPagedData(
@@ -119,7 +119,7 @@ export default async function ClosingStockReportPage({ searchParams }: { searchP
       roll_number: r.roll_id,
       fabric_type_id: r.fabric_type_id,
       weight: Number(r.weight_kg || 0),
-      meters: Number(r.meters || 0),
+      meters: 0,
       production_date: r.entry_date,
       status: r.status,
       current_stage: "offset_printing",
@@ -129,7 +129,7 @@ export default async function ClosingStockReportPage({ searchParams }: { searchP
       roll_number: r.bundle_id,
       fabric_type_id: r.fabric_type_id,
       weight: Number(r.weight_kg || 0),
-      meters: Number(r.quantity || 0),
+      meters: Number(r.num_bags || 0),
       production_date: r.entry_date,
       status: r.status,
       current_stage: "finishing",

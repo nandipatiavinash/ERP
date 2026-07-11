@@ -630,7 +630,11 @@ export function StockReportClient({
         totalSales: Math.floor(dept.totalSales),
         bills,
       };
-    }).filter(d => d.totalSales > 0);
+    }).filter(d => d.totalSales > 0)
+      .sort((a, b) => {
+        const deptOrder = ["fabric", "roto-printing", "lamination", "offset-printing", "finishing"];
+        return deptOrder.indexOf(a.id) - deptOrder.indexOf(b.id);
+      });
   }, [rolls, fabricTypes, from, to, rollDetailsMap, salesOrders]);
 
   // Material Sales grouped: RM sales by dept + Waste as own dept
