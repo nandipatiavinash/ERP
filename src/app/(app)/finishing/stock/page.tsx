@@ -18,12 +18,20 @@ export default async function FinishingStockPage() {
 
   if (error) throw new Error(error.message);
 
-  const groupsMap = new Map<string, { fabric_type_id: string; fabric_name: string; bundles: number; bags: number; weight: number }>();
+  const groupsMap = new Map<string, { brand: string; fabric_type_id: string; fabric_name: string; bundles: number; bags: number; weight: number }>();
   for (const b of (bundles ?? []) as any[]) {
+    // Parse brand name from bundle_id (which is before first '(')
+    const match = b.bundle_id.match(/^([^(]+)/);
+    let brand = match ? match[1].trim() : "";
+    if (!brand) brand = "Fabric";
+
     const fId = b.fabric_type_id || "unspecified";
     const fName = b.fabric_types?.fabric_name || "Unspecified Fabric";
-    if (!groupsMap.has(fId)) {
-      groupsMap.set(fId, {
+
+    const key = `${brand}_${fId}`;
+    if (!groupsMap.has(key)) {
+      groupsMap.set(key, {
+        brand,
         fabric_type_id: fId,
         fabric_name: fName,
         bundles: 0,
@@ -31,12 +39,16 @@ export default async function FinishingStockPage() {
         weight: 0
       });
     }
-    const g = groupsMap.get(fId)!;
+    const g = groupsMap.get(key)!;
     g.bundles += 1;
     g.bags += Number(b.num_bags || 0);
     g.weight += Number(b.weight_kg || 0);
   }
-  const stockRows = Array.from(groupsMap.values()).sort((a, b) => a.fabric_name.localeCompare(b.fabric_name));
+  const stockRows = Array.from(groupsMap.values()).sort((a, b) => {
+    const brandComp = a.brand.localeCompare(b.brand);
+    if (brandComp !== 0) return brandComp;
+    return a.fabric_name.localeCompare(b.fabric_name);
+  });
 
   const totalBundles = stockRows.reduce((sum, r) => sum + r.bundles, 0);
   const totalBags = stockRows.reduce((sum, r) => sum + r.bags, 0);
@@ -46,12 +58,12 @@ export default async function FinishingStockPage() {
     <div className="space-y-6">
       <PageHeader
         title="Finishing Stock Inventory"
-        description="Finishing bundles stock grouped by fabric type, with bundle-level drill-down."
+        description="Finishing bundles stock grouped by brand and fabric type, with bundle-level drill-down."
       />
 
       <Card>
         <CardHeader>
-          <CardTitle>Available Stock Summary</CardTitle>
+          <CardTitle>Available Finishing Stock Summary</CardTitle>
         </CardHeader>
         <CardContent>
           {stockRows.length === 0 ? (
@@ -61,6 +73,7 @@ export default async function FinishingStockPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>Brand</TableHead>
                     <TableHead>Fabric Type</TableHead>
                     <TableHead className="text-right">Bundles Count</TableHead>
                     <TableHead className="text-right">Total Bags (pcs)</TableHead>
@@ -68,20 +81,21 @@ export default async function FinishingStockPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {stockRows.map((row) => (
-                    <TableRow key={row.fabric_type_id}>
+                  {stockRows.map((row, idx) => (
+                    <TableRow key={idx}>
                       <TableCell className="font-semibold text-base">
-                        <Link href={`/finishing/stock/${row.fabric_type_id}` as any} prefetch={false} className="text-primary hover:underline">
-                          {row.fabric_name}
+                        <Link href={`/finishing/stock/${row.fabric_type_id}?brand=${encodeURIComponent(row.brand)}` as any} prefetch={false} className="text-primary hover:underline">
+                          {row.brand}
                         </Link>
                       </TableCell>
+                      <TableCell className="text-base font-medium">{row.fabric_name}</TableCell>
                       <TableCell className="text-right text-base font-medium">{row.bundles}</TableCell>
                       <TableCell className="text-right text-base font-medium">{formatNumber(row.bags, 0)}</TableCell>
                       <TableCell className="text-right text-base font-medium">{formatNumber(row.weight, 2)}</TableCell>
                     </TableRow>
                   ))}
                   <TableRow className="bg-muted/50 font-bold border-t-2">
-                    <TableCell className="text-base font-bold">Total</TableCell>
+                    <TableCell className="text-base font-bold" colSpan={2}>Total</TableCell>
                     <TableCell className="text-right text-base font-bold">{totalBundles}</TableCell>
                     <TableCell className="text-right text-base font-bold">{formatNumber(totalBags, 0)}</TableCell>
                     <TableCell className="text-right text-base font-bold">{formatNumber(totalWeight, 2)}</TableCell>

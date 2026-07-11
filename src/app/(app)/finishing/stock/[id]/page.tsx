@@ -8,32 +8,57 @@ import { StockFinishingBundlesClient } from "./StockFinishingBundlesClient";
 
 export default async function FinishingStockDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ brand?: string }>;
 }) {
   await requirePermission("finishing.stock");
   const { id } = await params;
+  const { brand } = await searchParams;
   const supabase = await createClient();
 
-  const [
-    { data: fabricData, error: fabricError },
-    { data: bundles, error: bundlesError },
-  ] = await Promise.all([
-    supabase.from("fabric_types").select("fabric_name").eq("id", id).single(),
-    supabase
+  const brandFilter = brand || "Fabric";
+
+  let fabricName = "Unspecified Fabric";
+  let bundlesQuery: any;
+
+  if (id === "unspecified") {
+    bundlesQuery = supabase
+      .from("finishing_bundles")
+      .select("*")
+      .is("fabric_type_id", null)
+      .eq("status", "available")
+      .is("deleted_at", null);
+  } else {
+    const { data: fabricData } = await supabase
+      .from("fabric_types")
+      .select("fabric_name")
+      .eq("id", id)
+      .single();
+    fabricName = (fabricData as any)?.fabric_name ?? "Fabric";
+
+    bundlesQuery = supabase
       .from("finishing_bundles")
       .select("*")
       .eq("fabric_type_id", id)
       .eq("status", "available")
-      .is("deleted_at", null)
-      .order("created_at", { ascending: false }),
-  ]);
+      .is("deleted_at", null);
+  }
 
-  if (fabricError || bundlesError) {
+  const { data: bundlesData, error: bundlesError } = await bundlesQuery.order("created_at", { ascending: false });
+
+  if (bundlesError) {
     throw new Error("Unable to load finishing stock details.");
   }
 
-  const fabricName = (fabricData as any)?.fabric_name ?? "Fabric";
+  // Filter bundles by brand name matching brandFilter
+  const filteredBundles = (bundlesData ?? []).filter((b: any) => {
+    const match = b.bundle_id.match(/^([^(]+)/);
+    let brandName = match ? match[1].trim() : "";
+    if (!brandName) brandName = "Fabric";
+    return brandName.toLowerCase() === brandFilter.toLowerCase();
+  });
 
   return (
     <div className="space-y-6">
@@ -46,12 +71,12 @@ export default async function FinishingStockDetailPage({
       </div>
 
       <PageHeader
-        title={`Finished Bundles — ${fabricName}`}
-        description={`Detailed view of finished bag bundles produced using ${fabricName}.`}
+        title={`Finished Bundles — ${brandFilter} (${fabricName})`}
+        description={`Detailed view of finished bag bundles produced for brand ${brandFilter} using ${fabricName}.`}
       />
 
       <StockFinishingBundlesClient
-        bundles={(bundles ?? []) as any[]}
+        bundles={filteredBundles as any[]}
         fabricName={fabricName}
       />
     </div>
