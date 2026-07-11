@@ -29,24 +29,21 @@ type LaminationProduct = {
 
 interface LaminationProductionFormProps {
   fabricTypes: FabricType[];
-  filmRolls: FilmRoll[];
-  laminationProducts: LaminationProduct[];
+  rotoProducts: { id: string; brand: string }[];
   onSuccess?: (newRollInfo: { rollId: string; weight: number; meters: number }) => void;
   rows?: any[];
 }
 
 export function LaminationProductionForm({
   fabricTypes,
-  filmRolls,
-  laminationProducts,
+  rotoProducts,
   onSuccess,
   rows,
 }: LaminationProductionFormProps) {
   const [isPending, startTransition] = useTransition();
-  const [lamType, setLamType] = useState<string>("PLAIN");
+  const [lamType, setLamType] = useState<string>("");
   const [selectedFabricTypeId, setSelectedFabricTypeId] = useState<string>("");
-  const [selectedFilmId, setSelectedFilmId] = useState<string>("");
-  const [selectedProductId, setSelectedProductId] = useState<string>("");
+  const [selectedRotoProductId, setSelectedRotoProductId] = useState<string>("");
   const [weightKg, setWeightKg] = useState<string>("");
   const [meters, setMeters] = useState<string>("");
   const [entryDate, setEntryDate] = useState<string>(
@@ -55,38 +52,53 @@ export function LaminationProductionForm({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
+  // Sort fabric types and roto products alphabetically
+  const sortedFabricTypes = useMemo(() => {
+    return [...fabricTypes].sort((a, b) => a.fabric_name.localeCompare(b.fabric_name));
+  }, [fabricTypes]);
+
+  const sortedRotoProducts = useMemo(() => {
+    return [...rotoProducts].sort((a, b) => a.brand.localeCompare(b.brand));
+  }, [rotoProducts]);
+
   // Compute live preview of lamination roll_id
   const livePreviewId = useMemo(() => {
     const fabType = fabricTypes.find((t) => t.id === selectedFabricTypeId);
     const fabName = fabType ? fabType.fabric_name : "FABRIC-TYPE";
 
-    const filmRoll = filmRolls.find((r) => r.id === selectedFilmId);
     let brandName = "PLAIN";
-    if (filmRoll) {
-      const match = filmRoll.roll_id.match(/^([^(]+)/);
-      if (match) brandName = match[1].trim();
+    if (["BOX", "F_S", "H_S"].includes(lamType)) {
+      const rotoProduct = rotoProducts.find((p) => p.id === selectedRotoProductId);
+      brandName = rotoProduct ? rotoProduct.brand : "Select Brand";
     } else if (lamType === "NW") {
       brandName = "NW";
     }
 
-    return `${brandName}(${fabName})()`;
-  }, [lamType, selectedFabricTypeId, selectedFilmId, fabricTypes, filmRolls]);
+    let suffix = "";
+    if (lamType === "PLAIN") suffix = "p";
+    else if (lamType === "NW") suffix = "nw";
+    else if (lamType === "BOX") suffix = "b";
+    else if (lamType === "F_S") suffix = "f";
+    else if (lamType === "H_S") suffix = "h";
+
+    return `${brandName}(${fabName})(${suffix})()`;
+  }, [lamType, selectedFabricTypeId, selectedRotoProductId, fabricTypes, rotoProducts]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
     setSuccessMsg(null);
 
-    if (!selectedProductId) {
-      setErrorMsg("Lamination Film Product is required.");
+    if (!lamType) {
+      setErrorMsg("Lamination Type is required.");
       return;
     }
     if (!selectedFabricTypeId) {
       setErrorMsg("Fabric Type is required.");
       return;
     }
-    if (["BOX", "F_S", "H_S"].includes(lamType) && !selectedFilmId) {
-      setErrorMsg("Film Roll is required for BOX/FS/HS types.");
+    if (["BOX", "F_S", "H_S"].includes(lamType) && !selectedRotoProductId) {
+      setErrorMsg("Brand / Product is required for BOX/FS/HS types.");
       return;
     }
     const w = parseFloat(weightKg);
@@ -100,10 +112,9 @@ export function LaminationProductionForm({
       try {
         const fd = new FormData();
         fd.append("lam_type", lamType);
-        fd.append("product_id", selectedProductId);
         fd.append("fabric_type_id", selectedFabricTypeId);
         if (["BOX", "F_S", "H_S"].includes(lamType)) {
-          fd.append("film_roll_id", selectedFilmId);
+          fd.append("roto_product_id", selectedRotoProductId);
         }
         fd.append("weight_kg", String(w));
         fd.append("meters", String(m));
@@ -119,8 +130,7 @@ export function LaminationProductionForm({
 
         // Reset
         setSelectedFabricTypeId("");
-        setSelectedFilmId("");
-        setSelectedProductId("");
+        setSelectedRotoProductId("");
         setWeightKg("");
         setMeters("");
       } catch (err: any) {
@@ -130,7 +140,7 @@ export function LaminationProductionForm({
     });
   };
 
-  const isFilmRequired = ["BOX", "F_S", "H_S"].includes(lamType);
+  const isBrandRequired = ["BOX", "F_S", "H_S"].includes(lamType);
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4 w-full bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
@@ -141,28 +151,11 @@ export function LaminationProductionForm({
         <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm">{successMsg}</div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        {/* Lamination Film Product Dropdown */}
-        <div className="space-y-1">
-          <Label className="text-xs font-semibold text-slate-700">Lamination Product</Label>
-          <Select value={selectedProductId} onValueChange={setSelectedProductId}>
-            <SelectTrigger className="h-10 border-slate-200">
-              <SelectValue placeholder="Select film product" />
-            </SelectTrigger>
-            <SelectContent>
-              {laminationProducts.map((p) => (
-                <SelectItem key={p.id} value={p.id}>
-                  {p.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Lamination Type */}
         <div className="space-y-1">
           <Label className="text-xs font-semibold text-slate-700">Lamination Type</Label>
-          <Select value={lamType} onValueChange={(val) => { setLamType(val); setSelectedFabricTypeId(""); setSelectedFilmId(""); }}>
+          <Select value={lamType} onValueChange={(val) => { setLamType(val); setSelectedFabricTypeId(""); setSelectedRotoProductId(""); }}>
             <SelectTrigger className="h-10 border-slate-200">
               <SelectValue placeholder="Select lamination type" />
             </SelectTrigger>
@@ -184,7 +177,7 @@ export function LaminationProductionForm({
               <SelectValue placeholder="Select fabric type" />
             </SelectTrigger>
             <SelectContent>
-              {fabricTypes.map((t) => (
+              {sortedFabricTypes.map((t) => (
                 <SelectItem key={t.id} value={t.id} className="text-xs">
                   {t.fabric_name}
                 </SelectItem>
@@ -193,21 +186,21 @@ export function LaminationProductionForm({
           </Select>
         </div>
 
-        {/* Film Roll (roto_metallic_rolls) */}
+        {/* Brand Dropdown (Roto Products) */}
         <div className="space-y-1">
-          <Label className="text-xs font-semibold text-slate-700">Select Film Roll (Roto Metallic)</Label>
+          <Label className="text-xs font-semibold text-slate-700">Select Brand (Roto Product)</Label>
           <Select
-            value={selectedFilmId}
-            onValueChange={setSelectedFilmId}
-            disabled={!isFilmRequired}
+            value={selectedRotoProductId}
+            onValueChange={setSelectedRotoProductId}
+            disabled={!isBrandRequired}
           >
-            <SelectTrigger className="h-10 border-slate-200 font-mono text-xs disabled:opacity-50">
-              <SelectValue placeholder={isFilmRequired ? "Select metallic roll" : "No film roll required"} />
+            <SelectTrigger className="h-10 border-slate-200 text-xs disabled:opacity-50">
+              <SelectValue placeholder={isBrandRequired ? "Select brand" : "No brand required"} />
             </SelectTrigger>
             <SelectContent>
-              {filmRolls.map((f) => (
-                <SelectItem key={f.id} value={f.id} className="font-mono text-xs">
-                  {f.roll_id} ({f.weight_kg}kg · {f.meters}m)
+              {sortedRotoProducts.map((p) => (
+                <SelectItem key={p.id} value={p.id} className="text-xs">
+                  {p.brand}
                 </SelectItem>
               ))}
             </SelectContent>

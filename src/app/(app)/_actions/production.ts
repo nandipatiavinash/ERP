@@ -47,21 +47,15 @@ export async function saveProduction(formData: FormData) {
 
   if (!id) {
     // INSERT Path
-    if (isAdmin) {
-      const initialMtrs = parsed.initial_meters ?? lastEnd;
-      payload.initial_meters = initialMtrs;
-      payload.initial_meter_overridden = initialMtrs !== lastEnd;
-    } else {
-      payload.initial_meters = lastEnd;
-      payload.initial_meter_overridden = false;
-    }
+    const initialMtrs = parsed.initial_meters ?? lastEnd;
+    payload.initial_meters = initialMtrs;
+    payload.initial_meter_overridden = initialMtrs !== lastEnd;
   } else {
     // UPDATE Path
-    if (isAdmin && parsed.initial_meters !== undefined) {
+    if (parsed.initial_meters !== undefined) {
       payload.initial_meters = parsed.initial_meters;
       payload.initial_meter_overridden = parsed.initial_meters !== lastEnd;
     }
-    // For non-admin, initial_meters is omitted from update payload, preserving database value
   }
 
   const query = id
@@ -293,14 +287,13 @@ export async function deleteRotoMetallicProduction(id: string) {
 export async function saveLaminationProduction(formData: FormData) {
   const user = await requirePermission("lamination.production");
   const lamType = String(formData.get("lam_type") ?? "");
-  const productId = String(formData.get("product_id") ?? "");
   const fabricTypeId = String(formData.get("fabric_type_id") ?? "");
-  const filmRollId = formData.get("film_roll_id") ? String(formData.get("film_roll_id")) : null;
+  const rotoProductId = formData.get("roto_product_id") ? String(formData.get("roto_product_id")) : null;
   const weightKg = Number(formData.get("weight_kg") ?? 0);
   const meters = Number(formData.get("meters") ?? 0);
   const entryDate = String(formData.get("entry_date") ?? todayInIndia());
 
-  if (!lamType || !productId || !fabricTypeId || weightKg <= 0 || meters <= 0) {
+  if (!lamType || !fabricTypeId || weightKg <= 0 || meters <= 0) {
     throw new Error("Invalid parameters.");
   }
 
@@ -317,36 +310,33 @@ export async function saveLaminationProduction(formData: FormData) {
   }
   const fabricTypeName = (fabricType as any).fabric_name;
 
-  let filmRollIdValue: string | null = null;
-  if (["BOX", "F_S", "H_S"].includes(lamType)) {
-    if (!filmRollId) {
-      throw new Error(`Film roll is required for lamination type ${lamType}.`);
-    }
-    const { data: filmRoll, error: filmError } = await (supabase
-      .from("roto_metallic_rolls") as any)
-      .select("roll_id")
-      .eq("id", filmRollId)
-      .single();
-
-    if (filmError || !filmRoll) {
-      throw new Error("Metallic film roll not found.");
-    }
-    filmRollIdValue = filmRollId;
-  }
-
   let brandName = "PLAIN";
-  if (filmRollIdValue) {
-    const { data: metallicInfo } = await (supabase
-      .from("roto_metallic_rolls") as any)
-      .select("roto_film_rolls(roto_products(brand))")
-      .eq("id", filmRollIdValue)
+  if (["BOX", "F_S", "H_S"].includes(lamType)) {
+    if (!rotoProductId) {
+      throw new Error(`Brand is required for lamination type ${lamType}.`);
+    }
+    const { data: rotoProduct, error: productError } = await (supabase
+      .from("roto_products") as any)
+      .select("brand")
+      .eq("id", rotoProductId)
       .single();
-    brandName = (metallicInfo as any)?.roto_film_rolls?.roto_products?.brand || "PLAIN";
+
+    if (productError || !rotoProduct) {
+      throw new Error("Roto product brand not found.");
+    }
+    brandName = (rotoProduct as any).brand;
   } else if (lamType === "NW") {
     brandName = "NW";
   }
 
-  const baseId = `${brandName.trim()}(${fabricTypeName.trim()})`;
+  let suffix = "";
+  if (lamType === "PLAIN") suffix = "p";
+  else if (lamType === "NW") suffix = "nw";
+  else if (lamType === "BOX") suffix = "b";
+  else if (lamType === "F_S") suffix = "f";
+  else if (lamType === "H_S") suffix = "h";
+
+  const baseId = `${brandName.trim()}(${fabricTypeName.trim()})(${suffix})`;
   const { count } = await (supabase
     .from("lamination_rolls") as any)
     .select("id", { count: "exact", head: true })
@@ -361,10 +351,10 @@ export async function saveLaminationProduction(formData: FormData) {
     .from("lamination_rolls") as any)
     .insert({
       roll_id: newRollId,
-      product_id: productId,
+      product_id: null,
       lam_type: lamType,
       fabric_type_id: fabricTypeId,
-      film_roll_id: filmRollIdValue,
+      film_roll_id: null,
       nw_material_id: null,
       weight_kg: weightKg,
       meters: meters,
@@ -416,7 +406,6 @@ export async function saveOffsetProduction(formData: FormData) {
   const offsetType = String(formData.get("offset_type") ?? "");
   const brandId = String(formData.get("brand_id") ?? "");
   const fabricTypeId = formData.get("fabric_type_id") ? String(formData.get("fabric_type_id")) : null;
-  const sourceLamRollId = formData.get("source_lam_roll_id") ? String(formData.get("source_lam_roll_id")) : null;
   const weightKg = Number(formData.get("weight_kg") ?? 0);
   const entryDate = String(formData.get("entry_date") ?? todayInIndia());
 
@@ -438,20 +427,11 @@ export async function saveOffsetProduction(formData: FormData) {
   const brandName = (brandData as any).brand;
 
   let fabricTypeName = "";
-  if (offsetType === "FABRIC") {
+  if (["FABRIC", "NW_LAM", "PLAIN_LAM"].includes(offsetType)) {
     if (!fabricTypeId) throw new Error("Source fabric type is required.");
     const { data: ft } = await (supabase.from("fabric_types") as any).select("fabric_name").eq("id", fabricTypeId).single();
     if (!ft) throw new Error("Source fabric type not found.");
     fabricTypeName = (ft as any).fabric_name;
-  } else if (["NW_LAM", "PLAIN_LAM"].includes(offsetType)) {
-    if (!sourceLamRollId) throw new Error("Source laminated roll is required.");
-    const { data: lr } = await (supabase
-      .from("lamination_rolls") as any)
-      .select("fabric_type_id, fabric_types(fabric_name)")
-      .eq("id", sourceLamRollId)
-      .single();
-    if (!lr) throw new Error("Source laminated roll not found.");
-    fabricTypeName = (lr as any).fabric_types?.fabric_name ?? "";
   }
 
   const fabricNameVal = offsetType === "NW" ? "NW" : fabricTypeName;
@@ -472,8 +452,8 @@ export async function saveOffsetProduction(formData: FormData) {
       roll_id: newRollId,
       offset_type: offsetType,
       brand_id: brandId,
-      fabric_type_id: offsetType === "FABRIC" ? fabricTypeId : null,
-      source_lam_roll_id: ["NW_LAM", "PLAIN_LAM"].includes(offsetType) ? sourceLamRollId : null,
+      fabric_type_id: ["FABRIC", "NW_LAM", "PLAIN_LAM"].includes(offsetType) ? fabricTypeId : null,
+      source_lam_roll_id: null,
       weight_kg: weightKg,
       entry_date: entryDate,
       status: "available",
@@ -516,51 +496,68 @@ export async function deleteOffsetProduction(id: string) {
 export async function saveFinishingBundle(formData: FormData) {
   const user = await requirePermission("finishing.production");
   const finishType = String(formData.get("finish_type") ?? "");
-  const productId = String(formData.get("product_id") ?? "");
-  const sourceLamRollId = formData.get("source_lam_roll_id") ? String(formData.get("source_lam_roll_id")) : null;
-  const sourceFabricRollId = formData.get("source_fabric_roll_id") ? String(formData.get("source_fabric_roll_id")) : null;
-  const sourceOffsetRollId = formData.get("source_offset_roll_id") ? String(formData.get("source_offset_roll_id")) : null;
+  const fabricTypeId = String(formData.get("fabric_type_id") ?? "");
   const numBags = Number(formData.get("num_bags") ?? 0);
   const weightKg = Number(formData.get("weight_kg") ?? 0);
   const entryDate = String(formData.get("entry_date") ?? todayInIndia());
 
-  if (!finishType || !productId || numBags <= 0 || weightKg <= 0) {
+  if (!finishType || !fabricTypeId || numBags <= 0 || weightKg <= 0) {
     throw new Error("Invalid parameters.");
   }
 
   const supabase = await createClient();
 
-  let parentId = "";
-  let fabricTypeId: string | null = null;
+  const { data: fabricType, error: fabricError } = await (supabase
+    .from("fabric_types") as any)
+    .select("fabric_name")
+    .eq("id", fabricTypeId)
+    .single();
 
-  if (finishType === "LAMINATION") {
-    if (!sourceLamRollId) throw new Error("Source lamination roll is required.");
-    const { data: lr } = await (supabase.from("lamination_rolls") as any)
-      .select("roll_id, fabric_type_id")
-      .eq("id", sourceLamRollId)
-      .single();
-    if (!lr) throw new Error("Source lamination roll not found.");
-    parentId = (lr as any).roll_id;
-    fabricTypeId = (lr as any).fabric_type_id;
-  } else if (finishType === "FABRIC") {
-    if (!sourceFabricRollId) throw new Error("Source fabric roll is required.");
-    const { data: fr } = await (supabase.from("fabric_rolls") as any)
-      .select("roll_number, fabric_type_id, fabric_types(fabric_name)")
-      .eq("id", sourceFabricRollId)
-      .single();
-    if (!fr) throw new Error("Source fabric roll not found.");
-    const typeName = (fr as any).fabric_types?.fabric_name || "PLAIN";
-    parentId = `PLAIN(${typeName})(${(fr as any).roll_number})`;
-    fabricTypeId = (fr as any).fabric_type_id;
+  if (fabricError || !fabricType) {
+    throw new Error("Fabric type not found.");
+  }
+  const fabricTypeName = (fabricType as any).fabric_name;
+
+  let parentId = "";
+
+  if (finishType === "FABRIC") {
+    parentId = `PLAIN(${fabricTypeName})`;
+  } else if (finishType === "LAMINATION") {
+    const laminationType = String(formData.get("lamination_type") ?? "");
+    if (!laminationType) throw new Error("Lamination Type is required.");
+    
+    let brandName = "PLAIN";
+    if (["BOX", "F_S", "H_S"].includes(laminationType)) {
+      const rotoProductId = formData.get("roto_product_id") ? String(formData.get("roto_product_id")) : null;
+      if (!rotoProductId) throw new Error("Brand is required.");
+      const { data: rotoProduct } = await (supabase
+        .from("roto_products") as any)
+        .select("brand")
+        .eq("id", rotoProductId)
+        .single();
+      brandName = rotoProduct ? (rotoProduct as any).brand : "PLAIN";
+    } else if (laminationType === "NW") {
+      brandName = "NW";
+    }
+
+    let suffix = "";
+    if (laminationType === "PLAIN") suffix = "p";
+    else if (laminationType === "NW") suffix = "nw";
+    else if (laminationType === "BOX") suffix = "b";
+    else if (laminationType === "F_S") suffix = "f";
+    else if (laminationType === "H_S") suffix = "h";
+
+    parentId = `${brandName}(${fabricTypeName})(${suffix})`;
   } else if (finishType === "OFFSET") {
-    if (!sourceOffsetRollId) throw new Error("Source offset roll is required.");
-    const { data: off } = await (supabase.from("offset_rolls") as any)
-      .select("roll_id, fabric_type_id")
-      .eq("id", sourceOffsetRollId)
+    const offsetProductId = formData.get("offset_product_id") ? String(formData.get("offset_product_id")) : null;
+    if (!offsetProductId) throw new Error("Offset Brand is required.");
+    const { data: offsetProduct } = await (supabase
+      .from("offset_products") as any)
+      .select("brand")
+      .eq("id", offsetProductId)
       .single();
-    if (!off) throw new Error("Source offset roll not found.");
-    parentId = (off as any).roll_id;
-    fabricTypeId = (off as any).fabric_type_id;
+    const brandName = offsetProduct ? (offsetProduct as any).brand : "Offset";
+    parentId = `${brandName}(${fabricTypeName})`;
   } else {
     throw new Error("Unsupported finishing type.");
   }
@@ -579,10 +576,10 @@ export async function saveFinishingBundle(formData: FormData) {
     .insert({
       bundle_id: newBundleId,
       finish_type: finishType,
-      product_id: productId,
-      source_lam_roll_id: finishType === "LAMINATION" ? sourceLamRollId : null,
-      source_fabric_roll_id: finishType === "FABRIC" ? sourceFabricRollId : null,
-      source_offset_roll_id: finishType === "OFFSET" ? sourceOffsetRollId : null,
+      product_id: null,
+      source_lam_roll_id: null,
+      source_fabric_roll_id: null,
+      source_offset_roll_id: null,
       fabric_type_id: fabricTypeId,
       num_bags: numBags,
       weight_kg: weightKg,
@@ -593,20 +590,6 @@ export async function saveFinishingBundle(formData: FormData) {
     } as any);
 
   if (insertError) throw new Error(insertError.message);
-
-  if (finishType === "LAMINATION") {
-    await (adminSupabase.from("lamination_rolls") as any)
-      .update({ status: "consumed" } as any)
-      .eq("id", sourceLamRollId);
-  } else if (finishType === "FABRIC") {
-    await (adminSupabase.from("fabric_rolls") as any)
-      .update({ status: "consumed", current_stage: "finishing" } as any)
-      .eq("id", sourceFabricRollId);
-  } else if (finishType === "OFFSET") {
-    await (adminSupabase.from("offset_rolls") as any)
-      .update({ status: "consumed" } as any)
-      .eq("id", sourceOffsetRollId);
-  }
 
   revalidatePath("/finishing/production");
   revalidatePath("/finishing/stock");

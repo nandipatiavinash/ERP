@@ -34,7 +34,7 @@ export default async function OffsetPrintingProductionPage() {
       .order("fabric_name"),
     supabase
       .from("lamination_rolls")
-      .select("id, roll_id, lam_type, weight_kg, fabric_types(fabric_name)")
+      .select("id, roll_id, lam_type, weight_kg, fabric_type_id, fabric_types(fabric_name)")
       .eq("status", "available")
       .is("deleted_at", null)
       .order("roll_id"),

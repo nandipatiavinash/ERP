@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useMemo } from "react";
 import { showSuccess } from "@/lib/toast";
 import { saveRotoMetallicProduction } from "@/app/(app)/_actions";
 import { Button } from "@/components/ui/button";
@@ -39,6 +39,11 @@ export function RotoMetallicProductionForm({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
+  // Sort film rolls alphabetically
+  const sortedFilmRolls = useMemo(() => {
+    return [...filmRolls].sort((a, b) => a.roll_id.localeCompare(b.roll_id));
+  }, [filmRolls]);
+
   // Compute live preview of metallic roll_id
   const livePreviewId = useMemo(() => {
     if (!selectedFilmId) return "Select Printed Film...";
@@ -66,8 +71,6 @@ export function RotoMetallicProductionForm({
       setErrorMsg("KGs and Meters must be positive.");
       return;
     }
-
-
 
     startTransition(async () => {
       try {
@@ -116,7 +119,7 @@ export function RotoMetallicProductionForm({
               <SelectValue placeholder="Select film roll from stock" />
             </SelectTrigger>
             <SelectContent>
-              {filmRolls.map((f) => (
+              {sortedFilmRolls.map((f) => (
                 <SelectItem key={f.id} value={f.id} className="font-mono text-xs">
                   {f.roll_id} ({f.weight_kg}kg · {f.meters}m)
                 </SelectItem>

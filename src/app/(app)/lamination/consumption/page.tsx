@@ -91,20 +91,34 @@ export default async function LaminationConsumptionPage({
       .limit(100),
   ]);
 
+  const filterByDate = (arr: any[], dateStr: string) => {
+    return arr.filter((item) => {
+      if (!item.updated_at) return false;
+      const localDate = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Asia/Kolkata",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(new Date(item.updated_at));
+      return localDate === dateStr;
+    });
+  };
+
   const materials = ((rawMaterialsRes.data ?? []) as any[]).filter((m) => Number(m.current_stock ?? 0) > 0);
   const rawRows = (rawConsumptionsRes.data ?? []) as any[];
   const availableFabric = (availableFabricRes.data ?? []) as any[];
-  const consumedFabric = (consumedFabricRes.data ?? []) as any[];
+  const consumedFabric = filterByDate((consumedFabricRes.data ?? []) as any[], date);
 
   const availableFilm = [
     ...((availableMetallicRes.data ?? []) as any[]).map(r => ({ ...r, type: "metallic" })),
     ...((availableFilmPlainRes.data ?? []) as any[]).map(r => ({ ...r, type: "film" })),
   ].sort((a, b) => a.roll_id.localeCompare(b.roll_id, undefined, { numeric: true, sensitivity: "base" }));
 
-  const consumedFilm = [
+  const rawConsumedFilm = [
     ...((consumedMetallicRes.data ?? []) as any[]).map(r => ({ ...r, type: "metallic" })),
     ...((consumedFilmPlainRes.data ?? []) as any[]).map(r => ({ ...r, type: "film" })),
-  ].sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
+  ];
+  const consumedFilm = filterByDate(rawConsumedFilm, date).sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
 
   return (
     <div className="space-y-6">

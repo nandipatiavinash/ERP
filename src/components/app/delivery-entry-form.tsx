@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { showSuccess } from "@/lib/toast";
 import { Plus, Trash2, PackagePlus } from "lucide-react";
 import { createSalesOrder } from "@/app/(app)/_actions";
@@ -60,8 +60,33 @@ export function DeliveryEntryForm({
   const [isPending, setIsPending] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  // Memoized sorted arrays
+  const sortedCustomers = useMemo(() => {
+    return [...customers].sort((a, b) => a.name.localeCompare(b.name));
+  }, [customers]);
+
+  const sortedFabricProducts = useMemo(() => {
+    return [...fabricProducts].sort((a, b) => a.label.localeCompare(b.label));
+  }, [fabricProducts]);
+
+  const sortedRotoProducts = useMemo(() => {
+    return [...rotoProducts].sort((a, b) => a.label.localeCompare(b.label));
+  }, [rotoProducts]);
+
+  const sortedOffsetProducts = useMemo(() => {
+    return [...offsetProducts].sort((a, b) => a.label.localeCompare(b.label));
+  }, [offsetProducts]);
+
+  const sortedLaminationProducts = useMemo(() => {
+    return [...laminationProducts].sort((a, b) => a.label.localeCompare(b.label));
+  }, [laminationProducts]);
+
+  const sortedFinishingProducts = useMemo(() => {
+    return [...finishingProducts].sort((a, b) => a.label.localeCompare(b.label));
+  }, [finishingProducts]);
+
   // Staged Item Form State
-  const [department, setDepartment] = useState<string>("fabric");
+  const [department, setDepartment] = useState<string>("");
   const [fabricTypeId, setFabricTypeId] = useState<string>("");
   const [laminationProductId, setLaminationProductId] = useState<string>("");
   const [finishingProductId, setFinishingProductId] = useState<string>("");

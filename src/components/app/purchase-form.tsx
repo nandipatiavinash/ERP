@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useMemo } from "react";
 import { Trash2, Plus, PackagePlus } from "lucide-react";
 import { saveRawMaterialPurchase } from "@/app/(app)/_actions";
 import { ConfirmSubmitButton } from "@/components/app/confirm-submit-button";
@@ -54,6 +54,11 @@ export function PurchaseForm({
   const sortedMaterials = [...materials].sort((a, b) =>
     formatMaterialLabel(a).localeCompare(formatMaterialLabel(b))
   );
+
+  // Sort customers alphabetically
+  const sortedCustomers = useMemo(() => {
+    return [...customers].sort((a, b) => a.customer_name.localeCompare(b.customer_name));
+  }, [customers]);
 
   const handleAddItem = () => {
     if (!draft.raw_material_id || !draft.quantity || !draft.rate) return;
@@ -131,8 +136,8 @@ export function PurchaseForm({
             className="h-10 w-full rounded-md border bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
             defaultValue=""
           >
-            <option value="" disabled>Select client</option>
-            {customers.map((customer) => (
+            <option value="">Select Client</option>
+            {sortedCustomers.map((customer) => (
               <option key={customer.id} value={customer.customer_name}>
                 {customer.customer_name} {customer.alias ? `(${customer.alias})` : ""}
               </option>
@@ -174,7 +179,7 @@ export function PurchaseForm({
               onChange={(e) => setDraft((d) => ({ ...d, raw_material_id: e.target.value }))}
               className="h-10 w-full rounded-md border bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
             >
-              <option value="" disabled>Select material</option>
+              <option value="">Select Raw Material</option>
               {sortedMaterials.map((material) => (
                 <option key={material.id} value={material.id}>
                   {formatMaterialLabel(material)}{material.unit && material.unit !== "-" ? ` (${material.unit})` : ""}

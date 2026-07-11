@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useMemo } from "react";
 import { showSuccess } from "@/lib/toast";
 import { saveRotoFilmProduction } from "@/app/(app)/_actions";
 import { Button } from "@/components/ui/button";
@@ -43,9 +43,9 @@ export function RotoFilmProductionForm({
   rows,
 }: RotoFilmProductionFormProps) {
   const [isPending, startTransition] = useTransition();
-  const [selectedProductId, setSelectedProductId] = useState<string>("none");
-  const [filmType, setFilmType] = useState<string>("gloss");
-  const [selectedColorId, setSelectedColorId] = useState<string>("none");
+  const [selectedProductId, setSelectedProductId] = useState<string>("");
+  const [filmType, setFilmType] = useState<string>("");
+  const [selectedColorId, setSelectedColorId] = useState<string>("");
   const [weightKg, setWeightKg] = useState<string>("");
   const [meters, setMeters] = useState<string>("");
   const [entryDate, setEntryDate] = useState<string>(
@@ -53,6 +53,15 @@ export function RotoFilmProductionForm({
   );
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  // Sort arrays alphabetically
+  const sortedRotoProducts = useMemo(() => {
+    return [...rotoProducts].sort((a, b) => a.brand.localeCompare(b.brand));
+  }, [rotoProducts]);
+
+  const sortedRotoColors = useMemo(() => {
+    return [...rotoColors].sort((a, b) => a.color_name.localeCompare(b.color_name));
+  }, [rotoColors]);
 
   // Compute live preview of roll_id
   const livePreviewId = useMemo(() => {
@@ -62,7 +71,7 @@ export function RotoFilmProductionForm({
     const brandName = prod.brand;
     const cust = customers.find((c) => c.id === prod.customer_id);
     const alias = cust ? (cust.alias || cust.customer_name) : "";
-    const filmTypeChar = filmType === "gloss" ? "G" : "M";
+    const filmTypeChar = filmType === "gloss" ? "G" : filmType === "matt" ? "M" : "?";
 
     let colorName = "";
     if (selectedColorId && selectedColorId !== "none") {
@@ -83,11 +92,6 @@ export function RotoFilmProductionForm({
     return rollId;
   }, [selectedProductId, filmType, selectedColorId, rotoProducts, customers, rotoColors]);
 
-  function useMemo<T>(factory: () => T, deps: any[]): T {
-    // inline helper since this file runs on client react
-    return factory();
-  }
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
@@ -97,14 +101,16 @@ export function RotoFilmProductionForm({
       setErrorMsg("Brand is required.");
       return;
     }
+    if (!filmType) {
+      setErrorMsg("Film Type is required.");
+      return;
+    }
     const w = parseFloat(weightKg);
     const m = parseFloat(meters);
     if (!w || w <= 0 || !m || m <= 0) {
       setErrorMsg("KGs and Meters must be positive.");
       return;
     }
-
-
 
     startTransition(async () => {
       try {
@@ -127,8 +133,9 @@ export function RotoFilmProductionForm({
         }
 
         // Reset
-        setSelectedProductId("none");
-        setSelectedColorId("none");
+        setSelectedProductId("");
+        setFilmType("");
+        setSelectedColorId("");
         setWeightKg("");
         setMeters("");
       } catch (err: any) {
@@ -156,7 +163,7 @@ export function RotoFilmProductionForm({
               <SelectValue placeholder="Select Brand" />
             </SelectTrigger>
             <SelectContent>
-              {rotoProducts.map((p) => (
+              {sortedRotoProducts.map((p) => (
                 <SelectItem key={p.id} value={p.id}>{p.brand}</SelectItem>
               ))}
             </SelectContent>
@@ -186,7 +193,7 @@ export function RotoFilmProductionForm({
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="none">None (No color suffix)</SelectItem>
-              {rotoColors.map((c) => (
+              {sortedRotoColors.map((c) => (
                 <SelectItem key={c.id} value={c.id}>{c.color_name}</SelectItem>
               ))}
             </SelectContent>

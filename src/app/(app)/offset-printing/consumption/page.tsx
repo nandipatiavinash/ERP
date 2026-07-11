@@ -71,12 +71,25 @@ export default async function OffsetPrintingConsumptionPage({
       .limit(100),
   ]);
 
+  const filterByDate = (arr: any[], dateStr: string) => {
+    return arr.filter((item) => {
+      if (!item.updated_at) return false;
+      const localDate = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "Asia/Kolkata",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).format(new Date(item.updated_at));
+      return localDate === dateStr;
+    });
+  };
+
   const materials = ((rawMaterialsRes.data ?? []) as any[]).filter((m) => Number(m.current_stock ?? 0) > 0);
   const rawRows = (rawConsumptionsRes.data ?? []) as any[];
   const availableFabric = (availableFabricRes.data ?? []) as any[];
-  const consumedFabric = (consumedFabricRes.data ?? []) as any[];
+  const consumedFabric = filterByDate((consumedFabricRes.data ?? []) as any[], date);
   const availableLam = (availableLamRes.data ?? []) as any[];
-  const consumedLam = (consumedLamRes.data ?? []) as any[];
+  const consumedLam = filterByDate((consumedLamRes.data ?? []) as any[], date);
 
   return (
     <div className="space-y-6">

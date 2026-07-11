@@ -21,8 +21,7 @@ export default async function LaminationProductionPage() {
 
   const [
     { data: activeFabricTypes },
-    { data: activeMetallicRolls },
-    { data: activeLaminationProducts },
+    { data: activeRotoProducts },
     { data: todayLaminationEntries },
     { data: availableRolls },
   ] = await Promise.all([
@@ -33,20 +32,14 @@ export default async function LaminationProductionPage() {
       .is("deleted_at", null)
       .order("fabric_name"),
     supabase
-      .from("roto_metallic_rolls")
-      .select("id, roll_id, weight_kg, meters")
-      .eq("status", "available")
-      .is("deleted_at", null)
-      .order("created_at", { ascending: false }),
-    supabase
-      .from("lamination_products")
-      .select("id, name")
+      .from("roto_products")
+      .select("id, brand")
       .eq("status", "active")
       .is("deleted_at", null)
-      .order("name"),
+      .order("brand"),
     supabase
       .from("lamination_rolls")
-      .select("*, fabric_types(fabric_name), roto_metallic_rolls(roll_id), lamination_products(name)")
+      .select("*, fabric_types(fabric_name)")
       .is("deleted_at", null)
       .eq("entry_date", today)
       .order("created_at", { ascending: false }),
@@ -64,15 +57,14 @@ export default async function LaminationProductionPage() {
   const fabricTypes = ((activeFabricTypes ?? []) as any[]).filter((t) =>
     availableFabricTypeIds.includes(t.id)
   );
-  const metallicRolls = (activeMetallicRolls ?? []) as any[];
-  const laminationProducts = (activeLaminationProducts ?? []) as any[];
+  const rotoProducts = (activeRotoProducts ?? []) as any[];
   const laminationRows = (todayLaminationEntries ?? []) as any[];
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Lamination Production"
-        description="Log lamination output using a fabric type, metallic film roll, or raw NW material."
+        description="Log lamination output using a fabric type or raw NW material."
       />
 
       <Card className="mb-5">
@@ -82,8 +74,7 @@ export default async function LaminationProductionPage() {
         <CardContent>
           <LaminationProductionForm
             fabricTypes={fabricTypes}
-            filmRolls={metallicRolls}
-            laminationProducts={laminationProducts}
+            rotoProducts={rotoProducts}
             rows={laminationRows}
           />
         </CardContent>
@@ -102,7 +93,6 @@ export default async function LaminationProductionPage() {
                 <TableHeader>
                   <TableRow className="bg-slate-50/50">
                     <TableHead>Laminated Roll ID</TableHead>
-                    <TableHead>Product Specification</TableHead>
                     <TableHead className="text-right">KGs</TableHead>
                     <TableHead className="text-right">Meters</TableHead>
                     <TableHead className="text-center">Action</TableHead>
@@ -112,16 +102,15 @@ export default async function LaminationProductionPage() {
                   {laminationRows.map((row) => (
                     <TableRow key={row.id}>
                       <TableCell className="font-mono font-bold text-emerald-950">{row.roll_id}</TableCell>
-                      <TableCell className="font-medium text-slate-700">{row.lamination_products?.name || "Unspecified Film"}</TableCell>
                       <TableCell className="text-right font-mono">{row.weight_kg}</TableCell>
                       <TableCell className="text-right font-mono">{row.meters}</TableCell>
                       <TableCell className="text-center">
                         <form action={deleteLaminationProduction.bind(null, row.id)}>
                           <ConfirmSubmitButton
-                            size="sm"
-                            variant="destructive"
-                            confirmTitle="Delete lamination entry?"
-                            confirmDescription="This will delete this roll and revert any metallic roll back to available stock."
+                             size="sm"
+                             variant="destructive"
+                             confirmTitle="Delete lamination entry?"
+                             confirmDescription="This will delete this roll and revert any metallic roll back to available stock."
                           >
                             Delete
                           </ConfirmSubmitButton>

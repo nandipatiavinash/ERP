@@ -79,13 +79,13 @@ export default async function DeliveryEntryPage({
     laminationProds,
     finishingProds
   ] = await Promise.all([
-    supabase.from("fabric_rolls").select("id, roll_number, weight, meters, status, fabric_type_id").eq("status", "available").is("deleted_at", null),
+    supabase.from("fabric_rolls").select("id, roll_number, weight, meters, status, fabric_type_id, loom_production_entries(gross_weight, core_weight, average_meter_weight)").eq("status", "available").is("deleted_at", null),
     supabase.from("lamination_rolls").select("id, roll_id, weight_kg, meters, status, fabric_type_id, product_id, lam_type, film_roll_id, roto_metallic_rolls(source_film_roll_id, roto_film_rolls(brand_id, film_type))").eq("status", "available").is("deleted_at", null),
     supabase.from("offset_rolls").select("id, roll_id, weight_kg, meters, status, fabric_type_id, product_id, offset_type").eq("status", "available").is("deleted_at", null),
     supabase.from("finishing_bundles").select("id, bundle_id, weight_kg, quantity, status, fabric_type_id, product_id").eq("status", "available").is("deleted_at", null),
     supabase.from("roto_film_rolls").select("id, roll_id, weight_kg, meters, status, brand_id, film_type").eq("status", "available").is("deleted_at", null),
     supabase.from("roto_metallic_rolls").select("id, roll_id, weight_kg, meters, status, source_film_roll_id, roto_film_rolls(brand_id, film_type)").eq("status", "available").is("deleted_at", null),
-    uniqueRollIds.length > 0 ? supabase.from("fabric_rolls").select("id, roll_number, weight, meters, status, fabric_type_id").in("id", uniqueRollIds).is("deleted_at", null) : Promise.resolve({ data: [] }),
+    uniqueRollIds.length > 0 ? supabase.from("fabric_rolls").select("id, roll_number, weight, meters, status, fabric_type_id, loom_production_entries(gross_weight, core_weight, average_meter_weight)").in("id", uniqueRollIds).is("deleted_at", null) : Promise.resolve({ data: [] }),
     uniqueRollIds.length > 0 ? supabase.from("lamination_rolls").select("id, roll_id, weight_kg, meters, status, fabric_type_id, product_id, lam_type, film_roll_id, roto_metallic_rolls(source_film_roll_id, roto_film_rolls(brand_id, film_type))").in("id", uniqueRollIds).is("deleted_at", null) : Promise.resolve({ data: [] }),
     uniqueRollIds.length > 0 ? supabase.from("offset_rolls").select("id, roll_id, weight_kg, meters, status, fabric_type_id, product_id, offset_type").in("id", uniqueRollIds).is("deleted_at", null) : Promise.resolve({ data: [] }),
     uniqueRollIds.length > 0 ? supabase.from("finishing_bundles").select("id, bundle_id, weight_kg, quantity, status, fabric_type_id, product_id").in("id", uniqueRollIds).is("deleted_at", null) : Promise.resolve({ data: [] }),
@@ -109,7 +109,8 @@ export default async function DeliveryEntryPage({
     status: r.status,
     fabric_type_id: r.fabric_type_id,
     product_id: r.fabric_type_id,
-    department: "fabric"
+    department: "fabric",
+    loom_production_entries: r.loom_production_entries
   }));
 
   const mappedLamination = [

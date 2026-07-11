@@ -44,11 +44,19 @@ export function ProductionForm({
   const [isSaving, setIsSaving] = useState(false);
   const [errorText, setErrorText] = useState<string | null>(null);
 
+  const sortedFabrics = useMemo(() => {
+    return [...fabrics].sort((a, b) => a.label.localeCompare(b.label));
+  }, [fabrics]);
+
+  const sortedLooms = useMemo(() => {
+    return [...looms].sort((a, b) => a.label.localeCompare(b.label, undefined, { numeric: true, sensitivity: "base" }));
+  }, [looms]);
+
   const derivedInitialMeters = Math.floor(Number(lastMeters[loomId] ?? 0));
   const isOriginalLoom = row && loomId === row.loom_id;
   const initialMetersValue = isOriginalLoom
-    ? (isAdmin ? (initialMetersInput !== "" ? initialMetersInput : String(Math.floor(row.initial_meters ?? 0))) : String(Math.floor(row.initial_meters ?? 0)))
-    : (isAdmin ? (initialMetersInput || String(derivedInitialMeters)) : String(derivedInitialMeters));
+    ? (initialMetersInput !== "" ? initialMetersInput : String(Math.floor(row.initial_meters ?? 0)))
+    : (initialMetersInput !== "" ? initialMetersInput : String(derivedInitialMeters));
   const initialMeters = Math.floor(Number(initialMetersValue));
 
   const netWeight = Math.max(Number(gross || 0) - Number(core || 0), 0);
@@ -129,8 +137,8 @@ export function ProductionForm({
       <div className="space-y-2">
         <Label>Fabric ID</Label>
         <select name="fabric_type_id" value={fabricId} onChange={(event) => setFabricId(event.target.value)} required disabled={isSaving} className="h-10 w-full rounded-md border bg-background px-3 text-sm">
-          <option value="" disabled>Select fabric</option>
-          {fabrics.map((fabric) => <option key={fabric.id} value={fabric.id}>{fabric.label}</option>)}
+          <option value="">Select Fabric Type</option>
+          {sortedFabrics.map((fabric) => <option key={fabric.id} value={fabric.id}>{fabric.label}</option>)}
         </select>
       </div>
       <div className="space-y-2">
@@ -147,8 +155,8 @@ export function ProductionForm({
           disabled={isSaving}
           className="h-10 w-full rounded-md border bg-background px-3 text-sm"
         >
-          <option value="" disabled>Select loom</option>
-          {looms.map((loom) => <option key={loom.id} value={loom.id}>{loom.label}</option>)}
+          <option value="">Select Loom</option>
+          {sortedLooms.map((loom) => <option key={loom.id} value={loom.id}>{loom.label}</option>)}
         </select>
       </div>
       <div className="rounded-md border border-emerald-200 bg-emerald-50 p-3 text-sm">
@@ -157,7 +165,7 @@ export function ProductionForm({
       </div>
       <div className="space-y-2">
         <Label>Initial Meters</Label>
-        <Input name="initial_meters" type="number" step="1" value={initialMetersValue} readOnly={!isAdmin} disabled={isSaving} onChange={(event) => setInitialMetersInput(event.target.value)} />
+        <Input name="initial_meters" type="number" step="1" value={initialMetersValue} disabled={isSaving} onChange={(event) => setInitialMetersInput(event.target.value)} />
       </div>
       <div className="space-y-2">
         <Label>Gross Weight</Label>

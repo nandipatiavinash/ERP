@@ -14,6 +14,14 @@ export function SalesForm({ customers, fabrics, rolls, row }: { customers: Optio
   const [fabricId, setFabricId] = useState(row?.fabric_type_id ?? "");
   const [quantity, setQuantity] = useState(Number(row?.quantity_meters ?? 0));
   const [rate, setRate] = useState(Number(row?.rate ?? 0));
+  const sortedCustomers = useMemo(() => {
+    return [...customers].sort((a, b) => a.label.localeCompare(b.label));
+  }, [customers]);
+
+  const sortedFabrics = useMemo(() => {
+    return [...fabrics].sort((a, b) => a.label.localeCompare(b.label));
+  }, [fabrics]);
+
   const selected = useMemo(() => new Set<string>(row?.selected_roll_ids ?? []), [row?.selected_roll_ids]);
   const filteredRolls = useMemo(() => rolls.filter((roll) => roll.fabric_type_id === fabricId || selected.has(roll.id)), [rolls, fabricId, selected]);
 
@@ -23,15 +31,15 @@ export function SalesForm({ customers, fabrics, rolls, row }: { customers: Optio
       <div className="space-y-2">
         <Label>Customer</Label>
         <select name="customer_id" defaultValue={row?.customer_id ?? ""} required className="h-10 w-full rounded-md border bg-background px-3 text-sm">
-          <option value="" disabled>Select customer</option>
-          {customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.label}</option>)}
+          <option value="">Select Customer</option>
+          {sortedCustomers.map((customer) => <option key={customer.id} value={customer.id}>{customer.label}</option>)}
         </select>
       </div>
       <div className="space-y-2">
         <Label>Fabric Type</Label>
         <select name="fabric_type_id" value={fabricId} onChange={(event) => setFabricId(event.target.value)} required className="h-10 w-full rounded-md border bg-background px-3 text-sm">
-          <option value="" disabled>Select fabric</option>
-          {fabrics.map((fabric) => <option key={fabric.id} value={fabric.id}>{fabric.label}</option>)}
+          <option value="">Select Fabric Type</option>
+          {sortedFabrics.map((fabric) => <option key={fabric.id} value={fabric.id}>{fabric.label}</option>)}
         </select>
       </div>
       <div className="space-y-2">

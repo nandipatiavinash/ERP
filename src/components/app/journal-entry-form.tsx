@@ -497,20 +497,25 @@ function SearchableAccountSelect({
     setIsOpen(false);
   };
 
+  // Sort accounts alphabetically
+  const sortedAccounts = useMemo(() => {
+    return [...accounts].sort((a, b) => a.name.localeCompare(b.name));
+  }, [accounts]);
+
   const filteredAccounts = useMemo(() => {
-    if (!searchQuery.trim()) return accounts;
+    if (!searchQuery.trim()) return sortedAccounts;
     const query = searchQuery.toLowerCase();
-    return accounts.filter((acc) => {
+    return sortedAccounts.filter((acc) => {
       const nameMatch = acc.name.toLowerCase().includes(query);
       const aliasMatch = acc.alias?.toLowerCase().includes(query) ?? false;
       return nameMatch || aliasMatch;
     });
-  }, [accounts, searchQuery]);
+  }, [sortedAccounts, searchQuery]);
 
-  const selectedAccountObj = accounts.find(a => a.name === value);
+  const selectedAccountObj = sortedAccounts.find(a => a.name === value);
   const displayLabel = selectedAccountObj 
     ? (selectedAccountObj.name + (selectedAccountObj.alias ? ` (${selectedAccountObj.alias})` : ''))
-    : (value || 'Select account...');
+    : (value || 'Select Account');
 
   return (
     <div className="w-full">

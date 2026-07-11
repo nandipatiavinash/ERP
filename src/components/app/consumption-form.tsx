@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { showSuccess } from "@/lib/toast";
 import { saveRawMaterialConsumption } from "@/app/(app)/_actions";
 import { ConfirmSubmitButton } from "@/components/app/confirm-submit-button";
@@ -26,7 +26,12 @@ export function ConsumptionForm({ department, materials, row, rows }: Consumptio
   const [materialId, setMaterialId] = useState(defaultMaterial);
   const [quantity, setQuantity] = useState(row?.quantity == null ? "" : String(row.quantity));
 
-  const selectedMaterial = materials.find((m) => m.id === materialId);
+  // Sort materials alphabetically
+  const sortedMaterials = useMemo(() => {
+    return [...materials].sort((a, b) => a.material_name.localeCompare(b.material_name));
+  }, [materials]);
+
+  const selectedMaterial = sortedMaterials.find((m) => m.id === materialId);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -79,8 +84,8 @@ export function ConsumptionForm({ department, materials, row, rows }: Consumptio
           disabled={isSaving}
           className="h-10 w-full rounded-md border bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
         >
-          <option value="" disabled>Select material</option>
-          {materials.map((m) => (
+          <option value="">Select Raw Material</option>
+          {sortedMaterials.map((m) => (
             <option key={m.id} value={m.id}>
               {m.material_name}
             </option>
