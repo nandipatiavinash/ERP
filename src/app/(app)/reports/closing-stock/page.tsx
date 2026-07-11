@@ -12,15 +12,20 @@ export default async function ClosingStockReportPage({ searchParams }: { searchP
 
   const supabase = await createClient();
 
-  // Fetch raw materials, purchases, consumptions, and material sales
+  // Fetch raw materials, purchases, consumptions, material sales, fabric types, and rolls from all 5 departments
   const [
     { data: rawMaterials },
     { data: purchases },
     { data: consumptions },
     { data: materialSales },
     { data: fabricTypes },
-    rolls,
     { data: salesOrders },
+    { data: fabricRolls },
+    { data: lamRolls },
+    { data: offsetRolls },
+    { data: finishingBundles },
+    { data: rotoFilmRolls },
+    { data: rotoMetallicRolls },
   ] = await Promise.all([
     supabase
       .from("raw_materials")
@@ -44,17 +49,98 @@ export default async function ClosingStockReportPage({ searchParams }: { searchP
       .from("fabric_types")
       .select("id, fabric_name, selling_price")
       .order("fabric_name"),
-    fetchPagedData(
-      supabase
-        .from("fabric_rolls")
-        .select("id, roll_number, fabric_type_id, weight, meters, production_date, status, current_stage")
-        .is("deleted_at", null)
-    ),
     supabase
       .from("sales_orders")
       .select("order_date, status, bill_number, sales_order_items(selected_roll_ids)")
       .is("deleted_at", null),
+    supabase
+      .from("fabric_rolls")
+      .select("id, roll_number, fabric_type_id, weight, meters, production_date, status, current_stage")
+      .is("deleted_at", null),
+    supabase
+      .from("lamination_rolls")
+      .select("id, roll_id, fabric_type_id, weight_kg, meters, entry_date, status")
+      .is("deleted_at", null),
+    supabase
+      .from("offset_rolls")
+      .select("id, roll_id, fabric_type_id, weight_kg, meters, entry_date, status")
+      .is("deleted_at", null),
+    supabase
+      .from("finishing_bundles")
+      .select("id, bundle_id, fabric_type_id, weight_kg, quantity, entry_date, status")
+      .is("deleted_at", null),
+    supabase
+      .from("roto_film_rolls")
+      .select("id, roll_id, weight_kg, meters, entry_date, status")
+      .is("deleted_at", null),
+    supabase
+      .from("roto_metallic_rolls")
+      .select("id, roll_id, weight_kg, meters, entry_date, status")
+      .is("deleted_at", null),
   ]);
+
+  const rolls = [
+    ...((fabricRolls ?? []) as any[]).map(r => ({
+      id: r.id,
+      roll_number: r.roll_number,
+      fabric_type_id: r.fabric_type_id,
+      weight: Number(r.weight || 0),
+      meters: Number(r.meters || 0),
+      production_date: r.production_date,
+      status: r.status,
+      current_stage: r.current_stage || "loom",
+    })),
+    ...((lamRolls ?? []) as any[]).map(r => ({
+      id: r.id,
+      roll_number: r.roll_id,
+      fabric_type_id: r.fabric_type_id,
+      weight: Number(r.weight_kg || 0),
+      meters: Number(r.meters || 0),
+      production_date: r.entry_date,
+      status: r.status,
+      current_stage: "lamination",
+    })),
+    ...((offsetRolls ?? []) as any[]).map(r => ({
+      id: r.id,
+      roll_number: r.roll_id,
+      fabric_type_id: r.fabric_type_id,
+      weight: Number(r.weight_kg || 0),
+      meters: Number(r.meters || 0),
+      production_date: r.entry_date,
+      status: r.status,
+      current_stage: "offset_printing",
+    })),
+    ...((finishingBundles ?? []) as any[]).map(r => ({
+      id: r.id,
+      roll_number: r.bundle_id,
+      fabric_type_id: r.fabric_type_id,
+      weight: Number(r.weight_kg || 0),
+      meters: Number(r.quantity || 0),
+      production_date: r.entry_date,
+      status: r.status,
+      current_stage: "finishing",
+    })),
+    ...((rotoFilmRolls ?? []) as any[]).map(r => ({
+      id: r.id,
+      roll_number: r.roll_id,
+      fabric_type_id: null,
+      weight: Number(r.weight_kg || 0),
+      meters: Number(r.meters || 0),
+      production_date: r.entry_date,
+      status: r.status,
+      current_stage: "roto_printing",
+    })),
+    ...((rotoMetallicRolls ?? []) as any[]).map(r => ({
+      id: r.id,
+      roll_number: r.roll_id,
+      fabric_type_id: null,
+      weight: Number(r.weight_kg || 0),
+      meters: Number(r.meters || 0),
+      production_date: r.entry_date,
+      status: r.status,
+      current_stage: "roto_printing",
+    })),
+  ];
 
   // Fetch existing closing stock submission for this date
   const { data: closingStockSetting } = await supabase
