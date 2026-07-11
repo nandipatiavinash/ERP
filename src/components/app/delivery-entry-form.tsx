@@ -41,6 +41,7 @@ type ConfirmedRow = {
 };
 
 const DEPT_LABELS: Record<string, string> = {
+  fabric: "Fabric",
   "roto-printing": "Roto Printing",
   lamination: "Lamination",
   "offset-printing": "Offset Printing",
@@ -288,6 +289,7 @@ export function DeliveryEntryForm({
               onChange={(e) => handleDeptChange(e.target.value)}
               className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
             >
+              <option value="" disabled>Select Department</option>
               {Object.entries(DEPT_LABELS).map(([val, lbl]) => (
                 <option key={val} value={val}>{lbl}</option>
               ))}
