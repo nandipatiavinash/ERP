@@ -41,7 +41,6 @@ type ConfirmedRow = {
 };
 
 const DEPT_LABELS: Record<string, string> = {
-  fabric: "Fabric",
   "roto-printing": "Roto Printing",
   lamination: "Lamination",
   "offset-printing": "Offset Printing",
@@ -240,7 +239,7 @@ export function DeliveryEntryForm({
       showSuccess("Submitted successfully!");
       form.reset();
       setConfirmedRows([]);
-      setDepartment("fabric");
+      setDepartment("");
     } catch (err: any) {
       if (isRedirectError(err)) throw err;
       setErrorMsg(err.message || "Failed to create sales order.");
