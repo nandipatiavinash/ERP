@@ -19,13 +19,13 @@ export default async function ClosingStockReportPage({ searchParams }: { searchP
     { data: consumptions },
     { data: materialSales },
     { data: fabricTypes },
-    { data: salesOrders },
-    { data: fabricRolls },
-    { data: lamRolls },
-    { data: offsetRolls },
-    { data: finishingBundles },
-    { data: rotoFilmRolls },
-    { data: rotoMetallicRolls },
+    salesOrders,
+    fabricRolls,
+    lamRolls,
+    offsetRolls,
+    finishingBundles,
+    rotoFilmRolls,
+    rotoMetallicRolls,
   ] = await Promise.all([
     supabase
       .from("raw_materials")
@@ -49,34 +49,48 @@ export default async function ClosingStockReportPage({ searchParams }: { searchP
       .from("fabric_types")
       .select("id, fabric_name, selling_price")
       .order("fabric_name"),
-    supabase
-      .from("sales_orders")
-      .select("order_date, status, bill_number, sales_order_items(selected_roll_ids)")
-      .is("deleted_at", null),
-    supabase
-      .from("fabric_rolls")
-      .select("id, roll_number, fabric_type_id, weight, meters, production_date, status, current_stage")
-      .is("deleted_at", null),
-    supabase
-      .from("lamination_rolls")
-      .select("id, roll_id, fabric_type_id, weight_kg, meters, entry_date, status")
-      .is("deleted_at", null),
-    supabase
-      .from("offset_rolls")
-      .select("id, roll_id, fabric_type_id, weight_kg, meters, entry_date, status")
-      .is("deleted_at", null),
-    supabase
-      .from("finishing_bundles")
-      .select("id, bundle_id, fabric_type_id, weight_kg, quantity, entry_date, status")
-      .is("deleted_at", null),
-    supabase
-      .from("roto_film_rolls")
-      .select("id, roll_id, weight_kg, meters, entry_date, status")
-      .is("deleted_at", null),
-    supabase
-      .from("roto_metallic_rolls")
-      .select("id, roll_id, weight_kg, meters, entry_date, status")
-      .is("deleted_at", null),
+    fetchPagedData(
+      supabase
+        .from("sales_orders")
+        .select("order_date, status, bill_number, sales_order_items(selected_roll_ids)")
+        .is("deleted_at", null)
+    ),
+    fetchPagedData(
+      supabase
+        .from("fabric_rolls")
+        .select("id, roll_number, fabric_type_id, weight, meters, production_date, status, current_stage")
+        .is("deleted_at", null)
+    ),
+    fetchPagedData(
+      supabase
+        .from("lamination_rolls")
+        .select("id, roll_id, fabric_type_id, weight_kg, meters, entry_date, status")
+        .is("deleted_at", null)
+    ),
+    fetchPagedData(
+      supabase
+        .from("offset_rolls")
+        .select("id, roll_id, fabric_type_id, weight_kg, meters, entry_date, status")
+        .is("deleted_at", null)
+    ),
+    fetchPagedData(
+      supabase
+        .from("finishing_bundles")
+        .select("id, bundle_id, fabric_type_id, weight_kg, quantity, entry_date, status")
+        .is("deleted_at", null)
+    ),
+    fetchPagedData(
+      supabase
+        .from("roto_film_rolls")
+        .select("id, roll_id, weight_kg, meters, entry_date, status")
+        .is("deleted_at", null)
+    ),
+    fetchPagedData(
+      supabase
+        .from("roto_metallic_rolls")
+        .select("id, roll_id, weight_kg, meters, entry_date, status")
+        .is("deleted_at", null)
+    ),
   ]);
 
   const rolls = [

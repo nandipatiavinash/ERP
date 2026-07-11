@@ -179,7 +179,8 @@ export function ClosingStockReportClient({
   // Active rolls at date D (produced on/before D, not yet sold or sold after D)
   const activeRollsAtD = useMemo(() => {
     return rolls.filter((roll) => {
-      if (roll.production_date > date) return false;
+      const prodDate = roll.production_date ? roll.production_date.slice(0, 10) : "";
+      if (prodDate > date) return false;
       const soldDate = rollIdToSoldDate[roll.id];
       return roll.status === "available" || (soldDate && soldDate > date);
     });

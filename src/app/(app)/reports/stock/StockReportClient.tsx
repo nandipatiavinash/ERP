@@ -506,7 +506,8 @@ export function StockReportClient({
   // Section 2: Stock (Available fabric rolls, grouped by department/stage)
   const stockProductData = useMemo(() => {
     const activeRolls = rolls.filter((roll) => {
-      if (roll.production_date > to) return false;
+      const prodDate = roll.production_date ? roll.production_date.slice(0, 10) : "";
+      if (prodDate > to) return false;
       const soldDate = rollDetailsMap.soldDateMap[roll.id];
       return roll.status === "available" || (soldDate && soldDate > to);
     });
