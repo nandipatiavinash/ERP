@@ -8,12 +8,13 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { formatDate, formatNumber } from "@/lib/utils";
 
-type SortKey = "roll_id" | "offset_type" | "weight_kg" | "entry_date";
+type SortKey = "roll_id" | "s_no" | "offset_type" | "weight_kg" | "entry_date";
 type SortDir = "asc" | "desc";
 
 interface OffsetRoll {
   id: string;
   roll_id: string;
+  s_no: number;
   offset_type: string;
   weight_kg: number;
   entry_date: string;
@@ -26,7 +27,7 @@ interface StockOffsetRollsClientProps {
 
 export function StockOffsetRollsClient({ rolls, fabricName }: StockOffsetRollsClientProps) {
   const [searchTerm, setSearchTerm] = useState("");
-  const [sortKey, setSortKey] = useState<SortKey>("roll_id");
+  const [sortKey, setSortKey] = useState<SortKey>("s_no");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
 
   const handleSort = (key: SortKey) => {
@@ -92,6 +93,9 @@ export function StockOffsetRollsClient({ rolls, fabricName }: StockOffsetRollsCl
                     <TableHead className="cursor-pointer select-none" onClick={() => handleSort("roll_id")}>
                       Roll ID {sortKey === "roll_id" ? (sortDir === "asc" ? "▲" : "▼") : "↕"}
                     </TableHead>
+                    <TableHead className="cursor-pointer select-none" onClick={() => handleSort("s_no")}>
+                      Roll No / S.No {sortKey === "s_no" ? (sortDir === "asc" ? "▲" : "▼") : "↕"}
+                    </TableHead>
                     <TableHead className="cursor-pointer select-none" onClick={() => handleSort("offset_type")}>
                       Offset Type {sortKey === "offset_type" ? (sortDir === "asc" ? "▲" : "▼") : "↕"}
                     </TableHead>
@@ -107,6 +111,7 @@ export function StockOffsetRollsClient({ rolls, fabricName }: StockOffsetRollsCl
                   {sortedRolls.map((roll) => (
                     <TableRow key={roll.id}>
                       <TableCell className="font-mono font-bold text-emerald-950">{roll.roll_id}</TableCell>
+                      <TableCell className="font-mono text-center font-semibold text-slate-700">{roll.s_no}</TableCell>
                       <TableCell className="font-semibold text-xs">{roll.offset_type}</TableCell>
                       <TableCell className="text-right font-mono">{formatNumber(roll.weight_kg, 2)}</TableCell>
                       <TableCell>{formatDate(roll.entry_date)}</TableCell>

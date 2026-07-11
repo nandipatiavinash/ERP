@@ -49,7 +49,7 @@ export function RotoMetallicProductionForm({
     if (!selectedFilmId) return "Select Printed Film...";
     const roll = filmRolls.find((f) => f.id === selectedFilmId);
     if (!roll) return "";
-    return `${roll.roll_id}(Mt)`;
+    return `${roll.roll_id}(MT)`.toUpperCase();
   }, [selectedFilmId, filmRolls]);
 
   function useMemo<T>(factory: () => T, deps: any[]): T {

@@ -10,6 +10,26 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { isRedirectError } from "@/lib/utils";
 
+function parseLaminatedRollId(rollId: string) {
+  const doubleMatch = rollId.match(/^(.*)\(([^)]+)\)\(([^)]+)\)$/);
+  if (doubleMatch) {
+    return {
+      brandSpec: doubleMatch[1].trim().toUpperCase(),
+      fabricType: doubleMatch[2].trim().toUpperCase(),
+      suffix: doubleMatch[3].toUpperCase()
+    };
+  }
+  const singleMatch = rollId.match(/^(.*)\(([^)]+)\)$/);
+  if (singleMatch) {
+    return {
+      brandSpec: singleMatch[1].trim().toUpperCase(),
+      fabricType: singleMatch[2].trim().toUpperCase(),
+      suffix: ""
+    };
+  }
+  return { brandSpec: rollId.toUpperCase(), fabricType: "", suffix: "" };
+}
+
 type FabricType = {
   id: string;
   fabric_name: string;
@@ -50,7 +70,7 @@ export function OffsetProductionForm({
   const [offsetType, setOffsetType] = useState<string>("");
   const [selectedFabricTypeId, setSelectedFabricTypeId] = useState<string>("");
   const [selectedLamBrand, setSelectedLamBrand] = useState<string>("none");
-  const [selectedBrandId, setSelectedBrandId] = useState<string>("");
+  const [selectedBrandId, setSelectedBrandId] = useState<string>("none");
   const [weightKg, setWeightKg] = useState<string>("");
   const [entryDate, setEntryDate] = useState<string>(
     new Date().toLocaleDateString("en-CA")
@@ -77,12 +97,8 @@ export function OffsetProductionForm({
       : [];
 
     rolls.forEach((roll) => {
-      const match = roll.roll_id.match(/^([^(]+)/);
-      if (match) {
-        brandsSet.add(match[1].trim());
-      } else {
-        brandsSet.add(roll.roll_id);
-      }
+      const { brandSpec } = parseLaminatedRollId(roll.roll_id);
+      brandsSet.add(brandSpec);
     });
     return Array.from(brandsSet).sort((a, b) => a.localeCompare(b));
   }, [offsetType, laminationRolls]);
@@ -91,9 +107,8 @@ export function OffsetProductionForm({
   const selectedLamRoll = useMemo(() => {
     if (!selectedLamBrand || selectedLamBrand === "none") return null;
     return laminationRolls.find((r) => {
-      const match = r.roll_id.match(/^([^(]+)/);
-      const brandName = match ? match[1].trim() : r.roll_id;
-      return brandName === selectedLamBrand;
+      const { brandSpec } = parseLaminatedRollId(r.roll_id);
+      return brandSpec === selectedLamBrand;
     });
   }, [selectedLamBrand, laminationRolls]);
 
@@ -108,15 +123,14 @@ export function OffsetProductionForm({
       if (fab) fabricName = fab.fabric_name;
     } else if (["NW_LAM", "PLAIN_LAM"].includes(offsetType)) {
       if (selectedLamRoll) {
-        const match = selectedLamRoll.roll_id.match(/^([^(]+)\(([^)]+)\)/);
-        if (match) fabricName = match[2];
-        else fabricName = selectedLamRoll.fabric_types?.fabric_name || "FABRIC-TYPE";
+        const { fabricType: parsedFabric } = parseLaminatedRollId(selectedLamRoll.roll_id);
+        fabricName = parsedFabric || selectedLamRoll.fabric_types?.fabric_name || "FABRIC-TYPE";
       }
     } else if (offsetType === "NW") {
       fabricName = "NW";
     }
 
-    return `${brandName}(${fabricName})()`;
+    return `${brandName}(${fabricName})`.toUpperCase();
   }, [offsetType, selectedFabricTypeId, selectedLamRoll, selectedBrandId, fabricTypes, offsetProducts]);
 
   const handleSubmit = (e: React.FormEvent) => {

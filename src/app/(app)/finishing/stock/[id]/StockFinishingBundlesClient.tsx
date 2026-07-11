@@ -8,12 +8,13 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { formatDate, formatNumber } from "@/lib/utils";
 
-type SortKey = "bundle_id" | "finish_type" | "num_bags" | "weight_kg" | "entry_date";
+type SortKey = "bundle_id" | "s_no" | "finish_type" | "num_bags" | "weight_kg" | "entry_date";
 type SortDir = "asc" | "desc";
 
 interface FinishingBundle {
   id: string;
   bundle_id: string;
+  s_no: number;
   finish_type: string;
   num_bags: number;
   weight_kg: number;
@@ -27,7 +28,7 @@ interface StockFinishingBundlesClientProps {
 
 export function StockFinishingBundlesClient({ bundles, fabricName }: StockFinishingBundlesClientProps) {
   const [searchTerm, setSearchTerm] = useState("");
-  const [sortKey, setSortKey] = useState<SortKey>("bundle_id");
+  const [sortKey, setSortKey] = useState<SortKey>("s_no");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
 
   const handleSort = (key: SortKey) => {
@@ -94,6 +95,9 @@ export function StockFinishingBundlesClient({ bundles, fabricName }: StockFinish
                     <TableHead className="cursor-pointer select-none" onClick={() => handleSort("bundle_id")}>
                       Bundle ID (Source) {sortKey === "bundle_id" ? (sortDir === "asc" ? "▲" : "▼") : "↕"}
                     </TableHead>
+                    <TableHead className="cursor-pointer select-none" onClick={() => handleSort("s_no")}>
+                      Bundle No / S.No {sortKey === "s_no" ? (sortDir === "asc" ? "▲" : "▼") : "↕"}
+                    </TableHead>
                     <TableHead className="cursor-pointer select-none" onClick={() => handleSort("finish_type")}>
                       Type {sortKey === "finish_type" ? (sortDir === "asc" ? "▲" : "▼") : "↕"}
                     </TableHead>
@@ -112,6 +116,7 @@ export function StockFinishingBundlesClient({ bundles, fabricName }: StockFinish
                   {sortedBundles.map((bundle) => (
                     <TableRow key={bundle.id}>
                       <TableCell className="font-mono font-bold text-emerald-950">{bundle.bundle_id}</TableCell>
+                      <TableCell className="font-mono text-center font-semibold text-slate-700">{bundle.s_no}</TableCell>
                       <TableCell className="font-semibold text-xs">{bundle.finish_type?.replace(/_/g, "/")}</TableCell>
                       <TableCell className="text-right font-mono">{formatNumber(bundle.num_bags, 0)}</TableCell>
                       <TableCell className="text-right font-mono">{formatNumber(bundle.weight_kg, 2)}</TableCell>

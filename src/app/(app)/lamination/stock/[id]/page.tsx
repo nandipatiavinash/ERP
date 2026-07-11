@@ -8,57 +8,25 @@ import { StockLaminationRollsClient } from "./StockLaminationRollsClient";
 
 export default async function LaminationStockDetailPage({
   params,
-  searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ brand?: string }>;
 }) {
   await requirePermission("lamination.stock");
   const { id } = await params;
-  const { brand } = await searchParams;
+  const specId = decodeURIComponent(id);
   const supabase = await createClient();
 
-  const brandFilter = brand || "Fabric";
-
-  let fabricName = "Unspecified Fabric";
-  let rollsQuery: any;
-
-  if (id === "unspecified") {
-    rollsQuery = supabase
-      .from("lamination_rolls")
-      .select("*")
-      .is("fabric_type_id", null)
-      .eq("status", "available")
-      .is("deleted_at", null);
-  } else {
-    const { data: fabricData } = await supabase
-      .from("fabric_types")
-      .select("fabric_name")
-      .eq("id", id)
-      .single();
-    fabricName = (fabricData as any)?.fabric_name ?? "Fabric";
-
-    rollsQuery = supabase
-      .from("lamination_rolls")
-      .select("*")
-      .eq("fabric_type_id", id)
-      .eq("status", "available")
-      .is("deleted_at", null);
-  }
-
-  const { data: rollsData, error: rollsError } = await rollsQuery.order("created_at", { ascending: false });
+  const { data: rollsData, error: rollsError } = await supabase
+    .from("lamination_rolls")
+    .select("*")
+    .eq("roll_id", specId)
+    .eq("status", "available")
+    .is("deleted_at", null)
+    .order("s_no", { ascending: true });
 
   if (rollsError) {
     throw new Error("Unable to load lamination stock details.");
   }
-
-  // Filter rolls by brand name matching brandFilter
-  const filteredRolls = (rollsData ?? []).filter((r: any) => {
-    const match = r.roll_id.match(/^([^(]+)/);
-    let b = match ? match[1].trim() : "";
-    if (!b) b = "Fabric";
-    return b.toLowerCase() === brandFilter.toLowerCase();
-  });
 
   return (
     <div className="space-y-6">
@@ -71,13 +39,13 @@ export default async function LaminationStockDetailPage({
       </div>
 
       <PageHeader
-        title={`Laminated Rolls — ${brandFilter} (${fabricName})`}
-        description={`Detailed view of laminated rolls produced for brand ${brandFilter} using ${fabricName}.`}
+        title={`Laminated Rolls — ${specId}`}
+        description={`Detailed view of laminated rolls produced for specification ${specId}.`}
       />
 
       <StockLaminationRollsClient
-        rolls={filteredRolls as any[]}
-        fabricName={fabricName}
+        rolls={(rollsData ?? []) as any[]}
+        fabricName={specId}
       />
     </div>
   );

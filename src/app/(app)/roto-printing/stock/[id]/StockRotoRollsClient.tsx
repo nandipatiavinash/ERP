@@ -8,12 +8,13 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { formatDate, formatNumber } from "@/lib/utils";
 
-type SortKey = "roll_id" | "weight_kg" | "meters" | "entry_date" | "film_type" | "source_roll";
+type SortKey = "roll_id" | "s_no" | "weight_kg" | "meters" | "entry_date" | "film_type" | "source_roll";
 type SortDir = "asc" | "desc";
 
 interface FilmRoll {
   id: string;
   roll_id: string;
+  s_no: number;
   weight_kg: number;
   meters: number;
   entry_date: string;
@@ -23,6 +24,7 @@ interface FilmRoll {
 interface MetallicRoll {
   id: string;
   roll_id: string;
+  s_no: number;
   weight_kg: number;
   meters: number;
   entry_date: string;
@@ -40,7 +42,7 @@ interface StockRotoRollsClientProps {
 export function StockRotoRollsClient({ filmRolls, metallicRolls, brandName }: StockRotoRollsClientProps) {
   const [activeTab, setActiveTab] = useState<"film" | "metallic">("film");
   const [searchTerm, setSearchTerm] = useState("");
-  const [sortKey, setSortKey] = useState<SortKey>("roll_id");
+  const [sortKey, setSortKey] = useState<SortKey>("s_no");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
 
   const handleSort = (key: SortKey) => {
@@ -110,13 +112,13 @@ export function StockRotoRollsClient({ filmRolls, metallicRolls, brandName }: St
       <div className="flex flex-col sm:flex-row gap-4 items-center justify-between">
         <div className="flex space-x-1 bg-slate-100 p-1 rounded-md text-xs">
           <button
-            onClick={() => { setActiveTab("film"); setSortKey("roll_id"); setSortDir("asc"); }}
+            onClick={() => { setActiveTab("film"); setSortKey("s_no"); setSortDir("asc"); }}
             className={`px-3 py-1.5 rounded-sm font-medium transition-all ${activeTab === "film" ? "bg-white shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}
           >
             Printed Film ({filmRolls.length})
           </button>
           <button
-            onClick={() => { setActiveTab("metallic"); setSortKey("roll_id"); setSortDir("asc"); }}
+            onClick={() => { setActiveTab("metallic"); setSortKey("s_no"); setSortDir("asc"); }}
             className={`px-3 py-1.5 rounded-sm font-medium transition-all ${activeTab === "metallic" ? "bg-white shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"}`}
           >
             Metallic Film ({metallicRolls.length})
@@ -149,6 +151,9 @@ export function StockRotoRollsClient({ filmRolls, metallicRolls, brandName }: St
                       <TableHead className="cursor-pointer select-none" onClick={() => handleSort("roll_id")}>
                         Roll ID {sortKey === "roll_id" ? (sortDir === "asc" ? "▲" : "▼") : "↕"}
                       </TableHead>
+                      <TableHead className="cursor-pointer select-none" onClick={() => handleSort("s_no")}>
+                        Roll No / S.No {sortKey === "s_no" ? (sortDir === "asc" ? "▲" : "▼") : "↕"}
+                      </TableHead>
                       <TableHead className="text-right cursor-pointer select-none" onClick={() => handleSort("weight_kg")}>
                         Weight (kg) {sortKey === "weight_kg" ? (sortDir === "asc" ? "▲" : "▼") : "↕"}
                       </TableHead>
@@ -164,6 +169,7 @@ export function StockRotoRollsClient({ filmRolls, metallicRolls, brandName }: St
                     {sortedFilms.map((roll) => (
                       <TableRow key={roll.id}>
                         <TableCell className="font-mono font-bold text-emerald-950">{roll.roll_id}</TableCell>
+                        <TableCell className="font-mono text-center font-semibold text-slate-700">{roll.s_no}</TableCell>
                         <TableCell className="text-right font-mono">{formatNumber(roll.weight_kg, 2)}</TableCell>
                         <TableCell className="text-right font-mono">{formatNumber(roll.meters, 0)}</TableCell>
                         <TableCell>{formatDate(roll.entry_date)}</TableCell>
@@ -184,6 +190,9 @@ export function StockRotoRollsClient({ filmRolls, metallicRolls, brandName }: St
                       <TableHead className="cursor-pointer select-none" onClick={() => handleSort("roll_id")}>
                         Roll ID {sortKey === "roll_id" ? (sortDir === "asc" ? "▲" : "▼") : "↕"}
                       </TableHead>
+                      <TableHead className="cursor-pointer select-none" onClick={() => handleSort("s_no")}>
+                        Roll No / S.No {sortKey === "s_no" ? (sortDir === "asc" ? "▲" : "▼") : "↕"}
+                      </TableHead>
                       <TableHead className="cursor-pointer select-none" onClick={() => handleSort("source_roll")}>
                         Source Film Roll {sortKey === "source_roll" ? (sortDir === "asc" ? "▲" : "▼") : "↕"}
                       </TableHead>
@@ -202,6 +211,7 @@ export function StockRotoRollsClient({ filmRolls, metallicRolls, brandName }: St
                     {sortedMetallics.map((roll) => (
                       <TableRow key={roll.id}>
                         <TableCell className="font-mono font-bold text-emerald-950">{roll.roll_id}</TableCell>
+                        <TableCell className="font-mono text-center font-semibold text-slate-700">{roll.s_no}</TableCell>
                         <TableCell className="font-mono text-xs text-slate-500">{roll.roto_film_rolls?.roll_id ?? "-"}</TableCell>
                         <TableCell className="text-right font-mono">{formatNumber(roll.weight_kg, 2)}</TableCell>
                         <TableCell className="text-right font-mono">{formatNumber(roll.meters, 0)}</TableCell>

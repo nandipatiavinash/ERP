@@ -29,7 +29,7 @@ type LaminationProduct = {
 
 interface LaminationProductionFormProps {
   fabricTypes: FabricType[];
-  rotoProducts: { id: string; brand: string }[];
+  rotoProducts: { id: string; roll_id: string; s_no: number }[];
   onSuccess?: (newRollInfo: { rollId: string; weight: number; meters: number }) => void;
   rows?: any[];
 }
@@ -58,7 +58,7 @@ export function LaminationProductionForm({
   }, [fabricTypes]);
 
   const sortedRotoProducts = useMemo(() => {
-    return [...rotoProducts].sort((a, b) => a.brand.localeCompare(b.brand));
+    return [...rotoProducts].sort((a, b) => a.roll_id.localeCompare(b.roll_id));
   }, [rotoProducts]);
 
   // Compute live preview of lamination roll_id
@@ -69,19 +69,23 @@ export function LaminationProductionForm({
     let brandName = "PLAIN";
     if (["BOX", "F_S", "H_S"].includes(lamType)) {
       const rotoProduct = rotoProducts.find((p) => p.id === selectedRotoProductId);
-      brandName = rotoProduct ? rotoProduct.brand : "Select Brand";
+      brandName = rotoProduct ? rotoProduct.roll_id : "Select Brand";
     } else if (lamType === "NW") {
       brandName = "NW";
     }
 
     let suffix = "";
-    if (lamType === "PLAIN") suffix = "p";
-    else if (lamType === "NW") suffix = "nw";
-    else if (lamType === "BOX") suffix = "b";
-    else if (lamType === "F_S") suffix = "f";
-    else if (lamType === "H_S") suffix = "h";
+    if (lamType === "PLAIN") suffix = "";
+    else if (lamType === "NW") suffix = "";
+    else if (lamType === "BOX") suffix = "B";
+    else if (lamType === "F_S") suffix = "F";
+    else if (lamType === "H_S") suffix = "H";
 
-    return `${brandName}(${fabName})(${suffix})()`;
+    if (lamType === "PLAIN" || lamType === "NW") {
+      return `${brandName}(${fabName})`.toUpperCase();
+    } else {
+      return `${brandName}(${fabName})(${suffix})`.toUpperCase();
+    }
   }, [lamType, selectedFabricTypeId, selectedRotoProductId, fabricTypes, rotoProducts]);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -188,19 +192,19 @@ export function LaminationProductionForm({
 
         {/* Brand Dropdown (Roto Products) */}
         <div className="space-y-1">
-          <Label className="text-xs font-semibold text-slate-700">Select Brand (Roto Product)</Label>
+          <Label className="text-xs font-semibold text-slate-700">Select Brand (Roto Printed Spec)</Label>
           <Select
             value={selectedRotoProductId}
             onValueChange={setSelectedRotoProductId}
             disabled={!isBrandRequired}
           >
-            <SelectTrigger className="h-10 border-slate-200 text-xs disabled:opacity-50">
-              <SelectValue placeholder={isBrandRequired ? "Select brand" : "No brand required"} />
+            <SelectTrigger className="h-10 border-slate-200 text-xs disabled:opacity-50 font-mono">
+              <SelectValue placeholder={isBrandRequired ? "Select roto spec" : "No specification required"} />
             </SelectTrigger>
             <SelectContent>
               {sortedRotoProducts.map((p) => (
-                <SelectItem key={p.id} value={p.id} className="text-xs">
-                  {p.brand}
+                <SelectItem key={p.id} value={p.id} className="text-xs font-mono">
+                  {p.roll_id} (Roll #{p.s_no})
                 </SelectItem>
               ))}
             </SelectContent>

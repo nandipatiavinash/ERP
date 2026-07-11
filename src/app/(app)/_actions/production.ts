@@ -160,6 +160,15 @@ export async function saveRotoFilmProduction(formData: FormData) {
   if (colorName) {
     rollId += `(${colorName.trim()})`;
   }
+  rollId = rollId.toUpperCase();
+
+  // Compute sequential serial number for this specific specification
+  const { count } = await (supabase
+    .from("roto_film_rolls") as any)
+    .select("id", { count: "exact", head: true })
+    .eq("roll_id", rollId)
+    .is("deleted_at", null);
+  const seq = (count ?? 0) + 1;
 
   // Use admin client for write so custom roles are not blocked by RLS.
   const adminSupabase = createAdminClient();
@@ -167,6 +176,7 @@ export async function saveRotoFilmProduction(formData: FormData) {
     .from("roto_film_rolls") as any)
     .insert({
       roll_id: rollId,
+      s_no: seq,
       brand_id: brandId,
       film_type: filmType,
       color_id: colorId || null,
@@ -226,7 +236,7 @@ export async function saveRotoMetallicProduction(formData: FormData) {
 
   const { data: filmRoll, error: filmError } = await (supabase
     .from("roto_film_rolls") as any)
-    .select("roll_id")
+    .select("roll_id, s_no")
     .eq("id", sourceFilmRollId)
     .single();
 
@@ -234,7 +244,8 @@ export async function saveRotoMetallicProduction(formData: FormData) {
     throw new Error("Source film roll not found.");
   }
 
-  const newRollId = `${(filmRoll as any).roll_id.trim()}(Mt)`;
+  const newRollId = `${(filmRoll as any).roll_id.trim()}(MT)`.toUpperCase();
+  const seq = (filmRoll as any).s_no || 1;
 
   // Use admin client for write so custom roles are not blocked by RLS.
   const adminSupabase = createAdminClient();
@@ -242,6 +253,7 @@ export async function saveRotoMetallicProduction(formData: FormData) {
     .from("roto_metallic_rolls") as any)
     .insert({
       roll_id: newRollId,
+      s_no: seq,
       source_film_roll_id: sourceFilmRollId,
       is_split: isSplit,
       weight_kg: weightKg,
@@ -311,39 +323,72 @@ export async function saveLaminationProduction(formData: FormData) {
   const fabricTypeName = (fabricType as any).fabric_name;
 
   let brandName = "PLAIN";
+  let matchedMetallicRollId: string | null = null;
+
   if (["BOX", "F_S", "H_S"].includes(lamType)) {
     if (!rotoProductId) {
       throw new Error(`Brand is required for lamination type ${lamType}.`);
     }
-    const { data: rotoProduct, error: productError } = await (supabase
-      .from("roto_products") as any)
-      .select("brand")
+    
+    // Resolve brand name from either roto_film_rolls (printed spec), roto_metallic_rolls, or fallback to roto_products
+    const { data: filmRoll } = await (supabase
+      .from("roto_film_rolls") as any)
+      .select("roll_id")
       .eq("id", rotoProductId)
-      .single();
+      .maybeSingle();
 
-    if (productError || !rotoProduct) {
-      throw new Error("Roto product brand not found.");
+    if (filmRoll) {
+      brandName = (filmRoll as any).roll_id;
+    } else {
+      const { data: metallicRoll } = await (supabase
+        .from("roto_metallic_rolls") as any)
+        .select("roll_id")
+        .eq("id", rotoProductId)
+        .maybeSingle();
+
+      if (metallicRoll) {
+        brandName = (metallicRoll as any).roll_id;
+        matchedMetallicRollId = rotoProductId;
+      } else {
+        const { data: rotoProduct } = await (supabase
+          .from("roto_products") as any)
+          .select("brand")
+          .eq("id", rotoProductId)
+          .maybeSingle();
+        if (rotoProduct) {
+          brandName = (rotoProduct as any).brand;
+        } else {
+          brandName = rotoProductId;
+        }
+      }
     }
-    brandName = (rotoProduct as any).brand;
   } else if (lamType === "NW") {
     brandName = "NW";
   }
 
   let suffix = "";
-  if (lamType === "PLAIN") suffix = "p";
-  else if (lamType === "NW") suffix = "nw";
-  else if (lamType === "BOX") suffix = "b";
-  else if (lamType === "F_S") suffix = "f";
-  else if (lamType === "H_S") suffix = "h";
+  if (lamType === "PLAIN") suffix = "";
+  else if (lamType === "NW") suffix = "";
+  else if (lamType === "BOX") suffix = "B";
+  else if (lamType === "F_S") suffix = "F";
+  else if (lamType === "H_S") suffix = "H";
 
-  const baseId = `${brandName.trim()}(${fabricTypeName.trim()})(${suffix})`;
+  let baseId = "";
+  if (lamType === "PLAIN" || lamType === "NW") {
+    baseId = `${brandName.trim()}(${fabricTypeName.trim()})`;
+  } else {
+    baseId = `${brandName.trim()}(${fabricTypeName.trim()})(${suffix})`;
+  }
+  baseId = baseId.toUpperCase();
+
   const { count } = await (supabase
     .from("lamination_rolls") as any)
     .select("id", { count: "exact", head: true })
-    .like("roll_id", `${baseId}%`);
+    .eq("roll_id", baseId)
+    .is("deleted_at", null);
 
   const seq = (count ?? 0) + 1;
-  const newRollId = `${baseId}(${seq})`;
+  const newRollId = baseId;
 
   // Use admin client for write so custom roles are not blocked by RLS.
   const adminSupabase = createAdminClient();
@@ -351,10 +396,11 @@ export async function saveLaminationProduction(formData: FormData) {
     .from("lamination_rolls") as any)
     .insert({
       roll_id: newRollId,
+      s_no: seq,
       product_id: null,
       lam_type: lamType,
       fabric_type_id: fabricTypeId,
-      film_roll_id: null,
+      film_roll_id: matchedMetallicRollId,
       nw_material_id: null,
       weight_kg: weightKg,
       meters: meters,
@@ -366,6 +412,14 @@ export async function saveLaminationProduction(formData: FormData) {
 
   if (insertError) throw new Error(insertError.message);
 
+  // Manually consume metallic film roll if referenced
+  if (matchedMetallicRollId) {
+    await (adminSupabase
+      .from("roto_metallic_rolls") as any)
+      .update({ status: "consumed" })
+      .eq("id", matchedMetallicRollId);
+  }
+
   revalidatePath("/lamination/production");
   revalidatePath("/lamination/stock");
   revalidatePath("/offset-printing/production");
@@ -376,7 +430,7 @@ export async function deleteLaminationProduction(id: string) {
   await requirePermission("lamination.production");
   const supabase = await createClient();
 
-  const { data: roll } = await (supabase.from("lamination_rolls") as any).select("status").eq("id", id).maybeSingle();
+  const { data: roll } = await (supabase.from("lamination_rolls") as any).select("status, film_roll_id").eq("id", id).maybeSingle();
   if (!roll) throw new Error("Lamination roll not found.");
   if ((roll as any).status === "sold") throw new Error("This roll has been sold and cannot be deleted.");
   if ((roll as any).status === "consumed") throw new Error("This roll has been consumed in offset/finishing and cannot be deleted.");
@@ -394,6 +448,14 @@ export async function deleteLaminationProduction(id: string) {
     .eq("id", id);
 
   if (error) throw new Error(error.message);
+
+  // Manually revert metallic film roll status to available if it was consumed
+  if ((roll as any).film_roll_id) {
+    await (adminSupabase
+      .from("roto_metallic_rolls") as any)
+      .update({ status: "available" })
+      .eq("id", (roll as any).film_roll_id);
+  }
 
   revalidatePath("/lamination/production");
   revalidatePath("/lamination/stock");
@@ -435,14 +497,15 @@ export async function saveOffsetProduction(formData: FormData) {
   }
 
   const fabricNameVal = offsetType === "NW" ? "NW" : fabricTypeName;
-  const baseId = `${brandName.trim()}(${fabricNameVal.trim()})`;
+  const baseId = `${brandName.trim()}(${fabricNameVal.trim()})`.toUpperCase();
   const { count } = await (supabase
     .from("offset_rolls") as any)
     .select("id", { count: "exact", head: true })
-    .like("roll_id", `${baseId}%`);
+    .eq("roll_id", baseId)
+    .is("deleted_at", null);
 
   const seq = (count ?? 0) + 1;
-  const newRollId = `${baseId}(${seq})`;
+  const newRollId = baseId;
 
   // Use admin client for write so custom roles are not blocked by RLS.
   const adminSupabase = createAdminClient();
@@ -450,6 +513,7 @@ export async function saveOffsetProduction(formData: FormData) {
     .from("offset_rolls") as any)
     .insert({
       roll_id: newRollId,
+      s_no: seq,
       offset_type: offsetType,
       brand_id: brandId,
       fabric_type_id: ["FABRIC", "NW_LAM", "PLAIN_LAM"].includes(offsetType) ? fabricTypeId : null,
@@ -530,24 +594,39 @@ export async function saveFinishingBundle(formData: FormData) {
     if (["BOX", "F_S", "H_S"].includes(laminationType)) {
       const rotoProductId = formData.get("roto_product_id") ? String(formData.get("roto_product_id")) : null;
       if (!rotoProductId) throw new Error("Brand is required.");
-      const { data: rotoProduct } = await (supabase
-        .from("roto_products") as any)
-        .select("brand")
+      
+      const { data: filmRoll } = await (supabase
+        .from("roto_film_rolls") as any)
+        .select("roll_id")
         .eq("id", rotoProductId)
-        .single();
-      brandName = rotoProduct ? (rotoProduct as any).brand : "PLAIN";
+        .maybeSingle();
+
+      if (filmRoll) {
+        brandName = (filmRoll as any).roll_id;
+      } else {
+        const { data: rotoProduct } = await (supabase
+          .from("roto_products") as any)
+          .select("brand")
+          .eq("id", rotoProductId)
+          .maybeSingle();
+        brandName = rotoProduct ? (rotoProduct as any).brand : "PLAIN";
+      }
     } else if (laminationType === "NW") {
       brandName = "NW";
     }
 
     let suffix = "";
-    if (laminationType === "PLAIN") suffix = "p";
-    else if (laminationType === "NW") suffix = "nw";
-    else if (laminationType === "BOX") suffix = "b";
-    else if (laminationType === "F_S") suffix = "f";
-    else if (laminationType === "H_S") suffix = "h";
+    if (laminationType === "PLAIN") suffix = "";
+    else if (laminationType === "NW") suffix = "";
+    else if (laminationType === "BOX") suffix = "B";
+    else if (laminationType === "F_S") suffix = "F";
+    else if (laminationType === "H_S") suffix = "H";
 
-    parentId = `${brandName}(${fabricTypeName})(${suffix})`;
+    if (laminationType === "PLAIN" || laminationType === "NW") {
+      parentId = `${brandName}(${fabricTypeName})`;
+    } else {
+      parentId = `${brandName}(${fabricTypeName})(${suffix})`;
+    }
   } else if (finishType === "OFFSET") {
     const offsetProductId = formData.get("offset_product_id") ? String(formData.get("offset_product_id")) : null;
     if (!offsetProductId) throw new Error("Offset Brand is required.");
@@ -562,19 +641,23 @@ export async function saveFinishingBundle(formData: FormData) {
     throw new Error("Unsupported finishing type.");
   }
 
+  parentId = parentId.toUpperCase();
+
   const { count } = await (supabase
     .from("finishing_bundles") as any)
     .select("id", { count: "exact", head: true })
-    .like("bundle_id", `${parentId}(%)`);
+    .eq("bundle_id", parentId)
+    .is("deleted_at", null);
 
   const seq = (count ?? 0) + 1;
-  const newBundleId = `${parentId}(${seq})`;
+  const newBundleId = parentId;
 
   const adminSupabase = createAdminClient();
   const { error: insertError } = await (adminSupabase
     .from("finishing_bundles") as any)
     .insert({
       bundle_id: newBundleId,
+      s_no: seq,
       finish_type: finishType,
       product_id: null,
       source_lam_roll_id: null,

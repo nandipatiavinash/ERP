@@ -21,9 +21,9 @@ export default async function LaminationProductionPage() {
 
   const [
     { data: activeFabricTypes },
-    { data: activeRotoProducts },
+    { data: activeRotoFilm },
+    { data: activeRotoMetallic },
     { data: todayLaminationEntries },
-    { data: availableRolls },
   ] = await Promise.all([
     supabase
       .from("fabric_types")
@@ -32,32 +32,30 @@ export default async function LaminationProductionPage() {
       .is("deleted_at", null)
       .order("fabric_name"),
     supabase
-      .from("roto_products")
-      .select("id, brand")
-      .eq("status", "active")
+      .from("roto_film_rolls")
+      .select("id, roll_id, s_no")
+      .eq("status", "available")
       .is("deleted_at", null)
-      .order("brand"),
+      .order("roll_id"),
+    supabase
+      .from("roto_metallic_rolls")
+      .select("id, roll_id, s_no")
+      .eq("status", "available")
+      .is("deleted_at", null)
+      .order("roll_id"),
     supabase
       .from("lamination_rolls")
       .select("*, fabric_types(fabric_name)")
       .is("deleted_at", null)
       .eq("entry_date", today)
       .order("created_at", { ascending: false }),
-    supabase
-      .from("fabric_rolls")
-      .select("fabric_type_id")
-      .eq("status", "available")
-      .is("deleted_at", null),
   ]);
 
-  const availableFabricTypeIds = Array.from(
-    new Set((availableRolls ?? []).map((r: any) => r.fabric_type_id).filter(Boolean))
-  );
-
-  const fabricTypes = ((activeFabricTypes ?? []) as any[]).filter((t) =>
-    availableFabricTypeIds.includes(t.id)
-  );
-  const rotoProducts = (activeRotoProducts ?? []) as any[];
+  const fabricTypes = (activeFabricTypes ?? []) as any[];
+  const rotoProducts = [
+    ...((activeRotoFilm ?? []) as any[]),
+    ...((activeRotoMetallic ?? []) as any[])
+  ];
   const laminationRows = (todayLaminationEntries ?? []) as any[];
 
   return (

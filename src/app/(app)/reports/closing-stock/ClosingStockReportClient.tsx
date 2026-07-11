@@ -212,15 +212,20 @@ export function ClosingStockReportClient({
   // Raw Material rows
   const rmRows = useMemo(() => {
     return rawMaterials
-      .map((mat) => ({
-        key: `rm-${mat.id}`,
-        departmentKey: mat.department || "general",
-        departmentLabel: getDeptLabel(mat.department),
-        name: mat.material_name,
-        stock: Math.max(0, Math.floor(getRmStockAtD(mat.id, Number(mat.current_stock)))),
-        defaultPrice: getRmDefaultPrice(mat.id),
-        isProduct: false,
-      }))
+      .map((mat) => {
+        const stockVal = Math.max(0, Math.floor(getRmStockAtD(mat.id, Number(mat.current_stock))));
+        return {
+          key: `rm-${mat.id}`,
+          departmentKey: mat.department || "general",
+          departmentLabel: getDeptLabel(mat.department),
+          name: mat.material_name,
+          stock: stockVal,
+          displayStock: stockVal,
+          displayUnit: mat.unit?.toLowerCase() === "kg" ? "Kgs" : mat.unit || "Kgs",
+          defaultPrice: getRmDefaultPrice(mat.id),
+          isProduct: false,
+        };
+      })
       .filter((r) => r.stock > 0)
       .sort((a, b) => {
         const ia = DEPT_ORDER.indexOf(a.departmentKey);
@@ -229,12 +234,14 @@ export function ClosingStockReportClient({
       });
   }, [rawMaterials, purchases, consumptions, materialSales, date, today]);
 
-  // Product rows (one row per stage/department, summed KGs)
+  // Product rows (one row per stage/department, summed KGs, but finishing displays bags count)
   const productRows = useMemo(() => {
     const stageWeights: Record<string, number> = {};
+    const stagePieces: Record<string, number> = {};
     activeRollsAtD.forEach((roll) => {
       const stage = roll.current_stage || "loom";
       stageWeights[stage] = (stageWeights[stage] ?? 0) + Number(roll.weight || 0);
+      stagePieces[stage] = (stagePieces[stage] ?? 0) + Number(roll.meters || 0);
     });
 
     const getStageDefaultPrice = (stage: string): number => {
@@ -246,15 +253,20 @@ export function ClosingStockReportClient({
 
     return Object.entries(stageWeights)
       .filter(([, w]) => w > 0)
-      .map(([stage, weight]) => ({
-        key: `prod-${stage}`,
-        departmentKey: getStageDeptKey(stage),
-        departmentLabel: getDeptLabel(getStageDeptKey(stage)),
-        name: getProdStageName(stage),
-        stock: Math.floor(weight),
-        defaultPrice: getStageDefaultPrice(stage),
-        isProduct: true,
-      }))
+      .map(([stage, weight]) => {
+        const isFinishing = stage === "finishing";
+        return {
+          key: `prod-${stage}`,
+          departmentKey: getStageDeptKey(stage),
+          departmentLabel: getDeptLabel(getStageDeptKey(stage)),
+          name: getProdStageName(stage),
+          stock: Math.floor(weight),
+          displayStock: isFinishing ? Math.floor(stagePieces[stage] ?? 0) : Math.floor(weight),
+          displayUnit: isFinishing ? "Pcs" : "Kgs",
+          defaultPrice: getStageDefaultPrice(stage),
+          isProduct: true,
+        };
+      })
       .sort((a, b) => DEPT_ORDER.indexOf(a.departmentKey) - DEPT_ORDER.indexOf(b.departmentKey));
   }, [activeRollsAtD, fabricTypes]);
 
@@ -425,7 +437,7 @@ export function ClosingStockReportClient({
             <TableRow className="bg-slate-100 border-b border-slate-200">
               <TableHead className="font-bold text-slate-700 text-xs uppercase w-40">Department</TableHead>
               <TableHead className="font-bold text-slate-700 text-xs uppercase">RM &amp; Product</TableHead>
-              <TableHead className="font-bold text-slate-700 text-xs uppercase text-right w-36">Stock (Kgs)</TableHead>
+              <TableHead className="font-bold text-slate-700 text-xs uppercase text-right w-36">Stock Qty</TableHead>
               <TableHead className="font-bold text-slate-700 text-xs uppercase text-right w-36">Price (₹/Kg)</TableHead>
               <TableHead className="font-bold text-slate-700 text-xs uppercase text-right w-40">Amount (₹)</TableHead>
             </TableRow>
@@ -448,7 +460,7 @@ export function ClosingStockReportClient({
                         {deptLabel}
                       </TableCell>
                     </TableRow>
-
+ 
                     {/* Item Rows */}
                     {rows.map((row) => {
                       const price = getPrice(row.key, row.defaultPrice);
@@ -462,7 +474,7 @@ export function ClosingStockReportClient({
                             {row.name}
                           </TableCell>
                           <TableCell className="py-2.5 text-right text-sm font-semibold text-slate-900">
-                            {formatNumber(row.stock, 0)}
+                            {formatNumber(row.displayStock, 0)} <span className="text-[10px] text-muted-foreground font-normal ml-0.5">{row.displayUnit}</span>
                           </TableCell>
                           <TableCell className="py-2 text-right">
                             <Input

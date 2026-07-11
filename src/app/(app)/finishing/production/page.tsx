@@ -31,17 +31,17 @@ export default async function FinishingProductionPage() {
       .is("deleted_at", null)
       .order("fabric_name"),
     supabase
-      .from("roto_products")
-      .select("id, brand")
-      .eq("status", "active")
+      .from("roto_film_rolls")
+      .select("id, roll_id, s_no")
+      .eq("status", "available")
       .is("deleted_at", null)
-      .order("brand"),
+      .order("roll_id"),
     supabase
-      .from("offset_products")
-      .select("id, brand")
-      .eq("status", "active")
+      .from("offset_rolls")
+      .select("id, roll_id, s_no")
+      .eq("status", "available")
       .is("deleted_at", null)
-      .order("brand"),
+      .order("roll_id"),
     supabase
       .from("finishing_bundles")
       .select("*, fabric_types(fabric_name)")

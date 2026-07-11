@@ -29,47 +29,43 @@ export default async function RotoPrintingStockPage() {
   if (filmError) throw new Error(filmError.message);
   if (metallicError) throw new Error(metallicError.message);
 
-  // Group Film Rolls by brand
-  const filmGroups = new Map<string, { brand_id: string; brand_name: string; rolls: number; weight: number; meters: number }>();
+  // Group Film Rolls by roll_id (printed specification)
+  const filmGroups = new Map<string, { roll_id: string; rolls: number; weight: number; meters: number }>();
   for (const r of (filmRolls ?? []) as any[]) {
-    const bId = r.brand_id || "unspecified";
-    const bName = r.roto_products?.brand || "Unspecified Brand";
-    if (!filmGroups.has(bId)) {
-      filmGroups.set(bId, {
-        brand_id: bId,
-        brand_name: bName,
+    const rId = r.roll_id || "UNSPECIFIED";
+    if (!filmGroups.has(rId)) {
+      filmGroups.set(rId, {
+        roll_id: rId,
         rolls: 0,
         weight: 0,
         meters: 0
       });
     }
-    const g = filmGroups.get(bId)!;
+    const g = filmGroups.get(rId)!;
     g.rolls += 1;
     g.weight += Number(r.weight_kg || 0);
     g.meters += Number(r.meters || 0);
   }
-  const filmStockRows = Array.from(filmGroups.values()).sort((a, b) => a.brand_name.localeCompare(b.brand_name));
+  const filmStockRows = Array.from(filmGroups.values()).sort((a, b) => a.roll_id.localeCompare(b.roll_id));
 
-  // Group Metallic Rolls by brand
-  const metallicGroups = new Map<string, { brand_id: string; brand_name: string; rolls: number; weight: number; meters: number }>();
+  // Group Metallic Rolls by roll_id
+  const metallicGroups = new Map<string, { roll_id: string; rolls: number; weight: number; meters: number }>();
   for (const r of (metallicRolls ?? []) as any[]) {
-    const bId = r.roto_film_rolls?.brand_id || "unspecified";
-    const bName = r.roto_film_rolls?.roto_products?.brand || "Unspecified Brand";
-    if (!metallicGroups.has(bId)) {
-      metallicGroups.set(bId, {
-        brand_id: bId,
-        brand_name: bName,
+    const rId = r.roll_id || "UNSPECIFIED";
+    if (!metallicGroups.has(rId)) {
+      metallicGroups.set(rId, {
+        roll_id: rId,
         rolls: 0,
         weight: 0,
         meters: 0
       });
     }
-    const g = metallicGroups.get(bId)!;
+    const g = metallicGroups.get(rId)!;
     g.rolls += 1;
     g.weight += Number(r.weight_kg || 0);
     g.meters += Number(r.meters || 0);
   }
-  const metallicStockRows = Array.from(metallicGroups.values()).sort((a, b) => a.brand_name.localeCompare(b.brand_name));
+  const metallicStockRows = Array.from(metallicGroups.values()).sort((a, b) => a.roll_id.localeCompare(b.roll_id));
 
   const totalFilmRolls = filmStockRows.reduce((sum, r) => sum + r.rolls, 0);
   const totalFilmWeight = filmStockRows.reduce((sum, r) => sum + r.weight, 0);
@@ -83,7 +79,7 @@ export default async function RotoPrintingStockPage() {
     <div className="space-y-6">
       <PageHeader
         title="Roto Printing Stock Inventory"
-        description="Film rolls and Metallic rolls grouped by Roto Brand, with roll-level drill-down."
+        description="Film rolls and Metallic rolls grouped by Roto Specification ID, with roll-level drill-down."
       />
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
@@ -100,7 +96,7 @@ export default async function RotoPrintingStockPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Brand (Product)</TableHead>
+                      <TableHead>Specification ID</TableHead>
                       <TableHead className="text-right">Rolls Count</TableHead>
                       <TableHead className="text-right">Total Weight</TableHead>
                       <TableHead className="text-right">Total Meters</TableHead>
@@ -108,10 +104,10 @@ export default async function RotoPrintingStockPage() {
                   </TableHeader>
                   <TableBody>
                     {filmStockRows.map((row) => (
-                      <TableRow key={row.brand_id}>
-                        <TableCell className="font-semibold text-base">
-                          <Link href={`/roto-printing/stock/${row.brand_id}` as any} prefetch={false} className="text-primary hover:underline">
-                            {row.brand_name}
+                      <TableRow key={row.roll_id}>
+                        <TableCell className="font-semibold text-base font-mono">
+                          <Link href={`/roto-printing/stock/${encodeURIComponent(row.roll_id)}` as any} prefetch={false} className="text-primary hover:underline">
+                            {row.roll_id}
                           </Link>
                         </TableCell>
                         <TableCell className="text-right text-base font-medium">{row.rolls}</TableCell>
@@ -145,7 +141,7 @@ export default async function RotoPrintingStockPage() {
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Brand (Product)</TableHead>
+                      <TableHead>Specification ID</TableHead>
                       <TableHead className="text-right">Rolls Count</TableHead>
                       <TableHead className="text-right">Total Weight</TableHead>
                       <TableHead className="text-right">Total Meters</TableHead>
@@ -153,10 +149,10 @@ export default async function RotoPrintingStockPage() {
                   </TableHeader>
                   <TableBody>
                     {metallicStockRows.map((row) => (
-                      <TableRow key={row.brand_id}>
-                        <TableCell className="font-semibold text-base">
-                          <Link href={`/roto-printing/stock/${row.brand_id}` as any} prefetch={false} className="text-primary hover:underline">
-                            {row.brand_name}
+                      <TableRow key={row.roll_id}>
+                        <TableCell className="font-semibold text-base font-mono">
+                          <Link href={`/roto-printing/stock/${encodeURIComponent(row.roll_id)}` as any} prefetch={false} className="text-primary hover:underline">
+                            {row.roll_id}
                           </Link>
                         </TableCell>
                         <TableCell className="text-right text-base font-medium">{row.rolls}</TableCell>

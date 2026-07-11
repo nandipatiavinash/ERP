@@ -89,7 +89,7 @@ export function RotoFilmProductionForm({
     if (colorName) {
       rollId += `(${colorName})`;
     }
-    return rollId;
+    return rollId.toUpperCase();
   }, [selectedProductId, filmType, selectedColorId, rotoProducts, customers, rotoColors]);
 
   const handleSubmit = (e: React.FormEvent) => {

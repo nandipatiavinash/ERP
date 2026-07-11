@@ -13,37 +13,34 @@ export default async function RotoStockDetailPage({
 }) {
   await requirePermission("roto_printing.stock");
   const { id } = await params;
+  const specId = decodeURIComponent(id);
   const supabase = await createClient();
 
   const [
-    { data: brandData, error: brandError },
     { data: filmRolls, error: filmError },
     { data: metallicRolls, error: metallicError },
   ] = await Promise.all([
-    supabase.from("roto_products").select("brand").eq("id", id).single(),
     supabase
       .from("roto_film_rolls")
       .select("*")
-      .eq("brand_id", id)
+      .eq("roll_id", specId)
       .eq("status", "available")
       .is("deleted_at", null)
-      .order("created_at", { ascending: false }),
+      .order("s_no", { ascending: true }),
     supabase
       .from("roto_metallic_rolls")
-      .select("*, roto_film_rolls(roll_id, brand_id)")
+      .select("*")
+      .eq("roll_id", specId)
       .eq("status", "available")
       .is("deleted_at", null)
-      .order("created_at", { ascending: false }),
+      .order("s_no", { ascending: true }),
   ]);
 
-  if (brandError || filmError || metallicError) {
+  if (filmError || metallicError) {
     throw new Error("Unable to load roto stock details.");
   }
 
-  const brandName = (brandData as any)?.brand ?? "Roto Brand";
-
-  // Filter metallic rolls by brand on the server
-  const filteredMetallicRolls = (metallicRolls ?? []).filter((r: any) => r.roto_film_rolls?.brand_id === id);
+  const brandName = specId;
 
   return (
     <div className="space-y-6">
@@ -57,12 +54,12 @@ export default async function RotoStockDetailPage({
 
       <PageHeader
         title={`Roto Printed Stock — ${brandName}`}
-        description={`Detailed view of printed film and metallic rolls for brand ${brandName}.`}
+        description={`Detailed view of printed film and metallic rolls for specification ${brandName}.`}
       />
 
       <StockRotoRollsClient
         filmRolls={(filmRolls ?? []) as any[]}
-        metallicRolls={filteredMetallicRolls as any[]}
+        metallicRolls={(metallicRolls ?? []) as any[]}
         brandName={brandName}
       />
     </div>

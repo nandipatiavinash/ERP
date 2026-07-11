@@ -17,12 +17,14 @@ type FabricType = {
 
 type RotoProduct = {
   id: string;
-  brand: string;
+  roll_id: string;
+  s_no: number;
 };
 
 type OffsetProduct = {
   id: string;
-  brand: string;
+  roll_id: string;
+  s_no: number;
 };
 
 interface FinishingProductionFormProps {
@@ -66,11 +68,11 @@ export function FinishingProductionForm({
   }, [fabricTypes]);
 
   const sortedRotoProducts = useMemo(() => {
-    return [...rotoProducts].sort((a, b) => a.brand.localeCompare(b.brand));
+    return [...rotoProducts].sort((a, b) => a.roll_id.localeCompare(b.roll_id));
   }, [rotoProducts]);
 
   const sortedOffsetProducts = useMemo(() => {
-    return [...offsetProducts].sort((a, b) => a.brand.localeCompare(b.brand));
+    return [...offsetProducts].sort((a, b) => a.roll_id.localeCompare(b.roll_id));
   }, [offsetProducts]);
 
   // Compute live preview of bundle_id prefix
@@ -81,32 +83,36 @@ export function FinishingProductionForm({
     const fabricName = fab ? fab.fabric_name : "FABRIC-TYPE";
 
     if (finishType === "FABRIC") {
-      return `PLAIN(${fabricName})()`;
+      return `PLAIN(${fabricName})`.toUpperCase();
     }
 
     if (finishType === "LAMINATION") {
       let brandName = "PLAIN";
       if (["BOX", "F_S", "H_S"].includes(laminationType)) {
         const p = rotoProducts.find((x) => x.id === selectedRotoProductId);
-        brandName = p ? p.brand : "Select Brand";
+        brandName = p ? p.roll_id : "Select Brand";
       } else if (laminationType === "NW") {
         brandName = "NW";
       }
 
       let suffix = "";
-      if (laminationType === "PLAIN") suffix = "p";
-      else if (laminationType === "NW") suffix = "nw";
-      else if (laminationType === "BOX") suffix = "b";
-      else if (laminationType === "F_S") suffix = "f";
-      else if (laminationType === "H_S") suffix = "h";
+      if (laminationType === "PLAIN") suffix = "";
+      else if (laminationType === "NW") suffix = "";
+      else if (laminationType === "BOX") suffix = "B";
+      else if (laminationType === "F_S") suffix = "F";
+      else if (laminationType === "H_S") suffix = "H";
 
-      return `${brandName}(${fabricName})(${suffix})()`;
+      if (laminationType === "PLAIN" || laminationType === "NW") {
+        return `${brandName}(${fabricName})`.toUpperCase();
+      } else {
+        return `${brandName}(${fabricName})(${suffix})`.toUpperCase();
+      }
     }
 
     if (finishType === "OFFSET") {
       const p = offsetProducts.find((x) => x.id === selectedOffsetProductId);
-      const brandName = p ? p.brand : "Select Brand";
-      return `${brandName}(${fabricName})()`;
+      const brandName = p ? p.roll_id : "Select Brand";
+      return `${brandName}(${fabricName})`.toUpperCase();
     }
 
     return "SELECT-SPEC";
@@ -260,19 +266,19 @@ export function FinishingProductionForm({
             </div>
 
             <div className="space-y-1">
-              <Label className="text-xs font-semibold text-slate-700">Laminated Brand</Label>
+              <Label className="text-xs font-semibold text-slate-700">Laminated Brand (Printed Spec)</Label>
               <Select
                 value={selectedRotoProductId}
                 onValueChange={setSelectedRotoProductId}
                 disabled={!isLamBrandRequired}
               >
-                <SelectTrigger className="h-10 border-slate-200 text-xs disabled:opacity-50">
-                  <SelectValue placeholder={isLamBrandRequired ? "Select brand" : "No brand required"} />
+                <SelectTrigger className="h-10 border-slate-200 text-xs disabled:opacity-50 font-mono">
+                  <SelectValue placeholder={isLamBrandRequired ? "Select roto spec" : "No specification required"} />
                 </SelectTrigger>
                 <SelectContent>
                   {sortedRotoProducts.map((p) => (
-                    <SelectItem key={p.id} value={p.id} className="text-xs">
-                      {p.brand}
+                    <SelectItem key={p.id} value={p.id} className="text-xs font-mono">
+                      {p.roll_id} (Roll #{p.s_no})
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -300,15 +306,15 @@ export function FinishingProductionForm({
             </div>
 
             <div className="space-y-1">
-              <Label className="text-xs font-semibold text-slate-700">Offset Brand</Label>
+              <Label className="text-xs font-semibold text-slate-700">Offset Brand (Printed Spec)</Label>
               <Select value={selectedOffsetProductId} onValueChange={setSelectedOffsetProductId}>
-                <SelectTrigger className="h-10 border-slate-200 text-xs">
-                  <SelectValue placeholder="Select offset brand" />
+                <SelectTrigger className="h-10 border-slate-200 text-xs font-mono">
+                  <SelectValue placeholder="Select offset spec" />
                 </SelectTrigger>
                 <SelectContent>
                   {sortedOffsetProducts.map((p) => (
-                    <SelectItem key={p.id} value={p.id} className="text-xs">
-                      {p.brand}
+                    <SelectItem key={p.id} value={p.id} className="text-xs font-mono">
+                      {p.roll_id} (Roll #{p.s_no})
                     </SelectItem>
                   ))}
                 </SelectContent>

@@ -18,35 +18,21 @@ export default async function OffsetPrintingStockPage() {
 
   if (error) throw new Error(error.message);
 
-  const groupsMap = new Map<string, { brand: string; fabric_type_id: string; fabric_name: string; rolls: number; weight: number }>();
+  const groupsMap = new Map<string, { roll_id: string; rolls: number; weight: number }>();
   for (const r of (rolls ?? []) as any[]) {
-    // Parse brand name from roll_id (which is before first '(')
-    const match = r.roll_id.match(/^([^(]+)/);
-    let brand = match ? match[1].trim() : "";
-    if (!brand) brand = "Fabric";
-
-    const fId = r.fabric_type_id || "unspecified";
-    const fName = r.fabric_types?.fabric_name || "Unspecified Fabric";
-
-    const key = `${brand}_${fId}`;
-    if (!groupsMap.has(key)) {
-      groupsMap.set(key, {
-        brand,
-        fabric_type_id: fId,
-        fabric_name: fName,
+    const rId = r.roll_id || "UNSPECIFIED";
+    if (!groupsMap.has(rId)) {
+      groupsMap.set(rId, {
+        roll_id: rId,
         rolls: 0,
         weight: 0
       });
     }
-    const g = groupsMap.get(key)!;
+    const g = groupsMap.get(rId)!;
     g.rolls += 1;
     g.weight += Number(r.weight_kg || 0);
   }
-  const stockRows = Array.from(groupsMap.values()).sort((a, b) => {
-    const brandComp = a.brand.localeCompare(b.brand);
-    if (brandComp !== 0) return brandComp;
-    return a.fabric_name.localeCompare(b.fabric_name);
-  });
+  const stockRows = Array.from(groupsMap.values()).sort((a, b) => a.roll_id.localeCompare(b.roll_id));
 
   const totalRolls = stockRows.reduce((sum, r) => sum + r.rolls, 0);
   const totalWeight = stockRows.reduce((sum, r) => sum + r.weight, 0);
@@ -55,7 +41,7 @@ export default async function OffsetPrintingStockPage() {
     <div className="space-y-6">
       <PageHeader
         title="Offset Printing Stock Inventory"
-        description="Offset printing stock grouped by brand and fabric type, with roll-level drill-down."
+        description="Offset printing stock grouped by specification ID, with roll-level drill-down."
       />
 
       <Card>
@@ -70,8 +56,7 @@ export default async function OffsetPrintingStockPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Brand</TableHead>
-                    <TableHead>Fabric Type</TableHead>
+                    <TableHead>Specification ID</TableHead>
                     <TableHead className="text-right">Rolls Count</TableHead>
                     <TableHead className="text-right">Total Weight</TableHead>
                   </TableRow>
@@ -79,18 +64,17 @@ export default async function OffsetPrintingStockPage() {
                 <TableBody>
                   {stockRows.map((row, idx) => (
                     <TableRow key={idx}>
-                      <TableCell className="font-semibold text-base">
-                        <Link href={`/offset-printing/stock/${row.fabric_type_id}?brand=${encodeURIComponent(row.brand)}` as any} prefetch={false} className="text-primary hover:underline">
-                          {row.brand}
+                      <TableCell className="font-semibold text-base font-mono">
+                        <Link href={`/offset-printing/stock/${encodeURIComponent(row.roll_id)}` as any} prefetch={false} className="text-primary hover:underline">
+                          {row.roll_id}
                         </Link>
                       </TableCell>
-                      <TableCell className="text-base font-medium">{row.fabric_name}</TableCell>
                       <TableCell className="text-right text-base font-medium">{row.rolls}</TableCell>
                       <TableCell className="text-right text-base font-medium">{formatNumber(row.weight, 2)}</TableCell>
                     </TableRow>
                   ))}
                   <TableRow className="bg-muted/50 font-bold border-t-2">
-                    <TableCell className="text-base font-bold" colSpan={2}>Total</TableCell>
+                    <TableCell className="text-base font-bold">Total</TableCell>
                     <TableCell className="text-right text-base font-bold">{totalRolls}</TableCell>
                     <TableCell className="text-right text-base font-bold">{formatNumber(totalWeight, 2)}</TableCell>
                   </TableRow>
