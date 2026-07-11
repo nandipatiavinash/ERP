@@ -471,6 +471,21 @@ export function StockReportClient({
         available: Math.max(0, Math.floor(availableAtTo)),
         dailyRecords,
       };
+    }).sort((a, b) => {
+      const getDeptIndex = (dept: string | null | undefined): number => {
+        const d = dept || "general";
+        const normalized = d === "loom" ? "fabric" : (d === "roto_printing" ? "roto-printing" : (d === "offset_printing" ? "offset-printing" : d));
+        const deptOrder = ["fabric", "roto-printing", "lamination", "offset-printing", "finishing", "general"];
+        const idx = deptOrder.indexOf(normalized);
+        return idx === -1 ? 999 : idx;
+      };
+
+      const idxA = getDeptIndex(a.department);
+      const idxB = getDeptIndex(b.department);
+      if (idxA !== idxB) {
+        return idxA - idxB;
+      }
+      return a.name.localeCompare(b.name);
     });
   }, [rawMaterials, purchases, consumptions, sales, from, to, selectedDates, today]);
 
