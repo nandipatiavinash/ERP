@@ -58,7 +58,15 @@ export function LaminationProductionForm({
   }, [fabricTypes]);
 
   const sortedRotoProducts = useMemo(() => {
-    return [...rotoProducts].sort((a, b) => a.roll_id.localeCompare(b.roll_id));
+    const map = new Map<string, typeof rotoProducts[number]>();
+    [...rotoProducts]
+      .sort((a, b) => a.s_no - b.s_no)
+      .forEach((p) => {
+        if (!map.has(p.roll_id)) {
+          map.set(p.roll_id, p);
+        }
+      });
+    return Array.from(map.values()).sort((a, b) => a.roll_id.localeCompare(b.roll_id));
   }, [rotoProducts]);
 
   // Compute live preview of lamination roll_id
@@ -204,7 +212,7 @@ export function LaminationProductionForm({
             <SelectContent>
               {sortedRotoProducts.map((p) => (
                 <SelectItem key={p.id} value={p.id} className="text-xs font-mono">
-                  {p.roll_id} (Roll #{p.s_no})
+                  {p.roll_id}
                 </SelectItem>
               ))}
             </SelectContent>

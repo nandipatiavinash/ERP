@@ -468,6 +468,7 @@ export async function saveOffsetProduction(formData: FormData) {
   const offsetType = String(formData.get("offset_type") ?? "");
   const brandId = String(formData.get("brand_id") ?? "");
   const fabricTypeId = formData.get("fabric_type_id") ? String(formData.get("fabric_type_id")) : null;
+  const sourceLamRollId = formData.get("source_lam_roll_id") ? String(formData.get("source_lam_roll_id")) : null;
   const weightKg = Number(formData.get("weight_kg") ?? 0);
   const entryDate = String(formData.get("entry_date") ?? todayInIndia());
 
@@ -517,7 +518,7 @@ export async function saveOffsetProduction(formData: FormData) {
       offset_type: offsetType,
       brand_id: brandId,
       fabric_type_id: ["FABRIC", "NW_LAM", "PLAIN_LAM"].includes(offsetType) ? fabricTypeId : null,
-      source_lam_roll_id: null,
+      source_lam_roll_id: ["NW_LAM", "PLAIN_LAM"].includes(offsetType) ? sourceLamRollId : null,
       weight_kg: weightKg,
       entry_date: entryDate,
       status: "available",

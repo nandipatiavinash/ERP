@@ -11,6 +11,9 @@ import { Badge } from "@/components/ui/badge";
 import { isRedirectError } from "@/lib/utils";
 
 function parseLaminatedRollId(rollId: string) {
+  if (!rollId || typeof rollId !== "string") {
+    return { brandSpec: "", fabricType: "", suffix: "" };
+  }
   const doubleMatch = rollId.match(/^(.*)\(([^)]+)\)\(([^)]+)\)$/);
   if (doubleMatch) {
     return {
@@ -69,7 +72,7 @@ export function OffsetProductionForm({
   const [isPending, startTransition] = useTransition();
   const [offsetType, setOffsetType] = useState<string>("");
   const [selectedFabricTypeId, setSelectedFabricTypeId] = useState<string>("");
-  const [selectedLamBrand, setSelectedLamBrand] = useState<string>("none");
+  const [selectedLamRollId, setSelectedLamRollId] = useState<string>("none");
   const [selectedBrandId, setSelectedBrandId] = useState<string>("none");
   const [weightKg, setWeightKg] = useState<string>("");
   const [entryDate, setEntryDate] = useState<string>(
@@ -77,46 +80,40 @@ export function OffsetProductionForm({
   );
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
-
+ 
   // Sort lists alphabetically
   const sortedFabricTypes = useMemo(() => {
-    return [...fabricTypes].sort((a, b) => a.fabric_name.localeCompare(b.fabric_name));
+    if (!fabricTypes) return [];
+    return [...fabricTypes].sort((a, b) => (a.fabric_name || "").localeCompare(b.fabric_name || ""));
   }, [fabricTypes]);
-
+ 
   const sortedOffsetProducts = useMemo(() => {
-    return [...offsetProducts].sort((a, b) => a.brand.localeCompare(b.brand));
+    if (!offsetProducts) return [];
+    return [...offsetProducts].sort((a, b) => (a.brand || "").localeCompare(b.brand || ""));
   }, [offsetProducts]);
-
-  // Group lamination brands based on offsetType
-  const laminationBrands = useMemo(() => {
-    const brandsSet = new Set<string>();
+ 
+  // Filter and sort lamination rolls based on offsetType
+  const sortedLaminationRolls = useMemo(() => {
+    if (!laminationRolls) return [];
     const rolls = offsetType === "NW_LAM"
       ? laminationRolls.filter((r) => r.lam_type === "NW")
       : offsetType === "PLAIN_LAM"
       ? laminationRolls.filter((r) => r.lam_type === "PLAIN")
       : [];
-
-    rolls.forEach((roll) => {
-      const { brandSpec } = parseLaminatedRollId(roll.roll_id);
-      brandsSet.add(brandSpec);
-    });
-    return Array.from(brandsSet).sort((a, b) => a.localeCompare(b));
+    return [...rolls].sort((a, b) => (a.roll_id || "").localeCompare(b.roll_id || ""));
   }, [offsetType, laminationRolls]);
-
+ 
   // Find matching roll to extract fabric_type_id and name
   const selectedLamRoll = useMemo(() => {
-    if (!selectedLamBrand || selectedLamBrand === "none") return null;
-    return laminationRolls.find((r) => {
-      const { brandSpec } = parseLaminatedRollId(r.roll_id);
-      return brandSpec === selectedLamBrand;
-    });
-  }, [selectedLamBrand, laminationRolls]);
-
+    if (!selectedLamRollId || selectedLamRollId === "none" || !laminationRolls) return null;
+    return laminationRolls.find((r) => r.id === selectedLamRollId) || null;
+  }, [selectedLamRollId, laminationRolls]);
+ 
   // Compute live preview of offset roll_id
   const livePreviewId = useMemo(() => {
     const brand = offsetProducts.find((p) => p.id === selectedBrandId);
     const brandName = brand ? brand.brand : "BRAND";
-
+ 
     let fabricName = "FABRIC-TYPE";
     if (offsetType === "FABRIC") {
       const fab = fabricTypes.find((t) => t.id === selectedFabricTypeId);
@@ -129,15 +126,15 @@ export function OffsetProductionForm({
     } else if (offsetType === "NW") {
       fabricName = "NW";
     }
-
+ 
     return `${brandName}(${fabricName})`.toUpperCase();
   }, [offsetType, selectedFabricTypeId, selectedLamRoll, selectedBrandId, fabricTypes, offsetProducts]);
-
+ 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
     setSuccessMsg(null);
-
+ 
     if (!offsetType) {
       setErrorMsg("Offset Type is required.");
       return;
@@ -150,12 +147,12 @@ export function OffsetProductionForm({
       setErrorMsg("Fabric Type is required.");
       return;
     }
-    if (["NW_LAM", "PLAIN_LAM"].includes(offsetType) && (!selectedLamBrand || selectedLamBrand === "none")) {
-      setErrorMsg("Laminated Brand is required.");
+    if (["NW_LAM", "PLAIN_LAM"].includes(offsetType) && (!selectedLamRollId || selectedLamRollId === "none")) {
+      setErrorMsg("Laminated Roll is required.");
       return;
     }
     if (["NW_LAM", "PLAIN_LAM"].includes(offsetType) && !selectedLamRoll?.fabric_type_id) {
-      setErrorMsg("Unable to resolve fabric type from selected laminated brand.");
+      setErrorMsg("Unable to resolve fabric type from selected laminated roll.");
       return;
     }
     const w = parseFloat(weightKg);
@@ -163,7 +160,7 @@ export function OffsetProductionForm({
       setErrorMsg("KGs must be positive.");
       return;
     }
-
+ 
     startTransition(async () => {
       try {
         const fd = new FormData();
@@ -173,21 +170,22 @@ export function OffsetProductionForm({
           fd.append("fabric_type_id", selectedFabricTypeId);
         } else if (["NW_LAM", "PLAIN_LAM"].includes(offsetType) && selectedLamRoll?.fabric_type_id) {
           fd.append("fabric_type_id", selectedLamRoll.fabric_type_id);
+          fd.append("source_lam_roll_id", selectedLamRoll.id);
         }
         fd.append("weight_kg", String(w));
         fd.append("entry_date", entryDate);
-
+ 
         await saveOffsetProduction(fd);
         showSuccess("Submitted successfully!");
         setSuccessMsg(`Offset roll created: ${livePreviewId}`);
-
+ 
         if (onSuccess) {
           onSuccess({ rollId: livePreviewId, weight: w });
         }
-
+ 
         // Reset
         setSelectedFabricTypeId("");
-        setSelectedLamBrand("none");
+        setSelectedLamRollId("none");
         setWeightKg("");
       } catch (err: any) {
         if (isRedirectError(err)) throw err;
@@ -212,7 +210,7 @@ export function OffsetProductionForm({
         {/* Type Select */}
         <div className="space-y-1">
           <Label className="text-xs font-semibold text-slate-700">Offset Type</Label>
-          <Select value={offsetType} onValueChange={(val) => { setOffsetType(val); setSelectedFabricTypeId(""); setSelectedLamBrand("none"); }}>
+          <Select value={offsetType} onValueChange={(val) => { setOffsetType(val); setSelectedFabricTypeId(""); setSelectedLamRollId("none"); }}>
             <SelectTrigger className="h-10 border-slate-200">
               <SelectValue placeholder="Select offset type" />
             </SelectTrigger>
@@ -265,18 +263,18 @@ export function OffsetProductionForm({
         <div className="space-y-1">
           <Label className="text-xs font-semibold text-slate-700">Laminated Brand (For LAM Types)</Label>
           <Select
-            value={selectedLamBrand}
-            onValueChange={setSelectedLamBrand}
+            value={selectedLamRollId}
+            onValueChange={setSelectedLamRollId}
             disabled={!isLamRequired}
           >
-            <SelectTrigger className="h-10 border-slate-200 text-xs disabled:opacity-50">
-              <SelectValue placeholder={isLamRequired ? "Select laminated brand" : "No brand required"} />
+            <SelectTrigger className="h-10 border-slate-200 text-xs disabled:opacity-50 font-mono">
+              <SelectValue placeholder={isLamRequired ? "Select laminated roll" : "No roll required"} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="none">Select laminated brand</SelectItem>
-              {laminationBrands.map((b) => (
-                <SelectItem key={b} value={b} className="text-xs">
-                  {b}
+              <SelectItem value="none">Select laminated roll</SelectItem>
+              {sortedLaminationRolls.map((r) => (
+                <SelectItem key={r.id} value={r.id} className="text-xs font-mono">
+                  {r.roll_id} ({r.weight_kg} kg)
                 </SelectItem>
               ))}
             </SelectContent>
