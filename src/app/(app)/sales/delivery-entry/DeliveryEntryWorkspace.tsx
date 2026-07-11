@@ -182,27 +182,68 @@ export function DeliveryEntryWorkspace({
     setExpandedOrderId((prev) => (prev === orderId ? null : orderId));
   };
 
-  // Resolve product name helper
-  const getProductName = (dept: string, productId: string) => {
-    if (dept === "fabric") {
-      const f = fabrics.find((x) => x.id === productId);
+  // Resolve item label helper matching production ID convention
+  const getItemLabel = (item: any) => {
+    const getCleanBrand = (brandName: string | undefined) => {
+      if (!brandName) return "";
+      return brandName.split(" (")[0].trim();
+    };
+
+    const fab = fabrics.find((x) => x.id === item.fabric_type_id)?.fabric_name || "FABRIC-TYPE";
+
+    if (item.department === "fabric") {
+      const f = fabrics.find((x) => x.id === item.product_id);
       return f ? f.fabric_name : "Fabric Product";
-    } else if (dept === "roto-printing") {
-      const r = rotoProducts.find((x) => x.id === productId);
-      return r ? `${r.brand} (${r.width}x${r.height} mm)` : "Roto Product";
-    } else if (dept === "offset-printing") {
-      const o = offsetProducts.find((x) => x.id === productId);
-      return o ? `${o.brand} (${o.width}x${o.height} in)` : "Offset Product";
-    } else if (dept === "lamination") {
-      const l = (laminationProducts ?? []).find((x: any) => x.id === productId);
-      if (l) return l.name;
-      return productId === "lam-film-25" ? "Laminated Film 2.5 mil" : productId === "lam-film-30" ? "Laminated Film 3.0 mil" : "Lamination Product";
-    } else if (dept === "finishing") {
-      const f = (finishingProducts ?? []).find((x: any) => x.id === productId);
-      if (f) return f.name;
-      return productId === "finished-bags-28" ? "Finished Bags W-28" : productId === "finished-bags-32" ? "Finished Bags W-32" : "Finishing Product";
     }
-    return "Unknown Product";
+
+    if (item.department === "roto-printing") {
+      const r = rotoProducts.find((x) => x.id === item.roto_product_id || x.id === item.product_id);
+      const brand = getCleanBrand(r?.brand);
+      const filmChar = item.film_type === "gloss" ? "G" : item.film_type === "matt" ? "M" : "?";
+      const met = item.is_metallic ? "(Mt)" : "";
+      return `${brand}(${filmChar})${met}`;
+    }
+
+    if (item.department === "lamination") {
+      const brand = ["BOX", "F_S", "H_S"].includes(item.lamination_type || "")
+        ? getCleanBrand(rotoProducts.find((x) => x.id === item.roto_product_id)?.brand)
+        : item.lamination_type === "NW"
+        ? "NW"
+        : "PLAIN";
+      const suffix =
+        item.lamination_type === "PLAIN" ? "p" : item.lamination_type === "NW" ? "nw" : item.lamination_type === "BOX" ? "b" : item.lamination_type === "F_S" ? "f" : item.lamination_type === "H_S" ? "h" : "";
+      return `${brand}(${fab})(${suffix})`;
+    }
+
+    if (item.department === "offset-printing") {
+      const o = offsetProducts.find((x) => x.id === item.offset_product_id || x.id === item.product_id);
+      const brand = getCleanBrand(o?.brand);
+      const subFabName = item.offset_type === "NW" ? "NW" : fab;
+      return `${brand}(${subFabName})`;
+    }
+
+    if (item.department === "finishing") {
+      const finishType = item.lamination_type ? "LAMINATION" : (item.offset_type !== "none" && item.offset_type ? "OFFSET" : "FABRIC");
+      
+      if (finishType === "FABRIC") {
+        return `PLAIN(${fab})`;
+      } else if (finishType === "LAMINATION") {
+        const brand = ["BOX", "F_S", "H_S"].includes(item.lamination_type || "")
+          ? getCleanBrand(rotoProducts.find((x) => x.id === item.roto_product_id)?.brand)
+          : item.lamination_type === "NW"
+          ? "NW"
+          : "PLAIN";
+        const suffix =
+          item.lamination_type === "PLAIN" ? "p" : item.lamination_type === "NW" ? "nw" : item.lamination_type === "BOX" ? "b" : item.lamination_type === "F_S" ? "f" : item.lamination_type === "H_S" ? "h" : "";
+        return `${brand}(${fab})(${suffix})`;
+      } else {
+        // OFFSET
+        const brand = getCleanBrand(offsetProducts.find((x) => x.id === item.offset_product_id)?.brand);
+        return `${brand}(${fab})`;
+      }
+    }
+
+    return "Unknown Item";
   };
 
   // Group draft orders by customer
@@ -399,7 +440,7 @@ export function DeliveryEntryWorkspace({
       return {
         itemId: item.id,
         productId: item.product_id,
-        productName: getProductName(item.department, item.product_id),
+        productName: getItemLabel(item),
         department: item.department,
         rolls: rollsData,
         totalNetWeight,
@@ -493,7 +534,7 @@ export function DeliveryEntryWorkspace({
           
           return {
             ...item,
-            productName: getProductName(item.department, item.product_id),
+            productName: getItemLabel(item),
             rollsCount: item.department === "fabric" ? selectedRolls.length : 0,
             weight: item.department === "fabric" ? totalWeight : item.quantity,
           };
@@ -756,7 +797,7 @@ export function DeliveryEntryWorkspace({
 
                                   const isExpanded = !!expandedItems[item.id];
                                   const isChecked = selectedItemIds.includes(item.id);
-                                  const prodName = getProductName(item.department, item.product_id);
+                                  const prodName = getItemLabel(item);
                                   const parentOrderNo = order.order_number;
 
                                   return (

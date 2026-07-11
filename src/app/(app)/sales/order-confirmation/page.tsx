@@ -1,14 +1,12 @@
 import { DeliveryEntryForm } from "@/components/app/delivery-entry-form";
-import { DeleteOrderButton } from "@/components/app/delete-order-button";
 import { PageHeader } from "@/components/app/page-header";
-import { StatusBadge } from "@/components/app/status-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { requirePermission, getSessionPermissions } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { formatDate, formatNumber, todayInIndia } from "@/lib/utils";
+import { todayInIndia } from "@/lib/utils";
 import { DateFilter } from "@/components/app/date-filter";
+import { RecentOrdersTable } from "@/components/app/recent-orders-table";
 
 export default async function OrderConfirmationPage({
   searchParams,
@@ -127,36 +125,12 @@ export default async function OrderConfirmationPage({
           {orderRows.length === 0 ? (
             <EmptyState />
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Order Number</TableHead>
-                    <TableHead>Firm Name</TableHead>
-                    <TableHead>Items Count</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="w-12 text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {orderRows.map((order) => (
-                    <TableRow key={order.id}>
-                      <TableCell className="font-bold text-emerald-950">{order.order_number}</TableCell>
-                      <TableCell>
-                        {order.customers?.customer_name} {order.customers?.alias ? `(${order.customers?.alias})` : ""}
-                      </TableCell>
-                      <TableCell>{order.sales_order_items?.length ?? 0} items</TableCell>
-                      <TableCell>
-                        <StatusBadge value={order.status} />
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <DeleteOrderButton orderId={order.id} />
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+            <RecentOrdersTable 
+              orders={orderRows} 
+              fabrics={fabricOptions}
+              rotoProducts={rotoOptions}
+              offsetProducts={offsetOptions}
+            />
           )}
         </CardContent>
       </Card>
