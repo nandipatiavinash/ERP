@@ -889,7 +889,13 @@ export function DeliveryEntryWorkspace({
                                                       <th className="p-2.5">
                                                         {item.department === "finishing" ? "Bundle ID" : "Roll ID"}
                                                       </th>
-                                                      <th className="p-2.5 text-center">Weight (kg)</th>
+                                                      {item.department === "fabric" && (
+                                                        <>
+                                                          <th className="p-2.5 text-center">Gross Wt (kg)</th>
+                                                          <th className="p-2.5 text-center">Core Wt (kg)</th>
+                                                        </>
+                                                      )}
+                                                      <th className="p-2.5 text-center">Net Wt (kg)</th>
                                                       {item.department !== "finishing" && (
                                                         <th className="p-2.5 text-center">Meters</th>
                                                       )}
@@ -898,8 +904,6 @@ export function DeliveryEntryWorkspace({
                                                       )}
                                                       {item.department === "fabric" && (
                                                         <>
-                                                          <th className="p-2.5 text-center">Gross Wt (kg)</th>
-                                                          <th className="p-2.5 text-center">Core Wt (kg)</th>
                                                           <th className="p-2.5 text-center">Avg Meter Wt</th>
                                                           <th className="p-2.5">Loom</th>
                                                         </>
@@ -926,6 +930,12 @@ export function DeliveryEntryWorkspace({
                                                             />
                                                           </td>
                                                           <td className="p-2.5 font-mono font-semibold text-slate-800">{roll.roll_number}</td>
+                                                          {item.department === "fabric" && (
+                                                            <>
+                                                              <td className="p-2.5 text-center font-mono">{formatNumber(roll.loom_production_entries?.gross_weight ?? roll.weight, 2)}</td>
+                                                              <td className="p-2.5 text-center font-mono">{formatNumber(roll.loom_production_entries?.core_weight ?? 0, 2)}</td>
+                                                            </>
+                                                          )}
                                                           <td className="p-2.5 text-center font-mono font-semibold">{formatNumber(roll.weight, 2)}</td>
                                                           {item.department !== "finishing" && (
                                                             <td className="p-2.5 text-center font-mono">{formatNumber(roll.meters, 0)}</td>
@@ -935,8 +945,6 @@ export function DeliveryEntryWorkspace({
                                                           )}
                                                           {item.department === "fabric" && (
                                                             <>
-                                                              <td className="p-2.5 text-center font-mono">{formatNumber(roll.loom_production_entries?.gross_weight ?? roll.weight, 2)}</td>
-                                                              <td className="p-2.5 text-center font-mono">{formatNumber(roll.loom_production_entries?.core_weight ?? 0, 2)}</td>
                                                               <td className="p-2.5 text-center font-mono">{formatNumber(Math.floor(roll.loom_production_entries?.average_meter_weight ?? 0), 0)}</td>
                                                               <td className="p-2.5 font-medium">{roll.looms?.loom_number ?? "-"}</td>
                                                             </>

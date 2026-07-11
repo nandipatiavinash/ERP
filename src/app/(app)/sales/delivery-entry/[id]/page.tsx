@@ -64,13 +64,13 @@ export default async function OrderWorkspacePage({
     supabase.from("fabric_rolls").select("id, roll_number, weight, meters, status, fabric_type_id, loom_production_entries(gross_weight, core_weight, average_meter_weight)").eq("status", "available").is("deleted_at", null),
     supabase.from("lamination_rolls").select("id, roll_id, weight_kg, meters, status, fabric_type_id, product_id, lam_type, film_roll_id, roto_metallic_rolls(source_film_roll_id, roto_film_rolls(brand_id, film_type))").eq("status", "available").is("deleted_at", null),
     supabase.from("offset_rolls").select("id, roll_id, weight_kg, meters, status, fabric_type_id, product_id, offset_type").eq("status", "available").is("deleted_at", null),
-    supabase.from("finishing_bundles").select("id, bundle_id, weight_kg, quantity, status, fabric_type_id, product_id").eq("status", "available").is("deleted_at", null),
+    supabase.from("finishing_bundles").select("id, bundle_id, weight_kg, quantity, status, fabric_type_id, product_id, finish_type").eq("status", "available").is("deleted_at", null),
     supabase.from("roto_film_rolls").select("id, roll_id, weight_kg, meters, status, brand_id, film_type").eq("status", "available").is("deleted_at", null),
     supabase.from("roto_metallic_rolls").select("id, roll_id, weight_kg, meters, status, source_film_roll_id, roto_film_rolls(brand_id, film_type)").eq("status", "available").is("deleted_at", null),
     selectedRollIds.length > 0 ? supabase.from("fabric_rolls").select("id, roll_number, weight, meters, status, fabric_type_id, loom_production_entries(gross_weight, core_weight, average_meter_weight)").in("id", selectedRollIds).is("deleted_at", null) : Promise.resolve({ data: [] }),
     selectedRollIds.length > 0 ? supabase.from("lamination_rolls").select("id, roll_id, weight_kg, meters, status, fabric_type_id, product_id, lam_type, film_roll_id, roto_metallic_rolls(source_film_roll_id, roto_film_rolls(brand_id, film_type))").in("id", selectedRollIds).is("deleted_at", null) : Promise.resolve({ data: [] }),
     selectedRollIds.length > 0 ? supabase.from("offset_rolls").select("id, roll_id, weight_kg, meters, status, fabric_type_id, product_id, offset_type").in("id", selectedRollIds).is("deleted_at", null) : Promise.resolve({ data: [] }),
-    selectedRollIds.length > 0 ? supabase.from("finishing_bundles").select("id, bundle_id, weight_kg, quantity, status, fabric_type_id, product_id").in("id", selectedRollIds).is("deleted_at", null) : Promise.resolve({ data: [] }),
+    selectedRollIds.length > 0 ? supabase.from("finishing_bundles").select("id, bundle_id, weight_kg, quantity, status, fabric_type_id, product_id, finish_type").in("id", selectedRollIds).is("deleted_at", null) : Promise.resolve({ data: [] }),
     selectedRollIds.length > 0 ? supabase.from("roto_film_rolls").select("id, roll_id, weight_kg, meters, status, brand_id, film_type").in("id", selectedRollIds).is("deleted_at", null) : Promise.resolve({ data: [] }),
     selectedRollIds.length > 0 ? supabase.from("roto_metallic_rolls").select("id, roll_id, weight_kg, meters, status, source_film_roll_id, roto_film_rolls(brand_id, film_type)").in("id", selectedRollIds).is("deleted_at", null) : Promise.resolve({ data: [] })
   ]);
@@ -93,20 +93,28 @@ export default async function OrderWorkspacePage({
   const mappedLamination = [
     ...(availableLamination.data ?? []),
     ...(selectedLamination.data ?? [])
-  ].map((r: any) => ({
-    id: r.id,
-    roll_number: r.roll_id,
-    weight: Number(r.weight_kg || 0),
-    meters: Number(r.meters || 0),
-    status: r.status,
-    fabric_type_id: r.fabric_type_id,
-    product_id: r.product_id,
-    lam_type: r.lam_type,
-    roto_product_id: r.roto_metallic_rolls?.roto_film_rolls?.brand_id || null,
-    film_type: r.roto_metallic_rolls?.roto_film_rolls?.film_type || null,
-    is_metallic: !!r.film_roll_id,
-    department: "lamination"
-  }));
+  ].map((r: any) => {
+    // Parse brand name from roll_id (which is before first '(')
+    const match = r.roll_id.match(/^([^(]+)/);
+    const parsedBrand = match ? match[1].trim() : "";
+    const rotoProduct = ((rotoProducts as any) || []).find((p: any) => p.brand === parsedBrand);
+    const rotoProductId = rotoProduct ? rotoProduct.id : (r.roto_metallic_rolls?.roto_film_rolls?.brand_id || null);
+
+    return {
+      id: r.id,
+      roll_number: r.roll_id,
+      weight: Number(r.weight_kg || 0),
+      meters: Number(r.meters || 0),
+      status: r.status,
+      fabric_type_id: r.fabric_type_id,
+      product_id: r.product_id,
+      lam_type: r.lam_type,
+      roto_product_id: rotoProductId,
+      film_type: r.roto_metallic_rolls?.roto_film_rolls?.film_type || null,
+      is_metallic: !!r.film_roll_id || ["BOX", "F_S", "H_S"].includes(r.lam_type),
+      department: "lamination"
+    };
+  });
 
   const mappedOffset = [
     ...(availableOffset.data ?? []),
@@ -126,16 +134,36 @@ export default async function OrderWorkspacePage({
   const mappedFinishing = [
     ...(availableFinishing.data ?? []),
     ...(selectedFinishing.data ?? [])
-  ].map((r: any) => ({
-    id: r.id,
-    roll_number: r.bundle_id,
-    weight: Number(r.weight_kg || 0),
-    meters: Number(r.quantity || 0),
-    status: r.status,
-    fabric_type_id: r.fabric_type_id,
-    product_id: r.product_id,
-    department: "finishing"
-  }));
+  ].map((r: any) => {
+    // Parse lamination or offset product brand from bundle_id
+    let rotoProductId = null;
+    let offsetProductId = null;
+    
+    const match = r.bundle_id.match(/^([^(]+)/);
+    const parsedBrand = match ? match[1].trim() : "";
+    
+    if (r.finish_type === "LAMINATION") {
+      const rotoProduct = ((rotoProducts as any) || []).find((p: any) => p.brand === parsedBrand);
+      rotoProductId = rotoProduct ? rotoProduct.id : null;
+    } else if (r.finish_type === "OFFSET") {
+      const offsetProduct = ((offsetProducts as any) || []).find((p: any) => p.brand === parsedBrand);
+      offsetProductId = offsetProduct ? offsetProduct.id : null;
+    }
+
+    return {
+      id: r.id,
+      roll_number: r.bundle_id,
+      weight: Number(r.weight_kg || 0),
+      meters: Number(r.quantity || 0),
+      status: r.status,
+      fabric_type_id: r.fabric_type_id,
+      product_id: r.product_id,
+      finish_type: r.finish_type,
+      roto_product_id: rotoProductId,
+      offset_product_id: offsetProductId,
+      department: "finishing"
+    };
+  });
 
   const mappedRotoFilm = [
     ...(availableRotoFilm.data ?? []),

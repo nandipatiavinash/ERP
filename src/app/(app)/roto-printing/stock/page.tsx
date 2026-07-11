@@ -1,132 +1,182 @@
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { EmptyState } from "@/components/ui/empty-state";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { PageHeader } from "@/components/app/page-header";
 import { requirePermission } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { formatDate, formatNumber } from "@/lib/utils";
+import { formatNumber } from "@/lib/utils";
 
 export default async function RotoPrintingStockPage() {
   await requirePermission("roto_printing.stock");
   const supabase = await createClient();
 
   const [
-    { data: filmRolls },
-    { data: metallicRolls },
+    { data: filmRolls, error: filmError },
+    { data: metallicRolls, error: metallicError },
   ] = await Promise.all([
     supabase
       .from("roto_film_rolls")
-      .select("*, roto_products(brand), roto_colors(color_name)")
+      .select("*, roto_products(brand)")
       .eq("status", "available")
-      .is("deleted_at", null)
-      .order("created_at", { ascending: false }),
+      .is("deleted_at", null),
     supabase
       .from("roto_metallic_rolls")
-      .select("*, roto_film_rolls(roll_id)")
+      .select("*, roto_film_rolls(brand_id, roto_products(brand))")
       .eq("status", "available")
-      .is("deleted_at", null)
-      .order("created_at", { ascending: false }),
+      .is("deleted_at", null),
   ]);
 
-  const films = (filmRolls ?? []) as any[];
-  const metallics = (metallicRolls ?? []) as any[];
+  if (filmError) throw new Error(filmError.message);
+  if (metallicError) throw new Error(metallicError.message);
 
-  // Film rolls summaries
-  const totalFilmKg = films.reduce((sum, r) => sum + Number(r.weight_kg), 0);
-  const totalFilmMeters = films.reduce((sum, r) => sum + Number(r.meters), 0);
+  // Group Film Rolls by brand
+  const filmGroups = new Map<string, { brand_id: string; brand_name: string; rolls: number; weight: number; meters: number }>();
+  for (const r of (filmRolls ?? []) as any[]) {
+    const bId = r.brand_id || "unspecified";
+    const bName = r.roto_products?.brand || "Unspecified Brand";
+    if (!filmGroups.has(bId)) {
+      filmGroups.set(bId, {
+        brand_id: bId,
+        brand_name: bName,
+        rolls: 0,
+        weight: 0,
+        meters: 0
+      });
+    }
+    const g = filmGroups.get(bId)!;
+    g.rolls += 1;
+    g.weight += Number(r.weight_kg || 0);
+    g.meters += Number(r.meters || 0);
+  }
+  const filmStockRows = Array.from(filmGroups.values()).sort((a, b) => a.brand_name.localeCompare(b.brand_name));
 
-  // Metallic summaries
-  const totalMetallicKg = metallics.reduce((sum, r) => sum + Number(r.weight_kg), 0);
-  const totalMetallicMeters = metallics.reduce((sum, r) => sum + Number(r.meters), 0);
+  // Group Metallic Rolls by brand
+  const metallicGroups = new Map<string, { brand_id: string; brand_name: string; rolls: number; weight: number; meters: number }>();
+  for (const r of (metallicRolls ?? []) as any[]) {
+    const bId = r.roto_film_rolls?.brand_id || "unspecified";
+    const bName = r.roto_film_rolls?.roto_products?.brand || "Unspecified Brand";
+    if (!metallicGroups.has(bId)) {
+      metallicGroups.set(bId, {
+        brand_id: bId,
+        brand_name: bName,
+        rolls: 0,
+        weight: 0,
+        meters: 0
+      });
+    }
+    const g = metallicGroups.get(bId)!;
+    g.rolls += 1;
+    g.weight += Number(r.weight_kg || 0);
+    g.meters += Number(r.meters || 0);
+  }
+  const metallicStockRows = Array.from(metallicGroups.values()).sort((a, b) => a.brand_name.localeCompare(b.brand_name));
+
+  const totalFilmRolls = filmStockRows.reduce((sum, r) => sum + r.rolls, 0);
+  const totalFilmWeight = filmStockRows.reduce((sum, r) => sum + r.weight, 0);
+  const totalFilmMeters = filmStockRows.reduce((sum, r) => sum + r.meters, 0);
+
+  const totalMetallicRolls = metallicStockRows.reduce((sum, r) => sum + r.rolls, 0);
+  const totalMetallicWeight = metallicStockRows.reduce((sum, r) => sum + r.weight, 0);
+  const totalMetallicMeters = metallicStockRows.reduce((sum, r) => sum + r.meters, 0);
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Roto Printing Stock"
-        description="View available Film rolls and Metallic rolls in stock."
+        title="Roto Printing Stock Inventory"
+        description="Film rolls and Metallic rolls grouped by Roto Brand, with roll-level drill-down."
       />
 
-      {/* Film Stock Card */}
-      <Card className="border-0 shadow-lg bg-gradient-to-br from-white to-amber-50/20">
-        <CardHeader>
-          <CardTitle className="text-lg flex justify-between items-baseline flex-wrap gap-2">
-            <span>Available Printed Film Rolls ({films.length})</span>
-            <span className="text-xs text-muted-foreground font-mono font-normal">
-              Total: {formatNumber(totalFilmKg, 1)} kg · {formatNumber(totalFilmMeters, 0)} m
-            </span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {films.length === 0 ? (
-            <EmptyState title="No Film rolls in stock" description="Films produced and not yet processed into metallic rolls or lamination will appear here." />
-          ) : (
-            <div className="overflow-x-auto rounded-lg border border-slate-100 bg-white">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-slate-50/50">
-                    <TableHead>Roll ID</TableHead>
-                    <TableHead className="text-right">Weight (kg)</TableHead>
-                    <TableHead className="text-right">Meters</TableHead>
-                    <TableHead>Date Logged</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {films.map((roll) => (
-                    <TableRow key={roll.id}>
-                      <TableCell className="font-mono font-bold text-emerald-950">{roll.roll_id}</TableCell>
-                      <TableCell className="text-right font-mono">{formatNumber(roll.weight_kg, 2)}</TableCell>
-                      <TableCell className="text-right font-mono">{formatNumber(roll.meters, 0)}</TableCell>
-                      <TableCell>{formatDate(roll.entry_date)}</TableCell>
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        {/* Film Summary */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Printed Film Stock Summary</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {filmStockRows.length === 0 ? (
+              <div className="text-center py-6 text-muted-foreground">No available printed film stock found.</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Brand (Product)</TableHead>
+                      <TableHead className="text-right">Rolls Count</TableHead>
+                      <TableHead className="text-right">Total Weight</TableHead>
+                      <TableHead className="text-right">Total Meters</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                  </TableHeader>
+                  <TableBody>
+                    {filmStockRows.map((row) => (
+                      <TableRow key={row.brand_id}>
+                        <TableCell className="font-semibold text-base">
+                          <Link href={`/roto-printing/stock/${row.brand_id}` as any} prefetch={false} className="text-primary hover:underline">
+                            {row.brand_name}
+                          </Link>
+                        </TableCell>
+                        <TableCell className="text-right text-base font-medium">{row.rolls}</TableCell>
+                        <TableCell className="text-right text-base font-medium">{formatNumber(row.weight, 2)}</TableCell>
+                        <TableCell className="text-right text-base font-medium">{formatNumber(Math.floor(row.meters), 0)}</TableCell>
+                      </TableRow>
+                    ))}
+                    <TableRow className="bg-muted/50 font-bold border-t-2">
+                      <TableCell className="text-base font-bold">Total</TableCell>
+                      <TableCell className="text-right text-base font-bold">{totalFilmRolls}</TableCell>
+                      <TableCell className="text-right text-base font-bold">{formatNumber(totalFilmWeight, 2)}</TableCell>
+                      <TableCell className="text-right text-base font-bold">{formatNumber(Math.floor(totalFilmMeters), 0)}</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
-      {/* Metallic Stock Card */}
-      <Card className="border-0 shadow-lg bg-gradient-to-br from-white to-emerald-50/20">
-        <CardHeader>
-          <CardTitle className="text-lg flex justify-between items-baseline flex-wrap gap-2">
-            <span>Available Metallic Rolls ({metallics.length})</span>
-            <span className="text-xs text-muted-foreground font-mono font-normal">
-              Total: {formatNumber(totalMetallicKg, 1)} kg · {formatNumber(totalMetallicMeters, 0)} m
-            </span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {metallics.length === 0 ? (
-            <EmptyState title="No Metallic rolls in stock" description="Metallic rolls produced and not yet laminated will appear here." />
-          ) : (
-            <div className="overflow-x-auto rounded-lg border border-slate-100 bg-white">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-slate-50/50">
-                    <TableHead>Roll ID</TableHead>
-                    <TableHead>Source Film Roll</TableHead>
-                    <TableHead className="text-right">Weight (kg)</TableHead>
-                    <TableHead className="text-right">Meters</TableHead>
-                    <TableHead>Date Logged</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {metallics.map((roll) => (
-                    <TableRow key={roll.id}>
-                      <TableCell className="font-mono font-bold text-emerald-950">{roll.roll_id}</TableCell>
-                      <TableCell className="font-mono text-xs text-slate-500">{roll.roto_film_rolls?.roll_id ?? "-"}</TableCell>
-                      <TableCell className="text-right font-mono">{formatNumber(roll.weight_kg, 2)}</TableCell>
-                      <TableCell className="text-right font-mono">{formatNumber(roll.meters, 0)}</TableCell>
-                      <TableCell>{formatDate(roll.entry_date)}</TableCell>
+        {/* Metallic Summary */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Metallic Film Stock Summary</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {metallicStockRows.length === 0 ? (
+              <div className="text-center py-6 text-muted-foreground">No available metallic stock found.</div>
+            ) : (
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Brand (Product)</TableHead>
+                      <TableHead className="text-right">Rolls Count</TableHead>
+                      <TableHead className="text-right">Total Weight</TableHead>
+                      <TableHead className="text-right">Total Meters</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                  </TableHeader>
+                  <TableBody>
+                    {metallicStockRows.map((row) => (
+                      <TableRow key={row.brand_id}>
+                        <TableCell className="font-semibold text-base">
+                          <Link href={`/roto-printing/stock/${row.brand_id}` as any} prefetch={false} className="text-primary hover:underline">
+                            {row.brand_name}
+                          </Link>
+                        </TableCell>
+                        <TableCell className="text-right text-base font-medium">{row.rolls}</TableCell>
+                        <TableCell className="text-right text-base font-medium">{formatNumber(row.weight, 2)}</TableCell>
+                        <TableCell className="text-right text-base font-medium">{formatNumber(Math.floor(row.meters), 0)}</TableCell>
+                      </TableRow>
+                    ))}
+                    <TableRow className="bg-muted/50 font-bold border-t-2">
+                      <TableCell className="text-base font-bold">Total</TableCell>
+                      <TableCell className="text-right text-base font-bold">{totalMetallicRolls}</TableCell>
+                      <TableCell className="text-right text-base font-bold">{formatNumber(totalMetallicWeight, 2)}</TableCell>
+                      <TableCell className="text-right text-base font-bold">{formatNumber(Math.floor(totalMetallicMeters), 0)}</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }

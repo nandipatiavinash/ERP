@@ -1,10 +1,10 @@
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { EmptyState } from "@/components/ui/empty-state";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { PageHeader } from "@/components/app/page-header";
 import { requirePermission } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { formatDate, formatNumber } from "@/lib/utils";
+import { formatNumber } from "@/lib/utils";
 
 export default async function LaminationStockPage() {
   await requirePermission("lamination.stock");
@@ -12,58 +12,80 @@ export default async function LaminationStockPage() {
 
   const { data: rolls, error } = await supabase
     .from("lamination_rolls")
-    .select("*, fabric_types(fabric_name), roto_metallic_rolls(roll_id), raw_materials(material_name)")
+    .select("*, fabric_types(fabric_name)")
     .eq("status", "available")
-    .is("deleted_at", null)
-    .order("created_at", { ascending: false });
+    .is("deleted_at", null);
 
   if (error) throw new Error(error.message);
 
-  const stockRows = (rolls ?? []) as any[];
+  const groupsMap = new Map<string, { fabric_type_id: string; fabric_name: string; rolls: number; weight: number; meters: number }>();
+  for (const r of (rolls ?? []) as any[]) {
+    const fId = r.fabric_type_id || "unspecified";
+    const fName = r.fabric_types?.fabric_name || "Unspecified Fabric";
+    if (!groupsMap.has(fId)) {
+      groupsMap.set(fId, {
+        fabric_type_id: fId,
+        fabric_name: fName,
+        rolls: 0,
+        weight: 0,
+        meters: 0
+      });
+    }
+    const g = groupsMap.get(fId)!;
+    g.rolls += 1;
+    g.weight += Number(r.weight_kg || 0);
+    g.meters += Number(r.meters || 0);
+  }
+  const stockRows = Array.from(groupsMap.values()).sort((a, b) => a.fabric_name.localeCompare(b.fabric_name));
 
-  // Summaries
-  const totalWeight = stockRows.reduce((sum, r) => sum + Number(r.weight_kg), 0);
-  const totalMeters = stockRows.reduce((sum, r) => sum + Number(r.meters), 0);
+  const totalRolls = stockRows.reduce((sum, r) => sum + r.rolls, 0);
+  const totalWeight = stockRows.reduce((sum, r) => sum + r.weight, 0);
+  const totalMeters = stockRows.reduce((sum, r) => sum + r.meters, 0);
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title="Lamination Stock"
-        description="View available laminated rolls in stock."
+        title="Lamination Stock Inventory"
+        description="Lamination stock grouped by fabric type, with roll-level drill-down."
       />
 
-      <Card className="border-0 shadow-lg bg-gradient-to-br from-white to-emerald-50/20">
+      <Card>
         <CardHeader>
-          <CardTitle className="text-lg flex justify-between items-baseline flex-wrap gap-2">
-            <span>Available Laminated Rolls ({stockRows.length})</span>
-            <span className="text-xs text-muted-foreground font-mono font-normal">
-              Total: {formatNumber(totalWeight, 1)} kg · {formatNumber(totalMeters, 0)} m
-            </span>
-          </CardTitle>
+          <CardTitle>Available Stock Summary</CardTitle>
         </CardHeader>
         <CardContent>
           {stockRows.length === 0 ? (
-            <EmptyState title="No stock found" description="Laminated rolls produced and not yet consumed will appear here." />
+            <div className="text-center py-6 text-muted-foreground">No available laminated stock found.</div>
           ) : (
-            <div className="overflow-x-auto rounded-lg border border-slate-100 bg-white">
+            <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow className="bg-slate-50/50">
-                    <TableHead>Roll ID</TableHead>
-                    <TableHead className="text-right">Weight (kg)</TableHead>
-                    <TableHead className="text-right">Meters</TableHead>
-                    <TableHead>Date Laminated</TableHead>
+                  <TableRow>
+                    <TableHead>Fabric Type</TableHead>
+                    <TableHead className="text-right">Rolls Count</TableHead>
+                    <TableHead className="text-right">Total Weight</TableHead>
+                    <TableHead className="text-right">Total Meters</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {stockRows.map((roll) => (
-                    <TableRow key={roll.id}>
-                      <TableCell className="font-mono font-bold text-emerald-950">{roll.roll_id}</TableCell>
-                      <TableCell className="text-right font-mono">{formatNumber(roll.weight_kg, 2)}</TableCell>
-                      <TableCell className="text-right font-mono">{formatNumber(roll.meters, 0)}</TableCell>
-                      <TableCell>{formatDate(roll.entry_date)}</TableCell>
+                  {stockRows.map((row) => (
+                    <TableRow key={row.fabric_type_id}>
+                      <TableCell className="font-semibold text-base">
+                        <Link href={`/lamination/stock/${row.fabric_type_id}` as any} prefetch={false} className="text-primary hover:underline">
+                          {row.fabric_name}
+                        </Link>
+                      </TableCell>
+                      <TableCell className="text-right text-base font-medium">{row.rolls}</TableCell>
+                      <TableCell className="text-right text-base font-medium">{formatNumber(row.weight, 2)}</TableCell>
+                      <TableCell className="text-right text-base font-medium">{formatNumber(Math.floor(row.meters), 0)}</TableCell>
                     </TableRow>
                   ))}
+                  <TableRow className="bg-muted/50 font-bold border-t-2">
+                    <TableCell className="text-base font-bold">Total</TableCell>
+                    <TableCell className="text-right text-base font-bold">{totalRolls}</TableCell>
+                    <TableCell className="text-right text-base font-bold">{formatNumber(totalWeight, 2)}</TableCell>
+                    <TableCell className="text-right text-base font-bold">{formatNumber(Math.floor(totalMeters), 0)}</TableCell>
+                  </TableRow>
                 </TableBody>
               </Table>
             </div>
