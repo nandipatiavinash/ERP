@@ -99,8 +99,8 @@ export function DeliveryEntryForm({
 
   // Determine active fields
   const isFabricActive = ["fabric", "lamination", "offset-printing", "finishing"].includes(department);
-  const isLamProdActive = department === "lamination";
-  const isFinProdActive = department === "finishing";
+  const isLamProdActive = false;
+  const isFinProdActive = false;
   const isLamTypeActive = ["lamination", "finishing"].includes(department);
   const isOffsetTypeActive = ["offset-printing", "finishing"].includes(department);
   const isOffsetProductActive = department === "offset-printing" || (department === "finishing" && offsetType !== "none" && !!offsetType);
@@ -136,17 +136,15 @@ export function DeliveryEntryForm({
       return `Film: ${row.filmType || "Unspecified"} · Brand: ${roto || "Unspecified"}${row.isMetallic ? " (Metallic)" : ""}`;
     }
     if (row.department === "lamination") {
-      const lamProd = laminationProducts.find((x) => x.id === row.productId)?.label;
       const lamDetails = ["BOX", "F_S", "H_S"].includes(row.laminationType || "")
         ? ` (Film: ${row.filmType || "Unspecified"} · Brand: ${roto || "Unspecified"}${row.isMetallic ? " · Metallic" : ""})`
         : "";
-      return `${lamProd || "Lamination"} · Fabric: ${fab || "Unspecified"} · Type: ${row.laminationType || "Unspecified"}${lamDetails}`;
+      return `Fabric: ${fab || "Unspecified"} · Type: ${row.laminationType || "Unspecified"}${lamDetails}`;
     }
     if (row.department === "offset-printing") {
       return `Fabric: ${fab || "Unspecified"} · Type: ${row.offsetType || "Unspecified"} · Brand: ${off || "Unspecified"}`;
     }
     if (row.department === "finishing") {
-      const finProd = finishingProducts.find((x) => x.id === row.productId)?.label;
       let extra = "";
       if (row.laminationType) {
         const lamDetails = ["BOX", "F_S", "H_S"].includes(row.laminationType)
@@ -156,7 +154,7 @@ export function DeliveryEntryForm({
       } else if (row.offsetType && row.offsetType !== "none") {
         extra = ` · Offset: ${row.offsetType} [Brand: ${off || "Unspecified"}]`;
       }
-      return `${finProd || "Finishing Bag"} · Fabric: ${fab || "Unspecified"}${extra}`;
+      return `Fabric: ${fab || "Unspecified"}${extra}`;
     }
     return row.productLabel;
   };
@@ -165,10 +163,10 @@ export function DeliveryEntryForm({
     // Basic validation
     if (department === "fabric" && !fabricTypeId) return;
     if (department === "roto-printing" && (!filmType || filmType === "none" || !rotoProductId)) return;
-    if (department === "lamination" && (!laminationProductId || !fabricTypeId || !laminationType)) return;
+    if (department === "lamination" && (!fabricTypeId || !laminationType)) return;
     if (department === "lamination" && ["BOX", "F_S", "H_S"].includes(laminationType) && (!filmType || filmType === "none" || !rotoProductId)) return;
     if (department === "offset-printing" && (!fabricTypeId || !offsetType || !offsetProductId)) return;
-    if (department === "finishing" && (!finishingProductId || !fabricTypeId)) return;
+    if (department === "finishing" && !fabricTypeId) return;
     if (department === "finishing" && laminationType && ["BOX", "F_S", "H_S"].includes(laminationType) && (!filmType || filmType === "none" || !rotoProductId)) return;
     if (department === "finishing" && offsetType !== "none" && !offsetProductId) return;
     if (!quantity || parseFloat(quantity) <= 0) return;
@@ -183,14 +181,14 @@ export function DeliveryEntryForm({
       resProductId = rotoProductId;
       resProductLabel = rotoProducts.find((x) => x.id === rotoProductId)?.label || "";
     } else if (department === "lamination") {
-      resProductId = laminationProductId;
-      resProductLabel = laminationProducts.find((x) => x.id === laminationProductId)?.label || "";
+      resProductId = fabricTypeId;
+      resProductLabel = fabricProducts.find((x) => x.id === fabricTypeId)?.label || "";
     } else if (department === "offset-printing") {
       resProductId = offsetProductId;
       resProductLabel = offsetProducts.find((x) => x.id === offsetProductId)?.label || "";
     } else if (department === "finishing") {
-      resProductId = finishingProductId;
-      resProductLabel = finishingProducts.find((x) => x.id === finishingProductId)?.label || "";
+      resProductId = fabricTypeId;
+      resProductLabel = fabricProducts.find((x) => x.id === fabricTypeId)?.label || "";
     }
 
     const newRow: ConfirmedRow = {
