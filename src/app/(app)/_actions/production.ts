@@ -610,8 +610,8 @@ export async function saveFinishingBundle(formData: FormData) {
     throw new Error("Unsupported finishing type.");
   }
 
-  // Build bundle_id: SPEC(Xpcs)(Y.00kg)
-  const bundleId = `${specId}(${numBags}pcs)(${weightKg.toFixed(2)}kg)`.toUpperCase();
+  // bundle_id is the spec ID directly e.g. PLAIN(N-19-3.5)
+  const bundleId = specId;
 
   const adminSupabase = createAdminClient();
   const { error: insertError } = await (adminSupabase

@@ -84,22 +84,18 @@ export function FinishingProductionForm({
   );
 
   const livePreviewId = useMemo(() => {
-    const bags = parseInt(numBags, 10) || 0;
-    const kgs = parseFloat(weightKg) || 0;
-    const suffix = bags > 0 && kgs > 0 ? ` | ${bags} pcs | ${kgs} kg` : "";
-
     if (finishType === "FABRIC") {
       const fab = fabricTypes?.find((t) => t.id === selectedFabricTypeId);
-      return fab ? `PLAIN(${fab.fabric_name})${suffix}`.toUpperCase() : "SELECT FABRIC TYPE";
+      return fab ? `PLAIN(${fab.fabric_name})`.toUpperCase() : "SELECT FABRIC TYPE";
     }
     if (finishType === "LAMINATION") {
-      return selectedLamRoll ? `${selectedLamRoll.roll_id.toUpperCase()}${suffix}` : "SELECT LAMINATION ROLL";
+      return selectedLamRoll ? selectedLamRoll.roll_id.toUpperCase() : "SELECT LAMINATION ROLL";
     }
     if (finishType === "OFFSET") {
-      return selectedOffsetRoll ? `${selectedOffsetRoll.roll_id.toUpperCase()}${suffix}` : "SELECT OFFSET ROLL";
+      return selectedOffsetRoll ? selectedOffsetRoll.roll_id.toUpperCase() : "SELECT OFFSET ROLL";
     }
     return "SELECT TYPE";
-  }, [finishType, selectedFabricTypeId, selectedLamRoll, selectedOffsetRoll, fabricTypes, numBags, weightKg]);
+  }, [finishType, selectedFabricTypeId, selectedLamRoll, selectedOffsetRoll, fabricTypes]);
 
   const resetSelections = () => {
     setSelectedFabricTypeId("");
