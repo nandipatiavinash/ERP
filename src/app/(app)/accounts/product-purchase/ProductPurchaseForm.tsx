@@ -9,13 +9,15 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { formatNumber } from "@/lib/utils";
+
 type SupplierOption = { id: string; customer_name: string; alias?: string | null };
-type CatalogOption = { id: string; fabric_name?: string; name?: string; brand?: string; width?: number; height?: number };
+type CatalogOption = { id: string; fabric_name?: string; brand?: string; width?: number; height?: number };
 
 type PurchaseItemRow = {
   key: string;
   department: string;
-  productId: string;
+  rotoProductId: string;
+  offsetProductId: string;
   productLabel: string;
   fabricTypeId: string;
   fabricLabel: string;
@@ -32,16 +34,12 @@ export function ProductPurchaseForm({
   fabricTypes,
   rotoProducts,
   offsetProducts,
-  laminationProducts,
-  finishingProducts,
   selectedDate,
 }: {
   suppliers: SupplierOption[];
   fabricTypes: CatalogOption[];
   rotoProducts: CatalogOption[];
   offsetProducts: CatalogOption[];
-  laminationProducts: CatalogOption[];
-  finishingProducts: CatalogOption[];
   selectedDate: string;
 }) {
   const formRef = useRef<HTMLFormElement>(null);
@@ -52,7 +50,7 @@ export function ProductPurchaseForm({
 
   // Form states for currently selected row input
   const [department, setDepartment] = useState("");
-  const [productId, setProductId] = useState("");
+  const [brandProductId, setBrandProductId] = useState("");
   const [fabricTypeId, setFabricTypeId] = useState("");
   const [laminationType, setLaminationType] = useState("PLAIN");
   const [offsetType, setOffsetType] = useState("PLAIN");
@@ -64,17 +62,15 @@ export function ProductPurchaseForm({
     return [...suppliers].sort((a, b) => a.customer_name.localeCompare(b.customer_name));
   }, [suppliers]);
 
-  const activeCatalog = useMemo(() => {
+  const activeBrandsCatalog = useMemo(() => {
     if (department === "roto-printing") return rotoProducts;
     if (department === "offset-printing") return offsetProducts;
-    if (department === "lamination") return laminationProducts;
-    if (department === "finishing") return finishingProducts;
     return [];
-  }, [department, rotoProducts, offsetProducts, laminationProducts, finishingProducts]);
+  }, [department, rotoProducts, offsetProducts]);
 
   const handleDeptChange = (val: string) => {
     setDepartment(val);
-    setProductId("");
+    setBrandProductId("");
     setFabricTypeId("");
     setQuantity("");
     setWeight("");
@@ -91,16 +87,19 @@ export function ProductPurchaseForm({
     if (isNaN(weightVal) || weightVal <= 0) return;
     if (isNaN(rateVal) || rateVal <= 0) return;
 
-    if (department !== "fabric" && !productId) return;
-    if (department !== "roto-printing" && !fabricTypeId) return;
+    const isBrandRequired = ["roto-printing", "offset-printing"].includes(department);
+    if (isBrandRequired && !brandProductId) return;
+
+    const isFabricRequired = ["fabric", "lamination", "offset-printing", "finishing"].includes(department);
+    if (isFabricRequired && !fabricTypeId) return;
 
     // Get item names
     let productLabel = "";
-    if (department === "fabric") {
-      productLabel = "Gray Fabric";
+    if (isBrandRequired) {
+      const match = activeBrandsCatalog.find((x) => x.id === brandProductId);
+      productLabel = match ? (match.brand || "Brand") : "Brand";
     } else {
-      const match = activeCatalog.find((x) => x.id === productId);
-      productLabel = match ? (match.brand || match.name || "Product") : "Product";
+      productLabel = department === "fabric" ? "Gray Fabric" : department === "finishing" ? "Finished Bag" : "Lamination Film";
     }
 
     let fabricLabel = "";
@@ -114,9 +113,10 @@ export function ProductPurchaseForm({
     const newRow: PurchaseItemRow = {
       key: `item-${Date.now()}-${Math.random()}`,
       department,
-      productId,
+      rotoProductId: department === "roto-printing" ? brandProductId : "",
+      offsetProductId: department === "offset-printing" ? brandProductId : "",
       productLabel,
-      fabricTypeId,
+      fabricTypeId: isFabricRequired ? fabricTypeId : "",
       fabricLabel,
       laminationType: department === "lamination" ? laminationType : "",
       offsetType: department === "offset-printing" ? offsetType : "",
@@ -129,7 +129,7 @@ export function ProductPurchaseForm({
     setItems((prev) => [...prev, newRow]);
 
     // Reset row controls
-    setProductId("");
+    setBrandProductId("");
     setFabricTypeId("");
     setQuantity("");
     setWeight("");
@@ -157,7 +157,8 @@ export function ProductPurchaseForm({
 
       items.forEach((item) => {
         formData.append("department", item.department);
-        formData.append("product_id", item.productId);
+        formData.append("roto_product_id", item.rotoProductId);
+        formData.append("offset_product_id", item.offsetProductId);
         formData.append("fabric_type_id", item.fabricTypeId);
         formData.append("lamination_type", item.laminationType);
         formData.append("offset_type", item.offsetType);
@@ -243,27 +244,29 @@ export function ProductPurchaseForm({
             </select>
           </div>
 
-          {department !== "fabric" && department !== "" && (
+          {/* Brand/Design selector for Printing departments */}
+          {["roto-printing", "offset-printing"].includes(department) && (
             <div className="space-y-1.5">
-              <Label className="text-[10px] font-bold text-slate-600">Product Profile</Label>
+              <Label className="text-[10px] font-bold text-slate-600">Brand / Design</Label>
               <select
-                value={productId}
-                onChange={(e) => setProductId(e.target.value)}
+                value={brandProductId}
+                onChange={(e) => setBrandProductId(e.target.value)}
                 className="w-full h-8 text-[11px] border border-slate-200 rounded bg-white px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-semibold"
               >
-                <option value="">Select Product...</option>
-                {activeCatalog.map((prod) => (
+                <option value="">Select Brand...</option>
+                {activeBrandsCatalog.map((prod) => (
                   <option key={prod.id} value={prod.id}>
-                    {prod.brand || prod.name} {prod.width ? `(${prod.width}x${prod.height})` : ""}
+                    {prod.brand} {prod.width ? `(${prod.width}x${prod.height})` : ""}
                   </option>
                 ))}
               </select>
             </div>
           )}
 
-          {department !== "roto-printing" && department !== "" && (
+          {/* Fabric Type selector for Fabric, Lamination, Offset, Finishing */}
+          {["fabric", "lamination", "offset-printing", "finishing"].includes(department) && (
             <div className="space-y-1.5">
-              <Label className="text-[10px] font-bold text-slate-600">Fabric Type</Label>
+              <Label className="text-[10px] font-bold text-slate-600">Fabric Type (Specification)</Label>
               <select
                 value={fabricTypeId}
                 onChange={(e) => setFabricTypeId(e.target.value)}

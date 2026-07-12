@@ -18,14 +18,16 @@ CREATE TABLE IF NOT EXISTS public.product_purchase_items (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   purchase_id UUID REFERENCES public.product_purchases(id) ON DELETE CASCADE,
   department TEXT NOT NULL, -- 'fabric', 'roto-printing', 'lamination', 'offset-printing', 'finishing'
-  product_id UUID, -- links to finishing_products, lamination_products, roto_products, offset_products
   fabric_type_id UUID REFERENCES public.fabric_types(id),
+  roto_product_id UUID REFERENCES public.roto_products(id),
+  offset_product_id UUID REFERENCES public.offset_products(id),
   lamination_type TEXT,
   offset_type TEXT,
   quantity NUMERIC(12, 2) NOT NULL, -- meters / bags
   weight NUMERIC(12, 2) NOT NULL, -- kg
   rate NUMERIC(12, 2) NOT NULL,
   amount NUMERIC(15, 2) NOT NULL,
+  created_stock_id UUID,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
   deleted_at TIMESTAMP WITH TIME ZONE

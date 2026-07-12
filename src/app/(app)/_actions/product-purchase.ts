@@ -16,7 +16,8 @@ export async function saveProductPurchase(formData: FormData) {
   const totalBillValue = Number(formData.get("total_bill_value") ?? 0);
 
   const departments = formData.getAll("department").map(String);
-  const product_ids = formData.getAll("product_id").map(String);
+  const roto_product_ids = formData.getAll("roto_product_id").map(String);
+  const offset_product_ids = formData.getAll("offset_product_id").map(String);
   const fabric_type_ids = formData.getAll("fabric_type_id").map(String);
   const lamination_types = formData.getAll("lamination_type").map(String);
   const offset_types = formData.getAll("offset_type").map(String);
@@ -57,10 +58,11 @@ export async function saveProductPurchase(formData: FormData) {
 
   const purchaseId = purchaseData.id;
 
-  // 2. Process and insert each item into history and stock
+  // 2. Process and insert each item into history and stock registers
   for (let i = 0; i < departments.length; i++) {
     const dept = departments[i];
-    const productId = product_ids[i] || null;
+    const rotoProductId = roto_product_ids[i] || null;
+    const offsetProductId = offset_product_ids[i] || null;
     const fabricTypeId = fabric_type_ids[i] || null;
     const lamType = lamination_types[i] || null;
     const offsetType = offset_types[i] || null;
@@ -70,6 +72,13 @@ export async function saveProductPurchase(formData: FormData) {
     const amount = qty * rate;
 
     let createdStockId: string | null = null;
+
+    // Fetch fabric name for labelling
+    let fabricName = "";
+    if (fabricTypeId) {
+      const { data: f } = await adminSupabase.from("fabric_types").select("fabric_name").eq("id", fabricTypeId).maybeSingle();
+      if (f) fabricName = (f as any).fabric_name;
+    }
 
     // --- Insert into appropriate Stock Registers ---
     if (dept === "fabric") {
@@ -103,19 +112,14 @@ export async function saveProductPurchase(formData: FormData) {
       createdStockId = stockItem.id;
 
     } else if (dept === "lamination") {
-      let prodName = "LAM";
-      if (productId) {
-        const { data: p } = await adminSupabase.from("lamination_products").select("name").eq("id", productId).maybeSingle();
-        if (p) prodName = (p as any).name;
-      }
-      const rollId = `E-${prodName}`;
+      const rollId = `E-LAM(${fabricName || "LAMINATION"})`;
 
       const { data: stockItem, error: stockErr } = await (adminSupabase
         .from("lamination_rolls") as any)
         .insert({
           roll_id: rollId,
           s_no: 1,
-          product_id: productId,
+          product_id: null, // set to null since lamination_products is removed
           lam_type: lamType || "PLAIN",
           fabric_type_id: fabricTypeId,
           film_roll_id: null,
@@ -134,12 +138,12 @@ export async function saveProductPurchase(formData: FormData) {
       createdStockId = stockItem.id;
 
     } else if (dept === "offset-printing") {
-      let brand = "OFFSET";
-      if (productId) {
-        const { data: p } = await adminSupabase.from("offset_products").select("brand").eq("id", productId).maybeSingle();
-        if (p) brand = (p as any).brand;
+      let brandName = "OFFSET";
+      if (offsetProductId) {
+        const { data: p } = await adminSupabase.from("offset_products").select("brand").eq("id", offsetProductId).maybeSingle();
+        if (p) brandName = (p as any).brand;
       }
-      const rollId = `E-${brand}`;
+      const rollId = `E-${brandName}`;
 
       const { data: stockItem, error: stockErr } = await (adminSupabase
         .from("offset_rolls") as any)
@@ -147,7 +151,7 @@ export async function saveProductPurchase(formData: FormData) {
           roll_id: rollId,
           s_no: 1,
           offset_type: offsetType || "PLAIN",
-          brand_id: productId,
+          brand_id: offsetProductId,
           fabric_type_id: fabricTypeId,
           source_lam_roll_id: null,
           weight_kg: weight,
@@ -163,17 +167,7 @@ export async function saveProductPurchase(formData: FormData) {
       createdStockId = stockItem.id;
 
     } else if (dept === "finishing") {
-      let prodName = "BAG";
-      if (productId) {
-        const { data: p } = await adminSupabase.from("finishing_products").select("name").eq("id", productId).maybeSingle();
-        if (p) prodName = (p as any).name;
-      }
-      let fabricName = "FAB";
-      if (fabricTypeId) {
-        const { data: f } = await adminSupabase.from("fabric_types").select("fabric_name").eq("id", fabricTypeId).maybeSingle();
-        if (f) fabricName = (f as any).fabric_name;
-      }
-      const bundleId = `E-${prodName}(${fabricName})`;
+      const bundleId = `E-BAG(${fabricName || "FINISHING"})`;
 
       const { data: stockItem, error: stockErr } = await (adminSupabase
         .from("finishing_bundles") as any)
@@ -181,7 +175,7 @@ export async function saveProductPurchase(formData: FormData) {
           bundle_id: bundleId,
           s_no: 1,
           finish_type: "FABRIC",
-          product_id: productId,
+          product_id: null, // set to null since finishing_products is removed
           source_lam_roll_id: null,
           source_fabric_roll_id: null,
           source_offset_roll_id: null,
@@ -200,19 +194,19 @@ export async function saveProductPurchase(formData: FormData) {
       createdStockId = stockItem.id;
 
     } else if (dept === "roto-printing") {
-      let brand = "ROTO";
-      if (productId) {
-        const { data: p } = await adminSupabase.from("roto_products").select("brand").eq("id", productId).maybeSingle();
-        if (p) brand = (p as any).brand;
+      let brandName = "ROTO";
+      if (rotoProductId) {
+        const { data: p } = await adminSupabase.from("roto_products").select("brand").eq("id", rotoProductId).maybeSingle();
+        if (p) brandName = (p as any).brand;
       }
-      const rollId = `E-${brand}`;
+      const rollId = `E-${brandName}`;
 
       const { data: stockItem, error: stockErr } = await (adminSupabase
         .from("roto_film_rolls") as any)
         .insert({
           roll_id: rollId,
           s_no: 1,
-          brand_id: productId,
+          brand_id: rotoProductId,
           film_type: "PLAIN",
           color_id: null,
           weight_kg: weight,
@@ -229,14 +223,15 @@ export async function saveProductPurchase(formData: FormData) {
       createdStockId = stockItem.id;
     }
 
-    // Insert purchase item history
+    // Insert purchase item history matching database schema
     const { error: itemError } = await (adminSupabase
       .from("product_purchase_items") as any)
       .insert({
         purchase_id: purchaseId,
         department: dept,
-        product_id: productId,
         fabric_type_id: fabricTypeId,
+        roto_product_id: rotoProductId,
+        offset_product_id: offsetProductId,
         lamination_type: lamType,
         offset_type: offsetType,
         quantity: qty,

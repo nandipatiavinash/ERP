@@ -20,14 +20,12 @@ export default async function ProductPurchasePage({
   const params = await searchParams;
   const date = params.date || todayInIndia();
 
-  // Fetch catalogs and recent purchases
+  // Fetch only existing catalogs (fabricTypes for specs, roto/offset for printing brand names)
   const [
     { data: customers },
     { data: fabricTypes },
     { data: rotoProducts },
     { data: offsetProducts },
-    { data: laminationProducts },
-    { data: finishingProducts },
     { data: purchases }
   ] = await Promise.all([
     supabase
@@ -55,18 +53,6 @@ export default async function ProductPurchasePage({
       .eq("status", "active")
       .is("deleted_at", null)
       .order("brand"),
-    supabase
-      .from("lamination_products")
-      .select("id, name")
-      .eq("status", "active")
-      .is("deleted_at", null)
-      .order("name"),
-    supabase
-      .from("finishing_products")
-      .select("id, name")
-      .eq("status", "active")
-      .is("deleted_at", null)
-      .order("name"),
     supabase
       .from("product_purchases")
       .select(`
@@ -96,8 +82,6 @@ export default async function ProductPurchasePage({
             fabricTypes={fabricTypes ?? []}
             rotoProducts={rotoProducts ?? []}
             offsetProducts={offsetProducts ?? []}
-            laminationProducts={laminationProducts ?? []}
-            finishingProducts={finishingProducts ?? []}
             selectedDate={date}
           />
         </div>
