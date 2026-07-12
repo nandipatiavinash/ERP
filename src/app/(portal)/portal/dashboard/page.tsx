@@ -69,16 +69,20 @@ export default async function PortalDashboardPage({
 
   // Stats from full dataset
   const total = ordersData.length;
-  const pending  = ordersData.filter((o) => o.status === "pending").length;
-  const active   = ordersData.filter((o) => ["confirmed", "dispatched"].includes(o.status)).length;
-  const delivered = ordersData.filter((o) => o.status === "delivered").length;
+  const pending  = ordersData.filter((o) => !o.bill_number && (o.status === "pending" || o.status === "draft")).length;
+  const active   = ordersData.filter((o) => !o.bill_number && ["confirmed", "dispatched"].includes(o.status)).length;
+  const delivered = ordersData.filter((o) => !!o.bill_number || o.status === "delivered").length;
   const totalBilled = ordersData.reduce((s, o) => s + Number(o.bill_value ?? 0), 0);
 
   // Filter
   const filteredOrders = filterStatus === "all"
     ? ordersData
+    : filterStatus === "pending"
+    ? ordersData.filter((o) => !o.bill_number && (o.status === "pending" || o.status === "draft"))
     : filterStatus === "active"
-    ? ordersData.filter((o) => ["confirmed", "dispatched"].includes(o.status))
+    ? ordersData.filter((o) => !o.bill_number && ["confirmed", "dispatched"].includes(o.status))
+    : filterStatus === "delivered"
+    ? ordersData.filter((o) => !!o.bill_number || o.status === "delivered")
     : ordersData.filter((o) => o.status === filterStatus);
 
   const filterTabs = [
@@ -196,7 +200,8 @@ export default async function PortalDashboardPage({
             <>
               <div className="divide-y divide-white/5">
                 {filteredOrders.map((order: any) => {
-                  const statusCfg = STATUS_CONFIG[order.status] ?? STATUS_CONFIG.pending;
+                  const orderStatus = order.bill_number ? "delivered" : (order.status === "draft" ? "pending" : order.status);
+                  const statusCfg = STATUS_CONFIG[orderStatus] ?? STATUS_CONFIG.pending;
                   const billValue = Number(order.bill_value ?? 0);
 
                   return (
