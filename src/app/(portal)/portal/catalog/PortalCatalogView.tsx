@@ -241,6 +241,10 @@ export function PortalCatalogView({ fabricTypes, finishingProducts, rotoProducts
           offsetType: c.offsetType,
         }));
         const result = await createClientOrder(items);
+        if (result && !result.success) {
+          setStatus({ type: "error", message: result.error || "Failed to place order." });
+          return;
+        }
         setStatus({ type: "success", message: `Order ${result.orderNumber} placed successfully!` });
         setCart([]);
         setCartOpen(false);
