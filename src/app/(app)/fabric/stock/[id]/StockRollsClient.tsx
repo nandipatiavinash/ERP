@@ -45,6 +45,7 @@ interface AllocationInfo {
 interface StockRollsClientProps {
   availableRolls: Roll[];
   soldRolls: Roll[];
+  consumedRolls: Roll[];
   rollAllocationMap: Record<string, AllocationInfo>;
   fabricName: string;
 }
@@ -296,6 +297,7 @@ function CollapsibleRollSection({
 export function StockRollsClient({
   availableRolls,
   soldRolls,
+  consumedRolls,
   rollAllocationMap,
   fabricName,
 }: StockRollsClientProps) {
@@ -311,6 +313,18 @@ export function StockRollsClient({
         defaultOpen={true}
         emptyTitle="No available rolls"
         emptyDescription={`All rolls for ${fabricName} have been sold or there are none yet.`}
+      />
+
+      {/* Consumed Rolls – Collapsible */}
+      <CollapsibleRollSection
+        title="Consumed Rolls"
+        count={consumedRolls.length}
+        rolls={consumedRolls}
+        allocationMap={rollAllocationMap}
+        fabricName={fabricName}
+        defaultOpen={false}
+        emptyTitle="No consumed rolls"
+        emptyDescription={`No rolls for ${fabricName} have been consumed in production yet.`}
       />
 
       {/* Sold Rolls – Collapsible */}

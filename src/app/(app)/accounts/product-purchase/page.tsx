@@ -153,9 +153,9 @@ export default async function ProductPurchasePage({
         description="Record finished product purchases from external suppliers to stock and accounting journals."
       />
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+      <div className="space-y-6">
         {/* Purchase form */}
-        <div className="lg:col-span-1">
+        <div>
           <ProductPurchaseForm
             suppliers={supplierList}
             fabricTypes={fabricTypes ?? []}
@@ -170,7 +170,7 @@ export default async function ProductPurchasePage({
         </div>
 
         {/* Purchase Entries List */}
-        <div className="lg:col-span-2 space-y-4">
+        <div className="space-y-4">
           <div className="flex justify-between items-center bg-white p-4 rounded-lg border border-slate-100 shadow-sm">
             <span className="text-sm font-semibold text-slate-800">Purchase logs on date</span>
             <DateFilter date={date} baseUrl="/accounts/product-purchase" />

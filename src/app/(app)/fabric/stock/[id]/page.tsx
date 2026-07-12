@@ -17,8 +17,7 @@ export default async function FabricStockDetailPage({
 
   const [
     { data: fabricData, error: fabricError },
-    { data: availableRolls, error: availableRollsError },
-    { data: soldRolls, error: soldRollsError },
+    { data: allRolls, error: rollsError },
     { data: allocations, error: allocationsError },
   ] = await Promise.all([
     supabase.from("fabric_types").select("fabric_name").eq("id", id).single(),
@@ -26,24 +25,20 @@ export default async function FabricStockDetailPage({
       .from("fabric_rolls")
       .select("*, fabric_types(fabric_name), looms(loom_number), loom_production_entries(gross_weight, core_weight, net_weight, net_meters, average_meter_weight)")
       .eq("fabric_type_id", id)
-      .eq("status", "available")
       .is("deleted_at", null)
       .order("id", { ascending: true })
-      .limit(10000),
-    supabase
-      .from("fabric_rolls")
-      .select("*, fabric_types(fabric_name), looms(loom_number), loom_production_entries(gross_weight, core_weight, net_weight, net_meters, average_meter_weight)")
-      .eq("fabric_type_id", id)
-      .eq("status", "sold")
-      .is("deleted_at", null)
-      .order("id", { ascending: false })
-      .limit(100),
+      .limit(20000),
     (supabase as any).rpc("get_roll_allocations_for_fabric", { p_fabric_type_id: id }),
   ]);
 
-  if (fabricError || availableRollsError || soldRollsError || allocationsError) {
+  if (fabricError || rollsError || allocationsError) {
     throw new Error("Unable to load stock details right now.");
   }
+
+  const rolls = (allRolls ?? []) as any[];
+  const availableRolls = rolls.filter((r) => r.status === "available");
+  const soldRolls = rolls.filter((r) => r.status === "sold");
+  const consumedRolls = rolls.filter((r) => r.status === "consumed");
 
   const rollAllocationMap: Record<string, { dispatchDate: string; clientName: string }> = {};
   for (const allocation of (allocations ?? []) as any[]) {
@@ -72,8 +67,9 @@ export default async function FabricStockDetailPage({
       />
 
       <StockRollsClient
-        availableRolls={(availableRolls ?? []) as any[]}
-        soldRolls={(soldRolls ?? []) as any[]}
+        availableRolls={availableRolls}
+        soldRolls={soldRolls}
+        consumedRolls={consumedRolls}
         rollAllocationMap={rollAllocationMap}
         fabricName={fabricName}
       />

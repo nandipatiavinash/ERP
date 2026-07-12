@@ -19,26 +19,58 @@ export default async function RotoStockDetailPage({
   const [
     { data: filmRolls, error: filmError },
     { data: metallicRolls, error: metallicError },
+    ordersRes,
+    itemsRes
   ] = await Promise.all([
     supabase
       .from("roto_film_rolls")
       .select("*")
       .eq("roll_id", specId)
-      .eq("status", "available")
       .is("deleted_at", null)
       .order("s_no", { ascending: true }),
     supabase
       .from("roto_metallic_rolls")
       .select("*")
       .eq("roll_id", specId)
-      .eq("status", "available")
       .is("deleted_at", null)
       .order("s_no", { ascending: true }),
+    supabase
+      .from("sales_orders")
+      .select("order_date, selected_roll_ids, customers(customer_name)")
+      .eq("status", "confirmed")
+      .is("deleted_at", null),
+    supabase
+      .from("sales_order_items")
+      .select("selected_roll_ids, sales_orders(order_date, customers(customer_name))")
+      .eq("sales_orders.status", "confirmed")
+      .is("sales_orders.deleted_at", null)
   ]);
 
   if (filmError || metallicError) {
     throw new Error("Unable to load roto stock details.");
   }
+
+  const rollAllocationMap: Record<string, { dispatchDate: string; clientName: string }> = {};
+
+  (ordersRes.data || []).forEach((so: any) => {
+    const ids = so.selected_roll_ids || [];
+    ids.forEach((id: string) => {
+      rollAllocationMap[id] = {
+        dispatchDate: so.order_date,
+        clientName: so.customers?.customer_name ?? "Unknown",
+      };
+    });
+  });
+
+  (itemsRes.data || []).forEach((item: any) => {
+    const ids = item.selected_roll_ids || [];
+    ids.forEach((id: string) => {
+      rollAllocationMap[id] = {
+        dispatchDate: item.sales_orders?.order_date,
+        clientName: item.sales_orders?.customers?.customer_name ?? "Unknown",
+      };
+    });
+  });
 
   const brandName = specId;
 
@@ -60,6 +92,7 @@ export default async function RotoStockDetailPage({
       <StockRotoRollsClient
         filmRolls={(filmRolls ?? []) as any[]}
         metallicRolls={(metallicRolls ?? []) as any[]}
+        rollAllocationMap={rollAllocationMap}
         brandName={brandName}
       />
     </div>

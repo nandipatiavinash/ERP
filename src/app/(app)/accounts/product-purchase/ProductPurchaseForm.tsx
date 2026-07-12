@@ -657,7 +657,9 @@ export function ProductPurchaseForm({
         confirmDescription={`Record this purchase entry of ₹${formatNumber(totalBillValue, 2)} and auto-generate stock entries and journal lines.`}
         disabled={items.length === 0}
         className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs h-9"
-      />
+      >
+        Submit Product Purchase
+      </ConfirmSubmitButton>
     </form>
   );
 }
