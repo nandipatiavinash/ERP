@@ -50,13 +50,11 @@ export default async function ProductPurchasePage({
       .from("roto_products")
       .select("id, brand, width, height")
       .eq("status", "active")
-      .is("deleted_at", null)
       .order("brand"),
     supabase
       .from("offset_products")
       .select("id, brand, width, height")
       .eq("status", "active")
-      .is("deleted_at", null)
       .order("brand"),
     supabase
       .from("finishing_products")

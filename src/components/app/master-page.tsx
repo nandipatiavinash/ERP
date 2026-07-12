@@ -255,7 +255,17 @@ export function MasterPage({
                         </TableCell>
                       ))}
                        <TableCell className="text-center">
-                         <RowActions config={config} row={row} />
+                         <div className="inline-flex items-center gap-2 justify-center">
+                           {(config as any).profilePath && (
+                             <Link
+                               href={`${(config as any).profilePath}/${row.id}` as any}
+                               className="text-[11px] font-semibold text-slate-500 hover:text-slate-900 border border-slate-200 hover:border-slate-400 px-2 py-1 rounded transition-colors"
+                             >
+                               View Profile
+                             </Link>
+                           )}
+                           <RowActions config={config} row={row} />
+                         </div>
                        </TableCell>
                     </TableRow>
                   ))}

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ShoppingBag, Package, Truck, CheckCircle, XCircle, Clock, Plus, LogOut, ChevronRight } from "lucide-react";
+import { ShoppingBag, Package, Truck, CheckCircle, XCircle, Clock, Plus, LogOut } from "lucide-react";
 import { getSessionUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate } from "@/lib/utils";
@@ -13,12 +13,18 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.
   cancelled:  { label: "Cancelled",       color: "text-red-400 bg-red-400/10 border-red-400/20",          icon: <XCircle className="h-3 w-3" />,       step: 0 },
 };
 
-export default async function PortalDashboardPage() {
+export default async function PortalDashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ status?: string }>;
+}) {
   const user = await getSessionUser();
   if (!user) redirect("/login");
 
   const customerId = (user as any).customer_id;
   const supabase = await createClient();
+  const resolvedParams = await searchParams;
+  const filterStatus = resolvedParams?.status ?? "all";
 
   // Fetch customer name
   let customerName = "Your Account";
@@ -36,7 +42,7 @@ export default async function PortalDashboardPage() {
     customerName = "Administrator Preview";
   }
 
-  // Fetch orders
+  // Fetch ALL orders (no limit)
   let ordersData: any[] = [];
   if (customerId || user.roles?.name === "admin") {
     const q = (supabase.from("client_orders") as any)
@@ -49,19 +55,32 @@ export default async function PortalDashboardPage() {
         )
       `)
       .is("deleted_at", null)
-      .order("created_at", { ascending: false })
-      .limit(50);
+      .order("created_at", { ascending: false });
 
     if (customerId) q.eq("customer_id", customerId);
     const { data } = await q;
     ordersData = data ?? [];
   }
 
-  // Stats
+  // Stats (always from full dataset)
   const total = ordersData.length;
   const pending = ordersData.filter((o) => o.status === "pending").length;
   const active = ordersData.filter((o) => ["confirmed", "dispatched"].includes(o.status)).length;
   const delivered = ordersData.filter((o) => o.status === "delivered").length;
+
+  // Apply filter tab
+  const filteredOrders = filterStatus === "all"
+    ? ordersData
+    : filterStatus === "active"
+    ? ordersData.filter((o) => ["confirmed", "dispatched"].includes(o.status))
+    : ordersData.filter((o) => o.status === filterStatus);
+
+  const filterTabs = [
+    { key: "all",       label: "All Orders",  count: total },
+    { key: "pending",   label: "Pending",     count: pending },
+    { key: "active",    label: "In Progress", count: active },
+    { key: "delivered", label: "Delivered",   count: delivered },
+  ];
 
   return (
     <div className="min-h-screen">
@@ -130,22 +149,51 @@ export default async function PortalDashboardPage() {
             <span className="text-xs text-slate-400">{total} total</span>
           </div>
 
-          {ordersData.length === 0 ? (
+          {/* Filter Tabs */}
+          <div className="flex gap-1 px-4 pt-3 pb-2 border-b border-white/5 overflow-x-auto">
+            {filterTabs.map((tab) => {
+              const isActive = filterStatus === tab.key;
+              return (
+                <Link
+                  key={tab.key}
+                  href={`/portal/dashboard?status=${tab.key}` as any}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold whitespace-nowrap transition-all ${
+                    isActive
+                      ? "bg-white/10 text-white border border-white/20"
+                      : "text-slate-400 hover:text-white hover:bg-white/5"
+                  }`}
+                >
+                  {tab.label}
+                  <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-bold ${isActive ? "bg-white/20 text-white" : "bg-white/5 text-slate-500"}`}>
+                    {tab.count}
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+
+          {filteredOrders.length === 0 ? (
             <div className="py-20 text-center">
               <ShoppingBag className="mx-auto h-12 w-12 text-slate-600 mb-3 stroke-[1.5]" />
-              <p className="text-sm font-semibold text-slate-300">No orders yet</p>
-              <p className="text-xs text-slate-500 mt-1">Browse our catalog to place your first order.</p>
-              <Link
-                href={"/portal/catalog" as any}
-                className="inline-flex items-center gap-1.5 mt-5 px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-white text-xs font-semibold transition-all"
-              >
-                <Plus className="h-3.5 w-3.5" />
-                Browse Catalog
-              </Link>
+              <p className="text-sm font-semibold text-slate-300">
+                {total === 0 ? "No orders yet" : `No ${filterStatus === "all" ? "" : filterStatus} orders`}
+              </p>
+              <p className="text-xs text-slate-500 mt-1">
+                {total === 0 ? "Browse our catalog to place your first order." : "Try a different filter above."}
+              </p>
+              {total === 0 && (
+                <Link
+                  href={"/portal/catalog" as any}
+                  className="inline-flex items-center gap-1.5 mt-5 px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-white text-xs font-semibold transition-all"
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  Browse Catalog
+                </Link>
+              )}
             </div>
           ) : (
             <div className="divide-y divide-white/5">
-              {ordersData.map((order) => {
+              {filteredOrders.map((order) => {
                 const statusCfg = STATUS_CONFIG[order.status] ?? STATUS_CONFIG.pending;
                 const items = (order.client_order_items ?? []) as any[];
                 const totalValue = items.reduce((s: number, i: any) => s + Number(i.quantity) * Number(i.unit_price), 0);
@@ -185,7 +233,6 @@ export default async function PortalDashboardPage() {
                         {totalValue > 0 && (
                           <p className="text-sm font-bold text-white mt-1">₹{totalValue.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</p>
                         )}
-                        {/* Progress steps */}
                         {order.status !== "cancelled" && (
                           <div className="flex items-center gap-1 mt-2 justify-end">
                             {[1,2,3,4].map((step) => (
@@ -200,6 +247,19 @@ export default async function PortalDashboardPage() {
                   </div>
                 );
               })}
+            </div>
+          )}
+
+          {filteredOrders.length > 0 && (
+            <div className="px-5 py-3 border-t border-white/5 text-center">
+              <p className="text-[10px] text-slate-500">
+                Showing {filteredOrders.length} of {total} total orders
+                {filterStatus !== "all" && (
+                  <Link href={"/portal/dashboard?status=all" as any} className="ml-2 text-emerald-400 hover:text-emerald-300 font-semibold transition-colors">
+                    View All →
+                  </Link>
+                )}
+              </p>
             </div>
           )}
         </div>

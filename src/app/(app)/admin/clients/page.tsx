@@ -21,6 +21,7 @@ export default async function ClientsPage({ searchParams }: { searchParams: Prom
 
   const customersConfig = {
     ...modules.customers,
+    profilePath: "/admin/clients",
     fields: modules.customers.fields.map((field) => {
       if (field.name === "linked_customer_id") {
         return {
