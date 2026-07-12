@@ -169,13 +169,12 @@ export function ProductPurchaseForm({
     if (isNaN(qtyVal) || qtyVal <= 0) return;
     if (isNaN(weightVal) || weightVal <= 0) return;
 
-    const isBrandRequired = ["roto-printing", "offset-printing", "finishing"].includes(department) || (department === "lamination" && ["BOX", "F_S", "H_S"].includes(laminationType));
+    const isBrandRequired = ["roto-printing", "offset-printing"].includes(department) || (department === "lamination" && ["BOX", "F_S", "H_S"].includes(laminationType));
     if (isBrandRequired && !brandProductId) return;
 
     const isFabricRequired = ["fabric", "lamination", "offset-printing", "finishing"].includes(department);
     if (isFabricRequired && !fabricTypeId) return;
 
-    // Get item names
     let productLabel = "";
     if (isBrandRequired) {
       const match = activeBrandsCatalog.find((x) => x.id === brandProductId);
@@ -605,20 +604,6 @@ export function ProductPurchaseForm({
 
           {showFinishingFields && (
             <div className="grid grid-cols-3 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-[10px] font-bold text-slate-600">Brand / Bag Type</Label>
-                <select
-                  value={brandProductId}
-                  onChange={(e) => setBrandProductId(e.target.value)}
-                  className="w-full h-8 text-[11px] border border-slate-200 rounded bg-white px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-semibold"
-                >
-                  <option value="">Select Brand...</option>
-                  {activeBrandsCatalog.map((prod) => (
-                    <option key={prod.id} value={prod.id}>{prod.brand}</option>
-                  ))}
-                </select>
-              </div>
-
               <div className="space-y-1.5">
                 <Label className="text-[10px] font-bold text-slate-600">Fabric Specification</Label>
                 <select
