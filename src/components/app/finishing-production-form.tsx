@@ -27,10 +27,16 @@ type OffsetRoll = {
   fabric_type_id?: string | null;
 };
 
+type FinishingProduct = {
+  id: string;
+  name: string;
+};
+
 interface FinishingProductionFormProps {
   fabricTypes: FabricType[];
   laminationRolls: LaminationRoll[];
   offsetRolls: OffsetRoll[];
+  finishingProducts: FinishingProduct[];
   onSuccess?: (newBundleInfo: { bundleId: string; numBags: number; weight: number }) => void;
   rows?: any[];
 }
@@ -39,6 +45,7 @@ export function FinishingProductionForm({
   fabricTypes,
   laminationRolls,
   offsetRolls,
+  finishingProducts,
   onSuccess,
   rows,
 }: FinishingProductionFormProps) {
@@ -47,6 +54,7 @@ export function FinishingProductionForm({
   const [selectedFabricTypeId, setSelectedFabricTypeId] = useState<string>("");
   const [selectedLamRollId, setSelectedLamRollId] = useState<string>("");
   const [selectedOffsetRollId, setSelectedOffsetRollId] = useState<string>("");
+  const [selectedProductId, setSelectedProductId] = useState<string>("");
   const [numBags, setNumBags] = useState<string>("");
   const [weightKg, setWeightKg] = useState<string>("");
   const [entryDate, setEntryDate] = useState<string>(
@@ -101,6 +109,7 @@ export function FinishingProductionForm({
     setSelectedFabricTypeId("");
     setSelectedLamRollId("");
     setSelectedOffsetRollId("");
+    setSelectedProductId("");
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -112,6 +121,7 @@ export function FinishingProductionForm({
     if (finishType === "FABRIC" && !selectedFabricTypeId) { setErrorMsg("Fabric Type is required."); return; }
     if (finishType === "LAMINATION" && !selectedLamRollId) { setErrorMsg("Lamination Roll is required."); return; }
     if (finishType === "OFFSET" && !selectedOffsetRollId) { setErrorMsg("Offset Roll is required."); return; }
+    if (!selectedProductId) { setErrorMsg("Brand / Bag Type is required."); return; }
 
     const bags = parseInt(numBags, 10);
     const w = parseFloat(weightKg);
@@ -127,6 +137,7 @@ export function FinishingProductionForm({
         fd.append("num_bags", String(bags));
         fd.append("weight_kg", String(w));
         fd.append("entry_date", entryDate);
+        fd.append("product_id", selectedProductId);
 
         if (finishType === "FABRIC") {
           fd.append("fabric_type_id", selectedFabricTypeId);
@@ -163,7 +174,7 @@ export function FinishingProductionForm({
         <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-700 text-sm">{successMsg}</div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 animate-in fade-in duration-200">
         <div className="space-y-1">
           <Label className="text-xs font-semibold text-slate-700">Department / Type</Label>
           <Select value={finishType} onValueChange={(val) => { setFinishType(val); resetSelections(); }}>
@@ -177,6 +188,22 @@ export function FinishingProductionForm({
             </SelectContent>
           </Select>
         </div>
+
+        {finishType && (
+          <div className="space-y-1">
+            <Label className="text-xs font-semibold text-slate-700">Brand / Bag Type</Label>
+            <Select value={selectedProductId} onValueChange={setSelectedProductId}>
+              <SelectTrigger className="h-10 border-slate-200 text-xs font-semibold">
+                <SelectValue placeholder="Select Brand..." />
+              </SelectTrigger>
+              <SelectContent>
+                {finishingProducts.map((p) => (
+                  <SelectItem key={p.id} value={p.id} className="text-xs font-semibold">{p.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
 
         {finishType === "FABRIC" && (
           <div className="space-y-1">
@@ -205,8 +232,8 @@ export function FinishingProductionForm({
                 {uniqueLaminationRolls.length === 0
                   ? <SelectItem value="_none" disabled>No available lamination rolls</SelectItem>
                   : uniqueLaminationRolls.map((r) => (
-                    <SelectItem key={r.id} value={r.id} className="text-xs font-mono">{r.roll_id}</SelectItem>
-                  ))}
+                      <SelectItem key={r.id} value={r.id} className="text-xs font-mono">{r.roll_id}</SelectItem>
+                    ))}
               </SelectContent>
             </Select>
           </div>
@@ -223,8 +250,8 @@ export function FinishingProductionForm({
                 {uniqueOffsetRolls.length === 0
                   ? <SelectItem value="_none" disabled>No available offset rolls</SelectItem>
                   : uniqueOffsetRolls.map((r) => (
-                    <SelectItem key={r.id} value={r.id} className="text-xs font-mono">{r.roll_id}</SelectItem>
-                  ))}
+                      <SelectItem key={r.id} value={r.id} className="text-xs font-mono">{r.roll_id}</SelectItem>
+                    ))}
               </SelectContent>
             </Select>
           </div>

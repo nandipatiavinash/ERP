@@ -77,8 +77,10 @@ export function ProductPurchaseForm({
   const [offsetType, setOffsetType] = useState("PLAIN");
   const [quantity, setQuantity] = useState("");
   const [weight, setWeight] = useState("");
-  const [rate, setRate] = useState("");
   const [supplierRollId, setSupplierRollId] = useState("");
+
+  // Manual total bill value
+  const [manualBillValue, setManualBillValue] = useState("");
 
   // New spec states
   const [sourceRollId, setSourceRollId] = useState("");
@@ -107,7 +109,6 @@ export function ProductPurchaseForm({
     setFabricTypeId("");
     setQuantity("");
     setWeight("");
-    setRate("");
     setSupplierRollId("");
     setSourceRollId("");
     setFilmType("gloss");
@@ -164,11 +165,9 @@ export function ProductPurchaseForm({
     if (!department) return;
     const qtyVal = Number(quantity);
     const weightVal = Number(weight);
-    const rateVal = Number(rate);
 
     if (isNaN(qtyVal) || qtyVal <= 0) return;
     if (isNaN(weightVal) || weightVal <= 0) return;
-    if (isNaN(rateVal) || rateVal <= 0) return;
 
     const isBrandRequired = ["roto-printing", "offset-printing", "finishing"].includes(department) || (department === "lamination" && ["BOX", "F_S", "H_S"].includes(laminationType));
     if (isBrandRequired && !brandProductId) return;
@@ -190,9 +189,6 @@ export function ProductPurchaseForm({
       const match = fabricTypes.find((x) => x.id === fabricTypeId);
       fabricLabel = match ? (match.fabric_name || "Fabric") : "";
     }
-
-    // Rate is entered as the total bill value directly (no multiplication)
-    const calculatedAmount = rateVal;
 
     let colorLabel = "";
     if (colorId) {
@@ -235,8 +231,8 @@ export function ProductPurchaseForm({
       offsetType: department === "offset-printing" ? offsetType : "",
       quantity: qtyVal,
       weight: weightVal,
-      rate: rateVal,
-      amount: calculatedAmount,
+      rate: 0,
+      amount: 0,
       sourceRollId,
       filmType: department === "roto-printing" ? filmType : "",
       isMetallic: department === "roto-printing" ? isMetallic : false,
@@ -253,7 +249,6 @@ export function ProductPurchaseForm({
     setFabricTypeId("");
     setQuantity("");
     setWeight("");
-    setRate("");
     setSupplierRollId("");
     setSourceRollId("");
     setFilmType("gloss");
@@ -265,12 +260,14 @@ export function ProductPurchaseForm({
     setItems((prev) => prev.filter((item) => item.key !== key));
   };
 
-  // Grand Total of all purchase items
-  const totalBillValue = items.reduce((sum, item) => sum + item.amount, 0);
-
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const parsedBillVal = Number(manualBillValue);
     if (isSaving || items.length === 0) return;
+    if (isNaN(parsedBillVal) || parsedBillVal <= 0) {
+      setErrorText("Please enter a positive manual bill value.");
+      return;
+    }
 
     setIsSaving(true);
     setErrorText(null);
@@ -278,7 +275,7 @@ export function ProductPurchaseForm({
 
     try {
       const formData = new FormData(event.currentTarget);
-      formData.set("total_bill_value", String(totalBillValue));
+      formData.set("total_bill_value", String(parsedBillVal));
 
       items.forEach((item) => {
         formData.append("department", item.department);
@@ -290,7 +287,7 @@ export function ProductPurchaseForm({
         formData.append("offset_type", item.offsetType);
         formData.append("quantity", String(item.quantity));
         formData.append("weight", String(item.weight));
-        formData.append("rate", String(item.rate));
+        formData.append("rate", "0");
         formData.append("supplier_roll_id", item.supplierRollId);
         formData.append("source_roll_id", item.sourceRollId);
         formData.append("film_type", item.filmType);
@@ -301,6 +298,7 @@ export function ProductPurchaseForm({
       await saveProductPurchase(formData);
       setSuccessText("Product Purchase recorded successfully!");
       setItems([]);
+      setManualBillValue("");
       formRef.current?.reset();
     } catch (err: any) {
       setErrorText(err.message || "Failed to save purchase.");
@@ -308,6 +306,12 @@ export function ProductPurchaseForm({
       setIsSaving(false);
     }
   }
+
+  const showRotoFields = department === "roto-printing";
+  const showOffsetFields = department === "offset-printing";
+  const showLaminationFields = department === "lamination";
+  const showFinishingFields = department === "finishing";
+  const showFabricFields = department === "fabric";
 
   return (
     <form ref={formRef} onSubmit={handleSubmit} className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm space-y-5">
@@ -350,10 +354,11 @@ export function ProductPurchaseForm({
             id="total_bill_value"
             name="total_bill_value"
             type="number"
-            value={Math.round(totalBillValue)}
-            readOnly
+            placeholder="Enter Bill Value..."
+            value={manualBillValue}
+            onChange={(e) => setManualBillValue(e.target.value)}
             required
-            className="h-9 text-xs font-semibold bg-slate-50 border-slate-200 cursor-not-allowed font-mono"
+            className="h-9 text-xs font-semibold font-mono"
           />
         </div>
       </div>
@@ -380,9 +385,8 @@ export function ProductPurchaseForm({
             </select>
           </div>
 
-          {/* Conditional inputs based on department - grouped in 2-3 fields per row */}
           {/* Conditional inputs based on department - grouped in clean 3-field rows */}
-          {department === "fabric" && (
+          {showFabricFields && (
             <div className="grid grid-cols-3 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-[10px] font-bold text-slate-600">Brand / Fabric Type</Label>
@@ -403,15 +407,10 @@ export function ProductPurchaseForm({
                 <Input type="number" min="0" placeholder="1000" value={quantity} onChange={(e) => setQuantity(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
               </div>
 
-              <div className="space-y-1.5">
-                <Label className="text-[10px] font-bold text-slate-600">Weight (KG)</Label>
-                <Input type="number" min="0" step="0.1" placeholder="50.0" value={weight} onChange={(e) => setWeight(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
-              </div>
-
               <div className="space-y-1.5 col-span-1">
-                <Label className="text-[10px] font-bold text-slate-600">Rate / Bill Value (₹)</Label>
+                <Label className="text-[10px] font-bold text-slate-600">Weight (KG)</Label>
                 <div className="flex gap-2">
-                  <Input type="number" min="0" step="0.01" placeholder="5000.00" value={rate} onChange={(e) => setRate(e.target.value)} className="h-8 text-xs font-semibold w-full font-mono" />
+                  <Input type="number" min="0" step="0.1" placeholder="50.0" value={weight} onChange={(e) => setWeight(e.target.value)} className="h-8 text-xs font-semibold w-full font-mono" />
                   <Button type="button" onClick={handleAddItem} className="h-8 text-[10px] bg-slate-800 hover:bg-slate-700 px-3 text-white font-semibold">
                     <Plus className="w-3.5 h-3.5 mr-1" /> Add
                   </Button>
@@ -420,7 +419,7 @@ export function ProductPurchaseForm({
             </div>
           )}
 
-          {department === "roto-printing" && (
+          {showRotoFields && (
             <div className="space-y-3">
               <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1.5">
@@ -462,15 +461,10 @@ export function ProductPurchaseForm({
                   <Input type="number" min="0" placeholder="1000" value={quantity} onChange={(e) => setQuantity(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
                 </div>
 
-                <div className="space-y-1.5">
+                <div className="space-y-1.5 col-span-1">
                   <Label className="text-[10px] font-bold text-slate-600">Weight (KG)</Label>
-                  <Input type="number" min="0" step="0.1" placeholder="50.0" value={weight} onChange={(e) => setWeight(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label className="text-[10px] font-bold text-slate-600">Rate / Bill Value (₹)</Label>
                   <div className="flex gap-2">
-                    <Input type="number" min="0" step="0.01" placeholder="5000.00" value={rate} onChange={(e) => setRate(e.target.value)} className="h-8 text-xs font-semibold w-full font-mono" />
+                    <Input type="number" min="0" step="0.1" placeholder="50.0" value={weight} onChange={(e) => setWeight(e.target.value)} className="h-8 text-xs font-semibold w-full font-mono" />
                     <Button type="button" onClick={handleAddItem} className="h-8 text-[10px] bg-slate-800 hover:bg-slate-700 px-3 text-white font-semibold">
                       <Plus className="w-3.5 h-3.5 mr-1" /> Add
                     </Button>
@@ -485,7 +479,7 @@ export function ProductPurchaseForm({
             </div>
           )}
 
-          {department === "lamination" && (
+          {showLaminationFields && (
             <div className="grid grid-cols-3 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-[10px] font-bold text-slate-600">Lamination Type</Label>
@@ -540,15 +534,10 @@ export function ProductPurchaseForm({
                 <Input type="number" min="0" placeholder="1000" value={quantity} onChange={(e) => setQuantity(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
               </div>
 
-              <div className="space-y-1.5">
+              <div className="space-y-1.5 col-span-1">
                 <Label className="text-[10px] font-bold text-slate-600">Weight (KG)</Label>
-                <Input type="number" min="0" step="0.1" placeholder="50.0" value={weight} onChange={(e) => setWeight(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-[10px] font-bold text-slate-600">Rate / Bill Value (₹)</Label>
                 <div className="flex gap-2">
-                  <Input type="number" min="0" step="0.01" placeholder="5000.00" value={rate} onChange={(e) => setRate(e.target.value)} className="h-8 text-xs font-semibold w-full font-mono" />
+                  <Input type="number" min="0" step="0.1" placeholder="50.0" value={weight} onChange={(e) => setWeight(e.target.value)} className="h-8 text-xs font-semibold w-full font-mono" />
                   <Button type="button" onClick={handleAddItem} className="h-8 text-[10px] bg-slate-800 hover:bg-slate-700 px-3 text-white font-semibold">
                     <Plus className="w-3.5 h-3.5 mr-1" /> Add
                   </Button>
@@ -557,7 +546,7 @@ export function ProductPurchaseForm({
             </div>
           )}
 
-          {department === "offset-printing" && (
+          {showOffsetFields && (
             <div className="grid grid-cols-3 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-[10px] font-bold text-slate-600">Offset Type</Label>
@@ -602,15 +591,10 @@ export function ProductPurchaseForm({
                 <Input type="number" min="0" placeholder="1000" value={quantity} onChange={(e) => setQuantity(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
               </div>
 
-              <div className="space-y-1.5">
+              <div className="space-y-1.5 col-span-1">
                 <Label className="text-[10px] font-bold text-slate-600">Weight (KG)</Label>
-                <Input type="number" min="0" step="0.1" placeholder="50.0" value={weight} onChange={(e) => setWeight(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-[10px] font-bold text-slate-600">Rate / Bill Value (₹)</Label>
                 <div className="flex gap-2">
-                  <Input type="number" min="0" step="0.01" placeholder="5000.00" value={rate} onChange={(e) => setRate(e.target.value)} className="h-8 text-xs font-semibold w-full font-mono" />
+                  <Input type="number" min="0" step="0.1" placeholder="50.0" value={weight} onChange={(e) => setWeight(e.target.value)} className="h-8 text-xs font-semibold w-full font-mono" />
                   <Button type="button" onClick={handleAddItem} className="h-8 text-[10px] bg-slate-800 hover:bg-slate-700 px-3 text-white font-semibold">
                     <Plus className="w-3.5 h-3.5 mr-1" /> Add
                   </Button>
@@ -619,7 +603,7 @@ export function ProductPurchaseForm({
             </div>
           )}
 
-          {department === "finishing" && (
+          {showFinishingFields && (
             <div className="grid grid-cols-3 gap-3">
               <div className="space-y-1.5">
                 <Label className="text-[10px] font-bold text-slate-600">Brand / Bag Type</Label>
@@ -654,15 +638,10 @@ export function ProductPurchaseForm({
                 <Input type="number" min="0" placeholder="1000" value={quantity} onChange={(e) => setQuantity(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
               </div>
 
-              <div className="space-y-1.5">
+              <div className="space-y-1.5 col-span-1">
                 <Label className="text-[10px] font-bold text-slate-600">Weight (KG)</Label>
-                <Input type="number" min="0" step="0.1" placeholder="50.0" value={weight} onChange={(e) => setWeight(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-[10px] font-bold text-slate-600">Rate / Bill Value (₹)</Label>
                 <div className="flex gap-2">
-                  <Input type="number" min="0" step="0.01" placeholder="5000.00" value={rate} onChange={(e) => setRate(e.target.value)} className="h-8 text-xs font-semibold w-full font-mono" />
+                  <Input type="number" min="0" step="0.1" placeholder="50.0" value={weight} onChange={(e) => setWeight(e.target.value)} className="h-8 text-xs font-semibold w-full font-mono" />
                   <Button type="button" onClick={handleAddItem} className="h-8 text-[10px] bg-slate-800 hover:bg-slate-700 px-3 text-white font-semibold">
                     <Plus className="w-3.5 h-3.5 mr-1" /> Add
                   </Button>
@@ -699,11 +678,10 @@ export function ProductPurchaseForm({
                     {item.filmType && <div>Film Type: {item.filmType} {item.isMetallic ? "(Metallic)" : ""}</div>}
                   </div>
                   <div className="text-[10px] text-slate-500">
-                    {formatNumber(item.quantity, 0)} {item.department === "finishing" ? "bags" : "mtrs"} / {formatNumber(item.weight, 1)} kg @ total ₹{formatNumber(item.rate, 2)}
+                    {formatNumber(item.quantity, 0)} {item.department === "finishing" ? "bags" : "mtrs"} / {formatNumber(item.weight, 1)} kg
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className="font-bold text-slate-900">₹{formatNumber(item.amount, 2)}</span>
                   <Button type="button" size="icon" variant="ghost" onClick={() => handleRemoveItem(item.key)} className="h-6 w-6 text-rose-500 hover:text-rose-700 hover:bg-rose-50 shadow-none">
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>
@@ -711,18 +689,13 @@ export function ProductPurchaseForm({
               </div>
             ))}
           </div>
-
-          <div className="flex justify-between items-center p-3 bg-emerald-50/50 rounded border border-emerald-100 font-bold text-sm">
-            <span className="text-emerald-950">Grand Total:</span>
-            <span className="text-emerald-950 font-black text-base">₹{formatNumber(totalBillValue, 2)}</span>
-          </div>
         </div>
       )}
 
       {/* Submit */}
       <ConfirmSubmitButton
         confirmTitle="Confirm Product Purchase?"
-        confirmDescription={`Record this purchase entry of ₹${formatNumber(totalBillValue, 2)} and auto-generate stock entries and journal lines.`}
+        confirmDescription={`Record this purchase entry of ₹${formatNumber(Number(manualBillValue) || 0, 2)} and auto-generate stock entries and journal lines.`}
         disabled={items.length === 0}
         className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs h-9"
       >

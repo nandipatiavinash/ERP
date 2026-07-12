@@ -24,6 +24,7 @@ export default async function FinishingProductionPage() {
     { data: availableOffsetRolls },
     { data: todayFinishingEntries },
     activeFabricRolls,
+    { data: finishingProducts },
   ] = await Promise.all([
     supabase
       .from("fabric_types")
@@ -54,6 +55,12 @@ export default async function FinishingProductionPage() {
       .select("fabric_type_id")
       .eq("status", "available")
       .is("deleted_at", null),
+    supabase
+      .from("finishing_products")
+      .select("id, name")
+      .eq("status", "active")
+      .is("deleted_at", null)
+      .order("name"),
   ]);
 
   const availableFabricTypeIds = new Set((activeFabricRolls?.data || []).map((fr: any) => fr.fabric_type_id));
@@ -78,6 +85,7 @@ export default async function FinishingProductionPage() {
             fabricTypes={fabricTypes}
             laminationRolls={laminationRolls}
             offsetRolls={offsetRolls}
+            finishingProducts={finishingProducts ?? []}
             rows={finishingRows}
           />
         </CardContent>
@@ -130,4 +138,3 @@ export default async function FinishingProductionPage() {
     </div>
   );
 }
-

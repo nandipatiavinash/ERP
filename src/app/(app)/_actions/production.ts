@@ -614,6 +614,7 @@ export async function saveFinishingBundle(formData: FormData) {
 
   // bundle_id is the spec ID directly e.g. PLAIN(N-19-3.5)
   const bundleId = specId;
+  const productId = formData.get("product_id") ? String(formData.get("product_id")) : null;
 
   const adminSupabase = createAdminClient();
   const { error: insertError } = await (adminSupabase
@@ -622,7 +623,7 @@ export async function saveFinishingBundle(formData: FormData) {
       bundle_id: bundleId,
       s_no: 1,
       finish_type: finishType,
-      product_id: null,
+      product_id: productId,
       source_lam_roll_id: sourceLamRollId,
       source_fabric_roll_id: null,
       source_offset_roll_id: sourceOffsetRollId,
