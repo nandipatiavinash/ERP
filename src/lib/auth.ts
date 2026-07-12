@@ -14,7 +14,7 @@ export const getSessionUser = cache(async function getSessionUser() {
 
   const { data: profile, error } = await supabase
     .from("users")
-    .select("id, full_name, email, phone, status, role_id, roles(name, is_active, deleted_at)")
+    .select("id, full_name, email, phone, status, role_id, customer_id, roles(name, is_active, deleted_at)")
     .eq("id", user.id)
     .eq("status", "active")
     .is("deleted_at", null)

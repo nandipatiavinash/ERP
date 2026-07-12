@@ -14,6 +14,7 @@ export type AppUser = {
   phone: string | null;
   status: Status;
   role_id: string;
+  customer_id: string | null;
   roles?: { name: RoleName; is_active?: boolean; deleted_at?: string | null } | null;
 };
 
