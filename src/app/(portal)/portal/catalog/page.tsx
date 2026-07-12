@@ -24,7 +24,7 @@ export default async function PortalCatalogPage() {
   // Fetch finishing products: same filter
   const finishingQuery = supabase
     .from("finishing_products")
-    .select("id, name, image_url, description, dimensions, selling_price, customer_id")
+    .select("id, name, image_url, description, dimensions, selling_price, customer_id, fabric_type_id, roto_product_id, offset_product_id, film_type, is_metallic, lamination_type, offset_type")
     .eq("status", "active")
     .is("deleted_at", null)
     .order("name");

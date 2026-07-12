@@ -27,6 +27,15 @@ type FinishingProduct = {
   description?: string | null;
   dimensions?: string | null;
   customer_id?: string | null;
+  
+  // default specs columns
+  fabric_type_id?: string | null;
+  roto_product_id?: string | null;
+  offset_product_id?: string | null;
+  film_type?: string | null;
+  is_metallic?: boolean;
+  lamination_type?: string | null;
+  offset_type?: string | null;
 };
 
 type RotoProduct = { id: string; brand: string };
@@ -67,6 +76,7 @@ function ProductCard({
   price,
   imageUrl,
   isBranded,
+  unit,
   onAddToCart,
 }: {
   name: string;
@@ -74,6 +84,7 @@ function ProductCard({
   price: number;
   imageUrl?: string | null;
   isBranded: boolean;
+  unit: string;
   onAddToCart: () => void;
 }) {
   return (
@@ -99,7 +110,10 @@ function ProductCard({
       </div>
       <div className="p-4 pt-0 border-t border-slate-50 mt-auto flex items-center justify-between">
         {price > 0 ? (
-          <span className="text-xs font-extrabold text-slate-900">₹{Number(price).toLocaleString("en-IN")}</span>
+          <span className="text-xs font-extrabold text-slate-900">
+            ₹{Number(price).toLocaleString("en-IN")}
+            <span className="text-[9px] font-normal text-slate-400">/{unit}</span>
+          </span>
         ) : (
           <span className="text-[10px] text-slate-400 italic">Quote on request</span>
         )}
@@ -128,6 +142,14 @@ export function PortalCatalogView({ fabricTypes, finishingProducts, rotoProducts
     const list: Array<{
       id: string; productId: string; itemType: "fabric" | "finishing";
       name: string; details: string; price: number; isBranded: boolean; unit: string; imageUrl?: string | null;
+      
+      fabricTypeId?: string | null;
+      rotoProductId?: string | null;
+      offsetProductId?: string | null;
+      filmType?: string | null;
+      isMetallic?: boolean;
+      laminationType?: string | null;
+      offsetType?: string | null;
     }> = [];
 
     if (tab === "all" || tab === "fabric") {
@@ -154,6 +176,15 @@ export function PortalCatalogView({ fabricTypes, finishingProducts, rotoProducts
         isBranded: !!p.customer_id,
         unit: "pcs",
         imageUrl: p.image_url,
+        
+        // specs defaults defined by admin
+        fabricTypeId: p.fabric_type_id,
+        rotoProductId: p.roto_product_id,
+        offsetProductId: p.offset_product_id,
+        filmType: p.film_type,
+        isMetallic: p.is_metallic,
+        laminationType: p.lamination_type,
+        offsetType: p.offset_type,
       }));
     }
 
@@ -179,14 +210,14 @@ export function PortalCatalogView({ fabricTypes, finishingProducts, rotoProducts
         unit: p.unit,
         imageUrl: p.imageUrl,
         
-        // Defaults for production specs
-        fabricTypeId: fabricTypes[0]?.id || null, 
-        rotoProductId: rotoProducts[0]?.id || null,
-        offsetProductId: null,
-        filmType: "gloss",
-        isMetallic: false,
-        laminationType: p.itemType === "finishing" ? "PLAIN" : null,
-        offsetType: p.itemType === "finishing" ? "none" : null,
+        // Defaults for production specs (inherit from catalog definition if finishing, else standard fallbacks)
+        fabricTypeId: p.itemType === "finishing" ? (p.fabricTypeId || fabricTypes[0]?.id || null) : null,
+        rotoProductId: p.itemType === "finishing" ? (p.rotoProductId || rotoProducts[0]?.id || null) : null,
+        offsetProductId: p.itemType === "finishing" ? (p.offsetProductId || null) : null,
+        filmType: p.itemType === "finishing" ? (p.filmType || "gloss") : null,
+        isMetallic: p.itemType === "finishing" ? (!!p.isMetallic) : false,
+        laminationType: p.itemType === "finishing" ? (p.laminationType || "PLAIN") : null,
+        offsetType: p.itemType === "finishing" ? (p.offsetType || "none") : null,
       }];
     });
     setCartOpen(true);
@@ -333,6 +364,7 @@ export function PortalCatalogView({ fabricTypes, finishingProducts, rotoProducts
               price={p.price}
               imageUrl={p.imageUrl}
               isBranded={p.isBranded}
+              unit={p.unit}
               onAddToCart={() => handleAddToCart(p)}
             />
           ))}

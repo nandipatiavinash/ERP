@@ -286,6 +286,14 @@ export async function saveCatalogProduct(formData: FormData) {
       const name = String(formData.get("name") ?? "").trim();
       const dimensions = String(formData.get("dimensions") ?? "").trim();
       const description = String(formData.get("description") ?? "").trim();
+      
+      const fabric_type_id = formData.get("fabric_type_id") ? String(formData.get("fabric_type_id")) : null;
+      const roto_product_id = formData.get("roto_product_id") ? String(formData.get("roto_product_id")) : null;
+      const offset_product_id = formData.get("offset_product_id") ? String(formData.get("offset_product_id")) : null;
+      const film_type = formData.get("film_type") ? String(formData.get("film_type")) : null;
+      const is_metallic = formData.get("is_metallic") === "true" || formData.get("is_metallic") === "1";
+      const lamination_type = String(formData.get("lamination_type") ?? "PLAIN");
+      const offset_type = String(formData.get("offset_type") ?? "none");
 
       const payload = {
         name,
@@ -295,6 +303,13 @@ export async function saveCatalogProduct(formData: FormData) {
         image_url: imageUrl || null,
         customer_id,
         status: "active",
+        fabric_type_id,
+        roto_product_id,
+        offset_product_id,
+        film_type,
+        is_metallic,
+        lamination_type,
+        offset_type,
       };
 
       if (id) {

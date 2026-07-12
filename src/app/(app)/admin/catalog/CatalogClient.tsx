@@ -26,15 +26,34 @@ type CatalogItem = {
   image_url?: string | null;
   customer_id?: string | null;
   customers?: { customer_name: string; alias?: string | null } | null;
+
+  // New specs
+  fabric_type_id?: string | null;
+  roto_product_id?: string | null;
+  offset_product_id?: string | null;
+  film_type?: string | null;
+  is_metallic?: boolean;
+  lamination_type?: string | null;
+  offset_type?: string | null;
 };
 
 type CatalogClientProps = {
   initialFabrics: CatalogItem[];
   initialFinishing: CatalogItem[];
   clients: ClientOption[];
+  fabricTypes: { id: string; fabric_name: string }[];
+  rotoProducts: { id: string; brand: string }[];
+  offsetProducts: { id: string; brand: string }[];
 };
 
-export function CatalogClient({ initialFabrics, initialFinishing, clients }: CatalogClientProps) {
+export function CatalogClient({
+  initialFabrics,
+  initialFinishing,
+  clients,
+  fabricTypes,
+  rotoProducts,
+  offsetProducts,
+}: CatalogClientProps) {
   const [tab, setTab] = useState<"fabric" | "finishing">("fabric");
   const [search, setSearch] = useState("");
   const [isPending, startTransition] = useTransition();
@@ -53,6 +72,15 @@ export function CatalogClient({ initialFabrics, initialFinishing, clients }: Cat
   const [prodName, setProdName] = useState("");
   const [dimensions, setDimensions] = useState("");
   const [description, setDescription] = useState("");
+
+  // Finishing Specs default form fields
+  const [fabricTypeId, setFabricTypeId] = useState("");
+  const [laminationType, setLaminationType] = useState("PLAIN");
+  const [offsetType, setOffsetType] = useState("none");
+  const [filmType, setFilmType] = useState("gloss");
+  const [rotoProductId, setRotoProductId] = useState("");
+  const [offsetProductId, setOffsetProductId] = useState("");
+  const [isMetallic, setIsMetallic] = useState(false);
 
   // Shared Fields
   const [sellingPrice, setSellingPrice] = useState("");
@@ -81,6 +109,16 @@ export function CatalogClient({ initialFabrics, initialFinishing, clients }: Cat
     setProdName("");
     setDimensions("");
     setDescription("");
+    
+    // reset specs
+    setFabricTypeId("");
+    setLaminationType("PLAIN");
+    setOffsetType("none");
+    setFilmType("gloss");
+    setRotoProductId("");
+    setOffsetProductId("");
+    setIsMetallic(false);
+
     setSellingPrice("");
     setCustomerId("");
     setImageUrl("");
@@ -104,6 +142,15 @@ export function CatalogClient({ initialFabrics, initialFinishing, clients }: Cat
       setProdName(item.name || "");
       setDimensions(item.dimensions || "");
       setDescription(item.description || "");
+
+      // Populate production default fields
+      setFabricTypeId(item.fabric_type_id || "");
+      setLaminationType(item.lamination_type || "PLAIN");
+      setOffsetType(item.offset_type || "none");
+      setFilmType(item.film_type || "gloss");
+      setRotoProductId(item.roto_product_id || "");
+      setOffsetProductId(item.offset_product_id || "");
+      setIsMetallic(!!item.is_metallic);
     }
     
     setIsOpen(true);
@@ -133,6 +180,9 @@ export function CatalogClient({ initialFabrics, initialFinishing, clients }: Cat
     if (imageFile) {
       formData.set("image_file", imageFile);
     }
+    if (category === "finishing") {
+      formData.set("is_metallic", String(isMetallic));
+    }
 
     startTransition(async () => {
       try {
@@ -148,6 +198,9 @@ export function CatalogClient({ initialFabrics, initialFinishing, clients }: Cat
       }
     });
   };
+
+  const showRotoFields = category === "finishing" && ["BOX", "F_S", "H_S"].includes(laminationType);
+  const showOffsetFields = category === "finishing" && offsetType !== "none" && !!offsetType;
 
   return (
     <div className="space-y-6">
@@ -184,7 +237,10 @@ export function CatalogClient({ initialFabrics, initialFinishing, clients }: Cat
                   <select
                     id="category"
                     value={category}
-                    onChange={(e) => setCategory(e.target.value as any)}
+                    onChange={(e) => {
+                      const newCat = e.target.value as any;
+                      setCategory(newCat);
+                    }}
                     disabled={!!editingId}
                     className="h-10 w-full rounded-md border border-slate-200 bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
                   >
@@ -195,13 +251,15 @@ export function CatalogClient({ initialFabrics, initialFinishing, clients }: Cat
 
                 {/* Selling Price */}
                 <div className="space-y-1.5">
-                  <Label htmlFor="selling_price">Selling Price (INR)</Label>
+                  <Label htmlFor="selling_price">
+                    {category === "fabric" ? "Selling Price (INR per kg)" : "Selling Price (INR per piece)"}
+                  </Label>
                   <Input
                     id="selling_price"
                     name="selling_price"
                     type="number"
                     step="0.01"
-                    placeholder="e.g. 150"
+                    placeholder={category === "fabric" ? "e.g. 150 (per kg)" : "e.g. 5.50 (per piece)"}
                     required
                     value={sellingPrice}
                     onChange={(e) => setSellingPrice(e.target.value)}
@@ -271,29 +329,167 @@ export function CatalogClient({ initialFabrics, initialFinishing, clients }: Cat
                     </div>
                   </div>
                 ) : (
-                  <div className="grid gap-4 md:grid-cols-3">
-                    <div className="space-y-1.5">
-                      <Label htmlFor="name">Product Name / Bag Model</Label>
-                      <Input
-                        id="name"
-                        name="name"
-                        required
-                        placeholder="e.g. W-Cut Bag 30x40"
-                        value={prodName}
-                        onChange={(e) => setProdName(e.target.value)}
-                      />
+                  <div className="space-y-4">
+                    <div className="grid gap-4 md:grid-cols-3">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="name">Product Name / Bag Model</Label>
+                        <Input
+                          id="name"
+                          name="name"
+                          required
+                          placeholder="e.g. W-Cut Bag 30x40"
+                          value={prodName}
+                          onChange={(e) => setProdName(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="dimensions">Dimensions</Label>
+                        <Input
+                          id="dimensions"
+                          name="dimensions"
+                          placeholder="e.g. 10 W x 14 H + 3 G"
+                          value={dimensions}
+                          onChange={(e) => setDimensions(e.target.value)}
+                        />
+                      </div>
                     </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="dimensions">Dimensions</Label>
-                      <Input
-                        id="dimensions"
-                        name="dimensions"
-                        placeholder="e.g. 10 W x 14 H + 3 G"
-                        value={dimensions}
-                        onChange={(e) => setDimensions(e.target.value)}
-                      />
+
+                    {/* Pre-spec default values for production (to copy to orders automatically) */}
+                    <div className="border-t pt-3 space-y-3">
+                      <Label className="text-xs font-bold text-slate-500 uppercase tracking-widest block">Default Production Specs for Client Orders</Label>
+                      
+                      <div className="grid gap-4 md:grid-cols-3">
+                        <div className="space-y-1.5">
+                          <Label htmlFor="fabric_type_id">Default Fabric Material</Label>
+                          <select
+                            id="fabric_type_id"
+                            name="fabric_type_id"
+                            value={fabricTypeId}
+                            onChange={(e) => setFabricTypeId(e.target.value)}
+                            className="h-10 w-full rounded-md border border-slate-200 bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
+                          >
+                            <option value="">Select fabric...</option>
+                            {fabricTypes.map(f => (
+                              <option key={f.id} value={f.id}>{f.fabric_name}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <Label htmlFor="lamination_type">Default Lamination Type</Label>
+                          <select
+                            id="lamination_type"
+                            name="lamination_type"
+                            value={laminationType}
+                            onChange={(e) => {
+                              setLaminationType(e.target.value);
+                              if (e.target.value !== "PLAIN" && e.target.value !== "NW") {
+                                setOffsetType("none");
+                              }
+                            }}
+                            className="h-10 w-full rounded-md border border-slate-200 bg-background px-3 text-sm focus:outline-none"
+                          >
+                            <option value="PLAIN">PLAIN</option>
+                            <option value="NW">NW</option>
+                            <option value="BOX">BOX</option>
+                            <option value="F_S">F/S</option>
+                            <option value="H_S">H/S</option>
+                          </select>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <Label htmlFor="offset_type">Default Offset Type</Label>
+                          <select
+                            id="offset_type"
+                            name="offset_type"
+                            value={offsetType}
+                            onChange={(e) => {
+                              setOffsetType(e.target.value);
+                              if (e.target.value !== "none") {
+                                setLaminationType("PLAIN");
+                              }
+                            }}
+                            className="h-10 w-full rounded-md border border-slate-200 bg-background px-3 text-sm focus:outline-none"
+                          >
+                            <option value="none">None</option>
+                            <option value="FABRIC">Fabric</option>
+                            <option value="NW">NW</option>
+                            <option value="NW_LAM">NW_LAM</option>
+                            <option value="PLAIN_LAM">PLAIN_LAM</option>
+                          </select>
+                        </div>
+
+                        {showRotoFields && (
+                          <div className="space-y-1.5">
+                            <Label htmlFor="film_type">Default Film Type</Label>
+                            <select
+                              id="film_type"
+                              name="film_type"
+                              value={filmType}
+                              onChange={(e) => setFilmType(e.target.value)}
+                              className="h-10 w-full rounded-md border border-slate-200 bg-background px-3 text-sm focus:outline-none"
+                            >
+                              <option value="gloss">Gloss</option>
+                              <option value="matt">Matt</option>
+                            </select>
+                          </div>
+                        )}
+
+                        {showRotoFields && (
+                          <div className="space-y-1.5">
+                            <Label htmlFor="roto_product_id">Default Roto Brand</Label>
+                            <select
+                              id="roto_product_id"
+                              name="roto_product_id"
+                              value={rotoProductId}
+                              onChange={(e) => setRotoProductId(e.target.value)}
+                              className="h-10 w-full rounded-md border border-slate-200 bg-background px-3 text-sm focus:outline-none"
+                            >
+                              <option value="">Select brand...</option>
+                              {rotoProducts.map(rp => (
+                                <option key={rp.id} value={rp.id}>{rp.brand}</option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
+
+                        {showOffsetFields && (
+                          <div className="space-y-1.5">
+                            <Label htmlFor="offset_product_id">Default Offset Brand</Label>
+                            <select
+                              id="offset_product_id"
+                              name="offset_product_id"
+                              value={offsetProductId}
+                              onChange={(e) => setOffsetProductId(e.target.value)}
+                              className="h-10 w-full rounded-md border border-slate-200 bg-background px-3 text-sm focus:outline-none"
+                            >
+                              <option value="">Select brand...</option>
+                              {offsetProducts.map(op => (
+                                <option key={op.id} value={op.id}>{op.brand}</option>
+                              ))}
+                            </select>
+                          </div>
+                        )}
+
+                        {showRotoFields && (
+                          <div className="flex items-center gap-2 pt-8">
+                            <input
+                              type="checkbox"
+                              id="is_metallic"
+                              name="is_metallic"
+                              checked={isMetallic}
+                              onChange={(e) => setIsMetallic(e.target.checked)}
+                              className="h-4.5 w-4.5 rounded border-slate-200 text-primary focus:ring-primary/20"
+                            />
+                            <Label htmlFor="is_metallic" className="cursor-pointer select-none">
+                              Is Metallic Brand
+                            </Label>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    <div className="space-y-1.5 md:col-span-3">
+
+                    <div className="space-y-1.5">
                       <Label htmlFor="description">Product Description / Technical Info</Label>
                       <textarea
                         id="description"
@@ -425,6 +621,9 @@ export function CatalogClient({ initialFabrics, initialFinishing, clients }: Cat
                       </TableCell>
                       <TableCell className="font-semibold text-emerald-700">
                         ₹{Number(item.selling_price).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                        <span className="text-[10px] text-slate-400 font-normal ml-1">
+                          {item.type === "fabric" ? "/kg" : "/pc"}
+                        </span>
                       </TableCell>
                       <TableCell>
                         {item.customer_id ? (
