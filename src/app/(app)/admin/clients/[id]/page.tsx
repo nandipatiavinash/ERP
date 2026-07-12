@@ -16,7 +16,7 @@ export default async function ClientProfilePage({
 
   // Fetch customer details
   const { data: customer, error } = await (supabase.from("customers") as any)
-    .select("id, customer_name, alias, phone, gst_number, address, status, customer_code, opening_debit, opening_credit")
+    .select("id, customer_name, alias, phone, gst_number, address, status, opening_debit, opening_credit")
     .eq("id", id)
     .single();
 
@@ -69,11 +69,6 @@ export default async function ClientProfilePage({
                 <p className="text-sm text-slate-400 font-medium mt-0.5">{customer.alias}</p>
               )}
               <div className="flex flex-wrap gap-3 mt-2">
-                {customer.customer_code && (
-                  <span className="inline-flex items-center gap-1 text-[11px] text-slate-500">
-                    <Hash className="h-3 w-3" /> {customer.customer_code}
-                  </span>
-                )}
                 {customer.phone && (
                   <span className="inline-flex items-center gap-1 text-[11px] text-slate-500">
                     <Phone className="h-3 w-3" /> {customer.phone}

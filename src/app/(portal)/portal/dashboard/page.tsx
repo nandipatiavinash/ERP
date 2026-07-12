@@ -36,12 +36,12 @@ export default async function PortalDashboardPage({
   let customerCode = "";
   if (customerId) {
     const { data: cust } = await (supabase.from("customers") as any)
-      .select("customer_name, customer_code")
+      .select("customer_name, alias")
       .eq("id", customerId)
       .single();
     if (cust) {
       customerName = cust.customer_name;
-      customerCode = cust.customer_code ?? "";
+      customerCode = cust.alias ?? "";
     }
   } else if (user.roles?.name === "admin") {
     customerName = "Admin Preview";
