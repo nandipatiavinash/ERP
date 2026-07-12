@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { PortalCatalogView } from "./PortalCatalogView";
+import { BrandLogo } from "@/components/app/brand-logo";
 
 export default async function PortalCatalogPage() {
   const user = await getSessionUser();
@@ -50,21 +51,26 @@ export default async function PortalCatalogPage() {
   const finishingProducts = filterProducts(allFinishing ?? []);
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-slate-50/50">
       {/* Header */}
-      <header className="border-b border-white/10 bg-white/5 backdrop-blur-sm sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex items-center gap-4">
-          <Link
-            href={"/portal/dashboard" as any}
-            className="flex items-center gap-1.5 text-slate-400 hover:text-white text-xs font-medium transition-colors"
-          >
-            <ArrowLeft className="h-3.5 w-3.5" />
-            Back to Dashboard
-          </Link>
-          <div className="h-4 w-px bg-white/10" />
-          <div>
-            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">RK Global — Client Portal</p>
-            <h1 className="text-sm font-bold text-white">Product Catalog</h1>
+      <header className="border-b border-slate-200/80 bg-white/80 backdrop-blur-md sticky top-0 z-10">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <Link
+              href={"/portal/dashboard" as any}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-500 hover:text-slate-800 text-xs font-semibold transition-all"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" />
+              Back
+            </Link>
+            <div className="h-8 w-px bg-slate-200" />
+            <div className="h-9 w-9 flex items-center justify-center rounded-xl bg-slate-50 border border-slate-100 p-1">
+              <BrandLogo className="h-7 w-7" />
+            </div>
+            <div>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">RK Global — Portal</p>
+              <h1 className="text-xs font-bold text-slate-800">Product Catalog</h1>
+            </div>
           </div>
         </div>
       </header>
