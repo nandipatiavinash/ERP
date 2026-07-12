@@ -10,6 +10,7 @@ import * as rawMaterials from "./_actions/raw-materials";
 import * as products from "./_actions/products";
 import * as journal from "./_actions/journal";
 import * as accounts from "./_actions/accounts";
+import * as clientOrders from "./_actions/client-orders";
 
 // Master Actions
 export async function saveMaster(moduleKey: string, formData: FormData) {
@@ -212,6 +213,12 @@ export async function saveOffsetProduct(formData: FormData) {
 export async function deactivateOffsetProduct(formData: FormData) {
   return products.deactivateOffsetProduct(formData);
 }
+export async function saveCatalogProduct(formData: FormData) {
+  return products.saveCatalogProduct(formData);
+}
+export async function deleteCatalogProduct(id: string, category: string) {
+  return products.deleteCatalogProduct(id, category);
+}
 
 // Journal Actions
 export async function saveJournalEntry(formData: FormData) {
@@ -245,5 +252,13 @@ export async function saveProfitLoss(
 }
 export async function clearSystemTransactions() {
   return accounts.clearSystemTransactions();
+}
+
+export async function approveClientOrder(clientOrderId: string) {
+  return clientOrders.approveClientOrder(clientOrderId);
+}
+
+export async function cancelClientOrder(clientOrderId: string) {
+  return clientOrders.cancelClientOrder(clientOrderId);
 }
 

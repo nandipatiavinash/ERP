@@ -28,9 +28,11 @@ export default async function PortalCatalogPage() {
     .is("deleted_at", null)
     .order("name");
 
-  const [{ data: allFabrics }, { data: allFinishing }] = await Promise.all([
+  const [{ data: allFabrics }, { data: allFinishing }, { data: rotoProds }, { data: offsetProds }] = await Promise.all([
     fabricQuery,
     finishingQuery,
+    supabase.from("roto_products").select("id, brand, status").eq("status", "active"),
+    supabase.from("offset_products").select("id, brand, status").eq("status", "active"),
   ]);
 
   // Filter: show general (no customer) OR matching the client's customer_id
@@ -77,6 +79,8 @@ export default async function PortalCatalogPage() {
           <PortalCatalogView
             fabricTypes={fabricTypes}
             finishingProducts={finishingProducts}
+            rotoProducts={rotoProds ?? []}
+            offsetProducts={offsetProds ?? []}
             customerId={customerId ?? null}
           />
         )}

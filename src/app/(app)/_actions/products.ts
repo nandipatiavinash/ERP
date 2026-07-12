@@ -217,3 +217,109 @@ export async function deactivateOffsetProduct(formData: FormData) {
   if (error) throw new Error(error.message);
   revalidatePath("/admin/products");
 }
+
+export async function saveCatalogProduct(formData: FormData) {
+  await requirePermission("admin.products");
+  const id = String(formData.get("id") ?? "");
+  const category = String(formData.get("category") ?? "fabric"); // "fabric" or "finishing"
+  const customerIdVal = String(formData.get("customer_id") ?? "").trim();
+  const customer_id = (customerIdVal === "" || customerIdVal === "general") ? null : customerIdVal;
+  const selling_price = Number(formData.get("selling_price") ?? 0);
+  const file = formData.get("image_file") as File | null;
+
+  const supabase = await createClient();
+  const adminSupabase = createAdminClient();
+
+  let imageUrl = String(formData.get("image_url") ?? "");
+
+  const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/jpg", "image/png", "image/webp", "image/gif"]);
+  const ALLOWED_IMAGE_EXTS = new Set(["jpg", "jpeg", "png", "webp", "gif"]);
+  const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB
+
+  if (file && file.size > 0) {
+    if (file.size > MAX_FILE_SIZE) throw new Error("Image file must be 5 MB or smaller.");
+    if (!ALLOWED_IMAGE_TYPES.has(file.type)) throw new Error("Only JPEG, PNG, WebP, or GIF images are allowed.");
+    const fileExt = (file.name.split(".").pop() ?? "").toLowerCase();
+    if (!ALLOWED_IMAGE_EXTS.has(fileExt)) throw new Error("Invalid image file extension.");
+    const fileName = `${crypto.randomUUID()}.${fileExt}`;
+    const filePath = `catalog/${fileName}`;
+
+    await adminSupabase.storage.createBucket("products", { public: true }).catch(() => {});
+
+    const { error: uploadError } = await adminSupabase.storage
+      .from("products")
+      .upload(filePath, file, { cacheControl: "3600", upsert: true });
+
+    if (uploadError) throw new Error(`Image upload failed: ${uploadError.message}`);
+
+    const { data } = adminSupabase.storage
+      .from("products")
+      .getPublicUrl(filePath);
+
+    imageUrl = data.publicUrl;
+  }
+
+  if (category === "fabric") {
+    const fabric_name = String(formData.get("fabric_name") ?? "").trim();
+    const gsm = String(formData.get("gsm") ?? "").trim();
+    const width = String(formData.get("width") ?? "").trim();
+    
+    const payload = {
+      fabric_name,
+      gsm,
+      width,
+      selling_price: String(selling_price),
+      image_url: imageUrl || null,
+      customer_id,
+      status: "active",
+    };
+
+    if (id) {
+      const { error } = await (supabase.from("fabric_types") as any).update(payload).eq("id", id);
+      if (error) throw new Error(error.message);
+    } else {
+      const { error } = await (supabase.from("fabric_types") as any).insert(payload);
+      if (error) throw new Error(error.message);
+    }
+  } else {
+    const name = String(formData.get("name") ?? "").trim();
+    const dimensions = String(formData.get("dimensions") ?? "").trim();
+    const description = String(formData.get("description") ?? "").trim();
+
+    const payload = {
+      name,
+      dimensions,
+      description,
+      selling_price: selling_price,
+      image_url: imageUrl || null,
+      customer_id,
+      status: "active",
+    };
+
+    if (id) {
+      const { error } = await (supabase.from("finishing_products") as any).update(payload).eq("id", id);
+      if (error) throw new Error(error.message);
+    } else {
+      const { error } = await (supabase.from("finishing_products") as any).insert(payload);
+      if (error) throw new Error(error.message);
+    }
+  }
+
+  revalidatePath("/admin/catalog");
+  revalidatePath("/portal/catalog");
+}
+
+export async function deleteCatalogProduct(id: string, category: string) {
+  await requirePermission("admin.products");
+  const supabase = await createClient();
+
+  const table = category === "fabric" ? "fabric_types" : "finishing_products";
+  
+  const { error } = await (supabase.from(table) as any)
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", id);
+
+  if (error) throw new Error(error.message);
+  revalidatePath("/admin/catalog");
+  revalidatePath("/portal/catalog");
+}

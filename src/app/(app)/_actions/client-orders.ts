@@ -10,6 +10,15 @@ export type ClientOrderItemPayload = {
   quantity: number;
   unitPrice: number;
   unit: string;
+
+  // Custom production fields
+  fabricTypeId?: string | null;
+  rotoProductId?: string | null;
+  offsetProductId?: string | null;
+  filmType?: string | null;
+  isMetallic?: boolean;
+  laminationType?: string | null;
+  offsetType?: string | null;
 };
 
 export async function createClientOrder(items: ClientOrderItemPayload[]) {
@@ -58,11 +67,19 @@ export async function createClientOrder(items: ClientOrderItemPayload[]) {
   const itemsPayload = items.map((item) => ({
     order_id: order.id,
     item_type: item.itemType,
-    fabric_type_id: item.itemType === "fabric" ? item.productId : null,
+    fabric_type_id: item.itemType === "fabric" ? item.productId : item.fabricTypeId,
     finishing_product_id: item.itemType === "finishing" ? item.productId : null,
     quantity: item.quantity,
     unit: item.unit,
     unit_price: item.unitPrice,
+
+    // Production fields
+    roto_product_id: item.rotoProductId || null,
+    offset_product_id: item.offsetProductId || null,
+    film_type: item.filmType || null,
+    is_metallic: !!item.isMetallic,
+    lamination_type: item.laminationType || null,
+    offset_type: item.offsetType || null,
   }));
 
   const { error: itemsErr } = await (admin
@@ -73,4 +90,103 @@ export async function createClientOrder(items: ClientOrderItemPayload[]) {
 
   revalidatePath("/portal/dashboard");
   return { orderNumber };
+}
+
+export async function approveClientOrder(clientOrderId: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const admin = createAdminClient();
+
+  // 1. Fetch client order header & items
+  const { data: order, error: orderErr } = await admin
+    .from("client_orders")
+    .select("*, client_order_items(*)")
+    .eq("id", clientOrderId)
+    .single() as any;
+
+  if (orderErr || !order) throw new Error("Client order not found.");
+  if (order.status !== "pending") throw new Error("Order is already processed.");
+
+  const orderDate = new Date().toISOString().split("T")[0];
+
+  // 2. Generate ERP Order Number
+  let orderNumber = "";
+  const { data: orderNumberData, error: orderNumberErr } = await (admin as any).rpc("get_next_order_no", { p_order_date: orderDate });
+  if (!orderNumberErr && orderNumberData) {
+    orderNumber = String(orderNumberData);
+  } else {
+    orderNumber = `CL-${Date.now()}`;
+  }
+
+  // 3. Insert into sales_orders (ERP core table) as draft
+  const { data: salesOrder, error: salesOrderErr } = await (admin
+    .from("sales_orders") as any)
+    .insert({
+      customer_id: order.customer_id,
+      order_date: orderDate,
+      order_number: orderNumber,
+      status: "draft",
+      created_by: user.id,
+      updated_by: user.id
+    })
+    .select("id")
+    .single() as any;
+
+  if (salesOrderErr) throw new Error(`Failed to create ERP order: ${salesOrderErr.message}`);
+
+  // 4. Insert items into sales_order_items
+  const itemsPayload = order.client_order_items.map((item: any) => ({
+    sales_order_id: salesOrder.id,
+    department: item.item_type === "fabric" ? "fabric" : "finishing",
+    product_id: item.item_type === "fabric" ? item.fabric_type_id : item.finishing_product_id,
+    quantity: Number(item.quantity),
+    fabric_type_id: item.fabric_type_id || null,
+    roto_product_id: item.roto_product_id || null,
+    offset_product_id: item.offset_product_id || null,
+    film_type: item.film_type || null,
+    is_metallic: !!item.is_metallic,
+    lamination_type: item.lamination_type || null,
+    offset_type: item.offset_type || null,
+  }));
+
+  const { error: itemsErr } = await (admin
+    .from("sales_order_items") as any)
+    .insert(itemsPayload);
+
+  if (itemsErr) {
+    await (admin.from("sales_orders") as any).delete().eq("id", salesOrder.id);
+    throw new Error(`Failed to create ERP order items: ${itemsErr.message}`);
+  }
+
+  // 5. Update client_orders status to confirmed
+  const { error: updateErr } = await (admin
+    .from("client_orders") as any)
+    .update({ status: "confirmed" })
+    .eq("id", clientOrderId);
+
+  if (updateErr) throw new Error(`Failed to update client order status: ${updateErr.message}`);
+
+  revalidatePath("/sales/client-orders");
+  revalidatePath("/sales/order-confirmation");
+  revalidatePath("/portal/dashboard");
+}
+
+export async function cancelClientOrder(clientOrderId: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const admin = createAdminClient();
+
+  const { error: updateErr } = await (admin
+    .from("client_orders") as any)
+    .update({ status: "cancelled" })
+    .eq("id", clientOrderId);
+
+  if (updateErr) throw new Error(`Failed to cancel client order: ${updateErr.message}`);
+
+  revalidatePath("/sales/client-orders");
+  revalidatePath("/portal/dashboard");
 }
