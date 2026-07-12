@@ -21,12 +21,32 @@ ALTER TABLE public.finishing_products
   ADD COLUMN IF NOT EXISTS description TEXT,
   ADD COLUMN IF NOT EXISTS dimensions TEXT;
 
--- 5. Row Level Security (RLS) Policies for Client Isolation
+-- 5. Helper function to check if the current user is an internal staff member (not a client)
+CREATE OR REPLACE FUNCTION public.is_internal_staff()
+RETURNS boolean
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.users u
+    JOIN public.roles r ON r.id = u.role_id
+    WHERE u.id = auth.uid()
+      AND r.name != 'client'
+      AND u.status = 'active'
+      AND u.deleted_at IS NULL
+      AND r.is_active = true
+      AND r.deleted_at IS NULL
+  )
+$$;
+
+-- 6. Row Level Security (RLS) Policies for Client Isolation
 -- Clients can only read their own user record
 DROP POLICY IF EXISTS "client_read_self" ON public.users;
 CREATE POLICY "client_read_self" ON public.users
   FOR SELECT TO authenticated
-  USING (id = auth.uid() OR role_id IN (SELECT id FROM public.roles WHERE name IN ('admin', 'operator')));
+  USING (id = auth.uid() OR public.is_internal_staff());
 
 -- Clients can only read/write their own sales orders
 DROP POLICY IF EXISTS "client_sales_orders_policy" ON public.sales_orders;
@@ -55,7 +75,7 @@ CREATE POLICY "fabric_types_read_policy" ON public.fabric_types
   USING (
     customer_id IS NULL
     OR customer_id = (SELECT customer_id FROM public.users WHERE id = auth.uid())
-    OR (SELECT r.name FROM public.users u JOIN public.roles r ON u.role_id = r.id WHERE u.id = auth.uid()) IN ('admin', 'operator')
+    OR public.is_internal_staff()
   );
 
 -- Clients can only read finishing products that are General or belong to them
@@ -65,5 +85,5 @@ CREATE POLICY "finishing_products_read_policy" ON public.finishing_products
   USING (
     customer_id IS NULL
     OR customer_id = (SELECT customer_id FROM public.users WHERE id = auth.uid())
-    OR (SELECT r.name FROM public.users u JOIN public.roles r ON u.role_id = r.id WHERE u.id = auth.uid()) IN ('admin', 'operator')
+    OR public.is_internal_staff()
   );
