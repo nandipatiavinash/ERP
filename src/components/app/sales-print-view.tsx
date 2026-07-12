@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, Fragment } from "react";
+import { useMemo } from "react";
 import { Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatNumber, formatDate } from "@/lib/utils";
@@ -50,22 +50,35 @@ export function SalesPrintView({ order, rollsByProduct }: SalesPrintViewProps) {
     return sorted;
   }, [productKeys, rollsByProduct]);
 
-  // Compute Grand Totals
-  const { grandTotalNetWeight, grandTotalMeters, grandTotalRolls } = useMemo(() => {
+  // Compute Grand Totals & Flatten Rows for Single Table
+  const { tableRows, grandTotalNetWeight, grandTotalMeters, grandTotalRolls } = useMemo(() => {
     let netWeight = 0;
     let meters = 0;
     let rollsCount = 0;
+    const rows: Array<{
+      productKey: string;
+      roll: any;
+      isFirstOfProduct: boolean;
+      productRollsCount: number;
+    }> = [];
 
     for (const productKey of productKeys) {
       const rolls = sortedRollsByProduct[productKey] || [];
-      rolls.forEach((roll) => {
+      rolls.forEach((roll, idx) => {
         netWeight += roll.net_weight;
         meters += roll.net_meters;
+        rows.push({
+          productKey,
+          roll,
+          isFirstOfProduct: idx === 0,
+          productRollsCount: rolls.length,
+        });
       });
       rollsCount += rolls.length;
     }
 
     return {
+      tableRows: rows,
       grandTotalNetWeight: netWeight,
       grandTotalMeters: meters,
       grandTotalRolls: rollsCount,
@@ -144,8 +157,8 @@ export function SalesPrintView({ order, rollsByProduct }: SalesPrintViewProps) {
           </div>
         </div>
 
-        {/* ── Consolidated Product Table with Individual Subtotals ── */}
-        {productKeys.length > 0 ? (
+        {/* ── Consolidated Product Table ── */}
+        {tableRows.length > 0 ? (
           <div className="mb-6 overflow-x-auto">
             <table className="w-full border-collapse text-xs border border-gray-200">
               <thead>
@@ -160,70 +173,44 @@ export function SalesPrintView({ order, rollsByProduct }: SalesPrintViewProps) {
                 </tr>
               </thead>
               <tbody>
-                {productKeys.map((productKey) => {
-                  const rolls = sortedRollsByProduct[productKey] || [];
-                  const subtotalNetWeight = rolls.reduce((s, r) => s + r.net_weight, 0);
-                  const subtotalMeters = rolls.reduce((s, r) => s + r.net_meters, 0);
-                  const rollsCount = rolls.length;
-
-                  return (
-                    <Fragment key={productKey}>
-                      {rolls.map((roll, idx) => (
-                        <tr
-                          key={roll.roll_number}
-                          className={idx % 2 === 0 ? "bg-white" : "bg-gray-50/60"}
-                        >
-                          {idx === 0 && (
-                            <td
-                              rowSpan={rollsCount + 1}
-                              className="border border-gray-200 px-3 py-2 font-bold uppercase text-gray-800 align-middle bg-gray-50/10"
-                            >
-                              {productKey}
-                            </td>
-                          )}
-                          <td className="border border-gray-200 px-3 py-1.5 text-center text-gray-600 font-mono">
-                            {roll.roll_number}
-                          </td>
-                          <td className="border border-gray-200 px-3 py-1.5 text-right tabular-nums">
-                            {formatNumber(roll.gross_weight)}
-                          </td>
-                          <td className="border border-gray-200 px-3 py-1.5 text-right tabular-nums">
-                            {formatNumber(roll.core_weight)}
-                          </td>
-                          <td className="border border-gray-200 px-3 py-1.5 text-right tabular-nums font-semibold">
-                            {formatNumber(roll.net_weight)}
-                          </td>
-                          <td className="border border-gray-200 px-3 py-1.5 text-right tabular-nums">
-                            {formatNumber(Math.floor(roll.net_meters), 0)}
-                          </td>
-                          <td className="border border-gray-200 px-3 py-1.5 text-right tabular-nums">
-                            {formatNumber(Math.floor(roll.average_meter_weight), 0)}
-                          </td>
-                        </tr>
-                      ))}
-                      {/* Subtotal row for this product spec */}
-                      <tr className="bg-gray-100/50 font-bold border-b border-gray-300">
-                        <td className="border border-gray-200 px-3 py-2 text-right text-gray-700">
-                          Total ({rollsCount} Rolls)
-                        </td>
-                        <td className="border border-gray-200 px-3 py-2" />
-                        <td className="border border-gray-200 px-3 py-2" />
-                        <td className="border border-gray-200 px-3 py-2 text-right tabular-nums text-slate-800">
-                          {formatNumber(subtotalNetWeight)} kg
-                        </td>
-                        <td className="border border-gray-200 px-3 py-2 text-right tabular-nums text-slate-800">
-                          {formatNumber(Math.floor(subtotalMeters), 0)} m
-                        </td>
-                        <td className="border border-gray-200 px-3 py-2" />
-                      </tr>
-                    </Fragment>
-                  );
-                })}
+                {tableRows.map(({ productKey, roll, isFirstOfProduct, productRollsCount }, idx) => (
+                  <tr
+                    key={roll.roll_number}
+                    className={idx % 2 === 0 ? "bg-white" : "bg-gray-50/60"}
+                  >
+                    {isFirstOfProduct && (
+                      <td
+                        rowSpan={productRollsCount}
+                        className="border border-gray-200 px-3 py-2 font-bold uppercase text-gray-800 align-middle bg-gray-50/10"
+                      >
+                        {productKey}
+                      </td>
+                    )}
+                    <td className="border border-gray-200 px-3 py-1.5 text-center text-gray-600 font-mono">
+                      {roll.roll_number}
+                    </td>
+                    <td className="border border-gray-200 px-3 py-1.5 text-right tabular-nums">
+                      {formatNumber(roll.gross_weight)}
+                    </td>
+                    <td className="border border-gray-200 px-3 py-1.5 text-right tabular-nums">
+                      {formatNumber(roll.core_weight)}
+                    </td>
+                    <td className="border border-gray-200 px-3 py-1.5 text-right tabular-nums font-semibold">
+                      {formatNumber(roll.net_weight)}
+                    </td>
+                    <td className="border border-gray-200 px-3 py-1.5 text-right tabular-nums">
+                      {formatNumber(Math.floor(roll.net_meters), 0)}
+                    </td>
+                    <td className="border border-gray-200 px-3 py-1.5 text-right tabular-nums">
+                      {formatNumber(Math.floor(roll.average_meter_weight), 0)}
+                    </td>
+                  </tr>
+                ))}
               </tbody>
               <tfoot>
-                <tr className="border-t-2 border-gray-400 bg-gray-200 font-bold text-sm">
+                <tr className="border-t-2 border-gray-400 bg-gray-100 font-bold">
                   <td
-                    className="border border-gray-200 px-3 py-2 text-right uppercase tracking-wide text-gray-800"
+                    className="border border-gray-200 px-3 py-2 text-right uppercase tracking-wide text-gray-700"
                     colSpan={2}
                   >
                     Grand Total ({grandTotalRolls} Rolls)
@@ -233,7 +220,7 @@ export function SalesPrintView({ order, rollsByProduct }: SalesPrintViewProps) {
                   <td className="border border-gray-200 px-3 py-2 text-right tabular-nums text-emerald-950">
                     {formatNumber(grandTotalNetWeight)} kg
                   </td>
-                  <td className="border border-gray-200 px-3 py-2 text-right tabular-nums text-emerald-950">
+                  <td className="border border-gray-200 px-3 py-2 text-right tabular-nums">
                     {formatNumber(Math.floor(grandTotalMeters), 0)} m
                   </td>
                   <td className="border border-gray-200 px-3 py-2" />

@@ -52,7 +52,7 @@ interface SalesConfirmationReportClientProps {
   offsetProducts: Array<{ id: string; brand: string; width: number; height: number }>;
   laminationProducts?: Array<{ id: string; name: string }>;
   finishingProducts?: Array<{ id: string; name: string }>;
-  rolls: Array<{ id: string; weight: number }>;
+  rolls: Array<{ id: string; weight: number; count?: number }>;
   permissions?: string[];
 }
 
@@ -232,9 +232,12 @@ export function SalesConfirmationReportClient({
   };
 
   const getItemQuantity = (item: OrderItem) => {
-    if (item.department === "fabric") {
-      const selectedIds = item.selected_roll_ids || [];
-      const itemRolls = rolls.filter((r) => selectedIds.includes(r.id));
+    const selectedIds = item.selected_roll_ids || [];
+    const itemRolls = rolls.filter((r) => selectedIds.includes(r.id));
+    if (itemRolls.length > 0) {
+      if (item.department === "finishing") {
+        return itemRolls.reduce((sum, r) => sum + Number((r as any).count || 0), 0);
+      }
       return itemRolls.reduce((sum, r) => sum + Number(r.weight || 0), 0);
     }
     return Number(item.quantity || 0);
@@ -243,7 +246,7 @@ export function SalesConfirmationReportClient({
   const getItemUnit = (item: OrderItem) => {
     if (item.department === "fabric") return "kg";
     if (item.department === "finishing") return "bags";
-    return "pcs";
+    return "kg";
   };
 
   const handlePriceChange = (itemId: string, val: string) => {
@@ -373,11 +376,15 @@ export function SalesConfirmationReportClient({
               const qty = Number(getItemQuantity(item));
               const price = Number(prices[item.id] ?? 0);
               const amount = qty * price;
+              const selectedIds = item.selected_roll_ids || [];
+              const itemRolls = rolls.filter((r) => selectedIds.includes(r.id));
+              const deliveredWeight = itemRolls.reduce((sum, r) => sum + Number(r.weight || 0), 0);
               return {
                 ...item,
                 qty,
                 price,
                 amount,
+                deliveredWeight,
                 unit: getItemUnit(item),
                 resolvedName: getProductName(item.department, item.product_id),
               };
@@ -475,7 +482,20 @@ export function SalesConfirmationReportClient({
                                 {item.resolvedName}
                               </TableCell>
                               <TableCell className="text-xs text-right font-medium">
-                                {formatNumber(item.qty, 0)} <span className="text-[10px] text-muted-foreground font-normal">{item.unit}</span>
+                                {item.department === "finishing" ? (
+                                  <>
+                                    {formatNumber(item.qty, 0)} <span className="text-[10px] text-muted-foreground font-normal">bags</span>
+                                    {item.deliveredWeight > 0 && (
+                                      <span className="text-[10px] text-muted-foreground ml-1.5 font-normal">
+                                        ({formatNumber(item.deliveredWeight, 2)} kg)
+                                      </span>
+                                    )}
+                                  </>
+                                ) : (
+                                  <>
+                                    {formatNumber(item.qty, 2)} <span className="text-[10px] text-muted-foreground font-normal">{item.unit}</span>
+                                  </>
+                                )}
                               </TableCell>
                               <TableCell className="text-right">
                                 {isConfirmed && !isEditing ? (

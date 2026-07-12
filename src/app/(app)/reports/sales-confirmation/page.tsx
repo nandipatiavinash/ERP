@@ -88,16 +88,37 @@ export default async function SalesConfirmationReportPage({
     for (let i = 0; i < uniqueRollIds.length; i += 200) {
       chunks.push(uniqueRollIds.slice(i, i + 200));
     }
-    const results = await Promise.all(
-      chunks.map(chunk =>
-          supabase
-            .from("fabric_rolls")
-            .select("id, weight")
-            .in("id", chunk)
-            .is("deleted_at", null)
-        )
-    );
-    rolls = results.flatMap(res => res.data ?? []);
+    const [
+      fabricRes,
+      lamRes,
+      offsetRes,
+      finishingRes,
+      rotoFilmRes,
+      rotoMetRes
+    ] = await Promise.all([
+      Promise.all(chunks.map(chunk => supabase.from("fabric_rolls").select("id, weight, meters").in("id", chunk).is("deleted_at", null))),
+      Promise.all(chunks.map(chunk => supabase.from("lamination_rolls").select("id, weight_kg, meters").in("id", chunk).is("deleted_at", null))),
+      Promise.all(chunks.map(chunk => supabase.from("offset_rolls").select("id, weight_kg, meters").in("id", chunk).is("deleted_at", null))),
+      Promise.all(chunks.map(chunk => supabase.from("finishing_bundles").select("id, weight_kg, num_bags").in("id", chunk).is("deleted_at", null))),
+      Promise.all(chunks.map(chunk => supabase.from("roto_film_rolls").select("id, weight_kg, meters").in("id", chunk).is("deleted_at", null))),
+      Promise.all(chunks.map(chunk => supabase.from("roto_metallic_rolls").select("id, weight_kg, meters").in("id", chunk).is("deleted_at", null)))
+    ]);
+
+    const fabricRolls = fabricRes.flatMap(res => (res.data ?? []) as any[]).map(r => ({ id: r.id, weight: Number(r.weight || 0), count: Number(r.meters || 0) }));
+    const lamRolls = lamRes.flatMap(res => (res.data ?? []) as any[]).map(r => ({ id: r.id, weight: Number(r.weight_kg || 0), count: Number(r.meters || 0) }));
+    const offsetRolls = offsetRes.flatMap(res => (res.data ?? []) as any[]).map(r => ({ id: r.id, weight: Number(r.weight_kg || 0), count: Number(r.meters || 0) }));
+    const finishingRolls = finishingRes.flatMap(res => (res.data ?? []) as any[]).map(r => ({ id: r.id, weight: Number(r.weight_kg || 0), count: Number(r.num_bags || 0) }));
+    const rotoFilmRolls = rotoFilmRes.flatMap(res => (res.data ?? []) as any[]).map(r => ({ id: r.id, weight: Number(r.weight_kg || 0), count: Number(r.meters || 0) }));
+    const rotoMetRolls = rotoMetRes.flatMap(res => (res.data ?? []) as any[]).map(r => ({ id: r.id, weight: Number(r.weight_kg || 0), count: Number(r.meters || 0) }));
+
+    rolls = [
+      ...fabricRolls,
+      ...lamRolls,
+      ...offsetRolls,
+      ...finishingRolls,
+      ...rotoFilmRolls,
+      ...rotoMetRolls
+    ];
   }
 
   return (
