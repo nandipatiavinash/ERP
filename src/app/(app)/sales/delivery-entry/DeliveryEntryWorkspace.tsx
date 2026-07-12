@@ -401,11 +401,14 @@ export function DeliveryEntryWorkspace({
     // For all other departments, matching is done via fabric_type_id + lam_type/offset_type,
     // so product_id check is skipped (lamination/offset/finishing rolls have null/mismatched product_id).
     const useProductIdCheck = item.department === "roto-printing";
+    const useNameMatchCheck = item.department === "lamination" || item.department === "offset-printing" || item.department === "finishing";
+    const expectedLabel = useNameMatchCheck ? getItemLabel(item) : "";
 
     return rolls
       .filter(
         (r: any) =>
           r.department === item.department &&
+          (!useNameMatchCheck || r.roll_number === expectedLabel) &&
           (!useProductIdCheck || !item.product_id || r.product_id === item.product_id) &&
           (!item.fabric_type_id || r.fabric_type_id === item.fabric_type_id) &&
           (item.department === "finishing" || !item.lamination_type || r.lam_type === item.lamination_type) &&
