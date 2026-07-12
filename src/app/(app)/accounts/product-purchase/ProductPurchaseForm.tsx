@@ -37,6 +37,7 @@ type PurchaseItemRow = {
   colorId: string;
   colorLabel: string;
   sourceRollLabel: string;
+  supplierRollId: string;
 };
 
 export function ProductPurchaseForm({
@@ -77,6 +78,7 @@ export function ProductPurchaseForm({
   const [quantity, setQuantity] = useState("");
   const [weight, setWeight] = useState("");
   const [rate, setRate] = useState("");
+  const [supplierRollId, setSupplierRollId] = useState("");
 
   // New spec states
   const [sourceRollId, setSourceRollId] = useState("");
@@ -106,6 +108,7 @@ export function ProductPurchaseForm({
     setQuantity("");
     setWeight("");
     setRate("");
+    setSupplierRollId("");
     setSourceRollId("");
     setFilmType("gloss");
     setIsMetallic(false);
@@ -240,6 +243,7 @@ export function ProductPurchaseForm({
       colorId: department === "roto-printing" ? colorId : "",
       colorLabel,
       sourceRollLabel,
+      supplierRollId: ["lamination", "offset-printing", "roto-printing", "finishing"].includes(department) ? supplierRollId.trim() : "",
     };
 
     setItems((prev) => [...prev, newRow]);
@@ -250,6 +254,7 @@ export function ProductPurchaseForm({
     setQuantity("");
     setWeight("");
     setRate("");
+    setSupplierRollId("");
     setSourceRollId("");
     setFilmType("gloss");
     setIsMetallic(false);
@@ -286,6 +291,7 @@ export function ProductPurchaseForm({
         formData.append("quantity", String(item.quantity));
         formData.append("weight", String(item.weight));
         formData.append("rate", String(item.rate));
+        formData.append("supplier_roll_id", item.supplierRollId);
         formData.append("source_roll_id", item.sourceRollId);
         formData.append("film_type", item.filmType);
         formData.append("is_metallic", String(item.isMetallic));
@@ -578,26 +584,43 @@ export function ProductPurchaseForm({
 
           {/* Quantity, Weight, Rate and Add Button - 2-3 fields per row */}
           {department && (
-            <div className="grid grid-cols-3 gap-3 pt-2 border-t border-slate-100">
-              <div className="space-y-1.5">
-                <Label className="text-[10px] font-bold text-slate-600">
-                  {department === "finishing" ? "Quantity (Bags)" : "Quantity (Meters)"}
-                </Label>
-                <Input type="number" min="0" placeholder="1000" value={quantity} onChange={(e) => setQuantity(e.target.value)} className="h-8 text-xs font-semibold" />
-              </div>
+            <div className="space-y-3 pt-2 border-t border-slate-100">
+              {department !== "fabric" && (
+                <div className="space-y-1.5 max-w-xs">
+                  <Label className="text-[10px] font-bold text-slate-600">
+                    {department === "finishing" ? "Bundle ID" : "Roll ID"} (Optional)
+                  </Label>
+                  <Input
+                    type="text"
+                    placeholder={department === "finishing" ? "e.g. Apple G" : "e.g. Apple G Mt"}
+                    value={supplierRollId}
+                    onChange={(e) => setSupplierRollId(e.target.value)}
+                    className="h-8 text-xs font-semibold"
+                  />
+                </div>
+              )}
 
-              <div className="space-y-1.5">
-                <Label className="text-[10px] font-bold text-slate-600">Weight (KG)</Label>
-                <Input type="number" min="0" step="0.1" placeholder="50.0" value={weight} onChange={(e) => setWeight(e.target.value)} className="h-8 text-xs font-semibold" />
-              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] font-bold text-slate-600">
+                    {department === "finishing" ? "Quantity (Bags)" : "Quantity (Meters)"}
+                  </Label>
+                  <Input type="number" min="0" placeholder="1000" value={quantity} onChange={(e) => setQuantity(e.target.value)} className="h-8 text-xs font-semibold" />
+                </div>
 
-              <div className="space-y-1.5">
-                <Label className="text-[10px] font-bold text-slate-600">Rate / Bill Value (₹)</Label>
-                <div className="flex gap-2">
-                  <Input type="number" min="0" step="0.01" placeholder="5000.00" value={rate} onChange={(e) => setRate(e.target.value)} className="h-8 text-xs font-semibold w-full" />
-                  <Button type="button" onClick={handleAddItem} className="h-8 text-[10px] bg-slate-800 hover:bg-slate-700 px-3 text-white">
-                    <Plus className="w-3.5 h-3.5 mr-1" /> Add
-                  </Button>
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] font-bold text-slate-600">Weight (KG)</Label>
+                  <Input type="number" min="0" step="0.1" placeholder="50.0" value={weight} onChange={(e) => setWeight(e.target.value)} className="h-8 text-xs font-semibold" />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] font-bold text-slate-600">Rate / Bill Value (₹)</Label>
+                  <div className="flex gap-2">
+                    <Input type="number" min="0" step="0.01" placeholder="5000.00" value={rate} onChange={(e) => setRate(e.target.value)} className="h-8 text-xs font-semibold w-full" />
+                    <Button type="button" onClick={handleAddItem} className="h-8 text-[10px] bg-slate-800 hover:bg-slate-700 px-3 text-white">
+                      <Plus className="w-3.5 h-3.5 mr-1" /> Add
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -620,6 +643,11 @@ export function ProductPurchaseForm({
                     <span className="font-semibold text-slate-700">{item.productLabel}</span>
                   </div>
                   <div className="text-[10px] text-slate-500 font-medium space-y-0.5">
+                    {item.supplierRollId && (
+                      <div className="font-bold text-slate-800 bg-amber-50 border border-amber-200 px-1 py-0.2 rounded inline-block">
+                        ID: {item.supplierRollId}
+                      </div>
+                    )}
                     {item.fabricLabel && <div>Fabric: {item.fabricLabel}</div>}
                     {item.sourceRollLabel && <div>Source Roll: {item.sourceRollLabel}</div>}
                     {item.colorLabel && <div>Color: {item.colorLabel}</div>}

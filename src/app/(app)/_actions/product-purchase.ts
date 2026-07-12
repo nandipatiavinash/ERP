@@ -129,9 +129,18 @@ export async function saveProductPurchase(formData: FormData) {
 
     } else if (dept === "roto-printing") {
       let brandName = "ROTO";
+      let alias = "";
       if (rotoProductId) {
-        const { data: p } = await adminSupabase.from("roto_products").select("brand").eq("id", rotoProductId).maybeSingle();
-        if (p) brandName = (p as any).brand;
+        const { data: p } = await adminSupabase
+          .from("roto_products")
+          .select("brand, customers(customer_name, alias)")
+          .eq("id", rotoProductId)
+          .maybeSingle();
+        if (p) {
+          brandName = (p as any).brand;
+          const customer = (p as any).customers;
+          alias = customer ? (customer.alias || customer.customer_name) : "";
+        }
       }
 
       let colorName = "";
@@ -141,12 +150,18 @@ export async function saveProductPurchase(formData: FormData) {
       }
 
       const filmTypeChar = filmType === "gloss" ? "G" : "M";
-      let rollId = `E-${brandName.trim()}`;
-      rollId += `(${filmTypeChar})`;
-      if (colorName) {
-        rollId += `(${colorName.trim()})`;
+      let baseId = brandName.trim();
+      if (alias) {
+        baseId += `(${alias.trim()})`;
       }
-      rollId = rollId.toUpperCase();
+      baseId += `(${filmTypeChar})`;
+      if (colorName) {
+        baseId += `(${colorName.trim()})`;
+      }
+
+      let rollId = supplierRollId 
+        ? supplierRollId.trim().toUpperCase() 
+        : `E-${baseId}`.toUpperCase();
 
       // Sequential s_no calculation
       const { count } = await adminSupabase
@@ -248,7 +263,9 @@ export async function saveProductPurchase(formData: FormData) {
       else if (lamType === "H_S") suffix = "H";
 
       let rollId = "";
-      if (parentRollNo) {
+      if (supplierRollId) {
+        rollId = supplierRollId.trim().toUpperCase();
+      } else if (parentRollNo) {
         if (lamType === "PLAIN" || lamType === "NW") {
           rollId = `${parentRollNo.trim()}(${lamType})`;
         } else {
@@ -314,7 +331,9 @@ export async function saveProductPurchase(formData: FormData) {
       }
 
       let rollId = "";
-      if (parentRollNo) {
+      if (supplierRollId) {
+        rollId = supplierRollId.trim().toUpperCase();
+      } else if (parentRollNo) {
         rollId = `${parentRollNo.trim()}(OFFSET)`;
       } else {
         const fabricNameVal = offsetType === "NW" ? "NW" : fabricName;
@@ -375,10 +394,12 @@ export async function saveProductPurchase(formData: FormData) {
       }
 
       let bundleId = "";
-      if (parentRollNo) {
+      if (supplierRollId) {
+        bundleId = supplierRollId.trim().toUpperCase();
+      } else if (parentRollNo) {
         bundleId = parentRollNo.startsWith("E-") ? parentRollNo : `E-${parentRollNo}`;
       } else {
-        bundleId = `E-BAG(${fabricName.trim()})`;
+        bundleId = `E-PLAIN(${fabricName.trim()})`;
       }
       bundleId = bundleId.toUpperCase();
 

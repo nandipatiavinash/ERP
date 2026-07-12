@@ -213,7 +213,7 @@ export function PortalCatalogView({ fabricTypes, finishingProducts, customerId }
         setStatus({ type: "success", message: `Order ${result.orderNumber} placed successfully!` });
         setCart([]);
         setCartOpen(false);
-        setTimeout(() => router.push("/portal/dashboard"), 1500);
+        setTimeout(() => router.push("/portal/dashboard" as any), 1500);
       } catch (err: any) {
         setStatus({ type: "error", message: err.message ?? "Failed to place order." });
       }

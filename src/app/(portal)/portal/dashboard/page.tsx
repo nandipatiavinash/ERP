@@ -82,7 +82,7 @@ export default async function PortalDashboardPage() {
           </div>
           <div className="flex items-center gap-2">
             <Link
-              href="/portal/catalog"
+              href={"/portal/catalog" as any}
               className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-white text-xs font-semibold transition-all shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40"
             >
               <Plus className="h-3.5 w-3.5" />
@@ -136,7 +136,7 @@ export default async function PortalDashboardPage() {
               <p className="text-sm font-semibold text-slate-300">No orders yet</p>
               <p className="text-xs text-slate-500 mt-1">Browse our catalog to place your first order.</p>
               <Link
-                href="/portal/catalog"
+                href={"/portal/catalog" as any}
                 className="inline-flex items-center gap-1.5 mt-5 px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-white text-xs font-semibold transition-all"
               >
                 <Plus className="h-3.5 w-3.5" />

@@ -53,7 +53,7 @@ export default async function PortalCatalogPage() {
       <header className="border-b border-white/10 bg-white/5 backdrop-blur-sm sticky top-0 z-10">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex items-center gap-4">
           <Link
-            href="/portal/dashboard"
+            href={"/portal/dashboard" as any}
             className="flex items-center gap-1.5 text-slate-400 hover:text-white text-xs font-medium transition-colors"
           >
             <ArrowLeft className="h-3.5 w-3.5" />
