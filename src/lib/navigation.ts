@@ -19,6 +19,7 @@ export const navGroups: NavGroup[] = [
       { href: "/admin/permissions", label: "Login Permissions", roles: ["admin"], permission: "admin.permissions" },
       { href: "/admin/raw-materials", label: "Raw Material IDs", roles: ["admin"], permission: "admin.raw_materials" },
       { href: "/admin/products", label: "Product IDs", roles: ["admin"], permission: "admin.products" },
+      { href: "/admin/products", label: "Catalogue", roles: ["admin"], permission: "admin.products" },
       { href: "/admin/clients", label: "Account/Client IDs", roles: ["admin"], permission: "admin.clients" },
       { href: "/admin/looms", label: "Loom IDs", roles: ["admin"], permission: "admin.looms" },
       { href: "/admin/colors", label: "Printing Colour IDs", roles: ["admin"], permission: "admin.colors" },
