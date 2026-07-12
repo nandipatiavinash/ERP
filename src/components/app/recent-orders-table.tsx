@@ -155,7 +155,7 @@ export function RecentOrdersTable({
                   >
                     <Eye className="h-4.5 w-4.5" />
                   </Button>
-                  <DeleteOrderButton orderId={order.id} />
+                  {order.status === "draft" && <DeleteOrderButton orderId={order.id} />}
                 </TableCell>
               </TableRow>
             ))}

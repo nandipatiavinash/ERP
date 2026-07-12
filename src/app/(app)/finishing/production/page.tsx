@@ -23,6 +23,7 @@ export default async function FinishingProductionPage() {
     { data: availableLaminationRolls },
     { data: availableOffsetRolls },
     { data: todayFinishingEntries },
+    activeFabricRolls,
   ] = await Promise.all([
     supabase
       .from("fabric_types")
@@ -48,9 +49,15 @@ export default async function FinishingProductionPage() {
       .is("deleted_at", null)
       .eq("entry_date", today)
       .order("created_at", { ascending: false }),
+    supabase
+      .from("fabric_rolls")
+      .select("fabric_type_id")
+      .eq("status", "available")
+      .is("deleted_at", null),
   ]);
 
-  const fabricTypes = (activeFabricTypes ?? []) as any[];
+  const availableFabricTypeIds = new Set((activeFabricRolls?.data || []).map((fr: any) => fr.fabric_type_id));
+  const fabricTypes = ((activeFabricTypes ?? []) as any[]).filter((ft) => availableFabricTypeIds.has(ft.id));
   const laminationRolls = (availableLaminationRolls ?? []) as any[];
   const offsetRolls = (availableOffsetRolls ?? []) as any[];
   const finishingRows = (todayFinishingEntries ?? []) as any[];
@@ -89,7 +96,6 @@ export default async function FinishingProductionPage() {
                 <TableHeader>
                   <TableRow className="bg-slate-50/50">
                     <TableHead>Bundle ID</TableHead>
-                    <TableHead>Type & Fabric Specification</TableHead>
                     <TableHead className="text-right">No. of Bags</TableHead>
                     <TableHead className="text-right">KGs</TableHead>
                     <TableHead className="text-center">Action</TableHead>
@@ -99,9 +105,6 @@ export default async function FinishingProductionPage() {
                   {finishingRows.map((row) => (
                     <TableRow key={row.id}>
                       <TableCell className="font-mono font-bold text-emerald-950">{row.bundle_id}</TableCell>
-                      <TableCell className="font-medium text-slate-700">
-                        {row.finish_type} ({row.fabric_types?.fabric_name || "Unspecified"})
-                      </TableCell>
                       <TableCell className="text-right font-mono">{row.num_bags}</TableCell>
                       <TableCell className="text-right font-mono">{row.weight_kg}</TableCell>
                       <TableCell className="text-center">

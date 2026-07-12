@@ -266,6 +266,16 @@ export async function saveRotoMetallicProduction(formData: FormData) {
 
   if (insertError) throw new Error(insertError.message);
 
+  if (!isSplit) {
+    const { error: consumeError } = await (adminSupabase
+      .from("roto_film_rolls") as any)
+      .update({ status: "consumed", updated_by: user.id })
+      .eq("id", sourceFilmRollId);
+    if (consumeError) {
+      console.error("Failed to mark source film roll as consumed:", consumeError.message);
+    }
+  }
+
   revalidatePath("/roto-printing/production");
   revalidatePath("/roto-printing/stock");
   revalidatePath("/lamination/production");

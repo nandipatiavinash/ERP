@@ -36,7 +36,7 @@ export default async function OrderConfirmationPage({
     supabase.from("finishing_products").select("id, name, status").is("deleted_at", null).order("name"),
     supabase
       .from("sales_orders")
-      .select("*, customers(customer_name, alias), sales_order_items(id, department, quantity)")
+      .select("*, customers(customer_name, alias), sales_order_items(id, department, quantity, product_id, fabric_type_id, lamination_type, offset_type, film_type, is_metallic, roto_product_id, offset_product_id)")
       .or(`order_date.eq.${date},status.eq.draft`)
       .is("deleted_at", null)
       .order("order_date", { ascending: true })
@@ -77,6 +77,7 @@ export default async function OrderConfirmationPage({
       "opening balance",
       "ca",
       "cc",
+      "bank charges",
     ];
     return !blacklist.some((keyword) => {
       const regex = new RegExp(`\\b${keyword}\\b`, "i");
@@ -90,11 +91,11 @@ export default async function OrderConfirmationPage({
   const fabricOptionsAll = ((fabrics ?? []) as any[]).map((f) => ({ id: f.id, label: f.fabric_name }));
   const fabricOptionsActive = ((fabrics ?? []) as any[]).filter(f => f.status === "active").map((f) => ({ id: f.id, label: f.fabric_name }));
 
-  const rotoOptionsAll = ((roto ?? []) as any[]).map((r) => ({ id: r.id, label: `${r.brand} (${r.width}x${r.height} mm)` }));
-  const rotoOptionsActive = ((roto ?? []) as any[]).filter(r => r.status === "active").map((r) => ({ id: r.id, label: `${r.brand} (${r.width}x${r.height} mm)` }));
+  const rotoOptionsAll = ((roto ?? []) as any[]).map((r) => ({ id: r.id, label: r.brand }));
+  const rotoOptionsActive = ((roto ?? []) as any[]).filter(r => r.status === "active").map((r) => ({ id: r.id, label: r.brand }));
 
-  const offsetOptionsAll = ((offset ?? []) as any[]).map((o) => ({ id: o.id, label: `${o.brand} (${o.width}x${o.height} in)` }));
-  const offsetOptionsActive = ((offset ?? []) as any[]).filter(o => o.status === "active").map((o) => ({ id: o.id, label: `${o.brand} (${o.width}x${o.height} in)` }));
+  const offsetOptionsAll = ((offset ?? []) as any[]).map((o) => ({ id: o.id, label: o.brand }));
+  const offsetOptionsActive = ((offset ?? []) as any[]).filter(o => o.status === "active").map((o) => ({ id: o.id, label: o.brand }));
 
   const laminationOptions = ((laminationProds ?? []) as any[]).filter(l => l.status === "active").map((l) => ({ id: l.id, label: l.name }));
   const finishingOptions = ((finishingProds ?? []) as any[]).filter(f => f.status === "active").map((f) => ({ id: f.id, label: f.name }));

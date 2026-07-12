@@ -24,6 +24,7 @@ export default async function LaminationProductionPage() {
     { data: activeRotoFilm },
     { data: activeRotoMetallic },
     { data: todayLaminationEntries },
+    activeFabricRolls,
   ] = await Promise.all([
     supabase
       .from("fabric_types")
@@ -49,9 +50,15 @@ export default async function LaminationProductionPage() {
       .is("deleted_at", null)
       .eq("entry_date", today)
       .order("created_at", { ascending: false }),
+    supabase
+      .from("fabric_rolls")
+      .select("fabric_type_id")
+      .eq("status", "available")
+      .is("deleted_at", null)
   ]);
 
-  const fabricTypes = (activeFabricTypes ?? []) as any[];
+  const availableFabricTypeIds = new Set((activeFabricRolls?.data || []).map((fr: any) => fr.fabric_type_id));
+  const fabricTypes = ((activeFabricTypes ?? []) as any[]).filter((ft) => availableFabricTypeIds.has(ft.id));
   const rotoProducts = [
     ...((activeRotoFilm ?? []) as any[]),
     ...((activeRotoMetallic ?? []) as any[])

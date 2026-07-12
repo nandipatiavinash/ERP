@@ -79,10 +79,12 @@ export default async function AccountsSalesPage({
 
   return (
     <>
-      <PageHeader
-        title="Sales Entry"
-        description="View confirmed deliveries, enter billing details, and generate journal entries."
-      />
+      <div data-print-hide>
+        <PageHeader
+          title="Sales Entry"
+          description="View confirmed deliveries, enter billing details, and generate journal entries."
+        />
+      </div>
 
       <div className="flex flex-col gap-4">
         {permissions.includes("reports.filter_by_date") && (

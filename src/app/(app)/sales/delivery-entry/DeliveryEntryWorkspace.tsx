@@ -408,8 +408,8 @@ export function DeliveryEntryWorkspace({
           r.department === item.department &&
           (!useProductIdCheck || !item.product_id || r.product_id === item.product_id) &&
           (!item.fabric_type_id || r.fabric_type_id === item.fabric_type_id) &&
-          (!item.lamination_type || r.lam_type === item.lamination_type) &&
-          (!item.offset_type || item.offset_type === "none" || r.offset_type === item.offset_type) &&
+          (item.department === "finishing" || !item.lamination_type || r.lam_type === item.lamination_type) &&
+          (item.department === "finishing" || !item.offset_type || item.offset_type === "none" || r.offset_type === item.offset_type) &&
           (
             (item.department !== "roto-printing" && item.department !== "lamination") ||
             (

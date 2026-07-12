@@ -37,8 +37,8 @@ export function ConsumptionForm({ department, materials, row, rows }: Consumptio
     event.preventDefault();
     if (isSaving) return;
     const qtyNum = Number(quantity);
-    if (isNaN(qtyNum) || qtyNum <= 0 || qtyNum % 25 !== 0) {
-      setErrorText("Quantity must be a multiple of 25.");
+    if (isNaN(qtyNum) || qtyNum <= 0) {
+      setErrorText("Quantity must be a positive number.");
       return;
     }
     setErrorText(null);

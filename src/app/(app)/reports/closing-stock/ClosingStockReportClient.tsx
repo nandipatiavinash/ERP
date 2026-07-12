@@ -265,6 +265,7 @@ export function ClosingStockReportClient({
           displayUnit: isFinishing ? "Pcs" : "Kgs",
           defaultPrice: getStageDefaultPrice(stage),
           isProduct: true,
+          isFinishing,
         };
       })
       .sort((a, b) => DEPT_ORDER.indexOf(a.departmentKey) - DEPT_ORDER.indexOf(b.departmentKey));
@@ -341,7 +342,8 @@ export function ClosingStockReportClient({
   const totals = useMemo(() => {
     let stockBase = 0;
     allRows.forEach((row) => {
-      stockBase += row.stock * getPrice(row.key, row.defaultPrice);
+      const qty = (row as any).isFinishing ? (row as any).displayStock : row.stock;
+      stockBase += qty * getPrice(row.key, row.defaultPrice);
     });
     const wipAmount = wipData.stock * getPrice("wip", wipData.defaultPrice);
     const baseTotal = stockBase + wipAmount;
@@ -451,12 +453,15 @@ export function ClosingStockReportClient({
               </TableRow>
             ) : (
               groupedRows.map(({ deptKey, deptLabel, rows }) => {
-                const deptTotal = rows.reduce((s, r) => s + r.stock * getPrice(r.key, r.defaultPrice), 0);
+                const deptTotal = rows.reduce((s, r) => {
+                  const qty = (r as any).isFinishing ? (r as any).displayStock : r.stock;
+                  return s + qty * getPrice(r.key, r.defaultPrice);
+                }, 0);
                 return (
                   <>
                     {/* Department Header */}
                     <TableRow key={`dept-${deptKey}`} className="bg-slate-50 border-t border-slate-200 hover:bg-slate-50">
-                      <TableCell colSpan={5} className="py-1.5 px-4 text-xs font-bold uppercase tracking-widest text-slate-500">
+                       <TableCell colSpan={5} className="py-1.5 px-4 text-xs font-bold uppercase tracking-widest text-slate-500">
                         {deptLabel}
                       </TableCell>
                     </TableRow>
@@ -464,7 +469,8 @@ export function ClosingStockReportClient({
                     {/* Item Rows */}
                     {rows.map((row) => {
                       const price = getPrice(row.key, row.defaultPrice);
-                      const amount = row.stock * price;
+                      const qty = (row as any).isFinishing ? (row as any).displayStock : row.stock;
+                      const amount = qty * price;
                       return (
                         <TableRow key={row.key} className="border-b border-slate-100 hover:bg-slate-50/50">
                           <TableCell className="py-2.5 pl-8 text-xs text-slate-500">
