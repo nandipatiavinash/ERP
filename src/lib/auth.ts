@@ -60,7 +60,7 @@ export const ALL_PAGE_PERMISSIONS: string[] = [
   // Sales
   "sales.order_confirmation", "sales.delivery_entry",
   // Accounts
-  "accounts.journal", "accounts.purchase", "accounts.sales", "accounts.material",
+  "accounts.journal", "accounts.purchase", "accounts.product_purchase", "accounts.sales", "accounts.material",
   // Reports
   "reports.sales_confirmation", "reports.accounts", "reports.opening_balance",
   "reports.stock", "reports.closing_stock", "reports.profit_loss", "reports.balance_sheet",

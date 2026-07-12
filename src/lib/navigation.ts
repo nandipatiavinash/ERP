@@ -94,6 +94,7 @@ export const navGroups: NavGroup[] = [
     items: [
       { href: "/accounts/journal", label: "Journal Entry", roles: ["admin"], permission: "accounts.journal" },
       { href: "/accounts/purchase", label: "Purchase Entry", roles: ["admin"], permission: "accounts.purchase" },
+      { href: "/accounts/product-purchase", label: "Product Purchase", roles: ["admin"], permission: "accounts.product_purchase" },
       { href: "/accounts/sales", label: "Sales Entry", roles: ["admin"], permission: "accounts.sales" },
       { href: "/accounts/material", label: "Material Sales", roles: ["admin"], permission: "accounts.material" },
     ],
