@@ -4,6 +4,7 @@ import { ShoppingBag, Package, Truck, CheckCircle, XCircle, Clock, Plus, LogOut 
 import { getSessionUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, formatNumber } from "@/lib/utils";
+import { signOut } from "@/app/actions";
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.ReactNode; step: number }> = {
   pending:    { label: "Pending",    color: "text-amber-400 bg-amber-400/10 border-amber-400/20",       icon: <Clock className="h-3 w-3" />,        step: 1 },
@@ -112,7 +113,7 @@ export default async function PortalDashboardPage({
               <Plus className="h-3.5 w-3.5" />
               Place Order
             </Link>
-            <form action="/api/auth/signout" method="POST">
+            <form action={signOut}>
               <button
                 type="submit"
                 className="flex items-center gap-1 px-3 py-2 rounded-lg border border-white/10 hover:bg-white/10 text-slate-400 hover:text-white text-xs font-medium transition-all"
