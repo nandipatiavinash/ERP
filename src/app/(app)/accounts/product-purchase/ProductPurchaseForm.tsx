@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { formatNumber } from "@/lib/utils";
 
 type SupplierOption = { id: string; customer_name: string; alias?: string | null };
-type CatalogOption = { id: string; fabric_name?: string; brand?: string; width?: number; height?: number };
+type CatalogOption = { id: string; fabric_name?: string; name?: string; brand?: string; width?: number; height?: number };
 type ColorOption = { id: string; color_name: string };
 type FabricRollOption = { id: string; roll_number: string; weight: number; meters: number; fabric_type_id: string };
 type LaminationRollOption = { id: string; roll_id: string; s_no: number; weight_kg: number; meters: number; fabric_type_id: string };
@@ -21,6 +21,7 @@ type PurchaseItemRow = {
   department: string;
   rotoProductId: string;
   offsetProductId: string;
+  finishingProductId: string;
   productLabel: string;
   fabricTypeId: string;
   fabricLabel: string;
@@ -30,7 +31,6 @@ type PurchaseItemRow = {
   weight: number;
   rate: number;
   amount: number;
-  supplierRollId: string;
   sourceRollId: string;
   filmType: string;
   isMetallic: boolean;
@@ -44,6 +44,7 @@ export function ProductPurchaseForm({
   fabricTypes,
   rotoProducts,
   offsetProducts,
+  finishingProducts,
   colors,
   availableFabricRolls,
   availableLaminationRolls,
@@ -54,6 +55,7 @@ export function ProductPurchaseForm({
   fabricTypes: CatalogOption[];
   rotoProducts: CatalogOption[];
   offsetProducts: CatalogOption[];
+  finishingProducts: CatalogOption[];
   colors: ColorOption[];
   availableFabricRolls: FabricRollOption[];
   availableLaminationRolls: LaminationRollOption[];
@@ -77,7 +79,6 @@ export function ProductPurchaseForm({
   const [rate, setRate] = useState("");
 
   // New spec states
-  const [supplierRollId, setSupplierRollId] = useState("");
   const [sourceRollId, setSourceRollId] = useState("");
   const [filmType, setFilmType] = useState("gloss");
   const [isMetallic, setIsMetallic] = useState(false);
@@ -88,11 +89,15 @@ export function ProductPurchaseForm({
     return [...suppliers].sort((a, b) => a.customer_name.localeCompare(b.customer_name));
   }, [suppliers]);
 
+  // Brand catalog: shows all brands for the selected department
   const activeBrandsCatalog = useMemo(() => {
     if (department === "roto-printing") return rotoProducts;
     if (department === "offset-printing") return offsetProducts;
+    if (department === "finishing") return finishingProducts.map((p) => ({ ...p, brand: p.name }));
+    if (department === "fabric") return fabricTypes.map((f) => ({ ...f, brand: f.fabric_name }));
+    if (department === "lamination") return fabricTypes.map((f) => ({ ...f, brand: f.fabric_name }));
     return [];
-  }, [department, rotoProducts, offsetProducts]);
+  }, [department, rotoProducts, offsetProducts, finishingProducts, fabricTypes]);
 
   const handleDeptChange = (val: string) => {
     setDepartment(val);
@@ -101,7 +106,6 @@ export function ProductPurchaseForm({
     setQuantity("");
     setWeight("");
     setRate("");
-    setSupplierRollId("");
     setSourceRollId("");
     setFilmType("gloss");
     setIsMetallic(false);
@@ -220,6 +224,7 @@ export function ProductPurchaseForm({
       department,
       rotoProductId: department === "roto-printing" ? brandProductId : "",
       offsetProductId: department === "offset-printing" ? brandProductId : "",
+      finishingProductId: department === "finishing" ? brandProductId : "",
       productLabel,
       fabricTypeId: isFabricRequired ? fabricTypeId : "",
       fabricLabel,
@@ -229,7 +234,6 @@ export function ProductPurchaseForm({
       weight: weightVal,
       rate: rateVal,
       amount: calculatedAmount,
-      supplierRollId,
       sourceRollId,
       filmType: department === "roto-printing" ? filmType : "",
       isMetallic: department === "roto-printing" ? isMetallic : false,
@@ -246,7 +250,6 @@ export function ProductPurchaseForm({
     setQuantity("");
     setWeight("");
     setRate("");
-    setSupplierRollId("");
     setSourceRollId("");
     setFilmType("gloss");
     setIsMetallic(false);
@@ -276,13 +279,13 @@ export function ProductPurchaseForm({
         formData.append("department", item.department);
         formData.append("roto_product_id", item.rotoProductId);
         formData.append("offset_product_id", item.offsetProductId);
+        formData.append("finishing_product_id", item.finishingProductId ?? "");
         formData.append("fabric_type_id", item.fabricTypeId);
         formData.append("lamination_type", item.laminationType);
         formData.append("offset_type", item.offsetType);
         formData.append("quantity", String(item.quantity));
         formData.append("weight", String(item.weight));
         formData.append("rate", String(item.rate));
-        formData.append("supplier_roll_id", item.supplierRollId);
         formData.append("source_roll_id", item.sourceRollId);
         formData.append("film_type", item.filmType);
         formData.append("is_metallic", String(item.isMetallic));
@@ -366,21 +369,17 @@ export function ProductPurchaseForm({
           {department === "fabric" && (
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label className="text-[10px] font-bold text-slate-600">Fabric Type (Specification)</Label>
+                <Label className="text-[10px] font-bold text-slate-600">Brand / Fabric Type</Label>
                 <select
                   value={fabricTypeId}
                   onChange={(e) => setFabricTypeId(e.target.value)}
                   className="w-full h-8 text-[11px] border border-slate-200 rounded bg-white px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-semibold"
                 >
-                  <option value="">Select Fabric...</option>
+                  <option value="">Select Brand...</option>
                   {fabricTypes.map((fab) => (
                     <option key={fab.id} value={fab.id}>{fab.fabric_name}</option>
                   ))}
                 </select>
-              </div>
-              <div className="space-y-1.5">
-                <Label className="text-[10px] font-bold text-slate-600">Supplier Roll ID</Label>
-                <Input type="text" placeholder="e.g. N-12-3.3" value={supplierRollId} onChange={(e) => setSupplierRollId(e.target.value)} className="h-8 text-xs font-semibold" />
               </div>
             </div>
           )}
@@ -420,17 +419,9 @@ export function ProductPurchaseForm({
                   </select>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5 flex flex-col justify-end pb-1">
-                  <div className="flex items-center gap-2">
-                    <input type="checkbox" id="is_metallic" checked={isMetallic} onChange={(e) => setIsMetallic(e.target.checked)} className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" />
-                    <Label htmlFor="is_metallic" className="text-[10px] font-bold text-slate-600 cursor-pointer">Is Metallic?</Label>
-                  </div>
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-[10px] font-bold text-slate-600">Supplier Roll ID</Label>
-                  <Input type="text" placeholder="e.g. SR-ROTO-101" value={supplierRollId} onChange={(e) => setSupplierRollId(e.target.value)} className="h-8 text-xs font-semibold" />
-                </div>
+              <div className="flex items-center gap-2 pt-1">
+                <input type="checkbox" id="is_metallic" checked={isMetallic} onChange={(e) => setIsMetallic(e.target.checked)} className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" />
+                <Label htmlFor="is_metallic" className="text-[10px] font-bold text-slate-600 cursor-pointer">Is Metallic?</Label>
               </div>
             </div>
           )}
@@ -459,24 +450,18 @@ export function ProductPurchaseForm({
                   </select>
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-[10px] font-bold text-slate-600">Fabric Specification</Label>
+                  <Label className="text-[10px] font-bold text-slate-600">Brand / Fabric Specification</Label>
                   <select
                     value={fabricTypeId}
                     onChange={(e) => setFabricTypeId(e.target.value)}
                     disabled={!!sourceRollId}
                     className="w-full h-8 text-[11px] border border-slate-200 rounded bg-white px-2 py-0.5 focus:outline-none disabled:bg-slate-100 font-semibold"
                   >
-                    <option value="">Select Fabric...</option>
+                    <option value="">Select Brand...</option>
                     {fabricTypes.map((fab) => (
                       <option key={fab.id} value={fab.id}>{fab.fabric_name}</option>
                     ))}
                   </select>
-                </div>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5 col-span-1">
-                  <Label className="text-[10px] font-bold text-slate-600">Supplier Roll ID</Label>
-                  <Input type="text" placeholder="e.g. SR-LAM-202" value={supplierRollId} onChange={(e) => setSupplierRollId(e.target.value)} className="h-8 text-xs font-semibold" />
                 </div>
               </div>
             </div>
@@ -517,25 +502,19 @@ export function ProductPurchaseForm({
                   </select>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label className="text-[10px] font-bold text-slate-600">Fabric Specification</Label>
-                  <select
-                    value={fabricTypeId}
-                    onChange={(e) => setFabricTypeId(e.target.value)}
-                    disabled={!!sourceRollId}
-                    className="w-full h-8 text-[11px] border border-slate-200 rounded bg-white px-2 py-0.5 focus:outline-none disabled:bg-slate-100 font-semibold"
-                  >
-                    <option value="">Select Fabric...</option>
-                    {fabricTypes.map((fab) => (
-                      <option key={fab.id} value={fab.id}>{fab.fabric_name}</option>
-                    ))}
-                  </select>
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-[10px] font-bold text-slate-600">Supplier Roll ID</Label>
-                  <Input type="text" placeholder="e.g. SR-OFF-303" value={supplierRollId} onChange={(e) => setSupplierRollId(e.target.value)} className="h-8 text-xs font-semibold" />
-                </div>
+              <div className="space-y-1.5">
+                <Label className="text-[10px] font-bold text-slate-600">Fabric Specification</Label>
+                <select
+                  value={fabricTypeId}
+                  onChange={(e) => setFabricTypeId(e.target.value)}
+                  disabled={!!sourceRollId}
+                  className="w-full h-8 text-[11px] border border-slate-200 rounded bg-white px-2 py-0.5 focus:outline-none disabled:bg-slate-100 font-semibold"
+                >
+                  <option value="">Select Fabric...</option>
+                  {fabricTypes.map((fab) => (
+                    <option key={fab.id} value={fab.id}>{fab.fabric_name}</option>
+                  ))}
+                </select>
               </div>
             </div>
           )}
@@ -567,25 +546,32 @@ export function ProductPurchaseForm({
                   </select>
                 </div>
                 <div className="space-y-1.5">
-                  <Label className="text-[10px] font-bold text-slate-600">Fabric Specification</Label>
+                  <Label className="text-[10px] font-bold text-slate-600">Brand / Bag Type</Label>
                   <select
-                    value={fabricTypeId}
-                    onChange={(e) => setFabricTypeId(e.target.value)}
-                    disabled={!!sourceRollId}
-                    className="w-full h-8 text-[11px] border border-slate-200 rounded bg-white px-2 py-0.5 focus:outline-none disabled:bg-slate-100 font-semibold"
+                    value={brandProductId}
+                    onChange={(e) => setBrandProductId(e.target.value)}
+                    className="w-full h-8 text-[11px] border border-slate-200 rounded bg-white px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-semibold"
                   >
-                    <option value="">Select FabricSpec...</option>
-                    {fabricTypes.map((fab) => (
-                      <option key={fab.id} value={fab.id}>{fab.fabric_name}</option>
+                    <option value="">Select Brand...</option>
+                    {activeBrandsCatalog.map((prod) => (
+                      <option key={prod.id} value={prod.id}>{prod.brand}</option>
                     ))}
                   </select>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <Label className="text-[10px] font-bold text-slate-600">Supplier Bag ID</Label>
-                  <Input type="text" placeholder="e.g. SR-BAG-404" value={supplierRollId} onChange={(e) => setSupplierRollId(e.target.value)} className="h-8 text-xs font-semibold" />
-                </div>
+              <div className="space-y-1.5">
+                <Label className="text-[10px] font-bold text-slate-600">Fabric Specification</Label>
+                <select
+                  value={fabricTypeId}
+                  onChange={(e) => setFabricTypeId(e.target.value)}
+                  disabled={!!sourceRollId}
+                  className="w-full h-8 text-[11px] border border-slate-200 rounded bg-white px-2 py-0.5 focus:outline-none disabled:bg-slate-100 font-semibold"
+                >
+                  <option value="">Select FabricSpec...</option>
+                  {fabricTypes.map((fab) => (
+                    <option key={fab.id} value={fab.id}>{fab.fabric_name}</option>
+                  ))}
+                </select>
               </div>
             </div>
           )}
@@ -635,7 +621,6 @@ export function ProductPurchaseForm({
                   </div>
                   <div className="text-[10px] text-slate-500 font-medium space-y-0.5">
                     {item.fabricLabel && <div>Fabric: {item.fabricLabel}</div>}
-                    {item.supplierRollId && <div>Supplier Roll: {item.supplierRollId}</div>}
                     {item.sourceRollLabel && <div>Source Roll: {item.sourceRollLabel}</div>}
                     {item.colorLabel && <div>Color: {item.colorLabel}</div>}
                     {item.filmType && <div>Film Type: {item.filmType} {item.isMetallic ? "(Metallic)" : ""}</div>}

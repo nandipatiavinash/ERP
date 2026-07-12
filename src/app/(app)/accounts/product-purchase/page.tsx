@@ -26,6 +26,7 @@ export default async function ProductPurchasePage({
     { data: fabricTypes },
     { data: rotoProducts },
     { data: offsetProducts },
+    { data: finishingProducts },
     { data: colors },
     { data: availableFabricRolls },
     { data: availableLaminationRolls },
@@ -58,6 +59,12 @@ export default async function ProductPurchasePage({
       .is("deleted_at", null)
       .order("brand"),
     supabase
+      .from("finishing_products")
+      .select("id, name")
+      .eq("status", "active")
+      .is("deleted_at", null)
+      .order("name"),
+    supabase
       .from("roto_colors")
       .select("id, color_name")
       .is("deleted_at", null)
@@ -84,7 +91,7 @@ export default async function ProductPurchasePage({
       .from("product_purchases")
       .select(`
         id, purchase_date, supplier_name, bill_number, total_amount, remarks,
-        product_purchase_items(id, department, quantity, weight, rate, amount, supplier_roll_id, created_stock_id)
+        product_purchase_items(id, department, quantity, weight, rate, amount, created_stock_id)
       `)
       .eq("purchase_date", date)
       .is("deleted_at", null)
@@ -161,6 +168,7 @@ export default async function ProductPurchasePage({
             fabricTypes={fabricTypes ?? []}
             rotoProducts={rotoProducts ?? []}
             offsetProducts={offsetProducts ?? []}
+            finishingProducts={finishingProducts ?? []}
             colors={colors ?? []}
             availableFabricRolls={availableFabricRolls ?? []}
             availableLaminationRolls={availableLaminationRolls ?? []}
