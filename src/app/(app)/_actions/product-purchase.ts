@@ -129,18 +129,13 @@ export async function saveProductPurchase(formData: FormData) {
 
     } else if (dept === "roto-printing") {
       let brandName = "ROTO";
-      let alias = "";
       if (rotoProductId) {
         const { data: p } = await adminSupabase
           .from("roto_products")
-          .select("brand, customers(customer_name, alias)")
+          .select("brand")
           .eq("id", rotoProductId)
           .maybeSingle();
-        if (p) {
-          brandName = (p as any).brand;
-          const customer = (p as any).customers;
-          alias = customer ? (customer.alias || customer.customer_name) : "";
-        }
+        if (p) brandName = (p as any).brand;
       }
 
       let colorName = "";
@@ -150,26 +145,23 @@ export async function saveProductPurchase(formData: FormData) {
       }
 
       const filmTypeChar = filmType === "gloss" ? "G" : "M";
-      let baseId = brandName.trim();
-      if (alias) {
-        baseId += `(${alias.trim()})`;
-      }
-      baseId += `(${filmTypeChar})`;
-      if (colorName) {
-        baseId += `(${colorName.trim()})`;
-      }
+      const baseId = `${brandName.trim()}(${filmTypeChar})${colorName ? `(${colorName.trim()})` : ""}`.toUpperCase();
 
-      let rollId = supplierRollId 
-        ? supplierRollId.trim().toUpperCase() 
-        : `E-${baseId}`.toUpperCase();
+      let rollId = "";
+      let seq = 1;
 
-      // Sequential s_no calculation
-      const { count } = await adminSupabase
-        .from("roto_film_rolls")
-        .select("id", { count: "exact", head: true })
-        .eq("roll_id", rollId)
-        .is("deleted_at", null);
-      const seq = (count ?? 0) + 1;
+      if (supplierRollId) {
+        rollId = supplierRollId.trim().toUpperCase();
+      } else {
+        const baseSearch = `${baseId}-E-%`;
+        const { count } = await adminSupabase
+          .from("roto_film_rolls")
+          .select("id", { count: "exact", head: true })
+          .like("roll_id", baseSearch)
+          .is("deleted_at", null);
+        seq = (count ?? 0) + 1;
+        rollId = `${baseId}-E-${seq}`;
+      }
 
       if (!isMetallic) {
         const { data: stockItem, error: stockErr } = await (adminSupabase
@@ -262,7 +254,17 @@ export async function saveProductPurchase(formData: FormData) {
       else if (lamType === "F_S") suffix = "F";
       else if (lamType === "H_S") suffix = "H";
 
+      let baseId = "";
+      if (lamType === "PLAIN" || lamType === "NW") {
+        baseId = `${brandName.trim()}(${fabricName.trim()})`;
+      } else {
+        baseId = `${brandName.trim()}(${fabricName.trim()})(${suffix})`;
+      }
+      baseId = baseId.toUpperCase();
+
       let rollId = "";
+      let seq = 1;
+
       if (supplierRollId) {
         rollId = supplierRollId.trim().toUpperCase();
       } else if (parentRollNo) {
@@ -272,20 +274,15 @@ export async function saveProductPurchase(formData: FormData) {
           rollId = `${parentRollNo.trim()}(${lamType})(${suffix})`;
         }
       } else {
-        if (lamType === "PLAIN" || lamType === "NW") {
-          rollId = `E-${brandName.trim()}(${fabricName.trim()})`;
-        } else {
-          rollId = `E-${brandName.trim()}(${fabricName.trim()})(${suffix})`;
-        }
+        const baseSearch = `${baseId}-E-%`;
+        const { count } = await adminSupabase
+          .from("lamination_rolls")
+          .select("id", { count: "exact", head: true })
+          .like("roll_id", baseSearch)
+          .is("deleted_at", null);
+        seq = (count ?? 0) + 1;
+        rollId = `${baseId}-E-${seq}`;
       }
-      rollId = rollId.toUpperCase();
-
-      const { count } = await adminSupabase
-        .from("lamination_rolls")
-        .select("id", { count: "exact", head: true })
-        .eq("roll_id", rollId)
-        .is("deleted_at", null);
-      const seq = (count ?? 0) + 1;
 
       const { data: stockItem, error: stockErr } = await (adminSupabase
         .from("lamination_rolls") as any)
@@ -330,23 +327,26 @@ export async function saveProductPurchase(formData: FormData) {
         if (p) brandName = (p as any).brand;
       }
 
+      const fabricNameVal = offsetType === "NW" ? "NW" : fabricName;
+      const baseId = `${brandName.trim()}(${fabricNameVal.trim()})`.toUpperCase();
+
       let rollId = "";
+      let seq = 1;
+
       if (supplierRollId) {
         rollId = supplierRollId.trim().toUpperCase();
       } else if (parentRollNo) {
         rollId = `${parentRollNo.trim()}(OFFSET)`;
       } else {
-        const fabricNameVal = offsetType === "NW" ? "NW" : fabricName;
-        rollId = `E-${brandName.trim()}(${fabricNameVal.trim()})`;
+        const baseSearch = `${baseId}-E-%`;
+        const { count } = await adminSupabase
+          .from("offset_rolls")
+          .select("id", { count: "exact", head: true })
+          .like("roll_id", baseSearch)
+          .is("deleted_at", null);
+        seq = (count ?? 0) + 1;
+        rollId = `${baseId}-E-${seq}`;
       }
-      rollId = rollId.toUpperCase();
-
-      const { count } = await adminSupabase
-        .from("offset_rolls")
-        .select("id", { count: "exact", head: true })
-        .eq("roll_id", rollId)
-        .is("deleted_at", null);
-      const seq = (count ?? 0) + 1;
 
       const { data: stockItem, error: stockErr } = await (adminSupabase
         .from("offset_rolls") as any)
@@ -393,22 +393,25 @@ export async function saveProductPurchase(formData: FormData) {
         }
       }
 
+      const baseId = `PLAIN(${fabricName.trim()})`.toUpperCase();
+
       let bundleId = "";
+      let seq = 1;
+
       if (supplierRollId) {
         bundleId = supplierRollId.trim().toUpperCase();
       } else if (parentRollNo) {
         bundleId = parentRollNo.startsWith("E-") ? parentRollNo : `E-${parentRollNo}`;
       } else {
-        bundleId = `E-PLAIN(${fabricName.trim()})`;
+        const baseSearch = `${baseId}-E-%`;
+        const { count } = await adminSupabase
+          .from("finishing_bundles")
+          .select("id", { count: "exact", head: true })
+          .like("bundle_id", baseSearch)
+          .is("deleted_at", null);
+        seq = (count ?? 0) + 1;
+        bundleId = `${baseId}-E-${seq}`;
       }
-      bundleId = bundleId.toUpperCase();
-
-      const { count } = await adminSupabase
-        .from("finishing_bundles")
-        .select("id", { count: "exact", head: true })
-        .eq("bundle_id", bundleId)
-        .is("deleted_at", null);
-      const seq = (count ?? 0) + 1;
 
       const { data: stockItem, error: stockErr } = await (adminSupabase
         .from("finishing_bundles") as any)

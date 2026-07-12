@@ -152,15 +152,7 @@ export async function saveRotoFilmProduction(formData: FormData) {
   }
 
   const filmTypeChar = filmType === "gloss" ? "G" : "M";
-  let rollId = brandName.trim();
-  if (alias) {
-    rollId += `(${alias.trim()})`;
-  }
-  rollId += `(${filmTypeChar})`;
-  if (colorName) {
-    rollId += `(${colorName.trim()})`;
-  }
-  rollId = rollId.toUpperCase();
+  const rollId = `${brandName.trim()}(${filmTypeChar})${colorName ? `(${colorName.trim()})` : ""}`.toUpperCase();
 
   // Compute sequential serial number for this specific specification
   const { count } = await (supabase
