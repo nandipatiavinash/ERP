@@ -397,11 +397,16 @@ export function DeliveryEntryWorkspace({
   };
 
   const getItemRolls = (item: OrderItem) => {
+    // For roto-printing, product_id = brand_id is the primary discriminator.
+    // For all other departments, matching is done via fabric_type_id + lam_type/offset_type,
+    // so product_id check is skipped (lamination/offset/finishing rolls have null/mismatched product_id).
+    const useProductIdCheck = item.department === "roto-printing";
+
     return rolls
       .filter(
         (r: any) =>
           r.department === item.department &&
-          (!item.product_id || r.product_id === item.product_id) &&
+          (!useProductIdCheck || !item.product_id || r.product_id === item.product_id) &&
           (!item.fabric_type_id || r.fabric_type_id === item.fabric_type_id) &&
           (!item.lamination_type || r.lam_type === item.lamination_type) &&
           (!item.offset_type || item.offset_type === "none" || r.offset_type === item.offset_type) &&

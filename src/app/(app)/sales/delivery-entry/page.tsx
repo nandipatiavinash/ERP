@@ -149,7 +149,7 @@ export default async function DeliveryEntryPage({
     meters: Number(r.meters || 0),
     status: r.status,
     fabric_type_id: r.fabric_type_id,
-    product_id: r.brand_id,
+    product_id: r.product_id,
     offset_type: r.offset_type,
     department: "offset-printing"
   }));
