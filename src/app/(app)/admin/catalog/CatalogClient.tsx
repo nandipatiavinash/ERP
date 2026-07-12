@@ -136,7 +136,11 @@ export function CatalogClient({ initialFabrics, initialFinishing, clients }: Cat
 
     startTransition(async () => {
       try {
-        await saveCatalogProduct(formData);
+        const res = await saveCatalogProduct(formData);
+        if (res && !res.success) {
+          window.alert(res.error || "Failed to save item.");
+          return;
+        }
         showSuccess(editingId ? "Catalogue item updated!" : "Catalogue item added!");
         resetForm();
       } catch (err: any) {
