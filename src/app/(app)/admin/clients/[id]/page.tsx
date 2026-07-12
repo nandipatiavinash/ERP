@@ -8,11 +8,11 @@ import { formatDate, formatNumber } from "@/lib/utils";
 export default async function ClientProfilePage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
   await requirePermission("admin.clients");
   const supabase = await createClient();
-  const { id } = params;
+  const { id } = await params;
 
   // Fetch customer details
   const { data: customer, error } = await (supabase.from("customers") as any)
