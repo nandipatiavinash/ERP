@@ -584,21 +584,21 @@ export async function finalizeSalesOrderBilling(formData: FormData) {
   const customerName = order.customers?.customer_name ?? "Unknown";
   const entryDate = order.order_date ?? todayInIndia();
 
-  const { error: updateError } = await (supabase
-    .from("sales_orders") as any)
-    .update({
-      bill_number: billNumber,
-      bill_value: billValue,
-      is_draft_billing: false,
-      updated_by: user.id,
-    } as any)
-    .eq("id", orderId);
-
-  if (updateError) {
-    throw new Error(updateError.message);
-  }
-
   if (skipJournal) {
+    const { error: updateError } = await (supabase
+      .from("sales_orders") as any)
+      .update({
+        bill_number: billNumber,
+        bill_value: billValue,
+        is_draft_billing: false,
+        updated_by: user.id,
+      } as any)
+      .eq("id", orderId);
+
+    if (updateError) {
+      throw new Error(updateError.message);
+    }
+
     revalidatePath("/accounts/sales");
     revalidatePath("/accounts/journal");
     revalidatePath("/sales/delivery-entry");
@@ -641,6 +641,22 @@ export async function finalizeSalesOrderBilling(formData: FormData) {
 
   const { error: journalError } = await (supabase.from("accounts_journal") as any).insert(journalInserts);
   if (journalError) throw new Error(journalError.message);
+
+  const { error: updateError } = await (supabase
+    .from("sales_orders") as any)
+    .update({
+      bill_number: billNumber,
+      bill_value: billValue,
+      is_draft_billing: false,
+      updated_by: user.id,
+    } as any)
+    .eq("id", orderId);
+
+  if (updateError) {
+    // Rollback journal entry
+    await (supabase.from("accounts_journal") as any).delete().eq("journal_no", journalNo);
+    throw new Error(updateError.message);
+  }
 
   revalidatePath("/accounts/sales");
   revalidatePath("/accounts/journal");
@@ -1438,24 +1454,24 @@ export async function saveSalesOrderBillingDirect(formData: FormData) {
   const customerName = customerNames[0] as string;
   const entryDate = orders[0]?.order_date || todayInIndia();
 
-  for (let idx = 0; idx < orders.length; idx++) {
-    const oId = orders[idx].id;
-    const isFirstParent = (idx === 0);
-    const { error: updateError } = await (supabase
-      .from("sales_orders") as any)
-      .update({
-        bill_number: billNumber,
-        bill_value: isFirstParent ? billValue : 0,
-        updated_by: user.id
-      } as any)
-      .eq("id", oId);
-
-    if (updateError) {
-      throw new Error(updateError.message);
-    }
-  }
-
   if (skipJournal) {
+    for (let idx = 0; idx < orders.length; idx++) {
+      const oId = orders[idx].id;
+      const isFirstParent = (idx === 0);
+      const { error: updateError } = await (supabase
+        .from("sales_orders") as any)
+        .update({
+          bill_number: billNumber,
+          bill_value: isFirstParent ? billValue : 0,
+          updated_by: user.id
+        } as any)
+        .eq("id", oId);
+
+      if (updateError) {
+        throw new Error(updateError.message);
+      }
+    }
+
     revalidatePath("/accounts/sales");
     revalidatePath("/accounts/journal");
     revalidatePath("/sales/delivery-entry");
@@ -1510,6 +1526,29 @@ export async function saveSalesOrderBillingDirect(formData: FormData) {
 
   const { error: journalError } = await (supabase.from("accounts_journal") as any).insert(journalInserts);
   if (journalError) throw new Error(journalError.message);
+
+  try {
+    for (let idx = 0; idx < orders.length; idx++) {
+      const oId = orders[idx].id;
+      const isFirstParent = (idx === 0);
+      const { error: updateError } = await (supabase
+        .from("sales_orders") as any)
+        .update({
+          bill_number: billNumber,
+          bill_value: isFirstParent ? billValue : 0,
+          updated_by: user.id
+        } as any)
+        .eq("id", oId);
+
+      if (updateError) {
+        throw new Error(updateError.message);
+      }
+    }
+  } catch (err: any) {
+    // Rollback journal entries
+    await (supabase.from("accounts_journal") as any).delete().eq("journal_no", journalNo);
+    throw err;
+  }
 
   revalidatePath("/accounts/sales");
   revalidatePath("/accounts/journal");
