@@ -3,14 +3,14 @@ import { redirect } from "next/navigation";
 import { ShoppingBag, Package, Truck, CheckCircle, XCircle, Clock, Plus, LogOut } from "lucide-react";
 import { getSessionUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { formatDate } from "@/lib/utils";
+import { formatDate, formatNumber } from "@/lib/utils";
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; icon: React.ReactNode; step: number }> = {
-  pending:    { label: "Pending Review",  color: "text-amber-400 bg-amber-400/10 border-amber-400/20",    icon: <Clock className="h-3 w-3" />,        step: 1 },
-  confirmed:  { label: "Confirmed",       color: "text-blue-400 bg-blue-400/10 border-blue-400/20",       icon: <Package className="h-3 w-3" />,      step: 2 },
-  dispatched: { label: "Dispatched",      color: "text-violet-400 bg-violet-400/10 border-violet-400/20", icon: <Truck className="h-3 w-3" />,         step: 3 },
-  delivered:  { label: "Delivered",       color: "text-emerald-400 bg-emerald-400/10 border-emerald-400/20", icon: <CheckCircle className="h-3 w-3" />, step: 4 },
-  cancelled:  { label: "Cancelled",       color: "text-red-400 bg-red-400/10 border-red-400/20",          icon: <XCircle className="h-3 w-3" />,       step: 0 },
+  pending:    { label: "Pending",    color: "text-amber-400 bg-amber-400/10 border-amber-400/20",       icon: <Clock className="h-3 w-3" />,        step: 1 },
+  confirmed:  { label: "Confirmed",  color: "text-blue-400 bg-blue-400/10 border-blue-400/20",          icon: <Package className="h-3 w-3" />,      step: 2 },
+  dispatched: { label: "Dispatched", color: "text-violet-400 bg-violet-400/10 border-violet-400/20",    icon: <Truck className="h-3 w-3" />,         step: 3 },
+  delivered:  { label: "Delivered",  color: "text-emerald-400 bg-emerald-400/10 border-emerald-400/20", icon: <CheckCircle className="h-3 w-3" />,   step: 4 },
+  cancelled:  { label: "Cancelled",  color: "text-red-400 bg-red-400/10 border-red-400/20",             icon: <XCircle className="h-3 w-3" />,       step: 0 },
 };
 
 export default async function PortalDashboardPage({
@@ -26,7 +26,12 @@ export default async function PortalDashboardPage({
   const resolvedParams = await searchParams;
   const filterStatus = resolvedParams?.status ?? "all";
 
-  // Fetch customer name
+  // Redirect non-client, non-admin users
+  if (!customerId && user.roles?.name !== "admin") {
+    // still show page with warning
+  }
+
+  // Fetch customer details
   let customerName = "Your Account";
   let customerCode = "";
   if (customerId) {
@@ -39,36 +44,36 @@ export default async function PortalDashboardPage({
       customerCode = cust.customer_code ?? "";
     }
   } else if (user.roles?.name === "admin") {
-    customerName = "Administrator Preview";
+    customerName = "Admin Preview";
   }
 
-  // Fetch ALL orders (no limit)
+  // Fetch ALL sales orders for this customer (real ERP orders)
   let ordersData: any[] = [];
-  if (customerId || user.roles?.name === "admin") {
-    const q = (supabase.from("client_orders") as any)
-      .select(`
-        id, order_number, order_date, status, notes, created_at,
-        client_order_items (
-          id, item_type, quantity, unit, unit_price,
-          fabric_types ( fabric_name, gsm, width ),
-          finishing_products ( name )
-        )
-      `)
+  if (customerId) {
+    const { data } = await (supabase.from("sales_orders") as any)
+      .select("id, order_number, order_date, status, bill_number, bill_value, created_at")
+      .eq("customer_id", customerId)
       .is("deleted_at", null)
-      .order("created_at", { ascending: false });
-
-    if (customerId) q.eq("customer_id", customerId);
-    const { data } = await q;
+      .order("order_date", { ascending: false });
+    ordersData = data ?? [];
+  } else if (user.roles?.name === "admin") {
+    // Admin: show recent 50 from all customers for preview
+    const { data } = await (supabase.from("sales_orders") as any)
+      .select("id, order_number, order_date, status, bill_number, bill_value, created_at, customers(customer_name)")
+      .is("deleted_at", null)
+      .order("order_date", { ascending: false })
+      .limit(50);
     ordersData = data ?? [];
   }
 
-  // Stats (always from full dataset)
+  // Stats from full dataset
   const total = ordersData.length;
-  const pending = ordersData.filter((o) => o.status === "pending").length;
-  const active = ordersData.filter((o) => ["confirmed", "dispatched"].includes(o.status)).length;
+  const pending  = ordersData.filter((o) => o.status === "pending").length;
+  const active   = ordersData.filter((o) => ["confirmed", "dispatched"].includes(o.status)).length;
   const delivered = ordersData.filter((o) => o.status === "delivered").length;
+  const totalBilled = ordersData.reduce((s, o) => s + Number(o.bill_value ?? 0), 0);
 
-  // Apply filter tab
+  // Filter
   const filteredOrders = filterStatus === "all"
     ? ordersData
     : filterStatus === "active"
@@ -102,7 +107,7 @@ export default async function PortalDashboardPage({
           <div className="flex items-center gap-2">
             <Link
               href={"/portal/catalog" as any}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-white text-xs font-semibold transition-all shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-white text-xs font-semibold transition-all shadow-lg shadow-emerald-500/25"
             >
               <Plus className="h-3.5 w-3.5" />
               Place Order
@@ -123,30 +128,30 @@ export default async function PortalDashboardPage({
         {/* Warning for unlinked accounts */}
         {!customerId && user.roles?.name !== "admin" && (
           <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 text-amber-300 text-sm">
-            <strong className="font-semibold">Account not linked.</strong> Your user account is not associated with any customer firm. Please contact your administrator to link your account.
+            <strong className="font-semibold">Account not linked.</strong> Your account is not associated with any customer firm. Please contact your administrator.
           </div>
         )}
 
         {/* Stats */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
-            { label: "Total Orders", value: total, color: "from-slate-500/20 to-slate-600/10", text: "text-slate-100" },
-            { label: "Pending Review", value: pending, color: "from-amber-500/20 to-amber-600/10", text: "text-amber-300" },
-            { label: "In Progress", value: active, color: "from-blue-500/20 to-blue-600/10", text: "text-blue-300" },
-            { label: "Delivered", value: delivered, color: "from-emerald-500/20 to-emerald-600/10", text: "text-emerald-300" },
+            { label: "Total Orders",   value: total,     color: "from-slate-500/20 to-slate-600/10",   text: "text-slate-100" },
+            { label: "Total Billed",   value: `₹${formatNumber(totalBilled, 0)}`, color: "from-emerald-500/20 to-emerald-600/10", text: "text-emerald-300" },
+            { label: "In Progress",    value: active,    color: "from-blue-500/20 to-blue-600/10",     text: "text-blue-300" },
+            { label: "Delivered",      value: delivered, color: "from-violet-500/20 to-violet-600/10", text: "text-violet-300" },
           ].map((stat) => (
             <div key={stat.label} className={`rounded-xl border border-white/10 bg-gradient-to-br ${stat.color} p-4`}>
               <p className="text-[10px] font-semibold uppercase tracking-widest text-slate-400 mb-1">{stat.label}</p>
-              <p className={`text-3xl font-bold ${stat.text}`}>{stat.value}</p>
+              <p className={`text-2xl font-bold ${stat.text}`}>{stat.value}</p>
             </div>
           ))}
         </div>
 
-        {/* Orders */}
+        {/* Orders Table */}
         <div className="rounded-xl border border-white/10 bg-white/5 overflow-hidden">
           <div className="px-5 py-4 border-b border-white/10 flex items-center justify-between">
-            <h2 className="text-sm font-bold text-white">Your Orders</h2>
-            <span className="text-xs text-slate-400">{total} total</span>
+            <h2 className="text-sm font-bold text-white">Order History</h2>
+            <span className="text-xs text-slate-400">{total} orders</span>
           </div>
 
           {/* Filter Tabs */}
@@ -164,7 +169,7 @@ export default async function PortalDashboardPage({
                   }`}
                 >
                   {tab.label}
-                  <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-bold ${isActive ? "bg-white/20 text-white" : "bg-white/5 text-slate-500"}`}>
+                  <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold ${isActive ? "bg-white/20 text-white" : "bg-white/5 text-slate-500"}`}>
                     {tab.count}
                   </span>
                 </Link>
@@ -176,91 +181,75 @@ export default async function PortalDashboardPage({
             <div className="py-20 text-center">
               <ShoppingBag className="mx-auto h-12 w-12 text-slate-600 mb-3 stroke-[1.5]" />
               <p className="text-sm font-semibold text-slate-300">
-                {total === 0 ? "No orders yet" : `No ${filterStatus === "all" ? "" : filterStatus} orders`}
+                {!customerId && user.roles?.name !== "admin"
+                  ? "No firm linked to your account"
+                  : total === 0
+                  ? "No orders found"
+                  : "No orders in this category"}
               </p>
               <p className="text-xs text-slate-500 mt-1">
-                {total === 0 ? "Browse our catalog to place your first order." : "Try a different filter above."}
+                {total === 0 && customerId ? "Your orders will appear here once dispatched." : ""}
               </p>
-              {total === 0 && (
-                <Link
-                  href={"/portal/catalog" as any}
-                  className="inline-flex items-center gap-1.5 mt-5 px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-white text-xs font-semibold transition-all"
-                >
-                  <Plus className="h-3.5 w-3.5" />
-                  Browse Catalog
-                </Link>
-              )}
             </div>
           ) : (
-            <div className="divide-y divide-white/5">
-              {filteredOrders.map((order) => {
-                const statusCfg = STATUS_CONFIG[order.status] ?? STATUS_CONFIG.pending;
-                const items = (order.client_order_items ?? []) as any[];
-                const totalValue = items.reduce((s: number, i: any) => s + Number(i.quantity) * Number(i.unit_price), 0);
+            <>
+              <div className="divide-y divide-white/5">
+                {filteredOrders.map((order: any) => {
+                  const statusCfg = STATUS_CONFIG[order.status] ?? STATUS_CONFIG.pending;
+                  const billValue = Number(order.bill_value ?? 0);
 
-                return (
-                  <div key={order.id} className="px-5 py-4 hover:bg-white/5 transition-colors">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-2">
-                          <span className="font-mono text-sm font-bold text-white">{order.order_number}</span>
-                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-[10px] font-semibold ${statusCfg.color}`}>
-                            {statusCfg.icon} {statusCfg.label}
-                          </span>
+                  return (
+                    <div key={order.id} className="px-5 py-4 hover:bg-white/5 transition-colors">
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="font-mono text-sm font-bold text-white">{order.order_number}</span>
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md border text-[10px] font-semibold ${statusCfg.color}`}>
+                              {statusCfg.icon} {statusCfg.label}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-3 text-[11px] text-slate-500">
+                            <span>{formatDate(order.order_date)}</span>
+                            {order.bill_number && (
+                              <span className="font-mono">Bill: {order.bill_number}</span>
+                            )}
+                            {/* admin sees firm name */}
+                            {user.roles?.name === "admin" && order.customers?.customer_name && (
+                              <span className="text-slate-400">{order.customers.customer_name}</span>
+                            )}
+                          </div>
                         </div>
-                        <div className="space-y-1">
-                          {items.slice(0, 3).map((item: any) => (
-                            <div key={item.id} className="flex items-center gap-2 text-xs text-slate-400">
-                              <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${
-                                item.item_type === "fabric" ? "bg-blue-500/20 text-blue-300" : "bg-violet-500/20 text-violet-300"
-                              }`}>
-                                {item.item_type}
-                              </span>
-                              <span>
-                                {item.item_type === "fabric"
-                                  ? `${item.fabric_types?.fabric_name ?? "Fabric"} — ${item.quantity} m`
-                                  : `${item.finishing_products?.name ?? "Product"} — ${item.quantity} ${item.unit}`}
-                              </span>
+                        <div className="text-right shrink-0">
+                          {billValue > 0 ? (
+                            <p className="text-sm font-bold text-white">₹{formatNumber(billValue, 0)}</p>
+                          ) : (
+                            <p className="text-xs text-slate-500">Pending bill</p>
+                          )}
+                          {order.status !== "cancelled" && (
+                            <div className="flex items-center gap-1 mt-1.5 justify-end">
+                              {[1, 2, 3, 4].map((step) => (
+                                <div
+                                  key={step}
+                                  className={`h-1 w-5 rounded-full ${step <= statusCfg.step ? "bg-emerald-400" : "bg-white/10"}`}
+                                />
+                              ))}
                             </div>
-                          ))}
-                          {items.length > 3 && (
-                            <p className="text-[10px] text-slate-500">+{items.length - 3} more items</p>
                           )}
                         </div>
                       </div>
-                      <div className="text-right shrink-0">
-                        <p className="text-xs text-slate-500">{formatDate(order.order_date)}</p>
-                        {totalValue > 0 && (
-                          <p className="text-sm font-bold text-white mt-1">₹{totalValue.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</p>
-                        )}
-                        {order.status !== "cancelled" && (
-                          <div className="flex items-center gap-1 mt-2 justify-end">
-                            {[1,2,3,4].map((step) => (
-                              <div key={step} className={`h-1 w-5 rounded-full transition-all ${
-                                step <= statusCfg.step ? "bg-emerald-400" : "bg-white/10"
-                              }`} />
-                            ))}
-                          </div>
-                        )}
-                      </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+                  );
+                })}
+              </div>
 
-          {filteredOrders.length > 0 && (
-            <div className="px-5 py-3 border-t border-white/5 text-center">
-              <p className="text-[10px] text-slate-500">
-                Showing {filteredOrders.length} of {total} total orders
-                {filterStatus !== "all" && (
-                  <Link href={"/portal/dashboard?status=all" as any} className="ml-2 text-emerald-400 hover:text-emerald-300 font-semibold transition-colors">
-                    View All →
+              {filterStatus !== "all" && (
+                <div className="px-5 py-3 border-t border-white/5 text-center">
+                  <Link href={"/portal/dashboard?status=all" as any} className="text-[11px] text-emerald-400 hover:text-emerald-300 font-semibold">
+                    View All Orders →
                   </Link>
-                )}
-              </p>
-            </div>
+                </div>
+              )}
+            </>
           )}
         </div>
       </main>
