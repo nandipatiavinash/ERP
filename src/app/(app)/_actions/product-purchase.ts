@@ -3,8 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { requirePermission } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createClient } from "@/lib/supabase/server";
-import { generateNextJournalNo, todayInIndia } from "./helpers";
+import { generateNextJournalNo } from "./helpers";
 
 export async function saveProductPurchase(formData: FormData) {
   const user = await requirePermission("accounts.product_purchase");
@@ -24,6 +23,13 @@ export async function saveProductPurchase(formData: FormData) {
   const quantities = formData.getAll("quantity").map(Number);
   const weights = formData.getAll("weight").map(Number);
   const rates = formData.getAll("rate").map(Number);
+
+  // New spec inputs
+  const supplier_roll_ids = formData.getAll("supplier_roll_id").map(String);
+  const source_roll_ids = formData.getAll("source_roll_id").map(String);
+  const film_types = formData.getAll("film_type").map(String);
+  const is_metallics = formData.getAll("is_metallic").map((v) => v === "true");
+  const color_ids = formData.getAll("color_id").map(String);
 
   if (!purchase_date || !supplier_name || !bill_number) {
     throw new Error("Purchase date, supplier, and bill number are required.");
@@ -69,7 +75,16 @@ export async function saveProductPurchase(formData: FormData) {
     const qty = quantities[i] || 0;
     const weight = weights[i] || 0;
     const rate = rates[i] || 0;
-    const amount = qty * rate;
+
+    // Direct bill value rate (no qty/weight multiplication)
+    const amount = rate;
+
+    // New inputs
+    const supplierRollId = supplier_roll_ids[i] || null;
+    const sourceRollId = source_roll_ids[i] || null;
+    const filmType = film_types[i] || null;
+    const isMetallic = is_metallics[i] || false;
+    const colorId = color_ids[i] || null;
 
     let createdStockId: string | null = null;
 
@@ -102,6 +117,7 @@ export async function saveProductPurchase(formData: FormData) {
           production_date: purchase_date,
           status: "available",
           current_stage: "loom",
+          supplier_roll_id: supplierRollId,
           created_by: user.id,
           updated_by: user.id,
         })
@@ -111,23 +127,165 @@ export async function saveProductPurchase(formData: FormData) {
       if (stockErr) throw new Error(`Fabric roll stock insert failed: ${stockErr.message}`);
       createdStockId = stockItem.id;
 
+    } else if (dept === "roto-printing") {
+      let brandName = "ROTO";
+      if (rotoProductId) {
+        const { data: p } = await adminSupabase.from("roto_products").select("brand").eq("id", rotoProductId).maybeSingle();
+        if (p) brandName = (p as any).brand;
+      }
+
+      let colorName = "";
+      if (colorId) {
+        const { data: c } = await adminSupabase.from("roto_colors").select("color_name").eq("id", colorId).maybeSingle();
+        if (c) colorName = (c as any).color_name;
+      }
+
+      const filmTypeChar = filmType === "gloss" ? "G" : "M";
+      let rollId = `E-${brandName.trim()}`;
+      rollId += `(${filmTypeChar})`;
+      if (colorName) {
+        rollId += `(${colorName.trim()})`;
+      }
+      rollId = rollId.toUpperCase();
+
+      // Sequential s_no calculation
+      const { count } = await adminSupabase
+        .from("roto_film_rolls")
+        .select("id", { count: "exact", head: true })
+        .eq("roll_id", rollId)
+        .is("deleted_at", null);
+      const seq = (count ?? 0) + 1;
+
+      if (!isMetallic) {
+        const { data: stockItem, error: stockErr } = await (adminSupabase
+          .from("roto_film_rolls") as any)
+          .insert({
+            roll_id: rollId,
+            s_no: seq,
+            brand_id: rotoProductId,
+            film_type: filmType || "gloss",
+            color_id: colorId,
+            weight_kg: weight,
+            meters: qty,
+            entry_date: purchase_date,
+            status: "available",
+            supplier_roll_id: supplierRollId,
+            created_by: user.id,
+            updated_by: user.id,
+          })
+          .select("id")
+          .single();
+
+        if (stockErr) throw new Error(`Roto film roll stock insert failed: ${stockErr.message}`);
+        createdStockId = stockItem.id;
+      } else {
+        // Insert dummy film roll consumed
+        const { data: filmRoll, error: filmErr } = await (adminSupabase
+          .from("roto_film_rolls") as any)
+          .insert({
+            roll_id: rollId,
+            s_no: seq,
+            brand_id: rotoProductId,
+            film_type: filmType || "gloss",
+            color_id: colorId,
+            weight_kg: weight,
+            meters: qty,
+            entry_date: purchase_date,
+            status: "consumed",
+            supplier_roll_id: supplierRollId,
+            created_by: user.id,
+            updated_by: user.id,
+          })
+          .select("id")
+          .single();
+
+        if (filmErr || !filmRoll) throw new Error(`Roto dummy film roll stock insert failed: ${filmErr?.message}`);
+
+        // Insert roto metallic roll
+        const metallicRollId = `${rollId}(MT)`.toUpperCase();
+        const { data: stockItem, error: stockErr } = await (adminSupabase
+          .from("roto_metallic_rolls") as any)
+          .insert({
+            roll_id: metallicRollId,
+            s_no: seq,
+            source_film_roll_id: filmRoll.id,
+            is_split: false,
+            weight_kg: weight,
+            meters: qty,
+            entry_date: purchase_date,
+            status: "available",
+            supplier_roll_id: supplierRollId,
+            created_by: user.id,
+            updated_by: user.id,
+          })
+          .select("id")
+          .single();
+
+        if (stockErr) throw new Error(`Roto metallic roll stock insert failed: ${stockErr.message}`);
+        createdStockId = stockItem.id;
+      }
+
     } else if (dept === "lamination") {
-      const rollId = `E-LAM(${fabricName || "LAMINATION"})`;
+      let parentRollNo = "";
+      if (sourceRollId) {
+        const { data: fr } = await adminSupabase.from("fabric_rolls").select("roll_number").eq("id", sourceRollId).maybeSingle();
+        if (fr) parentRollNo = (fr as any).roll_number;
+      }
+
+      let brandName = "PLAIN";
+      if (["BOX", "F_S", "H_S"].includes(lamType || "")) {
+        if (rotoProductId) {
+          const { data: p } = await adminSupabase.from("roto_products").select("brand").eq("id", rotoProductId).maybeSingle();
+          if (p) brandName = (p as any).brand;
+        }
+      } else if (lamType === "NW") {
+        brandName = "NW";
+      }
+
+      let suffix = "";
+      if (lamType === "BOX") suffix = "B";
+      else if (lamType === "F_S") suffix = "F";
+      else if (lamType === "H_S") suffix = "H";
+
+      let rollId = "";
+      if (parentRollNo) {
+        if (lamType === "PLAIN" || lamType === "NW") {
+          rollId = `${parentRollNo.trim()}(${lamType})`;
+        } else {
+          rollId = `${parentRollNo.trim()}(${lamType})(${suffix})`;
+        }
+      } else {
+        if (lamType === "PLAIN" || lamType === "NW") {
+          rollId = `E-${brandName.trim()}(${fabricName.trim()})`;
+        } else {
+          rollId = `E-${brandName.trim()}(${fabricName.trim()})(${suffix})`;
+        }
+      }
+      rollId = rollId.toUpperCase();
+
+      const { count } = await adminSupabase
+        .from("lamination_rolls")
+        .select("id", { count: "exact", head: true })
+        .eq("roll_id", rollId)
+        .is("deleted_at", null);
+      const seq = (count ?? 0) + 1;
 
       const { data: stockItem, error: stockErr } = await (adminSupabase
         .from("lamination_rolls") as any)
         .insert({
           roll_id: rollId,
-          s_no: 1,
-          product_id: null, // set to null since lamination_products is removed
+          s_no: seq,
+          product_id: null,
           lam_type: lamType || "PLAIN",
           fabric_type_id: fabricTypeId,
+          fabric_roll_id: sourceRollId || null,
           film_roll_id: null,
           nw_material_id: null,
           weight_kg: weight,
           meters: qty,
           entry_date: purchase_date,
           status: "available",
+          supplier_roll_id: supplierRollId,
           created_by: user.id,
           updated_by: user.id,
         })
@@ -137,26 +295,54 @@ export async function saveProductPurchase(formData: FormData) {
       if (stockErr) throw new Error(`Lamination roll stock insert failed: ${stockErr.message}`);
       createdStockId = stockItem.id;
 
+      // Consume source fabric roll
+      if (sourceRollId) {
+        await (adminSupabase.from("fabric_rolls") as any).update({ status: "consumed" }).eq("id", sourceRollId);
+      }
+
     } else if (dept === "offset-printing") {
+      let parentRollNo = "";
+      if (sourceRollId) {
+        const { data: lr } = await adminSupabase.from("lamination_rolls").select("roll_id").eq("id", sourceRollId).maybeSingle();
+        if (lr) parentRollNo = (lr as any).roll_id;
+      }
+
       let brandName = "OFFSET";
       if (offsetProductId) {
         const { data: p } = await adminSupabase.from("offset_products").select("brand").eq("id", offsetProductId).maybeSingle();
         if (p) brandName = (p as any).brand;
       }
-      const rollId = `E-${brandName}`;
+
+      let rollId = "";
+      if (parentRollNo) {
+        rollId = `${parentRollNo.trim()}(OFFSET)`;
+      } else {
+        const fabricNameVal = offsetType === "NW" ? "NW" : fabricName;
+        rollId = `E-${brandName.trim()}(${fabricNameVal.trim()})`;
+      }
+      rollId = rollId.toUpperCase();
+
+      const { count } = await adminSupabase
+        .from("offset_rolls")
+        .select("id", { count: "exact", head: true })
+        .eq("roll_id", rollId)
+        .is("deleted_at", null);
+      const seq = (count ?? 0) + 1;
 
       const { data: stockItem, error: stockErr } = await (adminSupabase
         .from("offset_rolls") as any)
         .insert({
           roll_id: rollId,
-          s_no: 1,
+          s_no: seq,
           offset_type: offsetType || "PLAIN",
           brand_id: offsetProductId,
           fabric_type_id: fabricTypeId,
-          source_lam_roll_id: null,
+          source_fabric_roll_id: null,
+          source_lam_roll_id: sourceRollId || null,
           weight_kg: weight,
           entry_date: purchase_date,
           status: "available",
+          supplier_roll_id: supplierRollId,
           created_by: user.id,
           updated_by: user.id,
         })
@@ -166,24 +352,59 @@ export async function saveProductPurchase(formData: FormData) {
       if (stockErr) throw new Error(`Offset roll stock insert failed: ${stockErr.message}`);
       createdStockId = stockItem.id;
 
+      // Consume source lamination roll
+      if (sourceRollId) {
+        await (adminSupabase.from("lamination_rolls") as any).update({ status: "consumed" }).eq("id", sourceRollId);
+      }
+
     } else if (dept === "finishing") {
-      const bundleId = `E-BAG(${fabricName || "FINISHING"})`;
+      let parentRollNo = "";
+      const sourceType = lamination_types[i] || "fabric"; // Reuse unused lamination_type field as sourceType in finishing row
+
+      if (sourceRollId) {
+        if (sourceType === "fabric") {
+          const { data: r } = await adminSupabase.from("fabric_rolls").select("roll_number").eq("id", sourceRollId).maybeSingle();
+          if (r) parentRollNo = (r as any).roll_number;
+        } else if (sourceType === "lamination") {
+          const { data: r } = await adminSupabase.from("lamination_rolls").select("roll_id").eq("id", sourceRollId).maybeSingle();
+          if (r) parentRollNo = (r as any).roll_id;
+        } else if (sourceType === "offset") {
+          const { data: r } = await adminSupabase.from("offset_rolls").select("roll_id").eq("id", sourceRollId).maybeSingle();
+          if (r) parentRollNo = (r as any).roll_id;
+        }
+      }
+
+      let bundleId = "";
+      if (parentRollNo) {
+        bundleId = parentRollNo.startsWith("E-") ? parentRollNo : `E-${parentRollNo}`;
+      } else {
+        bundleId = `E-BAG(${fabricName.trim()})`;
+      }
+      bundleId = bundleId.toUpperCase();
+
+      const { count } = await adminSupabase
+        .from("finishing_bundles")
+        .select("id", { count: "exact", head: true })
+        .eq("bundle_id", bundleId)
+        .is("deleted_at", null);
+      const seq = (count ?? 0) + 1;
 
       const { data: stockItem, error: stockErr } = await (adminSupabase
         .from("finishing_bundles") as any)
         .insert({
           bundle_id: bundleId,
-          s_no: 1,
-          finish_type: "FABRIC",
-          product_id: null, // set to null since finishing_products is removed
-          source_lam_roll_id: null,
-          source_fabric_roll_id: null,
-          source_offset_roll_id: null,
+          s_no: seq,
+          finish_type: sourceType === "fabric" ? "FABRIC" : sourceType === "lamination" ? "LAMINATION" : "OFFSET",
+          product_id: null,
+          source_lam_roll_id: sourceType === "lamination" ? sourceRollId : null,
+          source_fabric_roll_id: sourceType === "fabric" ? sourceRollId : null,
+          source_offset_roll_id: sourceType === "offset" ? sourceRollId : null,
           fabric_type_id: fabricTypeId,
           num_bags: qty,
           weight_kg: weight,
           entry_date: purchase_date,
           status: "available",
+          supplier_roll_id: supplierRollId,
           created_by: user.id,
           updated_by: user.id,
         })
@@ -193,34 +414,16 @@ export async function saveProductPurchase(formData: FormData) {
       if (stockErr) throw new Error(`Finishing bundle stock insert failed: ${stockErr.message}`);
       createdStockId = stockItem.id;
 
-    } else if (dept === "roto-printing") {
-      let brandName = "ROTO";
-      if (rotoProductId) {
-        const { data: p } = await adminSupabase.from("roto_products").select("brand").eq("id", rotoProductId).maybeSingle();
-        if (p) brandName = (p as any).brand;
+      // Consume source roll
+      if (sourceRollId) {
+        if (sourceType === "fabric") {
+          await (adminSupabase.from("fabric_rolls") as any).update({ status: "consumed" }).eq("id", sourceRollId);
+        } else if (sourceType === "lamination") {
+          await (adminSupabase.from("lamination_rolls") as any).update({ status: "consumed" }).eq("id", sourceRollId);
+        } else if (sourceType === "offset") {
+          await (adminSupabase.from("offset_rolls") as any).update({ status: "consumed" }).eq("id", sourceRollId);
+        }
       }
-      const rollId = `E-${brandName}`;
-
-      const { data: stockItem, error: stockErr } = await (adminSupabase
-        .from("roto_film_rolls") as any)
-        .insert({
-          roll_id: rollId,
-          s_no: 1,
-          brand_id: rotoProductId,
-          film_type: "PLAIN",
-          color_id: null,
-          weight_kg: weight,
-          meters: qty,
-          entry_date: purchase_date,
-          status: "available",
-          created_by: user.id,
-          updated_by: user.id,
-        })
-        .select("id")
-        .single();
-
-      if (stockErr) throw new Error(`Roto roll stock insert failed: ${stockErr.message}`);
-      createdStockId = stockItem.id;
     }
 
     // Insert purchase item history matching database schema
@@ -232,13 +435,18 @@ export async function saveProductPurchase(formData: FormData) {
         fabric_type_id: fabricTypeId,
         roto_product_id: rotoProductId,
         offset_product_id: offsetProductId,
-        lamination_type: lamType,
+        lamination_type: dept === "finishing" ? lamination_types[i] : lamType, // Store sourceType in lamination_type for finishing
         offset_type: offsetType,
         quantity: qty,
         weight: weight,
         rate: rate,
         amount: amount,
-        created_stock_id: createdStockId
+        created_stock_id: createdStockId,
+        supplier_roll_id: supplierRollId,
+        source_roll_id: sourceRollId,
+        film_type: filmType,
+        is_metallic: isMetallic,
+        color_id: colorId,
       });
 
     if (itemError) {
@@ -308,7 +516,7 @@ export async function deleteProductPurchase(formData: FormData) {
 
   const adminSupabase = createAdminClient();
 
-  // 1. Fetch purchase details (including supplier and bill number to find journal entries)
+  // 1. Fetch purchase details
   const { data: purchase, error: fetchErr } = await (adminSupabase
     .from("product_purchases") as any)
     .select("bill_number, supplier_name")
@@ -321,12 +529,29 @@ export async function deleteProductPurchase(formData: FormData) {
 
   const { data: items } = await (adminSupabase
     .from("product_purchase_items") as any)
-    .select("department, created_stock_id")
+    .select("department, created_stock_id, source_roll_id, lamination_type")
     .eq("purchase_id", purchaseId);
 
-  // 2. Delete created stock items from their respective tables
+  // 2. Revert source rolls to 'available' & Delete created stock items
   if (items && items.length > 0) {
     for (const item of items) {
+      if (item.source_roll_id) {
+        if (item.department === "lamination") {
+          await (adminSupabase.from("fabric_rolls") as any).update({ status: "available" }).eq("id", item.source_roll_id);
+        } else if (item.department === "offset-printing") {
+          await (adminSupabase.from("lamination_rolls") as any).update({ status: "available" }).eq("id", item.source_roll_id);
+        } else if (item.department === "finishing") {
+          const sourceType = item.lamination_type || "fabric";
+          if (sourceType === "fabric") {
+            await (adminSupabase.from("fabric_rolls") as any).update({ status: "available" }).eq("id", item.source_roll_id);
+          } else if (sourceType === "lamination") {
+            await (adminSupabase.from("lamination_rolls") as any).update({ status: "available" }).eq("id", item.source_roll_id);
+          } else if (sourceType === "offset") {
+            await (adminSupabase.from("offset_rolls") as any).update({ status: "available" }).eq("id", item.source_roll_id);
+          }
+        }
+      }
+
       if (!item.created_stock_id) continue;
 
       if (item.department === "fabric") {
@@ -338,7 +563,21 @@ export async function deleteProductPurchase(formData: FormData) {
       } else if (item.department === "finishing") {
         await (adminSupabase.from("finishing_bundles") as any).delete().eq("id", item.created_stock_id);
       } else if (item.department === "roto-printing") {
-        await (adminSupabase.from("roto_film_rolls") as any).delete().eq("id", item.created_stock_id);
+        // Handle deletion for film and metallic rolls
+        const { data: metallic } = await adminSupabase
+          .from("roto_metallic_rolls")
+          .select("source_film_roll_id")
+          .eq("id", item.created_stock_id)
+          .maybeSingle();
+
+        if (metallic) {
+          await adminSupabase.from("roto_metallic_rolls").delete().eq("id", item.created_stock_id);
+          if ((metallic as any).source_film_roll_id) {
+            await adminSupabase.from("roto_film_rolls").delete().eq("id", (metallic as any).source_film_roll_id);
+          }
+        } else {
+          await adminSupabase.from("roto_film_rolls").delete().eq("id", item.created_stock_id);
+        }
       }
     }
   }

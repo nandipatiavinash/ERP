@@ -111,7 +111,9 @@ export function StockOffsetRollsClient({ rolls, fabricName }: StockOffsetRollsCl
                   {sortedRolls.map((roll) => (
                     <TableRow key={roll.id}>
                       <TableCell className="font-mono font-bold text-emerald-950">{roll.roll_id}</TableCell>
-                      <TableCell className="font-mono text-center font-semibold text-slate-700">{roll.s_no}</TableCell>
+                      <TableCell className="font-mono text-center font-semibold text-slate-700">
+                        {roll.roll_id.toUpperCase().startsWith("E-") ? `E-${roll.s_no}` : roll.s_no}
+                      </TableCell>
                       <TableCell className="font-semibold text-xs">{roll.offset_type}</TableCell>
                       <TableCell className="text-right font-mono">{formatNumber(roll.weight_kg, 2)}</TableCell>
                       <TableCell>{formatDate(roll.entry_date)}</TableCell>

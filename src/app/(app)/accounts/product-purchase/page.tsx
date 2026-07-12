@@ -20,12 +20,16 @@ export default async function ProductPurchasePage({
   const params = await searchParams;
   const date = params.date || todayInIndia();
 
-  // Fetch only existing catalogs (fabricTypes for specs, roto/offset for printing brand names)
+  // Fetch Catalogs + Available stock rolls for linkage + Colors list for Roto specs
   const [
     { data: customers },
     { data: fabricTypes },
     { data: rotoProducts },
     { data: offsetProducts },
+    { data: colors },
+    { data: availableFabricRolls },
+    { data: availableLaminationRolls },
+    { data: availableOffsetRolls },
     { data: purchases }
   ] = await Promise.all([
     supabase
@@ -54,10 +58,33 @@ export default async function ProductPurchasePage({
       .is("deleted_at", null)
       .order("brand"),
     supabase
+      .from("roto_colors")
+      .select("id, color_name")
+      .is("deleted_at", null)
+      .order("color_name"),
+    supabase
+      .from("fabric_rolls")
+      .select("id, roll_number, weight, meters, fabric_type_id")
+      .eq("status", "available")
+      .is("deleted_at", null)
+      .order("roll_number"),
+    supabase
+      .from("lamination_rolls")
+      .select("id, roll_id, s_no, weight_kg, meters, fabric_type_id")
+      .eq("status", "available")
+      .is("deleted_at", null)
+      .order("roll_id"),
+    supabase
+      .from("offset_rolls")
+      .select("id, roll_id, s_no, weight_kg, fabric_type_id")
+      .eq("status", "available")
+      .is("deleted_at", null)
+      .order("roll_id"),
+    supabase
       .from("product_purchases")
       .select(`
         id, purchase_date, supplier_name, bill_number, total_amount, remarks,
-        product_purchase_items(id, department, quantity, weight, rate, amount)
+        product_purchase_items(id, department, quantity, weight, rate, amount, supplier_roll_id, created_stock_id)
       `)
       .eq("purchase_date", date)
       .is("deleted_at", null)
@@ -66,6 +93,58 @@ export default async function ProductPurchasePage({
 
   const supplierList = (customers ?? []) as any[];
   const purchaseRows = (purchases ?? []) as any[];
+
+  // Map created stock IDs to their generated roll_id / roll_number for user visibility
+  const stockIdsByDept: Record<string, string[]> = {
+    fabric: [],
+    lamination: [],
+    "offset-printing": [],
+    "roto-printing": [],
+    finishing: []
+  };
+
+  const allItems = purchaseRows.flatMap(p => p.product_purchase_items || []);
+  allItems.forEach((item: any) => {
+    if (item.created_stock_id) {
+      stockIdsByDept[item.department]?.push(item.created_stock_id);
+    }
+  });
+
+  const [
+    { data: dbFabricRolls },
+    { data: dbLamRolls },
+    { data: dbOffsetRolls },
+    { data: dbFilmRolls },
+    { data: dbMetallicRolls },
+    { data: dbFinishBundles }
+  ] = await Promise.all([
+    stockIdsByDept.fabric.length > 0
+      ? supabase.from("fabric_rolls").select("id, roll_number").in("id", stockIdsByDept.fabric)
+      : Promise.resolve({ data: [] }),
+    stockIdsByDept.lamination.length > 0
+      ? supabase.from("lamination_rolls").select("id, roll_id").in("id", stockIdsByDept.lamination)
+      : Promise.resolve({ data: [] }),
+    stockIdsByDept["offset-printing"].length > 0
+      ? supabase.from("offset_rolls").select("id, roll_id").in("id", stockIdsByDept["offset-printing"])
+      : Promise.resolve({ data: [] }),
+    stockIdsByDept["roto-printing"].length > 0
+      ? supabase.from("roto_film_rolls").select("id, roll_id").in("id", stockIdsByDept["roto-printing"])
+      : Promise.resolve({ data: [] }),
+    stockIdsByDept["roto-printing"].length > 0
+      ? supabase.from("roto_metallic_rolls").select("id, roll_id").in("id", stockIdsByDept["roto-printing"])
+      : Promise.resolve({ data: [] }),
+    stockIdsByDept.finishing.length > 0
+      ? supabase.from("finishing_bundles").select("id, bundle_id").in("id", stockIdsByDept.finishing)
+      : Promise.resolve({ data: [] }),
+  ]);
+
+  const stockMap = new Map<string, string>();
+  (dbFabricRolls || []).forEach((r: any) => stockMap.set(r.id, r.roll_number));
+  (dbLamRolls || []).forEach((r: any) => stockMap.set(r.id, r.roll_id));
+  (dbOffsetRolls || []).forEach((r: any) => stockMap.set(r.id, r.roll_id));
+  (dbFilmRolls || []).forEach((r: any) => stockMap.set(r.id, r.roll_id));
+  (dbMetallicRolls || []).forEach((r: any) => stockMap.set(r.id, r.roll_id));
+  (dbFinishBundles || []).forEach((r: any) => stockMap.set(r.id, r.bundle_id));
 
   return (
     <div className="space-y-6">
@@ -82,6 +161,10 @@ export default async function ProductPurchasePage({
             fabricTypes={fabricTypes ?? []}
             rotoProducts={rotoProducts ?? []}
             offsetProducts={offsetProducts ?? []}
+            colors={colors ?? []}
+            availableFabricRolls={availableFabricRolls ?? []}
+            availableLaminationRolls={availableLaminationRolls ?? []}
+            availableOffsetRolls={availableOffsetRolls ?? []}
             selectedDate={date}
           />
         </div>
@@ -123,17 +206,26 @@ export default async function ProductPurchasePage({
                           <TableCell className="text-slate-600 text-xs font-mono">
                             {row.bill_number}
                           </TableCell>
-                          <TableCell className="text-xs text-slate-600 space-y-0.5">
-                            {(row.product_purchase_items ?? []).map((item: any) => (
-                              <div key={item.id} className="flex gap-2 items-center">
-                                <span className="capitalize px-1.5 py-0.5 bg-slate-100 rounded text-[9px] font-bold text-slate-600">
-                                  {item.department.replace("-printing", "")}
-                                </span>
-                                <span>
-                                  {formatNumber(item.quantity, 0)} qty / {formatNumber(item.weight, 1)} kg @ ₹{formatNumber(item.rate, 2)}
-                                </span>
-                              </div>
-                            ))}
+                          <TableCell className="text-xs text-slate-600 space-y-1">
+                            {(row.product_purchase_items ?? []).map((item: any) => {
+                              const generatedId = item.created_stock_id ? stockMap.get(item.created_stock_id) : null;
+                              return (
+                                <div key={item.id} className="flex flex-col gap-0.5 border-l-2 border-emerald-500 pl-2">
+                                  <div className="flex gap-2 items-center">
+                                    <span className="capitalize px-1.5 py-0.5 bg-slate-100 rounded text-[9px] font-bold text-slate-600">
+                                      {item.department.replace("-printing", "")}
+                                    </span>
+                                    <span className="font-semibold">
+                                      {formatNumber(item.quantity, 0)} {item.department === "finishing" ? "bags" : "mtrs"} / {formatNumber(item.weight, 1)} kg
+                                    </span>
+                                  </div>
+                                  <div className="text-[10px] text-slate-500 font-medium">
+                                    {generatedId && <span>Stock ID: <strong className="text-slate-700 font-semibold">{generatedId}</strong></span>}
+                                    {item.supplier_roll_id && <span> · Supplier ID: <strong className="text-slate-700 font-semibold">{item.supplier_roll_id}</strong></span>}
+                                  </div>
+                                </div>
+                              );
+                            })}
                           </TableCell>
                           <TableCell className="text-right font-black text-slate-900 text-xs tabular-nums">
                             ₹{formatNumber(row.total_amount, 2)}
