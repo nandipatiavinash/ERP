@@ -25,6 +25,9 @@ export async function createErpUser(_: unknown, formData: FormData) {
 
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid user details." };
 
+  // Optional customer_id for client-role users
+  const customerId = (formData.get("customer_id") as string) || null;
+
   const admin = createAdminClient();
   const { data: authData, error: authError } = await admin.auth.admin.createUser({
     email: parsed.data.email,
@@ -40,8 +43,6 @@ export async function createErpUser(_: unknown, formData: FormData) {
   const authUserId = authData.user?.id;
   if (!authUserId) return { error: "Supabase did not return a user id." };
 
-  // SEC-01 / API-12: Do NOT store the plaintext password in public.users.
-  // Authentication is handled entirely by Supabase Auth (hashed).
   const { error: profileError } = await admin.from("users").upsert({
     id: authUserId,
     role_id: parsed.data.role_id,
@@ -49,7 +50,7 @@ export async function createErpUser(_: unknown, formData: FormData) {
     email: parsed.data.email,
     phone: parsed.data.phone ?? null,
     status: parsed.data.status,
-    // password field intentionally omitted — stored hashed in Supabase Auth only
+    customer_id: customerId,
   } as any);
 
   if (profileError) {

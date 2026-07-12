@@ -8,6 +8,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const user = await requireUser();
   if (!user.roles?.name) redirect("/login");
   const role = user.roles.name;
+
+  // Client users get the portal, not the ERP shell
+  if (role === "client") redirect("/portal/dashboard");
+
   const permissions = await getSessionPermissions(user);
 
   const supabase = await createClient();

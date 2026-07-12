@@ -9,10 +9,17 @@ import { statusOptions } from "@/lib/modules";
 import { showSuccess } from "@/lib/toast";
 
 type RoleOption = { id: string; name: string };
+type CustomerOption = { id: string; customer_name: string };
 
-export function UserForm({ roles }: { roles: RoleOption[] }) {
+export function UserForm({ roles, customers }: { roles: RoleOption[]; customers?: CustomerOption[] }) {
   const [isPending, startTransition] = useTransition();
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [selectedRoleName, setSelectedRoleName] = useState<string>("");
+
+  const handleRoleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selected = roles.find((r) => r.id === e.target.value);
+    setSelectedRoleName(selected?.name ?? "");
+  };
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -28,12 +35,15 @@ export function UserForm({ roles }: { roles: RoleOption[] }) {
         } else {
           showSuccess("User created successfully!");
           form.reset();
+          setSelectedRoleName("");
         }
       } catch (err: any) {
         setErrorMsg(err.message || "Failed to create user.");
       }
     });
   };
+
+  const isClient = selectedRoleName === "client";
 
   return (
     <form onSubmit={handleSubmit} className="grid gap-4 md:grid-cols-2">
@@ -55,7 +65,15 @@ export function UserForm({ roles }: { roles: RoleOption[] }) {
       </div>
       <div className="space-y-2">
         <Label htmlFor="role_id">Role</Label>
-        <select id="role_id" name="role_id" required defaultValue="" className="h-10 w-full rounded-md border bg-background px-3 text-sm" disabled={isPending}>
+        <select
+          id="role_id"
+          name="role_id"
+          required
+          defaultValue=""
+          onChange={handleRoleChange}
+          className="h-10 w-full rounded-md border bg-background px-3 text-sm"
+          disabled={isPending}
+        >
           <option value="" disabled>Select role</option>
           {roles.map((role) => (
             <option key={role.id} value={role.id}>{role.name}</option>
@@ -70,6 +88,30 @@ export function UserForm({ roles }: { roles: RoleOption[] }) {
           ))}
         </select>
       </div>
+
+      {/* Customer Firm — only shown for 'client' role */}
+      {isClient && (
+        <div className="space-y-2 md:col-span-2">
+          <Label htmlFor="customer_id">Customer Firm <span className="text-red-500">*</span></Label>
+          <select
+            id="customer_id"
+            name="customer_id"
+            required={isClient}
+            defaultValue=""
+            className="h-10 w-full rounded-md border bg-background px-3 text-sm font-semibold"
+            disabled={isPending}
+          >
+            <option value="" disabled>Select Customer Firm...</option>
+            {(customers ?? []).map((c) => (
+              <option key={c.id} value={c.id}>{c.customer_name}</option>
+            ))}
+          </select>
+          <p className="text-xs text-muted-foreground">
+            This client will only see products and orders belonging to this firm.
+          </p>
+        </div>
+      )}
+
       {errorMsg && <p className="text-sm text-destructive md:col-span-2">{errorMsg}</p>}
       <div className="md:col-span-2">
         <ConfirmSubmitButton disabled={isPending} confirmTitle="Create Supabase user?" confirmDescription="Confirm the user details and role before creating the authentication account.">

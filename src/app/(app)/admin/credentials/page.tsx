@@ -13,13 +13,15 @@ export default async function CredentialsPage() {
   const sessionUserId = sessionUser?.id ?? "";
 
   const supabase = await createClient();
-  const [{ data }, { data: roles }, { data: employees }] = await Promise.all([
+  const [{ data }, { data: roles }, { data: employees }, { data: customers }] = await Promise.all([
     supabase.from("users").select("*, roles(name)").is("deleted_at", null).order("full_name", { ascending: true }),
     supabase.from("roles").select("id, name").eq("is_active", true).is("deleted_at", null).order("name"),
     supabase.from("employees").select("id, user_id, employee_code, name").eq("status", "active").is("deleted_at", null).order("name"),
+    supabase.from("customers").select("id, customer_name").eq("status", "active").is("deleted_at", null).order("customer_name"),
   ]);
   const users = (data ?? []) as any[];
   const employeeRows = (employees ?? []) as any[];
+  const customerList = (customers ?? []) as any[];
   const linkedEmployeeByUser = new Map(employeeRows.filter((employee) => employee.user_id).map((employee) => [employee.user_id, employee]));
 
   return (
@@ -27,7 +29,7 @@ export default async function CredentialsPage() {
       <PageHeader title="Login Credentials" description="Create Supabase Auth users and link them to ERP roles." />
       <Card className="mb-5">
         <CardHeader><CardTitle>Create User</CardTitle></CardHeader>
-        <CardContent><UserForm roles={((roles ?? []) as any[]).map((role) => ({ id: role.id, name: role.name }))} /></CardContent>
+        <CardContent><UserForm roles={((roles ?? []) as any[]).map((role) => ({ id: role.id, name: role.name }))} customers={customerList.map((c) => ({ id: c.id, customer_name: c.customer_name }))} /></CardContent>
       </Card>
       <Card>
         <CardHeader><CardTitle>ERP Users</CardTitle></CardHeader>
