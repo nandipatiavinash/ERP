@@ -521,7 +521,7 @@ export async function saveProductPurchase(formData: FormData) {
         account_name: purchaseAc?.customer_name ?? "Purchase A/c",
         entry_type: "debit",
         amount: totalBillValue,
-        description: `Product Purchase: ${bill_number} (${supplierAc?.customer_name ?? supplier_name})`,
+        description: `Product Purchase: ${bill_number} (${supplierAc?.customer_name ?? supplier_name}) (PP:${purchaseId})`,
         created_by: user.id,
         updated_by: user.id,
       },
@@ -532,7 +532,7 @@ export async function saveProductPurchase(formData: FormData) {
         account_name: supplierAc?.customer_name ?? supplier_name,
         entry_type: "credit",
         amount: totalBillValue,
-        description: `Product Purchase: ${bill_number}`,
+        description: `Product Purchase: ${bill_number} (PP:${purchaseId})`,
         created_by: user.id,
         updated_by: user.id,
       },
@@ -629,14 +629,21 @@ export async function deleteProductPurchase(formData: FormData) {
       await Promise.all(promises);
     }
 
-    // 3. Delete matching auto-generated journal entries
+    // 3. Delete matching journal entries using the unique PP:UUID tag
     try {
-      const descExact = `Product Purchase: ${purchase.bill_number}`;
-      const descPrefix = `Product Purchase: ${purchase.bill_number} (%`;
-      await (adminSupabase
+      const { data: journalRows } = await (adminSupabase
         .from("accounts_journal") as any)
-        .delete()
-        .or(`description.eq."${descExact}",description.like."${descPrefix}"`);
+        .select("journal_no")
+        .ilike("description", `%PP:${purchaseId}%`)
+        .is("deleted_at", null);
+
+      const journalNos = [...new Set((journalRows || []).map((r: any) => r.journal_no))];
+      if (journalNos.length > 0) {
+        await (adminSupabase
+          .from("accounts_journal") as any)
+          .delete()
+          .in("journal_no", journalNos);
+      }
     } catch (journalErr) {
       console.error("Failed to delete associated journal entries:", journalErr);
     }

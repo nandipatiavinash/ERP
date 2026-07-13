@@ -622,7 +622,7 @@ export async function finalizeSalesOrderBilling(formData: FormData) {
       account_name: customerAc?.customer_name ?? customerName,
       entry_type: "debit",
       amount: billValue,
-      description: billNumber,
+      description: `${billNumber} (SO:${orderId})`,
       created_by: user.id,
       updated_by: user.id,
     },
@@ -633,7 +633,7 @@ export async function finalizeSalesOrderBilling(formData: FormData) {
       account_name: salesAc?.customer_name ?? "Sales A/c",
       entry_type: "credit",
       amount: billValue,
-      description: `${billNumber} (${customerAc?.customer_name ?? customerName})`,
+      description: `${billNumber} (${customerAc?.customer_name ?? customerName}) (SO:${orderId})`,
       created_by: user.id,
       updated_by: user.id,
     },
@@ -720,48 +720,20 @@ export async function deleteSalesOrderCompletely(orderId: string) {
     }
   }
 
-  let journalQuery = (supabase
+  const { data: journalRows } = await (supabase
     .from("accounts_journal") as any)
     .select("journal_no")
-    .ilike("description", `%${orderData.order_number}%`);
-  if (billNumber) {
-    const { data: billJournalRows } = await (supabase
+    .or(`description.ilike."%SO:${orderId}%",description.ilike."%${orderData.order_number}%"`)
+    .is("deleted_at", null);
+
+  const journalNos = [...new Set((journalRows || []).map((r: any) => r.journal_no))];
+  if (journalNos.length > 0) {
+    const { error: journalDelErr } = await (supabase
       .from("accounts_journal") as any)
-      .select("journal_no, account_name")
-      .eq("entry_date", orderDate)
-      .eq("description", billNumber)
-      .is("deleted_at", null);
-    
-    const filteredBillRows = (billJournalRows || []).filter((r: any) =>
-      r.account_name?.toLowerCase().trim() === customerName.toLowerCase().trim()
-    );
-    const { data: orderJournalRows } = await journalQuery;
-    const journalRows = [
-      ...(orderJournalRows || []),
-      ...filteredBillRows,
-    ];
-    const journalNos = [...new Set(journalRows.map((r: any) => r.journal_no))];
-    if (journalNos.length > 0) {
-      const { error: journalDelErr } = await (supabase
-        .from("accounts_journal") as any)
-        .delete()
-        .in("journal_no", journalNos);
-      if (journalDelErr) {
-        throw new Error("Failed to delete related journal entries: " + journalDelErr.message);
-      }
-    }
-  } else {
-    const { data: journalRows } = await journalQuery;
-  
-    const journalNos = (journalRows || []).map((r: any) => r.journal_no);
-    if (journalNos.length > 0) {
-      const { error: journalDelErr } = await (supabase
-        .from("accounts_journal") as any)
-        .delete()
-        .in("journal_no", journalNos);
-      if (journalDelErr) {
-        throw new Error("Failed to delete related journal entries: " + journalDelErr.message);
-      }
+      .delete()
+      .in("journal_no", journalNos);
+    if (journalDelErr) {
+      throw new Error("Failed to delete related journal entries: " + journalDelErr.message);
     }
   }
 

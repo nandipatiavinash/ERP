@@ -51,8 +51,10 @@ export async function saveRawMaterialPurchase(formData: FormData) {
     };
   });
 
-  const { error } = await supabase.from("raw_material_purchases").insert(inserts as any);
+  const { data: insertedRows, error } = await (supabase.from("raw_material_purchases") as any).insert(inserts).select("id");
   if (error) throw new Error(error.message);
+  // Use first inserted row ID as the unique source tag for journal linkage
+  const purchaseSourceId: string = insertedRows?.[0]?.id ?? "";
 
   // Auto-generate journal entries for purchase
   try {
@@ -84,7 +86,7 @@ export async function saveRawMaterialPurchase(formData: FormData) {
         account_name: purchaseAc?.customer_name ?? "Purchase A/c",
         entry_type: "debit",
         amount: totalBillValue,
-        description: `${bill_number} (${supplierAc?.customer_name ?? supplier_name})`,
+        description: `${bill_number} (${supplierAc?.customer_name ?? supplier_name}) (RM:${purchaseSourceId})`,
         created_by: user.id,
         updated_by: user.id,
       },
@@ -95,7 +97,7 @@ export async function saveRawMaterialPurchase(formData: FormData) {
         account_name: supplierAc?.customer_name ?? supplier_name,
         entry_type: "credit",
         amount: totalBillValue,
-        description: bill_number,
+        description: `${bill_number} (RM:${purchaseSourceId})`,
         created_by: user.id,
         updated_by: user.id,
       },
@@ -147,25 +149,19 @@ export async function deleteRawMaterialPurchase(purchaseId: string) {
 
   if (deleteError) throw new Error(deleteError.message);
 
-  // Also delete the auto-generated journal entries that reference this bill
-  if (purchase.bill_number) {
-    const { data: journalRows } = await (supabase
-      .from("accounts_journal") as any)
-      .select("journal_no, account_name")
-      .eq("entry_date", purchase.purchase_date)
-      .eq("description", purchase.bill_number)
-      .is("deleted_at", null);
+  // Delete auto-generated journal entries using the unique RM:UUID tag (safe, no bill-number collisions)
+  const { data: journalRows } = await (supabase
+    .from("accounts_journal") as any)
+    .select("journal_no")
+    .ilike("description", `%RM:${purchaseId}%`)
+    .is("deleted_at", null);
 
-    const filteredRows = (journalRows || []).filter((r: any) =>
-      r.account_name?.toLowerCase().trim() === purchase.supplier_name?.toLowerCase().trim()
-    );
-    const journalNos = [...new Set(filteredRows.map((r: any) => r.journal_no))];
-    if (journalNos.length > 0) {
-      await (supabase
-        .from("accounts_journal") as any)
-        .delete()
-        .in("journal_no", journalNos);
-    }
+  const journalNos = [...new Set((journalRows || []).map((r: any) => r.journal_no))];
+  if (journalNos.length > 0) {
+    await (supabase
+      .from("accounts_journal") as any)
+      .delete()
+      .in("journal_no", journalNos);
   }
 
   revalidatePath("/", "layout");
