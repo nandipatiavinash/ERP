@@ -405,7 +405,7 @@ export async function saveProductPurchase(formData: FormData) {
       if (supplierRollId) {
         bundleId = supplierRollId.trim().toUpperCase();
       } else if (parentRollNo) {
-        bundleId = parentRollNo.startsWith("E-") ? parentRollNo : `E-${parentRollNo}`;
+        bundleId = parentRollNo;
       } else {
         const { count } = await adminSupabase
           .from("finishing_bundles")
