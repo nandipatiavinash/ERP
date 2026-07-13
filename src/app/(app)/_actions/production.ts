@@ -414,6 +414,14 @@ export async function saveLaminationProduction(formData: FormData) {
 
   if (insertError) throw new Error(insertError.message);
 
+  // Manually consume metallic film roll if referenced
+  if (matchedMetallicRollId) {
+    await (adminSupabase
+      .from("roto_metallic_rolls") as any)
+      .update({ status: "consumed" })
+      .eq("id", matchedMetallicRollId);
+  }
+
   revalidatePath("/lamination/production");
   revalidatePath("/lamination/stock");
   revalidatePath("/offset-printing/production");
@@ -598,7 +606,6 @@ export async function saveFinishingBundle(formData: FormData) {
 
   // bundle_id is the spec ID directly e.g. PLAIN(N-19-3.5)
   const bundleId = specId;
-  const productId = formData.get("product_id") ? String(formData.get("product_id")) : null;
 
   const adminSupabase = createAdminClient();
   const { error: insertError } = await (adminSupabase
@@ -607,7 +614,7 @@ export async function saveFinishingBundle(formData: FormData) {
       bundle_id: bundleId,
       s_no: 1,
       finish_type: finishType,
-      product_id: productId,
+      product_id: null,
       source_lam_roll_id: sourceLamRollId,
       source_fabric_roll_id: null,
       source_offset_roll_id: sourceOffsetRollId,
