@@ -92,13 +92,11 @@ export function OffsetProductionForm({
     return [...offsetProducts].sort((a, b) => (a.brand || "").localeCompare(b.brand || ""));
   }, [offsetProducts]);
  
-  // Filter, deduplicate by roll_id, and sort lamination rolls based on offsetType
+  // Expose and deduplicate by roll_id, and sort all lamination rolls when offset type is lamination-based
   const uniqueLaminationRolls = useMemo(() => {
     if (!laminationRolls) return [];
-    const rolls = offsetType === "NW_LAM"
-      ? laminationRolls.filter((r) => r.lam_type === "NW")
-      : offsetType === "PLAIN_LAM"
-      ? laminationRolls.filter((r) => r.lam_type === "PLAIN")
+    const rolls = ["NW_LAM", "PLAIN_LAM"].includes(offsetType)
+      ? laminationRolls
       : [];
     const map = new Map<string, LaminationRoll>();
     rolls.forEach((r) => {

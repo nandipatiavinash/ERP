@@ -414,14 +414,6 @@ export async function saveLaminationProduction(formData: FormData) {
 
   if (insertError) throw new Error(insertError.message);
 
-  // Manually consume metallic film roll if referenced
-  if (matchedMetallicRollId) {
-    await (adminSupabase
-      .from("roto_metallic_rolls") as any)
-      .update({ status: "consumed" })
-      .eq("id", matchedMetallicRollId);
-  }
-
   revalidatePath("/lamination/production");
   revalidatePath("/lamination/stock");
   revalidatePath("/offset-printing/production");
@@ -450,14 +442,6 @@ export async function deleteLaminationProduction(id: string) {
     .eq("id", id);
 
   if (error) throw new Error(error.message);
-
-  // Manually revert metallic film roll status to available if it was consumed
-  if ((roll as any).film_roll_id) {
-    await (adminSupabase
-      .from("roto_metallic_rolls") as any)
-      .update({ status: "available" })
-      .eq("id", (roll as any).film_roll_id);
-  }
 
   revalidatePath("/lamination/production");
   revalidatePath("/lamination/stock");
