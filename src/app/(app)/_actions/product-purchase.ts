@@ -357,7 +357,7 @@ export async function saveProductPurchase(formData: FormData) {
         .insert({
           roll_id: rollId,
           s_no: seq,
-          offset_type: offsetType || "PLAIN",
+          offset_type: offsetType || "FABRIC",
           brand_id: offsetProductId,
           fabric_type_id: fabricTypeId,
           source_lam_roll_id: sourceRollId || null,

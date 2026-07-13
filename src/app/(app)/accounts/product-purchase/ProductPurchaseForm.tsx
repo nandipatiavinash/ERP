@@ -74,7 +74,7 @@ export function ProductPurchaseForm({
   const [brandProductId, setBrandProductId] = useState("");
   const [fabricTypeId, setFabricTypeId] = useState("");
   const [laminationType, setLaminationType] = useState("PLAIN");
-  const [offsetType, setOffsetType] = useState("PLAIN");
+  const [offsetType, setOffsetType] = useState("FABRIC");
   const [quantity, setQuantity] = useState("");
   const [weight, setWeight] = useState("");
   const [supplierRollId, setSupplierRollId] = useState("");
@@ -556,7 +556,7 @@ export function ProductPurchaseForm({
               <div className="space-y-1.5">
                 <Label className="text-[10px] font-bold text-slate-600">Offset Type</Label>
                 <select value={offsetType} onChange={(e) => setOffsetType(e.target.value)} className="w-full h-8 text-[11px] border border-slate-200 rounded bg-white px-2 py-0.5 focus:outline-none font-semibold">
-                  <option value="PLAIN">PLAIN</option>
+                  <option value="FABRIC">PLAIN</option>
                   <option value="NW_LAM">NW_LAM</option>
                   <option value="PLAIN_LAM">PLAIN_LAM</option>
                   <option value="NW">NW</option>
