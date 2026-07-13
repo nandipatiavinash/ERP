@@ -176,8 +176,7 @@ export function AccountReportsClient({
       } else {
         const match = accounts.find(
           (acc) =>
-             acc.customer_name.toLowerCase().trim() === entry.account_name.toLowerCase().trim() ||
-             (acc.alias && acc.alias.toLowerCase().trim() === entry.account_name.toLowerCase().trim())
+             acc.customer_name.toLowerCase().trim() === entry.account_name.toLowerCase().trim()
         );
         if (match) {
           if (entry.entry_type === "debit") {
