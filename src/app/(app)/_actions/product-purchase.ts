@@ -6,7 +6,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { generateNextJournalNo } from "./helpers";
 
 export async function saveProductPurchase(formData: FormData) {
-  const user = await requirePermission("accounts.product_purchase");
+  try {
+    const user = await requirePermission("accounts.product_purchase");
 
   const purchase_date = String(formData.get("purchase_date") ?? "");
   const supplier_name = String(formData.get("supplier_name") ?? "");
@@ -542,7 +543,12 @@ export async function saveProductPurchase(formData: FormData) {
     console.error("Auto-journal for product purchase failed:", journalErr);
   }
 
-  revalidatePath("/", "layout");
+    revalidatePath("/", "layout");
+    return { success: true };
+  } catch (err: any) {
+    console.error("Error in saveProductPurchase:", err);
+    return { success: false, error: err.message || "An unexpected error occurred." };
+  }
 }
 
 export async function deleteProductPurchase(formData: FormData) {

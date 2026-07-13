@@ -294,7 +294,12 @@ export function ProductPurchaseForm({
         formData.append("color_id", item.colorId);
       });
 
-      await saveProductPurchase(formData);
+      const result = await saveProductPurchase(formData);
+      if (!result.success) {
+        setErrorText(result.error || "Failed to save purchase.");
+        setIsSaving(false);
+        return;
+      }
       setSuccessText("Product Purchase recorded successfully!");
       setItems([]);
       setManualBillValue("");
