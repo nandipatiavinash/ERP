@@ -602,13 +602,14 @@ export async function deleteProductPurchase(formData: FormData) {
     }
   }
 
-  // 3. Delete matching auto-generated journal entries
+  // 3. Delete matching auto-generated journal entries (safely anchored to Product Purchase prefix)
   try {
-    const queryDesc = `Product Purchase: ${purchase.bill_number}`;
+    const descExact = `Product Purchase: ${purchase.bill_number}`;
+    const descPrefix = `Product Purchase: ${purchase.bill_number} (%`;
     await (adminSupabase
       .from("accounts_journal") as any)
       .delete()
-      .or(`description.eq."${queryDesc}",description.like."%${purchase.bill_number}%"`);
+      .or(`description.eq."${descExact}",description.like."${descPrefix}"`);
   } catch (journalErr) {
     console.error("Failed to delete associated journal entries:", journalErr);
   }
