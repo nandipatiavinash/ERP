@@ -226,7 +226,7 @@ export function ProductPurchaseForm({
       productLabel,
       fabricTypeId: isFabricRequired ? fabricTypeId : "",
       fabricLabel,
-      laminationType: department === "lamination" ? laminationType : "",
+      laminationType: department === "lamination" ? laminationType : department === "finishing" ? sourceType : "",
       offsetType: department === "offset-printing" ? offsetType : "",
       quantity: qtyVal,
       weight: weightVal,
@@ -605,18 +605,71 @@ export function ProductPurchaseForm({
           {showFinishingFields && (
             <div className="grid grid-cols-3 gap-3">
               <div className="space-y-1.5">
-                <Label className="text-[10px] font-bold text-slate-600">Fabric Specification</Label>
+                <Label className="text-[10px] font-bold text-slate-600">Department / Type</Label>
                 <select
-                  value={fabricTypeId}
-                  onChange={(e) => setFabricTypeId(e.target.value)}
+                  value={sourceType}
+                  onChange={(e) => {
+                    setSourceType(e.target.value);
+                    setSourceRollId("");
+                    setFabricTypeId("");
+                    setQuantity("");
+                    setWeight("");
+                  }}
                   className="w-full h-8 text-[11px] border border-slate-200 rounded bg-white px-2 py-0.5 focus:outline-none font-semibold"
                 >
-                  <option value="">Select FabricSpec...</option>
-                  {fabricTypes.map((fab) => (
-                    <option key={fab.id} value={fab.id}>{fab.fabric_name}</option>
-                  ))}
+                  <option value="fabric">Fabric</option>
+                  <option value="lamination">Lamination</option>
+                  <option value="offset">Offset</option>
                 </select>
               </div>
+
+              {sourceType === "fabric" && (
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] font-bold text-slate-600">Fabric Specification</Label>
+                  <select
+                    value={fabricTypeId}
+                    onChange={(e) => setFabricTypeId(e.target.value)}
+                    className="w-full h-8 text-[11px] border border-slate-200 rounded bg-white px-2 py-0.5 focus:outline-none font-semibold"
+                  >
+                    <option value="">Select FabricSpec...</option>
+                    {fabricTypes.map((fab) => (
+                      <option key={fab.id} value={fab.id}>{fab.fabric_name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {sourceType === "lamination" && (
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] font-bold text-slate-600">Lamination Roll ID</Label>
+                  <select
+                    value={sourceRollId}
+                    onChange={(e) => handleSourceRollChange(e.target.value)}
+                    className="w-full h-8 text-[11px] border border-slate-200 rounded bg-white px-2 py-0.5 focus:outline-none font-semibold font-mono"
+                  >
+                    <option value="">Select Lamination Roll...</option>
+                    {availableLaminationRolls.map((r) => (
+                      <option key={r.id} value={r.id}>{r.roll_id}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {sourceType === "offset" && (
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] font-bold text-slate-600">Offset Roll ID</Label>
+                  <select
+                    value={sourceRollId}
+                    onChange={(e) => handleSourceRollChange(e.target.value)}
+                    className="w-full h-8 text-[11px] border border-slate-200 rounded bg-white px-2 py-0.5 focus:outline-none font-semibold font-mono"
+                  >
+                    <option value="">Select Offset Roll...</option>
+                    {availableOffsetRolls.map((r) => (
+                      <option key={r.id} value={r.id}>{r.roll_id}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
               <div className="space-y-1.5">
                 <Label className="text-[10px] font-bold text-slate-600">Quantity (Bags)</Label>
