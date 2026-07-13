@@ -13,7 +13,6 @@ export default async function FinishingStockPage() {
   const { data: bundles, error } = await supabase
     .from("finishing_bundles")
     .select("*, fabric_types(fabric_name)")
-    .eq("status", "available")
     .is("deleted_at", null);
 
   if (error) throw new Error(error.message);
@@ -29,10 +28,12 @@ export default async function FinishingStockPage() {
         weight: 0
       });
     }
-    const g = groupsMap.get(bId)!;
-    g.bundles += 1;
-    g.bags += Number(b.num_bags || 0);
-    g.weight += Number(b.weight_kg || 0);
+    if (b.status === "available") {
+      const g = groupsMap.get(bId)!;
+      g.bundles += 1;
+      g.bags += Number(b.num_bags || 0);
+      g.weight += Number(b.weight_kg || 0);
+    }
   }
   const stockRows = Array.from(groupsMap.values()).sort((a, b) => a.bundle_id.localeCompare(b.bundle_id));
 

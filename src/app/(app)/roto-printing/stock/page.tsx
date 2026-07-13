@@ -17,12 +17,10 @@ export default async function RotoPrintingStockPage() {
     supabase
       .from("roto_film_rolls")
       .select("*, roto_products(brand)")
-      .eq("status", "available")
       .is("deleted_at", null),
     supabase
       .from("roto_metallic_rolls")
       .select("*, roto_film_rolls(brand_id, roto_products(brand))")
-      .eq("status", "available")
       .is("deleted_at", null),
   ]);
 
@@ -41,10 +39,12 @@ export default async function RotoPrintingStockPage() {
         meters: 0
       });
     }
-    const g = filmGroups.get(rId)!;
-    g.rolls += 1;
-    g.weight += Number(r.weight_kg || 0);
-    g.meters += Number(r.meters || 0);
+    if (r.status === "available") {
+      const g = filmGroups.get(rId)!;
+      g.rolls += 1;
+      g.weight += Number(r.weight_kg || 0);
+      g.meters += Number(r.meters || 0);
+    }
   }
   const filmStockRows = Array.from(filmGroups.values()).sort((a, b) => a.roll_id.localeCompare(b.roll_id));
 
@@ -60,10 +60,12 @@ export default async function RotoPrintingStockPage() {
         meters: 0
       });
     }
-    const g = metallicGroups.get(rId)!;
-    g.rolls += 1;
-    g.weight += Number(r.weight_kg || 0);
-    g.meters += Number(r.meters || 0);
+    if (r.status === "available") {
+      const g = metallicGroups.get(rId)!;
+      g.rolls += 1;
+      g.weight += Number(r.weight_kg || 0);
+      g.meters += Number(r.meters || 0);
+    }
   }
   const metallicStockRows = Array.from(metallicGroups.values()).sort((a, b) => a.roll_id.localeCompare(b.roll_id));
 

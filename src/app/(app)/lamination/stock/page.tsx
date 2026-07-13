@@ -13,7 +13,6 @@ export default async function LaminationStockPage() {
   const { data: rolls, error } = await supabase
     .from("lamination_rolls")
     .select("*, fabric_types(fabric_name)")
-    .eq("status", "available")
     .is("deleted_at", null);
 
   if (error) throw new Error(error.message);
@@ -34,10 +33,12 @@ export default async function LaminationStockPage() {
         meters: 0
       });
     }
-    const g = groupsMap.get(key)!;
-    g.rolls += 1;
-    g.weight += Number(r.weight_kg || 0);
-    g.meters += Number(r.meters || 0);
+    if (r.status === "available") {
+      const g = groupsMap.get(key)!;
+      g.rolls += 1;
+      g.weight += Number(r.weight_kg || 0);
+      g.meters += Number(r.meters || 0);
+    }
   }
   const stockRows = Array.from(groupsMap.values()).sort((a, b) => {
     return a.roll_id.localeCompare(b.roll_id);

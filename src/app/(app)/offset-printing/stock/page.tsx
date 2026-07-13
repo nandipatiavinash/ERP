@@ -13,7 +13,6 @@ export default async function OffsetPrintingStockPage() {
   const { data: rolls, error } = await supabase
     .from("offset_rolls")
     .select("*, fabric_types(fabric_name)")
-    .eq("status", "available")
     .is("deleted_at", null);
 
   if (error) throw new Error(error.message);
@@ -28,9 +27,11 @@ export default async function OffsetPrintingStockPage() {
         weight: 0
       });
     }
-    const g = groupsMap.get(rId)!;
-    g.rolls += 1;
-    g.weight += Number(r.weight_kg || 0);
+    if (r.status === "available") {
+      const g = groupsMap.get(rId)!;
+      g.rolls += 1;
+      g.weight += Number(r.weight_kg || 0);
+    }
   }
   const stockRows = Array.from(groupsMap.values()).sort((a, b) => a.roll_id.localeCompare(b.roll_id));
 

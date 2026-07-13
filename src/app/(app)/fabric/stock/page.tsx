@@ -11,14 +11,24 @@ export default async function FabricStockPage() {
   await requirePermission("fabric.stock");
   const supabase = await createClient();
 
-  const { data: stock } = await (supabase as any).rpc("get_fabric_stock_summary");
+  const [fabricTypesRes, rollsRes] = await Promise.all([
+    supabase.from("fabric_types").select("id, fabric_name").order("fabric_name"),
+    supabase.from("fabric_rolls").select("fabric_type_id, status, weight, meters").is("deleted_at", null)
+  ]);
 
-  const stockRows = ((stock ?? []) as any[]).map((row) => ({
-    ...row,
-    rolls: Number(row.rolls ?? 0),
-    weight: Number(row.weight ?? 0),
-    meters: Number(row.meters ?? 0),
-  }));
+  const fabricTypes = (fabricTypesRes.data || []) as Array<{ id: string; fabric_name: string }>;
+  const rolls = (rollsRes.data || []) as Array<{ fabric_type_id: string; status: string; weight: number; meters: number }>;
+
+  const stockRows = fabricTypes.map((ft) => {
+    const availableRolls = rolls.filter(r => r.fabric_type_id === ft.id && r.status === "available");
+    return {
+      fabric_type_id: ft.id,
+      fabric_name: ft.fabric_name,
+      rolls: availableRolls.length,
+      weight: availableRolls.reduce((sum, r) => sum + Number(r.weight || 0), 0),
+      meters: availableRolls.reduce((sum, r) => sum + Number(r.meters || 0), 0),
+    };
+  });
 
   const totalRolls = stockRows.reduce((sum: number, r: any) => sum + r.rolls, 0);
   const totalWeight = stockRows.reduce((sum: number, r: any) => sum + r.weight, 0);
