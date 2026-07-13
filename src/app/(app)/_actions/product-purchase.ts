@@ -353,7 +353,6 @@ export async function saveProductPurchase(formData: FormData) {
           offset_type: offsetType || "PLAIN",
           brand_id: offsetProductId,
           fabric_type_id: fabricTypeId,
-          source_fabric_roll_id: null,
           source_lam_roll_id: sourceRollId || null,
           weight_kg: weight,
           entry_date: purchase_date,
