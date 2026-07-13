@@ -297,7 +297,6 @@ export async function saveProductPurchase(formData: FormData) {
           product_id: null,
           lam_type: lamType || "PLAIN",
           fabric_type_id: fabricTypeId,
-          fabric_roll_id: sourceRollId || null,
           film_roll_id: null,
           nw_material_id: null,
           weight_kg: weight,
