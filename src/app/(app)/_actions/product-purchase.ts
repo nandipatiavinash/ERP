@@ -629,15 +629,28 @@ export async function deleteProductPurchase(formData: FormData) {
       await Promise.all(promises);
     }
 
-    // 3. Delete matching journal entries using the unique PP:UUID tag
+    // 3. Delete matching journal entries (try UUID tag first, fallback to bill number matching)
     try {
-      const { data: journalRows } = await (adminSupabase
+      let journalRowsRes = await (adminSupabase
         .from("accounts_journal") as any)
         .select("journal_no")
         .ilike("description", `%PP:${purchaseId}%`)
         .is("deleted_at", null);
 
-      const journalNos = [...new Set((journalRows || []).map((r: any) => r.journal_no))];
+      let journalNos = [...new Set((journalRowsRes.data || []).map((r: any) => r.journal_no))];
+
+      // Fallback for older entries (e.g. Asian Colour Systems) that lack the PP:UUID tag in their description
+      if (journalNos.length === 0 && purchase.bill_number) {
+        const descExact = `Product Purchase: ${purchase.bill_number}`;
+        const descPrefix = `Product Purchase: ${purchase.bill_number} (%`;
+        journalRowsRes = await (adminSupabase
+          .from("accounts_journal") as any)
+          .select("journal_no")
+          .or(`description.eq."${descExact}",description.like."${descPrefix}"`)
+          .is("deleted_at", null);
+        journalNos = [...new Set((journalRowsRes.data || []).map((r: any) => r.journal_no))];
+      }
+
       if (journalNos.length > 0) {
         await (adminSupabase
           .from("accounts_journal") as any)
