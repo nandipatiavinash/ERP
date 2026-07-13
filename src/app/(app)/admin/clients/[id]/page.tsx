@@ -65,9 +65,7 @@ export default async function ClientProfilePage({
             </div>
             <div>
               <h1 className="text-lg font-bold text-slate-900 leading-tight">{customer.customer_name}</h1>
-              {customer.alias && (
-                <p className="text-sm text-slate-400 font-medium mt-0.5">{customer.alias}</p>
-              )}
+
               <div className="flex flex-wrap gap-3 mt-2">
                 {customer.phone && (
                   <span className="inline-flex items-center gap-1 text-[11px] text-slate-500">

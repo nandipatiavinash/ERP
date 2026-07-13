@@ -342,7 +342,7 @@ export function ProductPurchaseForm({
             <option value="">Select Supplier...</option>
             {sortedSuppliers.map((sup) => (
               <option key={sup.id} value={sup.customer_name}>
-                {sup.customer_name} {sup.alias ? `(${sup.alias})` : ""}
+                {sup.customer_name}
               </option>
             ))}
           </select>

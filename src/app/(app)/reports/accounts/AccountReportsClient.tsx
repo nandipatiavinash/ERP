@@ -301,35 +301,35 @@ export function AccountReportsClient({
             <optgroup label="Client Accounts">
               {groupedAccounts["client a/c"].map((acc) => (
                 <option key={acc.id} value={acc.id}>
-                  {acc.customer_name} {acc.alias ? `(${acc.alias})` : ""}
+                  {acc.customer_name}
                 </option>
               ))}
             </optgroup>
             <optgroup label="Profit & Loss Accounts">
               {groupedAccounts["profit and loss a/c"].map((acc) => (
                 <option key={acc.id} value={acc.id}>
-                  {acc.customer_name} {acc.alias ? `(${acc.alias})` : ""}
+                  {acc.customer_name}
                 </option>
               ))}
             </optgroup>
             <optgroup label="Capital Accounts">
               {groupedAccounts["capital a/c"].map((acc) => (
                 <option key={acc.id} value={acc.id}>
-                  {acc.customer_name} {acc.alias ? `(${acc.alias})` : ""}
+                  {acc.customer_name}
                 </option>
               ))}
             </optgroup>
             <optgroup label="Loan Accounts">
               {groupedAccounts["loan a/c"].map((acc) => (
                 <option key={acc.id} value={acc.id}>
-                  {acc.customer_name} {acc.alias ? `(${acc.alias})` : ""}
+                  {acc.customer_name}
                 </option>
               ))}
             </optgroup>
             <optgroup label="Balance Sheet Accounts">
               {groupedAccounts["balance sheet a/c"].map((acc) => (
                 <option key={acc.id} value={acc.id}>
-                  {acc.customer_name} {acc.alias ? `(${acc.alias})` : ""}
+                  {acc.customer_name}
                 </option>
               ))}
             </optgroup>
@@ -456,7 +456,7 @@ export function AccountReportsClient({
                           return (
                             <TableRow key={item.name} className="hover:bg-slate-50/20 border-b border-slate-100 last:border-b-0">
                               <TableCell className="py-2.5 pl-8 font-medium text-slate-800 text-sm">
-                                {item.name} {item.alias ? `(${item.alias})` : ""}
+                                {item.name}
                               </TableCell>
                               <TableCell className="py-2.5 text-right font-mono font-bold text-sm w-56">
                                 {net === 0 ? (

@@ -368,9 +368,7 @@ export function SalesEntryClient({ pendingOrders, billedOrders, rolls, fabricTyp
                         <span className="font-semibold text-slate-800 text-sm">
                           {customerGroup.customerName}
                         </span>
-                        {customerGroup.alias && (
-                          <span className="text-xs text-muted-foreground">({customerGroup.alias})</span>
-                        )}
+
                       </div>
                       <Badge className="bg-slate-100 text-slate-700 border border-slate-200 text-xs font-normal">
                         {customerGroup.orders.length} order{customerGroup.orders.length !== 1 ? 's' : ''}

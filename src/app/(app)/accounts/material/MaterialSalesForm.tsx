@@ -132,7 +132,7 @@ export function MaterialSalesForm({
                   <option value="" disabled>Select client</option>
                   {clients.map((c) => (
                     <option key={c.id} value={c.id}>
-                      {c.customer_name} {c.alias ? `(${c.alias})` : ""}
+                      {c.customer_name}
                     </option>
                   ))}
                 </select>

@@ -137,7 +137,7 @@ export function OffsetProductsClient({
                 <option value="general">General (No Client)</option>
                 {clientList.map((c) => (
                   <option key={c.id} value={c.id}>
-                    {c.name} {c.alias ? `(${c.alias})` : ""}
+                    {c.name}
                   </option>
                 ))}
               </select>
@@ -209,7 +209,7 @@ export function OffsetProductsClient({
                       <TableCell>
                         {row.customers?.customer_name ? (
                           <span className="font-bold text-slate-800">
-                            {row.customers.customer_name} {row.customers.alias ? `(${row.customers.alias})` : ""}
+                            {row.customers.customer_name}
                           </span>
                         ) : (
                           <span className="text-slate-400 italic text-sm">General</span>
@@ -344,7 +344,7 @@ export function OffsetProductsClient({
                     <option value="general">General (No Client)</option>
                     {clientList.map((c) => (
                       <option key={c.id} value={c.id}>
-                        {c.name} {c.alias ? `(${c.alias})` : ""}
+                        {c.name}
                       </option>
                     ))}
                   </select>

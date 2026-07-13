@@ -208,7 +208,7 @@ export function RotoProductsClient({
                 <option value="general">General (No Client)</option>
                 {clientList.map((c) => (
                   <option key={c.id} value={c.id}>
-                    {c.name} {c.alias ? `(${c.alias})` : ""}
+                    {c.name}
                   </option>
                 ))}
               </select>
@@ -484,7 +484,7 @@ export function RotoProductsClient({
                     <option value="general">General (No Client)</option>
                     {clientList.map((c) => (
                       <option key={c.id} value={c.id}>
-                        {c.name} {c.alias ? `(${c.alias})` : ""}
+                        {c.name}
                       </option>
                     ))}
                   </select>

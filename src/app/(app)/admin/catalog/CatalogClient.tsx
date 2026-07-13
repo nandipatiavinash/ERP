@@ -279,7 +279,7 @@ export function CatalogClient({
                     <option value="general">General (All Clients)</option>
                     {clients.map((c) => (
                       <option key={c.id} value={c.id}>
-                        {c.name} {c.alias ? `(${c.alias})` : ""}
+                        {c.name}
                       </option>
                     ))}
                   </select>
@@ -628,7 +628,7 @@ export function CatalogClient({
                       <TableCell>
                         {item.customer_id ? (
                           <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200">
-                            {item.customers?.customer_name} {item.customers?.alias ? `(${item.customers.alias})` : ""}
+                            {item.customers?.customer_name}
                           </Badge>
                         ) : (
                           <Badge className="text-slate-400 border-slate-200 bg-slate-50/50">
