@@ -431,7 +431,7 @@ export function ProductPurchaseForm({
                     <option value="">Select Brand...</option>
                     {activeBrandsCatalog.map((prod) => (
                       <option key={prod.id} value={prod.id}>
-                        {prod.brand} {prod.width ? `(${prod.width}x${prod.height})` : ""}
+                        {prod.brand}
                       </option>
                     ))}
                   </select>
