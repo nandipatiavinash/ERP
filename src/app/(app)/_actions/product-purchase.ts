@@ -543,7 +543,7 @@ export async function saveProductPurchase(formData: FormData) {
     console.error("Auto-journal for product purchase failed:", journalErr);
   }
 
-    revalidatePath("/", "layout");
+    revalidatePath("/accounts/product-purchase");
     return { success: true };
   } catch (err: any) {
     console.error("Error in saveProductPurchase:", err);
@@ -552,98 +552,108 @@ export async function saveProductPurchase(formData: FormData) {
 }
 
 export async function deleteProductPurchase(formData: FormData) {
-  const user = await requirePermission("accounts.product_purchase");
-  const purchaseId = String(formData.get("id") ?? "");
-
-  if (!purchaseId) throw new Error("Purchase ID is required.");
-
-  const adminSupabase = createAdminClient();
-
-  // 1. Fetch purchase details
-  const { data: purchase, error: fetchErr } = await (adminSupabase
-    .from("product_purchases") as any)
-    .select("bill_number, supplier_name")
-    .eq("id", purchaseId)
-    .maybeSingle();
-
-  if (fetchErr || !purchase) {
-    throw new Error("Product purchase not found.");
-  }
-
-  const { data: items } = await (adminSupabase
-    .from("product_purchase_items") as any)
-    .select("department, created_stock_id, source_roll_id, lamination_type")
-    .eq("purchase_id", purchaseId);
-
-  // 2. Revert source rolls to 'available' & Delete created stock items
-  if (items && items.length > 0) {
-    for (const item of items) {
-      if (item.source_roll_id) {
-        if (item.department === "lamination") {
-          await (adminSupabase.from("fabric_rolls") as any).update({ status: "available" }).eq("id", item.source_roll_id);
-        } else if (item.department === "offset-printing") {
-          await (adminSupabase.from("lamination_rolls") as any).update({ status: "available" }).eq("id", item.source_roll_id);
-        } else if (item.department === "finishing") {
-          const sourceType = item.lamination_type || "fabric";
-          if (sourceType === "fabric") {
-            await (adminSupabase.from("fabric_rolls") as any).update({ status: "available" }).eq("id", item.source_roll_id);
-          } else if (sourceType === "lamination") {
-            await (adminSupabase.from("lamination_rolls") as any).update({ status: "available" }).eq("id", item.source_roll_id);
-          } else if (sourceType === "offset") {
-            await (adminSupabase.from("offset_rolls") as any).update({ status: "available" }).eq("id", item.source_roll_id);
-          }
-        }
-      }
-
-      if (!item.created_stock_id) continue;
-
-      if (item.department === "fabric") {
-        await (adminSupabase.from("fabric_rolls") as any).delete().eq("id", item.created_stock_id);
-      } else if (item.department === "lamination") {
-        await (adminSupabase.from("lamination_rolls") as any).delete().eq("id", item.created_stock_id);
-      } else if (item.department === "offset-printing") {
-        await (adminSupabase.from("offset_rolls") as any).delete().eq("id", item.created_stock_id);
-      } else if (item.department === "finishing") {
-        await (adminSupabase.from("finishing_bundles") as any).delete().eq("id", item.created_stock_id);
-      } else if (item.department === "roto-printing") {
-        // Handle deletion for film and metallic rolls
-        const { data: metallic } = await adminSupabase
-          .from("roto_metallic_rolls")
-          .select("source_film_roll_id")
-          .eq("id", item.created_stock_id)
-          .maybeSingle();
-
-        if (metallic) {
-          await adminSupabase.from("roto_metallic_rolls").delete().eq("id", item.created_stock_id);
-          if ((metallic as any).source_film_roll_id) {
-            await adminSupabase.from("roto_film_rolls").delete().eq("id", (metallic as any).source_film_roll_id);
-          }
-        } else {
-          await adminSupabase.from("roto_film_rolls").delete().eq("id", item.created_stock_id);
-        }
-      }
-    }
-  }
-
-  // 3. Delete matching auto-generated journal entries (safely anchored to Product Purchase prefix)
   try {
-    const descExact = `Product Purchase: ${purchase.bill_number}`;
-    const descPrefix = `Product Purchase: ${purchase.bill_number} (%`;
-    await (adminSupabase
-      .from("accounts_journal") as any)
+    const user = await requirePermission("accounts.product_purchase");
+    const purchaseId = String(formData.get("id") ?? "");
+
+    if (!purchaseId) throw new Error("Purchase ID is required.");
+
+    const adminSupabase = createAdminClient();
+
+    // 1. Fetch purchase details
+    const { data: purchase, error: fetchErr } = await (adminSupabase
+      .from("product_purchases") as any)
+      .select("bill_number, supplier_name")
+      .eq("id", purchaseId)
+      .maybeSingle();
+
+    if (fetchErr || !purchase) {
+      throw new Error("Product purchase not found.");
+    }
+
+    const { data: items } = await (adminSupabase
+      .from("product_purchase_items") as any)
+      .select("department, created_stock_id, source_roll_id, lamination_type")
+      .eq("purchase_id", purchaseId);
+
+    // 2. Revert source rolls to 'available' & Delete created stock items in parallel
+    if (items && items.length > 0) {
+      const promises: Promise<any>[] = [];
+      for (const item of items) {
+        if (item.source_roll_id) {
+          if (item.department === "lamination") {
+            promises.push((adminSupabase.from("fabric_rolls") as any).update({ status: "available" }).eq("id", item.source_roll_id));
+          } else if (item.department === "offset-printing") {
+            promises.push((adminSupabase.from("lamination_rolls") as any).update({ status: "available" }).eq("id", item.source_roll_id));
+          } else if (item.department === "finishing") {
+            const sourceType = item.lamination_type || "fabric";
+            if (sourceType === "fabric") {
+              promises.push((adminSupabase.from("fabric_rolls") as any).update({ status: "available" }).eq("id", item.source_roll_id));
+            } else if (sourceType === "lamination") {
+              promises.push((adminSupabase.from("lamination_rolls") as any).update({ status: "available" }).eq("id", item.source_roll_id));
+            } else if (sourceType === "offset") {
+              promises.push((adminSupabase.from("offset_rolls") as any).update({ status: "available" }).eq("id", item.source_roll_id));
+            }
+          }
+        }
+
+        if (!item.created_stock_id) continue;
+
+        if (item.department === "fabric") {
+          promises.push((adminSupabase.from("fabric_rolls") as any).delete().eq("id", item.created_stock_id));
+        } else if (item.department === "lamination") {
+          promises.push((adminSupabase.from("lamination_rolls") as any).delete().eq("id", item.created_stock_id));
+        } else if (item.department === "offset-printing") {
+          promises.push((adminSupabase.from("offset_rolls") as any).delete().eq("id", item.created_stock_id));
+        } else if (item.department === "finishing") {
+          promises.push((adminSupabase.from("finishing_bundles") as any).delete().eq("id", item.created_stock_id));
+        } else if (item.department === "roto-printing") {
+          // Handle deletion for film and metallic rolls
+          promises.push((async () => {
+            const { data: metallic } = await adminSupabase
+              .from("roto_metallic_rolls")
+              .select("source_film_roll_id")
+              .eq("id", item.created_stock_id)
+              .maybeSingle();
+
+            if (metallic) {
+              await adminSupabase.from("roto_metallic_rolls").delete().eq("id", item.created_stock_id);
+              if ((metallic as any).source_film_roll_id) {
+                await adminSupabase.from("roto_film_rolls").delete().eq("id", (metallic as any).source_film_roll_id);
+              }
+            } else {
+              await adminSupabase.from("roto_film_rolls").delete().eq("id", item.created_stock_id);
+            }
+          })());
+        }
+      }
+      await Promise.all(promises);
+    }
+
+    // 3. Delete matching auto-generated journal entries
+    try {
+      const descExact = `Product Purchase: ${purchase.bill_number}`;
+      const descPrefix = `Product Purchase: ${purchase.bill_number} (%`;
+      await (adminSupabase
+        .from("accounts_journal") as any)
+        .delete()
+        .or(`description.eq."${descExact}",description.like."${descPrefix}"`);
+    } catch (journalErr) {
+      console.error("Failed to delete associated journal entries:", journalErr);
+    }
+
+    // 4. Delete the purchase header and cascade delete purchase items
+    const { error: deleteErr } = await (adminSupabase
+      .from("product_purchases") as any)
       .delete()
-      .or(`description.eq."${descExact}",description.like."${descPrefix}"`);
-  } catch (journalErr) {
-    console.error("Failed to delete associated journal entries:", journalErr);
+      .eq("id", purchaseId);
+
+    if (deleteErr) throw new Error(deleteErr.message);
+
+    revalidatePath("/accounts/product-purchase");
+    return { success: true };
+  } catch (err: any) {
+    console.error("Error in deleteProductPurchase:", err);
+    return { success: false, error: err.message || "Failed to delete product purchase." };
   }
-
-  // 4. Delete the purchase header and cascade delete purchase items
-  const { error: deleteErr } = await (adminSupabase
-    .from("product_purchases") as any)
-    .delete()
-    .eq("id", purchaseId);
-
-  if (deleteErr) throw new Error(deleteErr.message);
-
-  revalidatePath("/", "layout");
 }

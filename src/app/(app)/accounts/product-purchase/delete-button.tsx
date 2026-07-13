@@ -17,7 +17,11 @@ export function DeleteProductPurchaseButton({ id }: { id: string }) {
     try {
       const formData = new FormData();
       formData.append("id", id);
-      await deleteProductPurchase(formData);
+      const result = await deleteProductPurchase(formData);
+      if (!result.success) {
+        alert(result.error || "Failed to delete product purchase.");
+        setIsDeleting(false);
+      }
     } catch (err: any) {
       alert(err?.message || "Failed to delete product purchase.");
       setIsDeleting(false);

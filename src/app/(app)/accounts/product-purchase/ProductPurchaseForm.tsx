@@ -301,6 +301,7 @@ export function ProductPurchaseForm({
         return;
       }
       setSuccessText("Product Purchase recorded successfully!");
+      window.alert("Product Purchase recorded successfully!");
       setItems([]);
       setManualBillValue("");
       formRef.current?.reset();
