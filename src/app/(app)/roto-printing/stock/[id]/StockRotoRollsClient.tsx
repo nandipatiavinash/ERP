@@ -52,7 +52,8 @@ interface StockRotoRollsClientProps {
 }
 
 export function StockRotoRollsClient({ filmRolls, metallicRolls, rollAllocationMap, brandName }: StockRotoRollsClientProps) {
-  const [activeTab, setActiveTab] = useState<"film" | "metallic">("film");
+  const initialTab = filmRolls.length > 0 ? "film" : "metallic";
+  const [activeTab, setActiveTab] = useState<"film" | "metallic">(initialTab);
   const [searchTerm, setSearchTerm] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("s_no");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
@@ -129,38 +130,17 @@ export function StockRotoRollsClient({ filmRolls, metallicRolls, rollAllocationM
 
   return (
     <div className="space-y-4">
-      {/* Tabs and search bar */}
-      <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
-        <div className="flex gap-2 p-1 bg-slate-100 rounded-lg">
-          <Button
-            variant={activeTab === "film" ? "default" : "ghost"}
-            size="sm"
-            onClick={() => { setActiveTab("film"); setSortKey("s_no"); setSortDir("asc"); }}
-            className="text-xs h-8"
-          >
-            Printed Film Rolls
-          </Button>
-          <Button
-            variant={activeTab === "metallic" ? "default" : "ghost"}
-            size="sm"
-            onClick={() => { setActiveTab("metallic"); setSortKey("s_no"); setSortDir("asc"); }}
-            className="text-xs h-8"
-          >
-            Metallic Rolls
-          </Button>
-        </div>
-
-        <div className="flex gap-3 items-center w-full sm:w-auto">
-          <Input
-            placeholder="Filter rolls by ID..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="max-w-xs text-xs font-semibold h-9 shadow-none border-slate-200"
-          />
-          <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2.5 py-1.5 rounded whitespace-nowrap">
-            Count: {activeTab === "film" ? filmRolls.length : metallicRolls.length}
-          </span>
-        </div>
+      {/* Search bar and count */}
+      <div className="flex justify-end items-center gap-3 w-full">
+        <Input
+          placeholder="Filter rolls by ID..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="max-w-xs text-xs font-semibold h-9 shadow-none border-slate-200"
+        />
+        <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2.5 py-1.5 rounded whitespace-nowrap">
+          Count: {activeTab === "film" ? filmRolls.length : metallicRolls.length}
+        </span>
       </div>
 
       <Card className="shadow-sm border-slate-200">
@@ -180,9 +160,6 @@ export function StockRotoRollsClient({ filmRolls, metallicRolls, rollAllocationM
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="cursor-pointer select-none" onClick={() => handleSort("roll_id")}>
-                        Roll ID {sortKey === "roll_id" ? (sortDir === "asc" ? "▲" : "▼") : "↕"}
-                      </TableHead>
                       <TableHead className="cursor-pointer select-none text-center" onClick={() => handleSort("s_no")}>
                         Roll No / S.No {sortKey === "s_no" ? (sortDir === "asc" ? "▲" : "▼") : "↕"}
                       </TableHead>
@@ -206,7 +183,6 @@ export function StockRotoRollsClient({ filmRolls, metallicRolls, rollAllocationM
                       const allocation = rollAllocationMap[roll.id];
                       return (
                         <TableRow key={roll.id}>
-                          <TableCell className="font-mono font-bold text-emerald-950">{roll.roll_id}</TableCell>
                           <TableCell className="font-mono text-center font-semibold text-slate-700">
                             {(roll.roll_id.toUpperCase().startsWith("E-") || (roll.supplier_roll_id !== undefined && roll.supplier_roll_id !== null)) ? `E-${roll.s_no}` : roll.s_no}
                           </TableCell>
@@ -249,9 +225,6 @@ export function StockRotoRollsClient({ filmRolls, metallicRolls, rollAllocationM
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead className="cursor-pointer select-none" onClick={() => handleSort("roll_id")}>
-                        Roll ID {sortKey === "roll_id" ? (sortDir === "asc" ? "▲" : "▼") : "↕"}
-                      </TableHead>
                       <TableHead className="cursor-pointer select-none text-center" onClick={() => handleSort("s_no")}>
                         Roll No / S.No {sortKey === "s_no" ? (sortDir === "asc" ? "▲" : "▼") : "↕"}
                       </TableHead>
@@ -278,7 +251,6 @@ export function StockRotoRollsClient({ filmRolls, metallicRolls, rollAllocationM
                       const allocation = rollAllocationMap[roll.id];
                       return (
                         <TableRow key={roll.id}>
-                          <TableCell className="font-mono font-bold text-emerald-950">{roll.roll_id}</TableCell>
                           <TableCell className="font-mono text-center font-semibold text-slate-700">
                             {(roll.roll_id.toUpperCase().startsWith("E-") || (roll.supplier_roll_id !== undefined && roll.supplier_roll_id !== null)) ? `E-${roll.s_no}` : roll.s_no}
                           </TableCell>
