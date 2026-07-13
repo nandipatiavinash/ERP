@@ -80,7 +80,7 @@ export async function saveProductPurchase(formData: FormData) {
     const amount = rate;
 
     // New inputs
-    const supplierRollId = supplier_roll_ids[i] || null;
+    const supplierRollId = supplier_roll_ids[i] !== undefined && supplier_roll_ids[i] !== null ? supplier_roll_ids[i] : null;
     const sourceRollId = source_roll_ids[i] || null;
     const filmType = film_types[i] || null;
     const isMetallic = is_metallics[i] || false;
