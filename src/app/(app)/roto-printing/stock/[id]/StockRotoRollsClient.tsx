@@ -208,7 +208,7 @@ export function StockRotoRollsClient({ filmRolls, metallicRolls, rollAllocationM
                         <TableRow key={roll.id}>
                           <TableCell className="font-mono font-bold text-emerald-950">{roll.roll_id}</TableCell>
                           <TableCell className="font-mono text-center font-semibold text-slate-700">
-                            {roll.roll_id.toUpperCase().startsWith("E-") ? `E-${roll.s_no}` : roll.s_no}
+                            {(roll.roll_id.toUpperCase().startsWith("E-") || (roll.supplier_roll_id !== undefined && roll.supplier_roll_id !== null)) ? `E-${roll.s_no}` : roll.s_no}
                           </TableCell>
                           <TableCell className="text-right font-mono">{formatNumber(roll.weight_kg, 2)}</TableCell>
                           <TableCell className="text-right font-mono">{formatNumber(roll.meters, 0)}</TableCell>
@@ -280,7 +280,7 @@ export function StockRotoRollsClient({ filmRolls, metallicRolls, rollAllocationM
                         <TableRow key={roll.id}>
                           <TableCell className="font-mono font-bold text-emerald-950">{roll.roll_id}</TableCell>
                           <TableCell className="font-mono text-center font-semibold text-slate-700">
-                            {roll.roll_id.toUpperCase().startsWith("E-") ? `E-${roll.s_no}` : roll.s_no}
+                            {(roll.roll_id.toUpperCase().startsWith("E-") || (roll.supplier_roll_id !== undefined && roll.supplier_roll_id !== null)) ? `E-${roll.s_no}` : roll.s_no}
                           </TableCell>
                           <TableCell className="font-mono text-xs text-slate-500">{roll.roto_film_rolls?.roll_id ?? "-"}</TableCell>
                           <TableCell className="text-right font-mono">{formatNumber(roll.weight_kg, 2)}</TableCell>

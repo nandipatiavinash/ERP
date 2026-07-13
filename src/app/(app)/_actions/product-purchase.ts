@@ -153,14 +153,13 @@ export async function saveProductPurchase(formData: FormData) {
       if (supplierRollId) {
         rollId = supplierRollId.trim().toUpperCase();
       } else {
-        const baseSearch = `${baseId}-E-%`;
         const { count } = await adminSupabase
           .from("roto_film_rolls")
           .select("id", { count: "exact", head: true })
-          .like("roll_id", baseSearch)
+          .eq("roll_id", baseId)
           .is("deleted_at", null);
         seq = (count ?? 0) + 1;
-        rollId = `${baseId}-E-${seq}`;
+        rollId = baseId;
       }
 
       if (!isMetallic) {
@@ -274,14 +273,13 @@ export async function saveProductPurchase(formData: FormData) {
           rollId = `${parentRollNo.trim()}(${lamType})(${suffix})`;
         }
       } else {
-        const baseSearch = `${baseId}-E-%`;
         const { count } = await adminSupabase
           .from("lamination_rolls")
           .select("id", { count: "exact", head: true })
-          .like("roll_id", baseSearch)
+          .eq("roll_id", baseId)
           .is("deleted_at", null);
         seq = (count ?? 0) + 1;
-        rollId = `${baseId}-E-${seq}`;
+        rollId = baseId;
       }
 
       const { data: stockItem, error: stockErr } = await (adminSupabase
@@ -338,14 +336,13 @@ export async function saveProductPurchase(formData: FormData) {
       } else if (parentRollNo) {
         rollId = `${parentRollNo.trim()}(OFFSET)`;
       } else {
-        const baseSearch = `${baseId}-E-%`;
         const { count } = await adminSupabase
           .from("offset_rolls")
           .select("id", { count: "exact", head: true })
-          .like("roll_id", baseSearch)
+          .eq("roll_id", baseId)
           .is("deleted_at", null);
         seq = (count ?? 0) + 1;
-        rollId = `${baseId}-E-${seq}`;
+        rollId = baseId;
       }
 
       const { data: stockItem, error: stockErr } = await (adminSupabase
@@ -403,14 +400,13 @@ export async function saveProductPurchase(formData: FormData) {
       } else if (parentRollNo) {
         bundleId = parentRollNo.startsWith("E-") ? parentRollNo : `E-${parentRollNo}`;
       } else {
-        const baseSearch = `${baseId}-E-%`;
         const { count } = await adminSupabase
           .from("finishing_bundles")
           .select("id", { count: "exact", head: true })
-          .like("bundle_id", baseSearch)
+          .eq("bundle_id", baseId)
           .is("deleted_at", null);
         seq = (count ?? 0) + 1;
-        bundleId = `${baseId}-E-${seq}`;
+        bundleId = baseId;
       }
 
       const { data: stockItem, error: stockErr } = await (adminSupabase

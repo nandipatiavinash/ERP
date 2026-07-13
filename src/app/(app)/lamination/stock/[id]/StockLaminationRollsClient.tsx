@@ -136,7 +136,7 @@ export function StockLaminationRollsClient({ rolls, rollAllocationMap, fabricNam
                       <TableRow key={roll.id}>
                         <TableCell className="font-mono font-bold text-emerald-950">{roll.roll_id}</TableCell>
                         <TableCell className="font-mono text-center font-semibold text-slate-700">
-                          {roll.roll_id.toUpperCase().startsWith("E-") ? `E-${roll.s_no}` : roll.s_no}
+                          {(roll.roll_id.toUpperCase().startsWith("E-") || (roll.supplier_roll_id !== undefined && roll.supplier_roll_id !== null)) ? `E-${roll.s_no}` : roll.s_no}
                         </TableCell>
                         <TableCell className="font-semibold text-xs">{roll.lam_type}</TableCell>
                         <TableCell className="text-right font-mono">{formatNumber(roll.weight_kg, 2)}</TableCell>

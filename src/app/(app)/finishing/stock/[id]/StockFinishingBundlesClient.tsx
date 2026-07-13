@@ -136,7 +136,7 @@ export function StockFinishingBundlesClient({ bundles, rollAllocationMap, fabric
                       <TableRow key={bundle.id}>
                         <TableCell className="font-mono font-bold text-emerald-950">{bundle.bundle_id}</TableCell>
                         <TableCell className="font-mono text-center font-semibold text-slate-700">
-                          {bundle.bundle_id.toUpperCase().startsWith("E-") ? `E-${bundle.s_no}` : bundle.s_no}
+                          {(bundle.bundle_id.toUpperCase().startsWith("E-") || (bundle.supplier_roll_id !== undefined && bundle.supplier_roll_id !== null)) ? `E-${bundle.s_no}` : bundle.s_no}
                         </TableCell>
                         <TableCell className="font-semibold text-xs">{bundle.finish_type?.replace(/_/g, "/")}</TableCell>
                         <TableCell className="text-right font-mono">{formatNumber(bundle.num_bags, 0)}</TableCell>
