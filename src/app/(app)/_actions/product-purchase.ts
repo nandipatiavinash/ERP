@@ -65,7 +65,9 @@ export async function saveProductPurchase(formData: FormData) {
   const purchaseId = purchaseData.id;
 
   // 2. Process and insert each item into history and stock registers
-  for (let i = 0; i < departments.length; i++) {
+  const createdStockRecords: { table: string; id: string }[] = [];
+  try {
+    for (let i = 0; i < departments.length; i++) {
     const dept = departments[i];
     const rotoProductId = roto_product_ids[i] || null;
     const offsetProductId = offset_product_ids[i] || null;
@@ -126,6 +128,7 @@ export async function saveProductPurchase(formData: FormData) {
 
       if (stockErr) throw new Error(`Fabric roll stock insert failed: ${stockErr.message}`);
       createdStockId = stockItem.id;
+      createdStockRecords.push({ table: "fabric_rolls", id: stockItem.id });
 
     } else if (dept === "roto-printing") {
       let brandName = "ROTO";
@@ -184,6 +187,7 @@ export async function saveProductPurchase(formData: FormData) {
 
         if (stockErr) throw new Error(`Roto film roll stock insert failed: ${stockErr.message}`);
         createdStockId = stockItem.id;
+        createdStockRecords.push({ table: "roto_film_rolls", id: stockItem.id });
       } else {
         // Insert dummy film roll consumed
         const { data: filmRoll, error: filmErr } = await (adminSupabase
@@ -206,6 +210,7 @@ export async function saveProductPurchase(formData: FormData) {
           .single();
 
         if (filmErr || !filmRoll) throw new Error(`Roto dummy film roll stock insert failed: ${filmErr?.message}`);
+        createdStockRecords.push({ table: "roto_film_rolls", id: filmRoll.id });
 
         // Insert roto metallic roll
         const metallicRollId = `${rollId}(MT)`.toUpperCase();
@@ -229,6 +234,7 @@ export async function saveProductPurchase(formData: FormData) {
 
         if (stockErr) throw new Error(`Roto metallic roll stock insert failed: ${stockErr.message}`);
         createdStockId = stockItem.id;
+        createdStockRecords.push({ table: "roto_metallic_rolls", id: stockItem.id });
       }
 
     } else if (dept === "lamination") {
@@ -306,6 +312,7 @@ export async function saveProductPurchase(formData: FormData) {
 
       if (stockErr) throw new Error(`Lamination roll stock insert failed: ${stockErr.message}`);
       createdStockId = stockItem.id;
+      createdStockRecords.push({ table: "lamination_rolls", id: stockItem.id });
 
       // Consume source fabric roll
       if (sourceRollId) {
@@ -366,6 +373,7 @@ export async function saveProductPurchase(formData: FormData) {
 
       if (stockErr) throw new Error(`Offset roll stock insert failed: ${stockErr.message}`);
       createdStockId = stockItem.id;
+      createdStockRecords.push({ table: "offset_rolls", id: stockItem.id });
 
       // Consume source lamination roll
       if (sourceRollId) {
@@ -432,6 +440,7 @@ export async function saveProductPurchase(formData: FormData) {
 
       if (stockErr) throw new Error(`Finishing bundle stock insert failed: ${stockErr.message}`);
       createdStockId = stockItem.id;
+      createdStockRecords.push({ table: "finishing_bundles", id: stockItem.id });
 
       // Consume source roll
       if (sourceRollId) {
@@ -471,6 +480,15 @@ export async function saveProductPurchase(formData: FormData) {
     if (itemError) {
       throw new Error(`Failed to save purchase item history: ${itemError.message}`);
     }
+  }
+  } catch (err: any) {
+    // Self-healing rollback: Delete any stock records created in this failed purchase
+    for (const rec of createdStockRecords) {
+      await adminSupabase.from(rec.table).delete().eq("id", rec.id);
+    }
+    // Delete the header
+    await adminSupabase.from("product_purchases").delete().eq("id", purchaseId);
+    throw err;
   }
 
   // 3. Auto-generate accounting journal entries
