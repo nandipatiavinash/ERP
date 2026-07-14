@@ -23,7 +23,7 @@ export default async function FabricStockPage({ searchParams }: { searchParams: 
   const fabricTypes = (fabricTypesRes.data || []) as Array<{ id: string; fabric_name: string }>;
   const rolls = (rollsRes.data || []) as Array<{ fabric_type_id: string; status: string; weight: number; meters: number }>;
 
-  const stockRows = fabricTypes.map((ft) => {
+  let stockRows = fabricTypes.map((ft) => {
     const matchedRolls = rolls.filter(r => r.fabric_type_id === ft.id && (activeTab === "all" || r.status === "available"));
     return {
       fabric_type_id: ft.id,
@@ -33,6 +33,10 @@ export default async function FabricStockPage({ searchParams }: { searchParams: 
       meters: matchedRolls.reduce((sum, r) => sum + Number(r.meters || 0), 0),
     };
   });
+
+  if (activeTab === "available") {
+    stockRows = stockRows.filter(row => row.rolls > 0);
+  }
 
   const totalRolls = stockRows.reduce((sum: number, r: any) => sum + r.rolls, 0);
   const totalWeight = stockRows.reduce((sum: number, r: any) => sum + r.weight, 0);
