@@ -998,7 +998,7 @@ export async function saveMaterialSalesEntry(formData: FormData) {
 
   const { data: customerResult, error: customerErr } = await (supabase
     .from("customers") as any)
-    .select("id, customer_name, linked_customer_id")
+    .select("id, customer_name")
     .eq("id", customer_id)
     .single();
 
@@ -1009,21 +1009,6 @@ export async function saveMaterialSalesEntry(formData: FormData) {
   let customer = customerResult as any;
   let customerName = customer.customer_name;
   let customerAccountId = customer.id;
-
-  if (customer.linked_customer_id) {
-    const { data: parentResult } = await (supabase
-      .from("customers") as any)
-      .select("id, customer_name")
-      .eq("id", customer.linked_customer_id)
-      .is("deleted_at", null)
-      .maybeSingle();
-    const parent = parentResult as any;
-    if (parent) {
-      customer = parent;
-      customerName = parent.customer_name;
-      customerAccountId = parent.id;
-    }
-  }
 
   const { data: salesAcResult, error: salesAcErr } = await (supabase
     .from("customers") as any)
@@ -1439,7 +1424,8 @@ export async function saveSalesOrderBillingDirect(formData: FormData) {
       customer_id,
       status,
       gst_rate,
-      customers(customer_name)
+      total_amount,
+      customers(customer_name, linked_customer_id)
     `)
     .in("id", orderIds);
 
@@ -1482,23 +1468,11 @@ export async function saveSalesOrderBillingDirect(formData: FormData) {
   }
 
   const [customerAcResult, salesAcResult] = await Promise.all([
-    supabase.from("customers").select("id, customer_name, linked_customer_id").ilike("customer_name", customerName).is("deleted_at", null).maybeSingle(),
+    supabase.from("customers").select("id, customer_name").ilike("customer_name", customerName).is("deleted_at", null).maybeSingle(),
     supabase.from("customers").select("id, customer_name").ilike("customer_name", "Sales A/c").is("deleted_at", null).maybeSingle()
   ]);
   let customerAc = customerAcResult.data as any;
   const salesAc = salesAcResult.data as any;
-
-  if (customerAc && customerAc.linked_customer_id) {
-    const { data: parent } = await supabase
-      .from("customers")
-      .select("id, customer_name")
-      .eq("id", customerAc.linked_customer_id)
-      .is("deleted_at", null)
-      .maybeSingle();
-    if (parent) {
-      customerAc = parent;
-    }
-  }
 
   const journalNo = await generateNextJournalNo(supabase);
   const journalInserts = [
@@ -1529,6 +1503,60 @@ export async function saveSalesOrderBillingDirect(formData: FormData) {
   const { error: journalError } = await (supabase.from("accounts_journal") as any).insert(journalInserts);
   if (journalError) throw new Error(journalError.message);
 
+  // Adjustment for linked/reference accounts if balance is > +/- 100
+  const linkedCustomerId = orders[0]?.customers?.linked_customer_id;
+  const calculatedTotalAmount = orders.reduce((sum: number, o: any) => sum + Number(o.total_amount || 0), 0);
+  const balance = billValue - calculatedTotalAmount;
+
+  let adjJournalNo: string | null = null;
+  if (linkedCustomerId && Math.abs(balance) > 100) {
+    try {
+      const parentResult = await supabase
+        .from("customers")
+        .select("id, customer_name")
+        .eq("id", linkedCustomerId)
+        .is("deleted_at", null)
+        .maybeSingle();
+      const parent = parentResult.data as any;
+
+      if (parent) {
+        adjJournalNo = await generateNextJournalNo(supabase);
+        const adjAmount = Math.abs(balance);
+        const adjJournalInserts = [
+          {
+            journal_no: adjJournalNo,
+            entry_date: entryDate,
+            account_id: balance > 0 ? parent.id : salesAc?.id ?? null,
+            account_name: balance > 0 ? parent.customer_name : salesAc?.customer_name ?? "Sales A/c",
+            entry_type: "debit" as const,
+            amount: adjAmount,
+            description: `Adjustment for Bill ${billNumber} (Calculated: ${calculatedTotalAmount.toFixed(2)}, Actual: ${billValue.toFixed(2)})`,
+            created_by: user.id,
+            updated_by: user.id,
+          },
+          {
+            journal_no: adjJournalNo,
+            entry_date: entryDate,
+            account_id: balance > 0 ? salesAc?.id ?? null : parent.id,
+            account_name: balance > 0 ? salesAc?.customer_name ?? "Sales A/c" : parent.customer_name,
+            entry_type: "credit" as const,
+            amount: adjAmount,
+            description: `Adjustment for Bill ${billNumber} (Calculated: ${calculatedTotalAmount.toFixed(2)}, Actual: ${billValue.toFixed(2)})`,
+            created_by: user.id,
+            updated_by: user.id,
+          }
+        ];
+
+        const { error: adjError } = await (supabase.from("accounts_journal") as any).insert(adjJournalInserts);
+        if (adjError) {
+          console.error("Failed to insert adjustment journal entries:", adjError.message);
+        }
+      }
+    } catch (adjErr) {
+      console.error("Adjustment journal entry generation failed:", adjErr);
+    }
+  }
+
   try {
     for (let idx = 0; idx < orders.length; idx++) {
       const oId = orders[idx].id;
@@ -1550,6 +1578,9 @@ export async function saveSalesOrderBillingDirect(formData: FormData) {
   } catch (err: any) {
     // Rollback journal entries
     await (supabase.from("accounts_journal") as any).delete().eq("journal_no", journalNo);
+    if (adjJournalNo) {
+      await (supabase.from("accounts_journal") as any).delete().eq("journal_no", adjJournalNo);
+    }
     throw err;
   }
 

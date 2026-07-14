@@ -62,22 +62,10 @@ export async function saveRawMaterialPurchase(formData: FormData) {
   try {
     const [purchaseAcResult, supplierAcResult] = await Promise.all([
       supabase.from("customers").select("id, customer_name").ilike("customer_name", "Purchase A/c").is("deleted_at", null).maybeSingle(),
-      supabase.from("customers").select("id, customer_name, linked_customer_id").ilike("customer_name", supplier_name).is("deleted_at", null).maybeSingle()
+      supabase.from("customers").select("id, customer_name").ilike("customer_name", supplier_name).is("deleted_at", null).maybeSingle()
     ]);
     const purchaseAc = purchaseAcResult.data as any;
     let supplierAc = supplierAcResult.data as any;
-
-    if (supplierAc && supplierAc.linked_customer_id) {
-      const { data: parent } = await supabase
-        .from("customers")
-        .select("id, customer_name")
-        .eq("id", supplierAc.linked_customer_id)
-        .is("deleted_at", null)
-        .maybeSingle();
-      if (parent) {
-        supplierAc = parent;
-      }
-    }
 
     const journalNo = await generateNextJournalNo(supabase);
     const journalInserts = [
