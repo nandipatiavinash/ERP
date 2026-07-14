@@ -29,15 +29,26 @@ interface SalesPrintViewProps {
       average_meter_weight: number;
     }>
   >;
+  departmentsByProduct?: Record<string, string>;
 }
 
-export function SalesPrintView({ order, rollsByProduct }: SalesPrintViewProps) {
+export function SalesPrintView({ order, rollsByProduct, departmentsByProduct }: SalesPrintViewProps) {
   const customer = order.customers;
   const productKeys = useMemo(() => {
     return Object.keys(rollsByProduct)
       .filter((key) => rollsByProduct[key] && rollsByProduct[key].length > 0)
       .sort();
   }, [rollsByProduct]);
+
+  const hasFabric = useMemo(() => {
+    if (!departmentsByProduct) return true;
+    return productKeys.some((k) => departmentsByProduct[k] === "fabric");
+  }, [productKeys, departmentsByProduct]);
+
+  const hasFinishing = useMemo(() => {
+    if (!departmentsByProduct) return false;
+    return productKeys.some((k) => departmentsByProduct[k] === "finishing");
+  }, [productKeys, departmentsByProduct]);
 
   // Sort rolls within each product group alphabetically
   const sortedRollsByProduct = useMemo(() => {
@@ -164,48 +175,69 @@ export function SalesPrintView({ order, rollsByProduct }: SalesPrintViewProps) {
               <thead>
                 <tr className="border-b-2 border-gray-300 bg-gray-50 text-left text-[10px] font-semibold uppercase tracking-wider text-gray-500">
                   <th className="border border-gray-200 px-3 py-2">Product Spec</th>
-                  <th className="border border-gray-200 px-3 py-2 text-center">Roll No</th>
-                  <th className="border border-gray-200 px-3 py-2 text-right">Gross W8</th>
-                  <th className="border border-gray-200 px-3 py-2 text-right">Core W8</th>
+                  <th className="border border-gray-200 px-3 py-2 text-center">
+                    {hasFinishing ? "Bundle No" : "Roll No"}
+                  </th>
+                  {hasFabric && (
+                    <>
+                      <th className="border border-gray-200 px-3 py-2 text-right">Gross W8</th>
+                      <th className="border border-gray-200 px-3 py-2 text-right">Core W8</th>
+                    </>
+                  )}
                   <th className="border border-gray-200 px-3 py-2 text-right">Net W8</th>
-                  <th className="border border-gray-200 px-3 py-2 text-right">Mtrs</th>
-                  <th className="border border-gray-200 px-3 py-2 text-right">Avg W8</th>
+                  <th className="border border-gray-200 px-3 py-2 text-right">
+                    {hasFinishing ? "Mtrs / Bags" : "Mtrs"}
+                  </th>
+                  {hasFabric && (
+                    <th className="border border-gray-200 px-3 py-2 text-right">Avg W8</th>
+                  )}
                 </tr>
               </thead>
               <tbody>
-                {tableRows.map(({ productKey, roll, isFirstOfProduct, productRollsCount }, idx) => (
-                  <tr
-                    key={roll.roll_number}
-                    className={idx % 2 === 0 ? "bg-white" : "bg-gray-50/60"}
-                  >
-                    {isFirstOfProduct && (
-                      <td
-                        rowSpan={productRollsCount}
-                        className="border border-gray-200 px-3 py-2 font-bold uppercase text-gray-800 align-middle bg-gray-50/10"
-                      >
-                        {productKey}
+                {tableRows.map(({ productKey, roll, isFirstOfProduct, productRollsCount }, idx) => {
+                  const dept = departmentsByProduct?.[productKey];
+                  const isFabric = !departmentsByProduct || dept === "fabric";
+
+                  return (
+                    <tr
+                      key={roll.roll_number}
+                      className={idx % 2 === 0 ? "bg-white" : "bg-gray-50/60"}
+                    >
+                      {isFirstOfProduct && (
+                        <td
+                          rowSpan={productRollsCount}
+                          className="border border-gray-200 px-3 py-2 font-bold uppercase text-gray-800 align-middle bg-gray-50/10"
+                        >
+                          {productKey}
+                        </td>
+                      )}
+                      <td className="border border-gray-200 px-3 py-1.5 text-center text-gray-600 font-mono">
+                        {roll.roll_number}
                       </td>
-                    )}
-                    <td className="border border-gray-200 px-3 py-1.5 text-center text-gray-600 font-mono">
-                      {roll.roll_number}
-                    </td>
-                    <td className="border border-gray-200 px-3 py-1.5 text-right tabular-nums">
-                      {formatNumber(roll.gross_weight)}
-                    </td>
-                    <td className="border border-gray-200 px-3 py-1.5 text-right tabular-nums">
-                      {formatNumber(roll.core_weight)}
-                    </td>
-                    <td className="border border-gray-200 px-3 py-1.5 text-right tabular-nums font-semibold">
-                      {formatNumber(roll.net_weight)}
-                    </td>
-                    <td className="border border-gray-200 px-3 py-1.5 text-right tabular-nums">
-                      {formatNumber(Math.floor(roll.net_meters), 0)}
-                    </td>
-                    <td className="border border-gray-200 px-3 py-1.5 text-right tabular-nums">
-                      {formatNumber(Math.floor(roll.average_meter_weight), 0)}
-                    </td>
-                  </tr>
-                ))}
+                      {hasFabric && (
+                        <>
+                          <td className="border border-gray-200 px-3 py-1.5 text-right tabular-nums">
+                            {isFabric ? formatNumber(roll.gross_weight) : "—"}
+                          </td>
+                          <td className="border border-gray-200 px-3 py-1.5 text-right tabular-nums">
+                            {isFabric ? formatNumber(roll.core_weight) : "—"}
+                          </td>
+                        </>
+                      )}
+                      <td className="border border-gray-200 px-3 py-1.5 text-right tabular-nums font-semibold">
+                        {formatNumber(roll.net_weight)}
+                      </td>
+                      <td className="border border-gray-200 px-3 py-1.5 text-right tabular-nums">
+                        {formatNumber(Math.floor(roll.net_meters), 0)} {dept === "finishing" ? "bags" : ""}
+                      </td>
+                      {hasFabric && (
+                        <td className="border border-gray-200 px-3 py-1.5 text-right tabular-nums">
+                          {isFabric ? formatNumber(Math.floor(roll.average_meter_weight), 0) : "—"}
+                        </td>
+                      )}
+                    </tr>
+                  );
+                })}
               </tbody>
               <tfoot>
                 <tr className="border-t-2 border-gray-400 bg-gray-100 font-bold">
@@ -213,17 +245,23 @@ export function SalesPrintView({ order, rollsByProduct }: SalesPrintViewProps) {
                     className="border border-gray-200 px-3 py-2 text-right uppercase tracking-wide text-gray-700"
                     colSpan={2}
                   >
-                    Grand Total ({grandTotalRolls} Rolls)
+                    Grand Total ({grandTotalRolls} {hasFinishing ? "Bundles" : "Rolls"})
                   </td>
-                  <td className="border border-gray-200 px-3 py-2 text-right tabular-nums" />
-                  <td className="border border-gray-200 px-3 py-2 text-right tabular-nums" />
+                  {hasFabric && (
+                    <>
+                      <td className="border border-gray-200 px-3 py-2 text-right tabular-nums" />
+                      <td className="border border-gray-200 px-3 py-2 text-right tabular-nums" />
+                    </>
+                  )}
                   <td className="border border-gray-200 px-3 py-2 text-right tabular-nums text-emerald-950">
                     {formatNumber(grandTotalNetWeight)} kg
                   </td>
                   <td className="border border-gray-200 px-3 py-2 text-right tabular-nums">
-                    {formatNumber(Math.floor(grandTotalMeters), 0)} m
+                    {formatNumber(Math.floor(grandTotalMeters), 0)} {hasFinishing ? "bags" : "m"}
                   </td>
-                  <td className="border border-gray-200 px-3 py-2" />
+                  {hasFabric && (
+                    <td className="border border-gray-200 px-3 py-2" />
+                  )}
                 </tr>
               </tfoot>
             </table>

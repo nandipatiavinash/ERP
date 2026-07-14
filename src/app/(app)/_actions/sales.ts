@@ -810,31 +810,53 @@ export async function saveSalesConfirmationRates(
   const items = siblingOrders.flatMap(o => o.sales_order_items || []) as any[];
   const allRollIds: string[] = [];
   items.forEach((item: any) => {
-    if (item.department === "fabric" && item.selected_roll_ids) {
+    if (item.selected_roll_ids) {
       allRollIds.push(...item.selected_roll_ids);
     }
   });
 
   const rollsData: Record<string, number> = {};
+  const finishingBagsData: Record<string, number> = {};
+
   if (allRollIds.length > 0) {
-    const { data: rollData } = await supabase
-      .from("fabric_rolls")
-      .select("id, weight")
-      .in("id", allRollIds)
-      .is("deleted_at", null);
-    
-    (rollData || []).forEach((r: any) => {
-      rollsData[r.id] = Number(r.weight || 0);
+    const [
+      fabricRes,
+      lamRes,
+      offsetRes,
+      finishingRes,
+      rotoFilmRes,
+      rotoMetRes
+    ] = await Promise.all([
+      supabase.from("fabric_rolls").select("id, weight").in("id", allRollIds).is("deleted_at", null),
+      supabase.from("lamination_rolls").select("id, weight_kg").in("id", allRollIds).is("deleted_at", null),
+      supabase.from("offset_rolls").select("id, weight_kg").in("id", allRollIds).is("deleted_at", null),
+      supabase.from("finishing_bundles").select("id, weight_kg, num_bags").in("id", allRollIds).is("deleted_at", null),
+      supabase.from("roto_film_rolls").select("id, weight_kg").in("id", allRollIds).is("deleted_at", null),
+      supabase.from("roto_metallic_rolls").select("id, weight_kg").in("id", allRollIds).is("deleted_at", null)
+    ]);
+
+    (fabricRes.data || []).forEach((r: any) => { rollsData[r.id] = Number(r.weight || 0); });
+    (lamRes.data || []).forEach((r: any) => { rollsData[r.id] = Number(r.weight_kg || 0); });
+    (offsetRes.data || []).forEach((r: any) => { rollsData[r.id] = Number(r.weight_kg || 0); });
+    (finishingRes.data || []).forEach((r: any) => {
+      rollsData[r.id] = Number(r.weight_kg || 0);
+      finishingBagsData[r.id] = Number(r.num_bags || 0);
     });
+    (rotoFilmRes.data || []).forEach((r: any) => { rollsData[r.id] = Number(r.weight_kg || 0); });
+    (rotoMetRes.data || []).forEach((r: any) => { rollsData[r.id] = Number(r.weight_kg || 0); });
   }
 
   let baseTotal = 0;
   for (const item of items) {
     let qty = 0;
-    if (item.department === "fabric") {
-      const selectedIds = item.selected_roll_ids || [];
+    const selectedIds = item.selected_roll_ids || [];
+    if (selectedIds.length > 0) {
       selectedIds.forEach((rid: string) => {
-        qty += rollsData[rid] || 0;
+        if (item.department === "finishing") {
+          qty += finishingBagsData[rid] || 0;
+        } else {
+          qty += rollsData[rid] || 0;
+        }
       });
     } else {
       qty = Number(item.quantity || 0);
@@ -1187,6 +1209,7 @@ export async function confirmMultipleSalesDeliveries(
 
   // Retrieve roll weights from their respective tables
   const rollsData: Record<string, number> = {};
+  const rollsBagsData: Record<string, number> = {};
   for (const item of selectedItems) {
     const newRollIds = itemRolls[item.id] || [];
     if (newRollIds.length === 0) continue;
@@ -1204,9 +1227,12 @@ export async function confirmMultipleSalesDeliveries(
       if (error) throw new Error(`Failed to retrieve offset roll details: ${error.message}`);
       for (const r of data || []) rollsData[r.id] = Number(r.weight_kg || 0);
     } else if (item.department === "finishing") {
-      const { data, error } = await (supabase.from("finishing_bundles") as any).select("id, weight_kg").in("id", newRollIds);
+      const { data, error } = await (supabase.from("finishing_bundles") as any).select("id, weight_kg, num_bags").in("id", newRollIds);
       if (error) throw new Error(`Failed to retrieve finishing bundle details: ${error.message}`);
-      for (const r of data || []) rollsData[r.id] = Number(r.weight_kg || 0);
+      for (const r of data || []) {
+        rollsData[r.id] = Number(r.weight_kg || 0);
+        rollsBagsData[r.id] = Number(r.num_bags || 0);
+      }
     } else if (item.department === "roto-printing") {
       const table = item.is_metallic ? "roto_metallic_rolls" : "roto_film_rolls";
       const { data, error } = await (supabase.from(table) as any).select("id, weight_kg").in("id", newRollIds);
@@ -1263,18 +1289,20 @@ export async function confirmMultipleSalesDeliveries(
     else if (item.department === "roto-printing") tblName = item.is_metallic ? "roto_metallic_rolls" : "roto_film_rolls";
 
     if (tblName) {
-      const deliveredWeight = newRollIds.reduce((sum, rid) => sum + (rollsData[rid] || 0), 0);
+      const deliveredQty = item.department === "finishing"
+        ? newRollIds.reduce((sum, rid) => sum + (rollsBagsData[rid] || 0), 0)
+        : newRollIds.reduce((sum, rid) => sum + (rollsData[rid] || 0), 0);
 
-      if (deliveredWeight < item.quantity) {
+      if (deliveredQty < item.quantity) {
         if (action === "backorder") {
-          const remainingQty = item.quantity - deliveredWeight;
-          if (deliveredWeight > 0) {
+          const remainingQty = item.quantity - deliveredQty;
+          if (deliveredQty > 0) {
             const { error: updateItemError } = await (supabase
               .from("sales_order_items") as any)
               .update({
                 sales_order_id: newDispatchOrderId,
                 selected_roll_ids: newRollIds,
-                quantity: deliveredWeight,
+                quantity: deliveredQty,
               } as any)
               .eq("id", item.id);
             if (updateItemError) throw new Error(updateItemError.message);
@@ -1301,13 +1329,13 @@ export async function confirmMultipleSalesDeliveries(
             // 0 delivered, keep on parent draft
           }
         } else {
-          if (deliveredWeight > 0) {
+          if (deliveredQty > 0) {
             const { error: updateItemError } = await (supabase
               .from("sales_order_items") as any)
               .update({
                 sales_order_id: newDispatchOrderId,
                 selected_roll_ids: newRollIds,
-                quantity: deliveredWeight,
+                quantity: deliveredQty,
               } as any)
               .eq("id", item.id);
             if (updateItemError) throw new Error(updateItemError.message);
@@ -1325,7 +1353,7 @@ export async function confirmMultipleSalesDeliveries(
           .update({
             sales_order_id: newDispatchOrderId,
             selected_roll_ids: newRollIds,
-            quantity: deliveredWeight,
+            quantity: deliveredQty,
           } as any)
           .eq("id", item.id);
         if (updateItemError) throw new Error(updateItemError.message);

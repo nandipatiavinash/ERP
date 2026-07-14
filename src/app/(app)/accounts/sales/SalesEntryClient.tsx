@@ -60,11 +60,100 @@ interface SalesEntryClientProps {
   billedOrders: SalesOrder[];
   rolls: Roll[];
   fabricTypes: { id: string; fabric_name: string }[];
+  rotoProducts: { id: string; brand: string }[];
+  offsetProducts: { id: string; brand: string }[];
+  laminationProducts?: { id: string; name: string }[];
+  finishingProducts?: { id: string; name: string }[];
 }
 
-function getProductName(productId: string, fabricTypes: { id: string; fabric_name: string }[]): string {
-  const fabric = fabricTypes.find((f) => f.id === productId);
-  return fabric?.fabric_name ?? productId;
+function getItemLabel(
+  item: any,
+  fabrics: { id: string; fabric_name: string }[],
+  rotoProducts: { id: string; brand: string }[],
+  offsetProducts: { id: string; brand: string }[],
+  laminationProducts: { id: string; name: string }[],
+  finishingProducts: { id: string; name: string }[]
+): string {
+  const getCleanBrand = (brandName: string | undefined) => {
+    if (!brandName) return "";
+    return brandName.split(" (")[0].trim();
+  };
+
+  const fab = fabrics.find((x) => x.id === item.fabric_type_id)?.fabric_name || "FABRIC-TYPE";
+
+  if (item.department === "fabric") {
+    const f = fabrics.find((x) => x.id === item.product_id);
+    return f ? f.fabric_name.toUpperCase() : "FABRIC PRODUCT";
+  }
+
+  if (item.department === "roto-printing") {
+    const r = rotoProducts.find((x) => x.id === item.roto_product_id || x.id === item.product_id);
+    const brand = getCleanBrand(r?.brand);
+    const filmChar = item.film_type === "gloss" ? "G" : item.film_type === "matt" ? "M" : "?";
+    const met = item.is_metallic ? "(MT)" : "";
+    return `${brand}(${filmChar})${met}`.toUpperCase();
+  }
+
+  if (item.department === "lamination") {
+    const brand = ["BOX", "F_S", "H_S"].includes(item.lamination_type || "")
+      ? getCleanBrand(rotoProducts.find((x) => x.id === item.roto_product_id)?.brand)
+      : item.lamination_type === "NW"
+      ? "NW"
+      : "PLAIN";
+    
+    let suffix = "";
+    if (item.lamination_type === "PLAIN") suffix = "";
+    else if (item.lamination_type === "NW") suffix = "";
+    else if (item.lamination_type === "BOX") suffix = "B";
+    else if (item.lamination_type === "F_S") suffix = "F";
+    else if (item.lamination_type === "H_S") suffix = "H";
+
+    if (item.lamination_type === "PLAIN" || item.lamination_type === "NW") {
+      return `${brand}(${fab})`.toUpperCase();
+    } else {
+      return `${brand}(${fab})(${suffix})`.toUpperCase();
+    }
+  }
+
+  if (item.department === "offset-printing") {
+    const o = offsetProducts.find((x) => x.id === item.offset_product_id || x.id === item.product_id);
+    const brand = getCleanBrand(o?.brand);
+    const subFabName = item.offset_type === "NW" ? "NW" : fab;
+    return `${brand}(${subFabName})`.toUpperCase();
+  }
+
+  if (item.department === "finishing") {
+    const finishType = item.lamination_type ? "LAMINATION" : (item.offset_type !== "none" && item.offset_type ? "OFFSET" : "FABRIC");
+    
+    if (finishType === "FABRIC") {
+      return `PLAIN(${fab})`.toUpperCase();
+    } else if (finishType === "LAMINATION") {
+      const brand = ["BOX", "F_S", "H_S"].includes(item.lamination_type || "")
+        ? getCleanBrand(rotoProducts.find((x) => x.id === item.roto_product_id)?.brand)
+        : item.lamination_type === "NW"
+        ? "NW"
+        : "PLAIN";
+      
+      let suffix = "";
+      if (item.lamination_type === "PLAIN") suffix = "";
+      else if (item.lamination_type === "NW") suffix = "";
+      else if (item.lamination_type === "BOX") suffix = "B";
+      else if (item.lamination_type === "F_S") suffix = "F";
+      else if (item.lamination_type === "H_S") suffix = "H";
+
+      if (item.lamination_type === "PLAIN" || item.lamination_type === "NW") {
+        return `${brand}(${fab})`.toUpperCase();
+      } else {
+        return `${brand}(${fab})(${suffix})`.toUpperCase();
+      }
+    } else {
+      // OFFSET
+      const brand = getCleanBrand(offsetProducts.find((x) => x.id === item.offset_product_id)?.brand);
+      return `${brand}(${fab})`.toUpperCase();
+    }
+  }
+
+  return "Unknown Item";
 }
 
 function getRollDetails(rollId: string, rolls: Roll[]) {
@@ -88,7 +177,15 @@ type ProductGroup = {
   totalMeters: number;
 };
 
-function buildProductGroups(order: SalesOrder, rolls: Roll[], fabricTypes: { id: string; fabric_name: string }[]): ProductGroup[] {
+function buildProductGroups(
+  order: SalesOrder,
+  rolls: Roll[],
+  fabricTypes: { id: string; fabric_name: string }[],
+  rotoProducts: { id: string; brand: string }[],
+  offsetProducts: { id: string; brand: string }[],
+  laminationProducts: { id: string; name: string }[],
+  finishingProducts: { id: string; name: string }[]
+): ProductGroup[] {
   return (order.sales_order_items ?? []).map((item) => {
     const rollsData = (item.selected_roll_ids ?? []).map((rollId) => {
       const roll = getRollDetails(rollId, rolls);
@@ -110,7 +207,7 @@ function buildProductGroups(order: SalesOrder, rolls: Roll[], fabricTypes: { id:
     return {
       itemId: item.id,
       productId: item.product_id,
-      productName: getProductName(item.product_id, fabricTypes),
+      productName: getItemLabel(item, fabricTypes, rotoProducts, offsetProducts, laminationProducts || [], finishingProducts || []),
       department: item.department,
       rolls: rollsData,
       totalNetWeight,
@@ -119,7 +216,16 @@ function buildProductGroups(order: SalesOrder, rolls: Roll[], fabricTypes: { id:
   });
 }
 
-export function SalesEntryClient({ pendingOrders, billedOrders, rolls, fabricTypes }: SalesEntryClientProps) {
+export function SalesEntryClient({
+  pendingOrders,
+  billedOrders,
+  rolls,
+  fabricTypes,
+  rotoProducts,
+  offsetProducts,
+  laminationProducts = [],
+  finishingProducts = [],
+}: SalesEntryClientProps) {
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [orderBillNumbers, setOrderBillNumbers] = useState<Record<string, string>>({});
   const [orderBillValues, setOrderBillValues] = useState<Record<string, string>>({});
@@ -265,13 +371,21 @@ export function SalesEntryClient({ pendingOrders, billedOrders, rolls, fabricTyp
   }, [printOrderId, pendingOrders, billedOrders]);
 
   const printGroups = useMemo(() => {
-    return printOrder ? buildProductGroups(printOrder, rolls, fabricTypes) : [];
-  }, [printOrder, rolls, fabricTypes]);
+    return printOrder ? buildProductGroups(printOrder, rolls, fabricTypes, rotoProducts, offsetProducts, laminationProducts, finishingProducts) : [];
+  }, [printOrder, rolls, fabricTypes, rotoProducts, offsetProducts, laminationProducts, finishingProducts]);
 
   const printRollsByProduct = useMemo(() => {
     const map: Record<string, any[]> = {};
     for (const g of printGroups) {
       map[g.productName] = g.rolls;
+    }
+    return map;
+  }, [printGroups]);
+
+  const printDepartmentsByProduct = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const g of printGroups) {
+      map[g.productName] = g.department;
     }
     return map;
   }, [printGroups]);
@@ -283,7 +397,7 @@ export function SalesEntryClient({ pendingOrders, billedOrders, rolls, fabricTyp
         <Button variant="outline" className="mb-4 no-print" onClick={() => setPrintOrderId(null)}>
           ← Back to Sales Entry
         </Button>
-        <SalesPrintView order={printOrder as any} rollsByProduct={printRollsByProduct} />
+        <SalesPrintView order={printOrder as any} rollsByProduct={printRollsByProduct} departmentsByProduct={printDepartmentsByProduct} />
       </div>
     );
   }
@@ -379,7 +493,7 @@ export function SalesEntryClient({ pendingOrders, billedOrders, rolls, fabricTyp
                       <div className="space-y-3 mt-2 pl-2">
                         {customerGroup.orders.map((order) => {
                           const isExpanded = expandedOrderId === order.id;
-                          const groups = buildProductGroups(order, rolls, fabricTypes);
+                          const groups = buildProductGroups(order, rolls, fabricTypes, rotoProducts, offsetProducts, laminationProducts, finishingProducts);
                           const grandTotalKg = groups.reduce((s, g) => s + g.totalNetWeight, 0);
 
                           return (
@@ -438,9 +552,9 @@ export function SalesEntryClient({ pendingOrders, billedOrders, rolls, fabricTyp
                                         <TableRow className="bg-slate-100/60">
                                           <TableHead className="text-xs font-semibold">Department</TableHead>
                                           <TableHead className="text-xs font-semibold">Product</TableHead>
-                                          <TableHead className="text-xs font-semibold text-right">Rolls</TableHead>
-                                          <TableHead className="text-xs font-semibold text-right">Net W8 (kg)</TableHead>
-                                          <TableHead className="text-xs font-semibold text-right">Meters</TableHead>
+                                          <TableHead className="text-xs font-semibold text-right">Rolls / Bundles</TableHead>
+                                          <TableHead className="text-xs font-semibold text-right">Net Wt (kg)</TableHead>
+                                          <TableHead className="text-xs font-semibold text-right">Mtrs / Bags</TableHead>
                                         </TableRow>
                                       </TableHeader>
                                       <TableBody>
@@ -448,9 +562,13 @@ export function SalesEntryClient({ pendingOrders, billedOrders, rolls, fabricTyp
                                           <TableRow key={g.itemId} className="hover:bg-slate-50/20">
                                             <TableCell className="text-sm capitalize">{g.department}</TableCell>
                                             <TableCell className="text-sm font-mono font-medium">{g.productName}</TableCell>
-                                            <TableCell className="text-sm text-right">{g.rolls.length}</TableCell>
-                                            <TableCell className="text-sm text-right font-mono">{formatNumber(g.totalNetWeight, 1)}</TableCell>
-                                            <TableCell className="text-sm text-right font-mono">{formatNumber(Math.floor(g.totalMeters), 0)}</TableCell>
+                                            <TableCell className="text-sm text-right">
+                                              {g.rolls.length} {g.department === "finishing" ? "bundles" : "rolls"}
+                                            </TableCell>
+                                            <TableCell className="text-sm text-right font-mono">{formatNumber(g.totalNetWeight, 1)} kg</TableCell>
+                                            <TableCell className="text-sm text-right font-mono">
+                                              {formatNumber(Math.floor(g.totalMeters), 0)} {g.department === "finishing" ? "bags" : "m"}
+                                            </TableCell>
                                           </TableRow>
                                         ))}
                                       </TableBody>
@@ -544,7 +662,7 @@ export function SalesEntryClient({ pendingOrders, billedOrders, rolls, fabricTyp
                 </TableHeader>
                 <TableBody>
                   {groupedBilledOrders.map((order) => {
-                    const groups = buildProductGroups(order, rolls, fabricTypes);
+                    const groups = buildProductGroups(order, rolls, fabricTypes, rotoProducts, offsetProducts, laminationProducts, finishingProducts);
                     return (
                       <TableRow key={order.id} className="hover:bg-white/60">
                         <TableCell className="text-sm">{formatDate(order.order_date)}</TableCell>

@@ -209,25 +209,86 @@ export function SalesConfirmationReportClient({
     setExpandedOrders((prev) => ({ ...prev, [orderId]: !prev[orderId] }));
   };
 
-  const getProductName = (dept: string, productId: string) => {
-    if (dept === "fabric") {
-      const f = fabrics.find((x) => x.id === productId);
-      return f ? f.fabric_name : "Fabric Product";
-    } else if (dept === "roto-printing") {
-      const r = rotoProducts.find((x) => x.id === productId);
-      return r ? `${r.brand} (${r.width}x${r.height} mm)` : "Roto Product";
-    } else if (dept === "offset-printing") {
-      const o = offsetProducts.find((x) => x.id === productId);
-      return o ? `${o.brand} (${o.width}x${o.height} in)` : "Offset Product";
-    } else if (dept === "lamination") {
-      const l = laminationProducts.find((x) => x.id === productId);
-      if (l) return l.name;
-      return productId === "lam-film-25" ? "Laminated Film 2.5 mil" : "Laminated Film 3.0 mil";
-    } else if (dept === "finishing") {
-      const f = finishingProducts.find((x) => x.id === productId);
-      if (f) return f.name;
-      return productId === "finished-bags-28" ? "Finished Bags W-28" : "Finished Bags W-32";
+  const getProductName = (item: OrderItem) => {
+    const getCleanBrand = (brandName: string | undefined) => {
+      if (!brandName) return "";
+      return brandName.split(" (")[0].trim();
+    };
+
+    const fab = fabrics.find((x) => x.id === (item as any).fabric_type_id)?.fabric_name || "FABRIC-TYPE";
+
+    if (item.department === "fabric") {
+      const f = fabrics.find((x) => x.id === item.product_id);
+      return f ? f.fabric_name.toUpperCase() : "FABRIC PRODUCT";
     }
+
+    if (item.department === "roto-printing") {
+      const r = rotoProducts.find((x) => x.id === (item as any).roto_product_id || x.id === item.product_id);
+      const brand = getCleanBrand(r?.brand);
+      const filmChar = (item as any).film_type === "gloss" ? "G" : (item as any).film_type === "matt" ? "M" : "?";
+      const met = (item as any).is_metallic ? "(MT)" : "";
+      return `${brand}(${filmChar})${met}`.toUpperCase();
+    }
+
+    if (item.department === "lamination") {
+      const brand = ["BOX", "F_S", "H_S"].includes((item as any).lamination_type || "")
+        ? getCleanBrand(rotoProducts.find((x) => x.id === (item as any).roto_product_id)?.brand)
+        : (item as any).lamination_type === "NW"
+        ? "NW"
+        : "PLAIN";
+      
+      let suffix = "";
+      if ((item as any).lamination_type === "PLAIN") suffix = "";
+      else if ((item as any).lamination_type === "NW") suffix = "";
+      else if ((item as any).lamination_type === "BOX") suffix = "B";
+      else if ((item as any).lamination_type === "F_S") suffix = "F";
+      else if ((item as any).lamination_type === "H_S") suffix = "H";
+
+      if ((item as any).lamination_type === "PLAIN" || (item as any).lamination_type === "NW") {
+        return `${brand}(${fab})`.toUpperCase();
+      } else {
+        return `${brand}(${fab})(${suffix})`.toUpperCase();
+      }
+    }
+
+    if (item.department === "offset-printing") {
+      const o = offsetProducts.find((x) => x.id === (item as any).offset_product_id || x.id === item.product_id);
+      const brand = getCleanBrand(o?.brand);
+      const subFabName = (item as any).offset_type === "NW" ? "NW" : fab;
+      return `${brand}(${subFabName})`.toUpperCase();
+    }
+
+    if (item.department === "finishing") {
+      const finishType = (item as any).lamination_type ? "LAMINATION" : ((item as any).offset_type !== "none" && (item as any).offset_type ? "OFFSET" : "FABRIC");
+      
+      if (finishType === "FABRIC") {
+        return `PLAIN(${fab})`.toUpperCase();
+      } else if (finishType === "LAMINATION") {
+        const brand = ["BOX", "F_S", "H_S"].includes((item as any).lamination_type || "")
+          ? getCleanBrand(rotoProducts.find((x) => x.id === (item as any).roto_product_id)?.brand)
+          : (item as any).lamination_type === "NW"
+          ? "NW"
+          : "PLAIN";
+        
+        let suffix = "";
+        if ((item as any).lamination_type === "PLAIN") suffix = "";
+        else if ((item as any).lamination_type === "NW") suffix = "";
+        else if ((item as any).lamination_type === "BOX") suffix = "B";
+        else if ((item as any).lamination_type === "F_S") suffix = "F";
+        else if ((item as any).lamination_type === "H_S") suffix = "H";
+
+        if ((item as any).lamination_type === "PLAIN" || (item as any).lamination_type === "NW") {
+          return `${brand}(${fab})`.toUpperCase();
+        } else {
+          return `${brand}(${fab})(${suffix})`.toUpperCase();
+        }
+      } else {
+        // OFFSET
+        const brand = getCleanBrand(offsetProducts.find((x) => x.id === (item as any).offset_product_id)?.brand);
+        return `${brand}(${fab})`.toUpperCase();
+      }
+    }
+
     return "Unknown Product";
   };
 
@@ -386,7 +447,7 @@ export function SalesConfirmationReportClient({
                 amount,
                 deliveredWeight,
                 unit: getItemUnit(item),
-                resolvedName: getProductName(item.department, item.product_id),
+                resolvedName: getProductName(item),
               };
             }) || [];
 
