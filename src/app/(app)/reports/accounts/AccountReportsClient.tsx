@@ -17,6 +17,7 @@ interface Account {
   is_internal: string;
   opening_debit: string | number;
   opening_credit: string | number;
+  linked_customer_id?: string | null;
 }
 
 interface JournalEntry {
@@ -298,11 +299,19 @@ export function AccountReportsClient({
           >
             <option value="">-- All Accounts (Daybook) --</option>
             <optgroup label="Client Accounts">
-              {groupedAccounts["client a/c"].map((acc) => (
-                <option key={acc.id} value={acc.id}>
-                  {acc.customer_name}
-                </option>
-              ))}
+              {groupedAccounts["client a/c"].map((acc) => {
+                const parent = acc.linked_customer_id 
+                  ? accounts.find(a => a.id === acc.linked_customer_id) 
+                  : null;
+                const displayLabel = parent 
+                  ? `${acc.customer_name} (Linked: ${parent.customer_name})` 
+                  : acc.customer_name;
+                return (
+                  <option key={acc.id} value={acc.id}>
+                    {displayLabel}
+                  </option>
+                );
+              })}
             </optgroup>
             <optgroup label="Profit & Loss Accounts">
               {groupedAccounts["profit and loss a/c"].map((acc) => (
@@ -339,6 +348,37 @@ export function AccountReportsClient({
           <DateRangeFilter from={from} to={to} baseUrl="/reports/accounts" />
         </div>
       </div>
+
+      {/* Linked Accounts Information Notice */}
+      {selectedAccount && (() => {
+        const parent = selectedAccount.linked_customer_id 
+          ? accounts.find(a => a.id === selectedAccount.linked_customer_id) 
+          : null;
+        const children = accounts.filter(a => a.linked_customer_id === selectedAccount.id);
+
+        if (!parent && children.length === 0) return null;
+
+        return (
+          <div className="p-3 bg-amber-50/50 border border-amber-200/60 rounded-lg text-xs text-amber-800 flex flex-col gap-1">
+            <span className="font-semibold flex items-center gap-1">
+              ℹ️ Consolidated Statement
+            </span>
+            {parent && (
+              <span>
+                This account is linked to parent account: <strong>{parent.customer_name}</strong>. The statement below includes combined transactions for both accounts.
+              </span>
+            )}
+            {children.length > 0 && (
+              <span>
+                The statement below is consolidated and includes reference accounts:{" "}
+                <strong>
+                  {children.map(c => c.customer_name).join(", ")}
+                </strong>.
+              </span>
+            )}
+          </div>
+        );
+      })()}
 
       <Card className="border border-slate-200 shadow-sm overflow-hidden">
         <CardContent className="p-0">
