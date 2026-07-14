@@ -7,8 +7,12 @@ import { requirePermission } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { formatNumber } from "@/lib/utils";
 
-export default async function FabricStockPage() {
+type Params = { tab?: string };
+
+export default async function FabricStockPage({ searchParams }: { searchParams: Promise<Params> }) {
   await requirePermission("fabric.stock");
+  const params = await searchParams;
+  const activeTab = params.tab === "all" ? "all" : "available";
   const supabase = await createClient();
 
   const [fabricTypesRes, rollsRes] = await Promise.all([
@@ -20,13 +24,13 @@ export default async function FabricStockPage() {
   const rolls = (rollsRes.data || []) as Array<{ fabric_type_id: string; status: string; weight: number; meters: number }>;
 
   const stockRows = fabricTypes.map((ft) => {
-    const availableRolls = rolls.filter(r => r.fabric_type_id === ft.id && r.status === "available");
+    const matchedRolls = rolls.filter(r => r.fabric_type_id === ft.id && (activeTab === "all" || r.status === "available"));
     return {
       fabric_type_id: ft.id,
       fabric_name: ft.fabric_name,
-      rolls: availableRolls.length,
-      weight: availableRolls.reduce((sum, r) => sum + Number(r.weight || 0), 0),
-      meters: availableRolls.reduce((sum, r) => sum + Number(r.meters || 0), 0),
+      rolls: matchedRolls.length,
+      weight: matchedRolls.reduce((sum, r) => sum + Number(r.weight || 0), 0),
+      meters: matchedRolls.reduce((sum, r) => sum + Number(r.meters || 0), 0),
     };
   });
 
@@ -37,13 +41,38 @@ export default async function FabricStockPage() {
   return (
     <>
       <PageHeader title="Fabric Stock Inventory" description="Fabric stock grouped by type, with roll-level drill-down." />
+      
+      {/* Tab Switcher */}
+      <div className="flex gap-2 mb-5 no-print">
+        <Link
+          href={"/fabric/stock?tab=available" as any}
+          className={`px-4 py-2.5 rounded-lg text-sm font-bold transition-all duration-200 ${
+            activeTab === "available"
+              ? "bg-slate-900 text-white shadow-sm"
+              : "bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200"
+          }`}
+        >
+          Available Stock
+        </Link>
+        <Link
+          href={"/fabric/stock?tab=all" as any}
+          className={`px-4 py-2.5 rounded-lg text-sm font-bold transition-all duration-200 ${
+            activeTab === "all"
+              ? "bg-slate-900 text-white shadow-sm"
+              : "bg-white text-slate-600 hover:text-slate-900 hover:bg-slate-100 border border-slate-200"
+          }`}
+        >
+          All Stock (incl. Consumed/Sold)
+        </Link>
+      </div>
+
       <Card>
         <CardHeader>
-          <CardTitle>Available Stock Summary</CardTitle>
+          <CardTitle>{activeTab === "all" ? "All Registered Stock" : "Available Stock"} Summary</CardTitle>
         </CardHeader>
         <CardContent>
           {stockRows.length === 0 ? (
-            <div className="text-center py-6 text-muted-foreground">No available fabric stock found.</div>
+            <div className="text-center py-6 text-muted-foreground">No stock rolls found.</div>
           ) : (
             <div className="overflow-x-auto">
               <Table>
