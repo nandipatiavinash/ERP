@@ -3,7 +3,7 @@ create extension if not exists pgcrypto;
 
 create table public.roles (
   id uuid primary key default gen_random_uuid(),
-  name text not null unique check (name in ('admin', 'operator')),
+  name text not null unique,
   description text,
   is_active boolean not null default true,
   created_at timestamptz not null default now(),
@@ -98,6 +98,9 @@ create table public.employees (
   department text not null,
   designation text not null,
   salary numeric(12,2) not null default 0 check (salary >= 0),
+  joining_date date,
+  shift_start time,
+  shift_end time,
   status text not null default 'active' check (status in ('active', 'inactive')),
   created_by uuid references public.users(id),
   updated_by uuid references public.users(id),
@@ -112,6 +115,10 @@ create table public.attendance (
   attendance_date date not null default current_date,
   check_in time,
   check_out time,
+  check_in_at timestamptz,
+  check_out_at timestamptz,
+  working_hours numeric(8,2) default 0,
+  overtime_hours numeric(8,2) default 0,
   status text not null check (status in ('present', 'absent', 'half_day', 'leave')),
   created_by uuid references public.users(id),
   updated_by uuid references public.users(id),
@@ -586,6 +593,55 @@ create policy "audit insert active users" on public.audit_logs for insert with c
 
 -- --- START OF MIGRATION: 002_attendance_permissions.sql ---
 
+-- 1. Create permissions table
+create table if not exists public.permissions (
+  id uuid primary key default gen_random_uuid(),
+  module text not null,
+  action text not null,
+  description text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  deleted_at timestamptz,
+  unique (module, action)
+);
+
+-- 2. Create role_permissions table
+create table if not exists public.role_permissions (
+  role_id uuid not null references public.roles(id) on delete cascade,
+  permission_id uuid not null references public.permissions(id) on delete cascade,
+  created_by uuid references public.users(id),
+  created_at timestamptz not null default now(),
+  primary key (role_id, permission_id)
+);
+
+-- 3. Create has_permission function
+create or replace function public.has_permission(p_permission text)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  has_perm boolean;
+begin
+  select exists (
+    select 1
+    from public.users u
+    join public.role_permissions rp on rp.role_id = u.role_id
+    join public.permissions p on p.id = rp.permission_id
+    where u.id = auth.uid()
+      and u.status = 'active'
+      and u.deleted_at is null
+      and p.deleted_at is null
+      and (p.module || '.' || p.action) = p_permission
+  ) into has_perm;
+  return coalesce(has_perm, false);
+end;
+$$;
+
+-- 4. Enable RLS
+alter table public.permissions enable row level security;
+alter table public.role_permissions enable row level security;
 
 -- --- START OF MIGRATION: 003_permission_policies.sql ---
 drop policy if exists "roles admin write" on public.roles;
