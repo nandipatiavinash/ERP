@@ -229,6 +229,7 @@ export function SalesEntryClient({
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [orderBillNumbers, setOrderBillNumbers] = useState<Record<string, string>>({});
   const [orderBillValues, setOrderBillValues] = useState<Record<string, string>>({});
+  const [orderJobwork, setOrderJobwork] = useState<Record<string, boolean>>({});
   const [expandedCustomerIds, setExpandedCustomerIds] = useState<Record<string, boolean>>({});
 
   const [isPending, startTransition] = useTransition();
@@ -306,6 +307,9 @@ export function SalesEntryClient({
         fd.append("bill_number", finalBillNumber.trim());
         fd.append("bill_value", String(val));
         if (skipJournal) fd.append("skip_journal", "1");
+        const targetId = orderIds[0];
+        const isJobwork = targetId ? !!orderJobwork[targetId] : false;
+        fd.append("is_jobwork", isJobwork ? "true" : "false");
         await saveSalesOrderBillingDirect(fd);
         showSuccess("Submitted successfully!");
         setSuccessMsg(
@@ -315,10 +319,10 @@ export function SalesEntryClient({
         );
         
         // Clear inputs for this order
-        const targetId = orderIds[0];
         if (targetId) {
           setOrderBillNumbers((prev) => ({ ...prev, [targetId]: "" }));
           setOrderBillValues((prev) => ({ ...prev, [targetId]: "" }));
+          setOrderJobwork((prev) => ({ ...prev, [targetId]: false }));
         }
       } catch (err: any) {
         setErrorMsg(err.message ?? "Failed to save billing.");
@@ -601,6 +605,18 @@ export function SalesEntryClient({
                                         onChange={(e) => setOrderBillValues(prev => ({ ...prev, [order.id]: e.target.value }))}
                                         className="h-8 text-xs font-mono border-slate-300 bg-white"
                                       />
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <input
+                                        type="checkbox"
+                                        id={`is-jobwork-${order.id}`}
+                                        checked={!!orderJobwork[order.id]}
+                                        onChange={(e) => setOrderJobwork(prev => ({ ...prev, [order.id]: e.target.checked }))}
+                                        className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                                      />
+                                      <Label htmlFor={`is-jobwork-${order.id}`} className="text-slate-500 font-bold uppercase tracking-wider text-[10px] cursor-pointer select-none">
+                                        Job Work
+                                      </Label>
                                     </div>
                                     <div className="flex items-center gap-2 shrink-0">
                                       <Button

@@ -12,6 +12,7 @@ export async function saveRawMaterialPurchase(formData: FormData) {
   const supplier_name = String(formData.get("supplier_name") ?? "");
   const bill_number = String(formData.get("bill_number") ?? "");
   const remarks = String(formData.get("remarks") ?? "").trim();
+  const is_jobwork = formData.get("is_jobwork") === "true";
 
   const raw_material_ids = formData.getAll("raw_material_id").map(String);
   const quantities = formData.getAll("quantity").map(Number);
@@ -48,6 +49,7 @@ export async function saveRawMaterialPurchase(formData: FormData) {
       remarks: finalRemarks,
       created_by: user.id,
       updated_by: user.id,
+      is_jobwork,
     };
   });
 

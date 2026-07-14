@@ -278,6 +278,20 @@ export function PurchaseForm({
         <Textarea name="remarks" placeholder="Optional remarks or notes about the purchase..." />
       </div>
 
+      {/* Job Work Tag */}
+      <div className="flex items-center space-x-2 py-1">
+        <input
+          type="checkbox"
+          id="is_jobwork"
+          name="is_jobwork"
+          value="true"
+          className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+        />
+        <Label htmlFor="is_jobwork" className="text-sm font-medium cursor-pointer select-none">
+          Mark as Job Work Entry
+        </Label>
+      </div>
+
       <div>
         {errorText ? <p className="mb-2 text-sm text-destructive">{errorText}</p> : null}
         {successText ? <p className="mb-2 text-sm font-medium text-emerald-700">{successText}</p> : null}

@@ -103,6 +103,7 @@ export type Database = {
         created_at: string;
         updated_at: string;
         deleted_at: string | null;
+        is_jobwork: boolean;
       }>;
       accounts_journal: Table<{
         id: string;
@@ -257,6 +258,7 @@ export type Database = {
         created_at: string;
         updated_at: string;
         deleted_at: string | null;
+        is_jobwork: boolean;
       }>;
       roto_products: Table<{
         id: string;

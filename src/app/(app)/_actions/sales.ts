@@ -1414,6 +1414,7 @@ export async function saveSalesOrderBillingDirect(formData: FormData) {
   const orderIdsStr = String(formData.get("order_ids") ?? "");
   const billNumber = String(formData.get("bill_number") ?? "").trim();
   const billValue = Number(formData.get("bill_value") ?? 0);
+  const isJobwork = formData.get("is_jobwork") === "true";
 
   const orderIds = orderIdsStr
     ? orderIdsStr.split(",").map(id => id.trim()).filter(Boolean)
@@ -1463,7 +1464,8 @@ export async function saveSalesOrderBillingDirect(formData: FormData) {
         .update({
           bill_number: billNumber,
           bill_value: isFirstParent ? billValue : 0,
-          updated_by: user.id
+          updated_by: user.id,
+          is_jobwork: isJobwork
         } as any)
         .eq("id", oId);
 
@@ -1536,7 +1538,8 @@ export async function saveSalesOrderBillingDirect(formData: FormData) {
         .update({
           bill_number: billNumber,
           bill_value: isFirstParent ? billValue : 0,
-          updated_by: user.id
+          updated_by: user.id,
+          is_jobwork: isJobwork
         } as any)
         .eq("id", oId);
 
