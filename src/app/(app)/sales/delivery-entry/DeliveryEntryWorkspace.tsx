@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useTransition, useMemo } from "react";
+import { useState, useTransition, useMemo, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Check, Printer, ChevronRight, ChevronDown, Search, Trash2, Package, RotateCcw, ChevronLeft } from "lucide-react";
 import { confirmMultipleSalesDeliveries, deleteSalesOrderItem } from "@/app/(app)/_actions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -81,6 +82,7 @@ interface DeliveryEntryWorkspaceProps {
   rolls: Roll[];
   from?: string;
   to?: string;
+  tab?: string;
   initialOrderId?: string;
   singleViewMode?: boolean;
   permissions?: string[];
@@ -109,11 +111,20 @@ export function DeliveryEntryWorkspace({
   rolls,
   from = todayInIndia(),
   to = todayInIndia(),
+  tab = "pending",
   initialOrderId,
   singleViewMode = false,
   permissions = [],
 }: DeliveryEntryWorkspaceProps) {
-  const [activeTab, setActiveTab] = useState<"pending" | "confirmed">("pending");
+  const router = useRouter();
+  const [activeTab, setActiveTab] = useState<"pending" | "confirmed">(
+    tab === "completed" ? "confirmed" : "pending"
+  );
+
+  useEffect(() => {
+    setActiveTab(tab === "completed" ? "confirmed" : "pending");
+  }, [tab]);
+
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [isPending, startTransition] = useTransition();
@@ -606,7 +617,15 @@ export function DeliveryEntryWorkspace({
       {/* Workspace Tab Navigation */}
       <div className="flex flex-wrap gap-2 border-b border-slate-200 pb-3 no-print">
         <button
-          onClick={() => { setActiveTab("pending"); setErrorMsg(null); setSuccessMsg(null); setSelectedCustomerId(null); }}
+          onClick={() => {
+            setActiveTab("pending");
+            setErrorMsg(null);
+            setSuccessMsg(null);
+            setSelectedCustomerId(null);
+            startTransition(() => {
+              router.push("/sales/delivery-entry?tab=pending" as any);
+            });
+          }}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold transition-all duration-200 ${
             activeTab === "pending"
               ? "bg-slate-900 text-white shadow-sm"
@@ -617,7 +636,15 @@ export function DeliveryEntryWorkspace({
           Pending Confirmation ({orders.length})
         </button>
         <button
-          onClick={() => { setActiveTab("confirmed"); setErrorMsg(null); setSuccessMsg(null); setSelectedCustomerId(null); }}
+          onClick={() => {
+            setActiveTab("confirmed");
+            setErrorMsg(null);
+            setSuccessMsg(null);
+            setSelectedCustomerId(null);
+            startTransition(() => {
+              router.push("/sales/delivery-entry?tab=completed" as any);
+            });
+          }}
           className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-bold transition-all duration-200 ${
             activeTab === "confirmed"
               ? "bg-slate-900 text-white shadow-sm"

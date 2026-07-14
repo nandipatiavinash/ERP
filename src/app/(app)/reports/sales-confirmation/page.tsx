@@ -19,39 +19,43 @@ export default async function SalesConfirmationReportPage({
   const to = params.to || params.date || today;
   const tab = params.tab || "pending";
 
-  // Fetch billed sales orders in range
-  const { data: orders } = await supabase
-    .from("sales_orders")
-    .select("*, customers(*), sales_order_items(*)")
-    .eq("status", "confirmed")
-    .gte("order_date", from)
-    .lte("order_date", to)
-    .not("bill_number", "is", null)
-    .is("deleted_at", null)
-    .order("order_number", { ascending: true });
-
-  const billedOrders = (orders ?? []) as any[];
-
-  // 1. Fetch pending items (price is 0 or null)
-  const { data: pendingItems } = await supabase
-    .from("sales_order_items")
-    .select("sales_order_id")
-    .or("price.eq.0,price.is.null");
-
-  const pendingOrderIds = Array.from(new Set(((pendingItems ?? []) as any[]).map(item => item.sales_order_id)));
-
-  // 2. Fetch pending orders (all dates)
-  let pendingOrders: any[] = [];
-  if (pendingOrderIds.length > 0) {
-    const { data: pendingRes } = await supabase
+  let billedOrders: any[] = [];
+  if (tab === "completed") {
+    // Fetch billed sales orders in range
+    const { data: orders } = await supabase
       .from("sales_orders")
       .select("*, customers(*), sales_order_items(*)")
       .eq("status", "confirmed")
+      .gte("order_date", from)
+      .lte("order_date", to)
       .not("bill_number", "is", null)
-      .in("id", pendingOrderIds)
       .is("deleted_at", null)
-      .order("order_date", { ascending: false });
-    pendingOrders = pendingRes || [];
+      .order("order_number", { ascending: true });
+    billedOrders = orders || [];
+  }
+
+  let pendingOrders: any[] = [];
+  if (tab === "pending") {
+    // 1. Fetch pending items (price is 0 or null)
+    const { data: pendingItems } = await supabase
+      .from("sales_order_items")
+      .select("sales_order_id")
+      .or("price.eq.0,price.is.null");
+
+    const pendingOrderIds = Array.from(new Set(((pendingItems ?? []) as any[]).map(item => item.sales_order_id)));
+
+    // 2. Fetch pending orders (all dates)
+    if (pendingOrderIds.length > 0) {
+      const { data: pendingRes } = await supabase
+        .from("sales_orders")
+        .select("*, customers(*), sales_order_items(*)")
+        .eq("status", "confirmed")
+        .not("bill_number", "is", null)
+        .in("id", pendingOrderIds)
+        .is("deleted_at", null)
+        .order("order_date", { ascending: false });
+      pendingOrders = pendingRes || [];
+    }
   }
 
   // Fetch product definitions for resolving names

@@ -73,7 +73,13 @@ export function SalesConfirmationReportClient({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   
-  const activeTab = tab === "completed" ? "completed" : "pending";
+  const [activeTab, setActiveTab] = useState<"pending" | "completed">(
+    tab === "completed" ? "completed" : "pending"
+  );
+
+  useEffect(() => {
+    setActiveTab(tab === "completed" ? "completed" : "pending");
+  }, [tab]);
 
   // Collapsible states
   const [expandedOrders, setExpandedOrders] = useState<Record<string, boolean>>({});
@@ -373,6 +379,7 @@ export function SalesConfirmationReportClient({
         <div className="flex">
           <button
             onClick={() => {
+              setActiveTab("pending");
               startTransition(() => {
                 router.push(`/reports/sales-confirmation?tab=pending&from=${from}&to=${to}` as any);
               });
@@ -387,6 +394,7 @@ export function SalesConfirmationReportClient({
           </button>
           <button
             onClick={() => {
+              setActiveTab("completed");
               startTransition(() => {
                 router.push(`/reports/sales-confirmation?tab=completed&from=${from}&to=${to}` as any);
               });

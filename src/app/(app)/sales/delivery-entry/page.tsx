@@ -6,7 +6,7 @@ import { DeliveryEntryWorkspace } from "./DeliveryEntryWorkspace";
 export default async function DeliveryEntryPage({
   searchParams,
 }: {
-  searchParams: Promise<{ from?: string; to?: string }>;
+  searchParams: Promise<{ from?: string; to?: string; tab?: string }>;
 }) {
   await requirePermission("sales.delivery_entry");
   const permissions = await getSessionPermissions();
@@ -14,30 +14,42 @@ export default async function DeliveryEntryPage({
   const params = await searchParams;
   const from = params.from || todayInIndia();
   const to = params.to || todayInIndia();
+  const tab = params.tab || "pending";
 
-  // 1. Fetch draft orders
-  const { data: draftOrders, error: draftError } = await supabase
-    .from("sales_orders")
-    .select("*, customers(*), sales_order_items(*)")
-    .eq("status", "draft")
-    .is("deleted_at", null)
-    .order("order_date", { ascending: true })
-    .order("order_number", { ascending: true });
+  // 1. Fetch draft orders (only if pending confirmation)
+  const draftOrdersPromise = tab === "pending"
+    ? supabase
+        .from("sales_orders")
+        .select("*, customers(*), sales_order_items(*)")
+        .eq("status", "draft")
+        .is("deleted_at", null)
+        .order("order_date", { ascending: true })
+        .order("order_number", { ascending: true })
+    : Promise.resolve({ data: [], error: null });
 
-  if (draftError) throw new Error(draftError.message);
+  // 2. Fetch confirmed orders (only if completed dispatches range is viewed)
+  const confirmedOrdersPromise = tab === "completed"
+    ? supabase
+        .from("sales_orders")
+        .select("*, customers(*), sales_order_items(*)")
+        .eq("status", "confirmed")
+        .gte("order_date", from)
+        .lte("order_date", to)
+        .is("deleted_at", null)
+        .order("order_date", { ascending: false })
+        .order("order_number", { ascending: true })
+    : Promise.resolve({ data: [], error: null });
 
-  // 2. Fetch confirmed orders for the selected date range
-  const { data: confirmedOrders, error: confirmedError } = await supabase
-    .from("sales_orders")
-    .select("*, customers(*), sales_order_items(*)")
-    .eq("status", "confirmed")
-    .gte("order_date", from)
-    .lte("order_date", to)
-    .is("deleted_at", null)
-    .order("order_date", { ascending: false })
-    .order("order_number", { ascending: true });
+  const [draftRes, confirmedRes] = await Promise.all([
+    draftOrdersPromise,
+    confirmedOrdersPromise
+  ]);
 
-  if (confirmedError) throw new Error(confirmedError.message);
+  if (draftRes.error) throw new Error(draftRes.error.message);
+  if (confirmedRes.error) throw new Error(confirmedRes.error.message);
+
+  const draftOrders = draftRes.data || [];
+  const confirmedOrders = confirmedRes.data || [];
 
   // 3. Gather roll IDs and needed fabric type IDs
   const allOrders = [
@@ -60,6 +72,24 @@ export default async function DeliveryEntryPage({
   const uniqueNeededFabricTypeIds = Array.from(new Set(neededFabricTypeIds));
 
   // 4. Fetch available rolls and selected rolls in parallel
+  const availablePromises = tab === "pending"
+    ? [
+        supabase.from("fabric_rolls").select("id, roll_number, weight, meters, status, fabric_type_id, loom_production_entries(gross_weight, core_weight, average_meter_weight)").eq("status", "available").is("deleted_at", null),
+        supabase.from("lamination_rolls").select("id, roll_id, weight_kg, meters, status, fabric_type_id, product_id, lam_type, film_roll_id, roto_metallic_rolls(source_film_roll_id, roto_film_rolls(brand_id, film_type))").eq("status", "available").is("deleted_at", null),
+        supabase.from("offset_rolls").select("id, roll_id, weight_kg, meters, status, fabric_type_id, product_id, offset_type").eq("status", "available").is("deleted_at", null),
+        supabase.from("finishing_bundles").select("id, bundle_id, weight_kg, num_bags, status, fabric_type_id, product_id, finish_type").eq("status", "available").is("deleted_at", null),
+        supabase.from("roto_film_rolls").select("id, roll_id, weight_kg, meters, status, brand_id, film_type").eq("status", "available").is("deleted_at", null),
+        supabase.from("roto_metallic_rolls").select("id, roll_id, weight_kg, meters, status, source_film_roll_id, roto_film_rolls(brand_id, film_type)").eq("status", "available").is("deleted_at", null),
+      ]
+    : [
+        Promise.resolve({ data: [] }),
+        Promise.resolve({ data: [] }),
+        Promise.resolve({ data: [] }),
+        Promise.resolve({ data: [] }),
+        Promise.resolve({ data: [] }),
+        Promise.resolve({ data: [] }),
+      ];
+
   const [
     availableFabrics,
     availableLamination,
@@ -79,12 +109,7 @@ export default async function DeliveryEntryPage({
     laminationProds,
     finishingProds
   ] = await Promise.all([
-    supabase.from("fabric_rolls").select("id, roll_number, weight, meters, status, fabric_type_id, loom_production_entries(gross_weight, core_weight, average_meter_weight)").eq("status", "available").is("deleted_at", null),
-    supabase.from("lamination_rolls").select("id, roll_id, weight_kg, meters, status, fabric_type_id, product_id, lam_type, film_roll_id, roto_metallic_rolls(source_film_roll_id, roto_film_rolls(brand_id, film_type))").eq("status", "available").is("deleted_at", null),
-    supabase.from("offset_rolls").select("id, roll_id, weight_kg, meters, status, fabric_type_id, product_id, offset_type").eq("status", "available").is("deleted_at", null),
-    supabase.from("finishing_bundles").select("id, bundle_id, weight_kg, num_bags, status, fabric_type_id, product_id, finish_type").eq("status", "available").is("deleted_at", null),
-    supabase.from("roto_film_rolls").select("id, roll_id, weight_kg, meters, status, brand_id, film_type").eq("status", "available").is("deleted_at", null),
-    supabase.from("roto_metallic_rolls").select("id, roll_id, weight_kg, meters, status, source_film_roll_id, roto_film_rolls(brand_id, film_type)").eq("status", "available").is("deleted_at", null),
+    ...availablePromises,
     uniqueRollIds.length > 0 ? supabase.from("fabric_rolls").select("id, roll_number, weight, meters, status, fabric_type_id, loom_production_entries(gross_weight, core_weight, average_meter_weight)").in("id", uniqueRollIds).is("deleted_at", null) : Promise.resolve({ data: [] }),
     uniqueRollIds.length > 0 ? supabase.from("lamination_rolls").select("id, roll_id, weight_kg, meters, status, fabric_type_id, product_id, lam_type, film_roll_id, roto_metallic_rolls(source_film_roll_id, roto_film_rolls(brand_id, film_type))").in("id", uniqueRollIds).is("deleted_at", null) : Promise.resolve({ data: [] }),
     uniqueRollIds.length > 0 ? supabase.from("offset_rolls").select("id, roll_id, weight_kg, meters, status, fabric_type_id, product_id, offset_type").in("id", uniqueRollIds).is("deleted_at", null) : Promise.resolve({ data: [] }),
@@ -246,6 +271,7 @@ export default async function DeliveryEntryPage({
         rolls={rolls}
         from={from}
         to={to}
+        tab={tab}
         permissions={permissions}
       />
     </div>
