@@ -7,32 +7,34 @@ export default async function AdminCatalogPage() {
 
   const supabase = await createClient();
 
-  // Fetch all active fabric types (not soft deleted)
-  const { data: fabrics } = await (supabase
-    .from("fabric_types") as any)
-    .select("*, customers:customer_id(customer_name, alias)")
-    .is("deleted_at", null)
-    .order("fabric_name");
-
-  // Fetch all active finishing products (not soft deleted)
-  const { data: finishing } = await (supabase
-    .from("finishing_products") as any)
-    .select("*, customers:customer_id(customer_name, alias), roto:roto_product_id(brand), offset:offset_product_id(brand), fabric:fabric_type_id(fabric_name)")
-    .is("deleted_at", null)
-    .order("name");
-
-  // Fetch customer clients list for selection dropdown
-  const { data: dbCustomers } = await (supabase
-    .from("customers") as any)
-    .select("id, customer_name, alias")
-    .eq("status", "active")
-    .eq("is_internal", "client a/c")
-    .is("deleted_at", null)
-    .order("customer_name");
-
-  // Fetch roto products and offset products for pre-spec options
-  const { data: rotoProds } = await supabase.from("roto_products").select("id, brand").eq("status", "active");
-  const { data: offsetProds } = await supabase.from("offset_products").select("id, brand").eq("status", "active");
+  // Fetch catalog specifications and options in parallel
+  const [
+    { data: fabrics },
+    { data: finishing },
+    { data: dbCustomers },
+    { data: rotoProds },
+    { data: offsetProds }
+  ] = await Promise.all([
+    supabase
+      .from("fabric_types")
+      .select("*, customers:customer_id(customer_name, alias)")
+      .is("deleted_at", null)
+      .order("fabric_name"),
+    supabase
+      .from("finishing_products")
+      .select("*, customers:customer_id(customer_name, alias), roto:roto_product_id(brand), offset:offset_product_id(brand), fabric:fabric_type_id(fabric_name)")
+      .is("deleted_at", null)
+      .order("name"),
+    supabase
+      .from("customers")
+      .select("id, customer_name, alias")
+      .eq("status", "active")
+      .eq("is_internal", "client a/c")
+      .is("deleted_at", null)
+      .order("customer_name"),
+    supabase.from("roto_products").select("id, brand").eq("status", "active"),
+    supabase.from("offset_products").select("id, brand").eq("status", "active")
+  ]);
 
   const clients = ((dbCustomers ?? []) as any[]).map((c: any) => ({
     id: c.id,

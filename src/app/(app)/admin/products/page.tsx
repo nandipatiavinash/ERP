@@ -27,99 +27,104 @@ export default async function ProductsAdminPage({ searchParams }: { searchParams
   const tab = params.tab || "fabric";
   const supabase = await createClient();
 
-  // Fetch based on active tab
+  // Fetch data based on active tab
   let fabricData: any[] = [];
   let rotoData: any[] = [];
   let offsetData: any[] = [];
-  let rotoTotal = 0;
-  let offsetTotal = 0;
-
-  // Fetch customer clients list for selection dropdown
-  const { data: dbCustomers } = await supabase
-    .from("customers")
-    .select("id, customer_name, alias")
-    .eq("status", "active")
-    .eq("is_internal", "client a/c")
-    .is("deleted_at", null)
-    .order("customer_name");
-
-  const isActualClient = (name: string) => {
-    const n = name.trim().toLowerCase();
-    if (n.endsWith(" a/c") || n.endsWith(" a/c.")) return false;
-    const blacklist = [
-      "cash",
-      "sbi",
-      "icici",
-      "rent",
-      "salaries",
-      "salary",
-      "power bill",
-      "electricity",
-      "machinary",
-      "machinery",
-      "misc",
-      "sales",
-      "purchase",
-      "roundoff",
-      "round off",
-      "bank charges",
-      "equitas",
-      "cgst",
-      "sgst",
-      "igst",
-      "gst",
-      "tds",
-      "tcs",
-      "capital",
-      "drawings",
-      "depreciation",
-      "opening balance",
-      "ca",
-      "cc",
-    ];
-    return !blacklist.some((keyword) => {
-      const regex = new RegExp(`\\b${keyword}\\b`, "i");
-      return regex.test(n);
-    });
-  };
-
-  const clientList = ((dbCustomers ?? []) as any[])
-    .filter((c) => isActualClient(c.customer_name))
-    .map((c) => ({ id: c.id, name: c.customer_name, alias: c.alias }));
-
   let colorsList: any[] = [];
+  let clientList: any[] = [];
 
   if (tab === "fabric") {
+    // Fabric tab does not require client list or colors list
     const result = await fetchMasterRows({ supabase, config: modules["fabric-types"], select: "id, fabric_name, description, status", params, defaultSort: "fabric_name" });
     fabricData = result.rows;
-  } else if (tab === "roto") {
-    const { data: colorsData } = await supabase
-      .from("roto_colors")
-      .select("id, color_name")
+  } else {
+    // Load customer dropdown list for print products
+    const dbCustomersPromise = supabase
+      .from("customers")
+      .select("id, customer_name, alias")
       .eq("status", "active")
-      .order("color_name");
-    colorsList = colorsData ?? [];
+      .eq("is_internal", "client a/c")
+      .is("deleted_at", null)
+      .order("customer_name");
 
-    const { data } = await supabase
-      .from("roto_products")
-      .select(`
-        id, brand, width, height, num_cylinders, image_url, status, customer_id, 
-        customers:customer_id(customer_name, alias),
-        roto_product_colors(
-          id,
-          color_id,
-          image_url,
-          roto_colors(id, color_name)
-        )
-      `)
-      .order("brand", { ascending: true });
-    rotoData = data ?? [];
-  } else if (tab === "offset") {
-    const { data } = await supabase
-      .from("offset_products")
-      .select("id, brand, width, height, image_url, status, customer_id, customers:customer_id(customer_name, alias)")
-      .order("brand", { ascending: true });
-    offsetData = data ?? [];
+    if (tab === "roto") {
+      const [customersRes, colorsRes, rotoRes] = await Promise.all([
+        dbCustomersPromise,
+        supabase
+          .from("roto_colors")
+          .select("id, color_name")
+          .eq("status", "active")
+          .order("color_name"),
+        supabase
+          .from("roto_products")
+          .select(`
+            id, brand, width, height, num_cylinders, image_url, status, customer_id, 
+            customers:customer_id(customer_name, alias),
+            roto_product_colors(
+              id,
+              color_id,
+              image_url,
+              roto_colors(id, color_name)
+            )
+          `)
+          .order("brand", { ascending: true })
+      ]);
+
+      const isActualClient = (name: string) => {
+        const n = name.trim().toLowerCase();
+        if (n.endsWith(" a/c") || n.endsWith(" a/c.")) return false;
+        const blacklist = [
+          "cash", "sbi", "icici", "rent", "salaries", "salary", "power bill", 
+          "electricity", "machinary", "machinery", "misc", "sales", "purchase", 
+          "roundoff", "round off", "bank charges", "equitas", "cgst", "sgst", 
+          "igst", "gst", "tds", "tcs", "capital", "drawings", "depreciation", 
+          "opening balance", "ca", "cc"
+        ];
+        return !blacklist.some((keyword) => {
+          const regex = new RegExp(`\\b${keyword}\\b`, "i");
+          return regex.test(n);
+        });
+      };
+
+      clientList = ((customersRes.data ?? []) as any[])
+        .filter((c) => isActualClient(c.customer_name))
+        .map((c) => ({ id: c.id, name: c.customer_name, alias: c.alias }));
+
+      colorsList = colorsRes.data ?? [];
+      rotoData = rotoRes.data ?? [];
+
+    } else if (tab === "offset") {
+      const [customersRes, offsetRes] = await Promise.all([
+        dbCustomersPromise,
+        supabase
+          .from("offset_products")
+          .select("id, brand, width, height, image_url, status, customer_id, customers:customer_id(customer_name, alias)")
+          .order("brand", { ascending: true })
+      ]);
+
+      const isActualClient = (name: string) => {
+        const n = name.trim().toLowerCase();
+        if (n.endsWith(" a/c") || n.endsWith(" a/c.")) return false;
+        const blacklist = [
+          "cash", "sbi", "icici", "rent", "salaries", "salary", "power bill", 
+          "electricity", "machinary", "machinery", "misc", "sales", "purchase", 
+          "roundoff", "round off", "bank charges", "equitas", "cgst", "sgst", 
+          "igst", "gst", "tds", "tcs", "capital", "drawings", "depreciation", 
+          "opening balance", "ca", "cc"
+        ];
+        return !blacklist.some((keyword) => {
+          const regex = new RegExp(`\\b${keyword}\\b`, "i");
+          return regex.test(n);
+        });
+      };
+
+      clientList = ((customersRes.data ?? []) as any[])
+        .filter((c) => isActualClient(c.customer_name))
+        .map((c) => ({ id: c.id, name: c.customer_name, alias: c.alias }));
+
+      offsetData = offsetRes.data ?? [];
+    }
   }
 
   const tabClass = (key: string) =>

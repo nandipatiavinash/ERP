@@ -21,21 +21,24 @@ export default async function ClientCatalogPage() {
 
   const supabase = await createClient();
 
-  // Fetch fabric types (gray fabric specifications)
-  const { data: fabricTypes } = await supabase
-    .from("fabric_types")
-    .select("*")
-    .eq("status", "active")
-    .is("deleted_at", null)
-    .order("fabric_name", { ascending: true });
-
-  // Fetch bag specifications
-  const { data: finishingProducts } = await supabase
-    .from("finishing_products")
-    .select("*")
-    .eq("status", "active")
-    .is("deleted_at", null)
-    .order("name", { ascending: true });
+  // Fetch fabric types and bag specifications in parallel
+  const [
+    { data: fabricTypes },
+    { data: finishingProducts }
+  ] = await Promise.all([
+    supabase
+      .from("fabric_types")
+      .select("*")
+      .eq("status", "active")
+      .is("deleted_at", null)
+      .order("fabric_name", { ascending: true }),
+    supabase
+      .from("finishing_products")
+      .select("*")
+      .eq("status", "active")
+      .is("deleted_at", null)
+      .order("name", { ascending: true })
+  ]);
 
   return (
     <div className="space-y-6">

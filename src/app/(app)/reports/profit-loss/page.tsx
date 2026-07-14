@@ -62,23 +62,25 @@ export default async function ProfitLossReportPage({
     );
   }
 
-  // 2. Fetch P&L accounts from customers (since general ledger accounts are in customers table)
-  const { data: plAccounts } = await supabase
-    .from("customers")
-    .select("id, customer_name, alias, opening_debit, opening_credit, is_internal")
-    .or("is_internal.eq.profit and loss a/c,is_internal.eq.p&l")
-    .is("deleted_at", null);
-
-  // 3. Fetch aggregated journal entries up to the selected date
-  const { data: journalEntries } = await (supabase as any)
-    .rpc("get_accounts_journal_summary_by_date", { p_date: date });
-
-  // 4. Fetch existing P&L submission
-  const { data: plSetting } = await supabase
-    .from("settings")
-    .select("value")
-    .eq("key", `profit_loss_${date}`)
-    .maybeSingle();
+  // 2. Fetch P&L accounts, aggregated journal entries, and existing P&L settings in parallel
+  const [
+    { data: plAccounts },
+    { data: journalEntries },
+    { data: plSetting }
+  ] = await Promise.all([
+    supabase
+      .from("customers")
+      .select("id, customer_name, alias, opening_debit, opening_credit, is_internal")
+      .or("is_internal.eq.profit and loss a/c,is_internal.eq.p&l")
+      .is("deleted_at", null),
+    (supabase as any)
+      .rpc("get_accounts_journal_summary_by_date", { p_date: date }),
+    supabase
+      .from("settings")
+      .select("value")
+      .eq("key", `profit_loss_${date}`)
+      .maybeSingle()
+  ]);
 
   const submittedPL = (plSetting as any)?.value || null;
 

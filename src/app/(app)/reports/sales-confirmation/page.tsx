@@ -19,30 +19,47 @@ export default async function SalesConfirmationReportPage({
   const to = params.to || params.date || today;
   const tab = params.tab || "pending";
 
+  // Fetch product definitions in parallel with order queries to eliminate waterfalls
+  const productsPromise = Promise.all([
+    supabase.from("fabric_types").select("id, fabric_name, selling_price"),
+    supabase.from("roto_products").select("id, brand, width, height"),
+    supabase.from("offset_products").select("id, brand, width, height"),
+    supabase.from("lamination_products").select("id, name"),
+    supabase.from("finishing_products").select("id, name"),
+  ]);
+
   let billedOrders: any[] = [];
-  if (tab === "completed") {
-    // Fetch billed sales orders in range
-    const { data: orders } = await supabase
-      .from("sales_orders")
-      .select("*, customers(*), sales_order_items(*)")
-      .eq("status", "confirmed")
-      .gte("order_date", from)
-      .lte("order_date", to)
-      .not("bill_number", "is", null)
-      .is("deleted_at", null)
-      .order("order_number", { ascending: true });
-    billedOrders = orders || [];
-  }
-
   let pendingOrders: any[] = [];
-  if (tab === "pending") {
-    // 1. Fetch pending items (price is 0 or null)
-    const { data: pendingItems } = await supabase
-      .from("sales_order_items")
-      .select("sales_order_id")
-      .or("price.eq.0,price.is.null");
+  let productsData: any[] = [];
 
-    const pendingOrderIds = Array.from(new Set(((pendingItems ?? []) as any[]).map(item => item.sales_order_id)));
+  if (tab === "completed") {
+    const [ordersRes, productsRes] = await Promise.all([
+      supabase
+        .from("sales_orders")
+        .select("*, customers(*), sales_order_items(*)")
+        .eq("status", "confirmed")
+        .gte("order_date", from)
+        .lte("order_date", to)
+        .not("bill_number", "is", null)
+        .is("deleted_at", null)
+        .order("order_number", { ascending: true }),
+      productsPromise
+    ]);
+    billedOrders = ordersRes.data || [];
+    productsData = productsRes;
+  } else if (tab === "pending") {
+    // 1. Fetch pending items (price is 0 or null) in parallel with product specs
+    const [pendingItemsRes, productsRes] = await Promise.all([
+      supabase
+        .from("sales_order_items")
+        .select("sales_order_id")
+        .or("price.eq.0,price.is.null"),
+      productsPromise
+    ]);
+    
+    productsData = productsRes;
+    const pendingItems = pendingItemsRes.data || [];
+    const pendingOrderIds = Array.from(new Set(pendingItems.map((item: any) => item.sales_order_id)));
 
     // 2. Fetch pending orders (all dates)
     if (pendingOrderIds.length > 0) {
@@ -58,20 +75,13 @@ export default async function SalesConfirmationReportPage({
     }
   }
 
-  // Fetch product definitions for resolving names
   const [
     { data: fabrics },
     { data: roto },
     { data: offset },
     { data: laminationProds },
     { data: finishingProds }
-  ] = await Promise.all([
-    supabase.from("fabric_types").select("id, fabric_name, selling_price"),
-    supabase.from("roto_products").select("id, brand, width, height"),
-    supabase.from("offset_products").select("id, brand, width, height"),
-    supabase.from("lamination_products").select("id, name"),
-    supabase.from("finishing_products").select("id, name"),
-  ]);
+  ] = productsData;
 
   // Extract selected roll IDs
   const allRollIds: string[] = [];
