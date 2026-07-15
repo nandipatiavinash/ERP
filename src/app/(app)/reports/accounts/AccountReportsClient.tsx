@@ -304,7 +304,7 @@ export function AccountReportsClient({
                   ? accounts.find(a => a.id === acc.linked_customer_id) 
                   : null;
                 const displayLabel = parent 
-                  ? `${acc.customer_name} (Linked: ${parent.customer_name})` 
+                  ? `${acc.customer_name} (Reference Account: ${parent.customer_name})` 
                   : acc.customer_name;
                 return (
                   <option key={acc.id} value={acc.id}>
@@ -359,21 +359,15 @@ export function AccountReportsClient({
         if (!parent && children.length === 0) return null;
 
         return (
-          <div className="p-3 bg-amber-50/50 border border-amber-200/60 rounded-lg text-xs text-amber-800 flex flex-col gap-1">
-            <span className="font-semibold flex items-center gap-1">
-              ℹ️ Consolidated Statement
-            </span>
+          <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-650 flex flex-col gap-1">
             {parent && (
               <span>
-                This account is linked to parent account: <strong>{parent.customer_name}</strong>. The statement below includes combined transactions for both accounts.
+                ℹ️ This is a reference account for: <strong>{parent.customer_name}</strong>.
               </span>
             )}
             {children.length > 0 && (
               <span>
-                The statement below is consolidated and includes reference accounts:{" "}
-                <strong>
-                  {children.map(c => c.customer_name).join(", ")}
-                </strong>.
+                ℹ️ This account has reference accounts: <strong>{children.map(c => c.customer_name).join(", ")}</strong>.
               </span>
             )}
           </div>
