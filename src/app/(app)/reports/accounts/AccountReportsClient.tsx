@@ -73,6 +73,14 @@ export function AccountReportsClient({
     });
     return groups;
   }, [accounts]);
+  
+  const { clientAccountsOnly, referenceAccountsOnly } = useMemo(() => {
+    const clients = groupedAccounts["client a/c"] ?? [];
+    return {
+      clientAccountsOnly: clients.filter(c => !c.linked_customer_id),
+      referenceAccountsOnly: clients.filter(c => c.linked_customer_id),
+    };
+  }, [groupedAccounts]);
 
   // Calculations for Case A: Specific Account Selected
   const ledgerData = useMemo(() => {
@@ -299,20 +307,27 @@ export function AccountReportsClient({
           >
             <option value="">-- All Accounts (Daybook) --</option>
             <optgroup label="Client Accounts">
-              {groupedAccounts["client a/c"].map((acc) => {
-                const parent = acc.linked_customer_id 
-                  ? accounts.find(a => a.id === acc.linked_customer_id) 
-                  : null;
-                const displayLabel = parent 
-                  ? `${acc.customer_name} (Reference Account: ${parent.customer_name})` 
-                  : acc.customer_name;
-                return (
-                  <option key={acc.id} value={acc.id}>
-                    {displayLabel}
-                  </option>
-                );
-              })}
+              {clientAccountsOnly.map((acc) => (
+                <option key={acc.id} value={acc.id}>
+                  {acc.customer_name}
+                </option>
+              ))}
             </optgroup>
+            {referenceAccountsOnly.length > 0 && (
+              <optgroup label="Reference Accounts">
+                {referenceAccountsOnly.map((acc) => {
+                  const parent = accounts.find((a) => a.id === acc.linked_customer_id);
+                  const displayLabel = parent
+                    ? `${acc.customer_name} (Reference Account: ${parent.customer_name})`
+                    : acc.customer_name;
+                  return (
+                    <option key={acc.id} value={acc.id}>
+                      {displayLabel}
+                    </option>
+                  );
+                })}
+              </optgroup>
+            )}
             <optgroup label="Profit & Loss Accounts">
               {groupedAccounts["profit and loss a/c"].map((acc) => (
                 <option key={acc.id} value={acc.id}>
@@ -345,7 +360,11 @@ export function AccountReportsClient({
         </div>
 
         <div>
-          <DateRangeFilter from={from} to={to} baseUrl="/reports/accounts" />
+          <DateRangeFilter
+            from={from}
+            to={to}
+            baseUrl={accountId ? `/reports/accounts?accountId=${accountId}` : "/reports/accounts"}
+          />
         </div>
       </div>
 
