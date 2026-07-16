@@ -202,6 +202,7 @@ export async function confirmSalesDelivery(
 
   // Retrieve roll weights from their respective tables
   const rollsData: Record<string, number> = {};
+  const rollsBagsData: Record<string, number> = {};
   for (const item of items) {
     const newRollIds = itemRolls[item.id] || [];
     if (newRollIds.length === 0) continue;
@@ -219,9 +220,12 @@ export async function confirmSalesDelivery(
       if (error) throw new Error(`Failed to retrieve offset roll details: ${error.message}`);
       for (const r of data || []) rollsData[r.id] = Number(r.weight_kg || 0);
     } else if (item.department === "finishing") {
-      const { data, error } = await (supabase.from("finishing_bundles") as any).select("id, weight_kg").in("id", newRollIds);
+      const { data, error } = await (supabase.from("finishing_bundles") as any).select("id, weight_kg, num_bags").in("id", newRollIds);
       if (error) throw new Error(`Failed to retrieve finishing bundle details: ${error.message}`);
-      for (const r of data || []) rollsData[r.id] = Number(r.weight_kg || 0);
+      for (const r of data || []) {
+        rollsData[r.id] = Number(r.weight_kg || 0);
+        rollsBagsData[r.id] = Number(r.num_bags || 0);
+      }
     } else if (item.department === "roto-printing") {
       const table = item.is_metallic ? "roto_metallic_rolls" : "roto_film_rolls";
       const { data, error } = await (supabase.from(table) as any).select("id, weight_kg").in("id", newRollIds);
@@ -259,6 +263,8 @@ export async function confirmSalesDelivery(
     if (tblName) {
       const deliveredQty = item.department === "fabric"
         ? newRollIds.length
+        : item.department === "finishing"
+        ? newRollIds.reduce((sum, rid) => sum + (rollsBagsData[rid] || 0), 0)
         : newRollIds.reduce((sum, rid) => sum + (rollsData[rid] || 0), 0);
 
       if (deliveredQty < item.quantity) {
