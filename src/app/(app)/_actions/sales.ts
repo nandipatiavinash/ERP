@@ -257,17 +257,19 @@ export async function confirmSalesDelivery(
     else if (item.department === "roto-printing") tblName = item.is_metallic ? "roto_metallic_rolls" : "roto_film_rolls";
 
     if (tblName) {
-      const deliveredWeight = newRollIds.reduce((sum, rid) => sum + (rollsData[rid] || 0), 0);
+      const deliveredQty = item.department === "fabric"
+        ? newRollIds.length
+        : newRollIds.reduce((sum, rid) => sum + (rollsData[rid] || 0), 0);
 
-      if (deliveredWeight < item.quantity) {
+      if (deliveredQty < item.quantity) {
         if (action === "backorder") {
-          const remainingQty = item.quantity - deliveredWeight;
-          if (deliveredWeight > 0) {
+          const remainingQty = item.quantity - deliveredQty;
+          if (deliveredQty > 0) {
             const { error: updateItemError } = await (supabase
               .from("sales_order_items") as any)
               .update({
                 selected_roll_ids: newRollIds,
-                quantity: deliveredWeight,
+                quantity: deliveredQty,
               } as any)
               .eq("id", item.id);
             if (updateItemError) throw new Error(updateItemError.message);
@@ -306,12 +308,12 @@ export async function confirmSalesDelivery(
             });
           }
         } else {
-          if (deliveredWeight > 0) {
+          if (deliveredQty > 0) {
             const { error: updateItemError } = await (supabase
               .from("sales_order_items") as any)
               .update({
                 selected_roll_ids: newRollIds,
-                quantity: deliveredWeight,
+                quantity: deliveredQty,
               } as any)
               .eq("id", item.id);
             if (updateItemError) throw new Error(updateItemError.message);
@@ -329,7 +331,7 @@ export async function confirmSalesDelivery(
           .from("sales_order_items") as any)
           .update({
             selected_roll_ids: newRollIds,
-            quantity: deliveredWeight,
+            quantity: deliveredQty,
           } as any)
           .eq("id", item.id);
         if (updateItemError) throw new Error(updateItemError.message);
@@ -1274,7 +1276,9 @@ export async function confirmMultipleSalesDeliveries(
     else if (item.department === "roto-printing") tblName = item.is_metallic ? "roto_metallic_rolls" : "roto_film_rolls";
 
     if (tblName) {
-      const deliveredQty = item.department === "finishing"
+      const deliveredQty = item.department === "fabric"
+        ? newRollIds.length
+        : item.department === "finishing"
         ? newRollIds.reduce((sum, rid) => sum + (rollsBagsData[rid] || 0), 0)
         : newRollIds.reduce((sum, rid) => sum + (rollsData[rid] || 0), 0);
 
