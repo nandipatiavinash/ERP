@@ -40,16 +40,6 @@ export function SalesPrintView({ order, rollsByProduct, departmentsByProduct }: 
       .sort();
   }, [rollsByProduct]);
 
-  const hasFabric = useMemo(() => {
-    if (!departmentsByProduct) return true;
-    return productKeys.some((k) => departmentsByProduct[k] === "fabric");
-  }, [productKeys, departmentsByProduct]);
-
-  const hasFinishing = useMemo(() => {
-    if (!departmentsByProduct) return false;
-    return productKeys.some((k) => departmentsByProduct[k] === "finishing");
-  }, [productKeys, departmentsByProduct]);
-
   // Sort rolls within each product group alphabetically
   const sortedRollsByProduct = useMemo(() => {
     const sorted: Record<string, typeof rollsByProduct[string]> = {};
@@ -61,40 +51,59 @@ export function SalesPrintView({ order, rollsByProduct, departmentsByProduct }: 
     return sorted;
   }, [productKeys, rollsByProduct]);
 
-  // Compute Grand Totals & Flatten Rows for Single Table
-  const { tableRows, grandTotalNetWeight, grandTotalMeters, grandTotalRolls } = useMemo(() => {
+  // Compute Product Summaries & Totals
+  const productSummaries = useMemo(() => {
+    return productKeys.map((productKey) => {
+      const rolls = sortedRollsByProduct[productKey] || [];
+      const dept = departmentsByProduct?.[productKey] || "fabric";
+
+      const totalNetWeight = rolls.reduce((sum, r) => sum + (r.net_weight || 0), 0);
+      const totalMeters = rolls.reduce((sum, r) => sum + (r.net_meters || 0), 0);
+      const totalGrossWeight = rolls.reduce((sum, r) => sum + (r.gross_weight || 0), 0);
+      const totalCoreWeight = rolls.reduce((sum, r) => sum + (r.core_weight || 0), 0);
+      const totalRolls = rolls.length;
+
+      // Avg weight for fabric
+      const avgWeight = totalMeters > 0 ? (totalNetWeight * 1000) / totalMeters : 0;
+
+      return {
+        productKey,
+        dept,
+        rolls,
+        totalNetWeight,
+        totalMeters,
+        totalGrossWeight,
+        totalCoreWeight,
+        totalRolls,
+        avgWeight,
+      };
+    });
+  }, [productKeys, sortedRollsByProduct, departmentsByProduct]);
+
+  // Compute overall Grand Totals
+  const grandTotals = useMemo(() => {
     let netWeight = 0;
     let meters = 0;
+    let bags = 0;
     let rollsCount = 0;
-    const rows: Array<{
-      productKey: string;
-      roll: any;
-      isFirstOfProduct: boolean;
-      productRollsCount: number;
-    }> = [];
 
-    for (const productKey of productKeys) {
-      const rolls = sortedRollsByProduct[productKey] || [];
-      rolls.forEach((roll, idx) => {
-        netWeight += roll.net_weight;
-        meters += roll.net_meters;
-        rows.push({
-          productKey,
-          roll,
-          isFirstOfProduct: idx === 0,
-          productRollsCount: rolls.length,
-        });
-      });
-      rollsCount += rolls.length;
-    }
+    productSummaries.forEach((s) => {
+      netWeight += s.totalNetWeight;
+      rollsCount += s.totalRolls;
+      if (s.dept === "finishing") {
+        bags += s.totalMeters;
+      } else {
+        meters += s.totalMeters;
+      }
+    });
 
     return {
-      tableRows: rows,
-      grandTotalNetWeight: netWeight,
-      grandTotalMeters: meters,
-      grandTotalRolls: rollsCount,
+      netWeight,
+      meters,
+      bags,
+      rollsCount,
     };
-  }, [productKeys, sortedRollsByProduct]);
+  }, [productSummaries]);
 
   return (
     <>
@@ -168,103 +177,170 @@ export function SalesPrintView({ order, rollsByProduct, departmentsByProduct }: 
           </div>
         </div>
 
-        {/* ── Consolidated Product Table ── */}
-        {tableRows.length > 0 ? (
-          <div className="mb-6 overflow-x-auto">
-            <table className="w-full border-collapse text-xs border border-gray-200">
-              <thead>
-                <tr className="border-b-2 border-gray-300 bg-gray-50 text-left text-[10px] font-semibold uppercase tracking-wider text-gray-500">
-                  <th className="border border-gray-200 px-3 py-2">Product Spec</th>
-                  <th className="border border-gray-200 px-3 py-2 text-center">
-                    {hasFinishing ? "Bundle No" : "Roll No"}
-                  </th>
-                  {hasFabric && (
-                    <>
-                      <th className="border border-gray-200 px-3 py-2 text-right">Gross W8</th>
-                      <th className="border border-gray-200 px-3 py-2 text-right">Core W8</th>
-                    </>
-                  )}
-                  <th className="border border-gray-200 px-3 py-2 text-right">Net W8</th>
-                  <th className="border border-gray-200 px-3 py-2 text-right">
-                    {hasFinishing ? "Mtrs / Bags" : "Mtrs"}
-                  </th>
-                  {hasFabric && (
-                    <th className="border border-gray-200 px-3 py-2 text-right">Avg W8</th>
-                  )}
-                </tr>
-              </thead>
-              <tbody>
-                {tableRows.map(({ productKey, roll, isFirstOfProduct, productRollsCount }, idx) => {
-                  const dept = departmentsByProduct?.[productKey];
-                  const isFabric = !departmentsByProduct || dept === "fabric";
+        {/* ── Product-wise Tables ── */}
+        {productSummaries.length > 0 ? (
+          <div className="space-y-8">
+            {productSummaries.map((summary) => {
+              const isFabric = summary.dept === "fabric";
+              const isFinishing = summary.dept === "finishing";
 
-                  return (
-                    <tr
-                      key={roll.roll_number}
-                      className={idx % 2 === 0 ? "bg-white" : "bg-gray-50/60"}
-                    >
-                      {isFirstOfProduct && (
-                        <td
-                          rowSpan={productRollsCount}
-                          className="border border-gray-200 px-3 py-2 font-bold uppercase text-gray-800 align-middle bg-gray-50/10"
-                        >
-                          {productKey}
-                        </td>
-                      )}
-                      <td className="border border-gray-200 px-3 py-1.5 text-center text-gray-600 font-mono">
-                        {roll.roll_number}
-                      </td>
-                      {hasFabric && (
-                        <>
-                          <td className="border border-gray-200 px-3 py-1.5 text-right tabular-nums">
-                            {isFabric ? formatNumber(roll.gross_weight) : "—"}
+              return (
+                <div key={summary.productKey} className="break-inside-avoid">
+                  {/* Product Specification Header */}
+                  <div className="flex justify-between items-center mb-2 border-b border-gray-200 pb-1">
+                    <h3 className="text-sm font-bold text-gray-800 uppercase">
+                      {summary.productKey}
+                    </h3>
+                    <span className="text-[10px] font-semibold text-gray-500 uppercase px-2 py-0.5 bg-gray-100 rounded">
+                      {summary.dept === "fabric"
+                        ? "Fabric"
+                        : summary.dept === "finishing"
+                        ? "Bags (Finishing)"
+                        : "Lamination / Roto"}
+                    </span>
+                  </div>
+
+                  {/* Table */}
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse text-xs border border-gray-200">
+                      <thead>
+                        <tr className="border-b border-gray-300 bg-gray-50 text-left text-[10px] font-semibold uppercase tracking-wider text-gray-500">
+                          <th className="border border-gray-200 px-3 py-2">
+                            {isFinishing ? "Bundle No" : "Roll No"}
+                          </th>
+                          {isFabric && (
+                            <>
+                              <th className="border border-gray-200 px-3 py-2 text-right">Gross W8</th>
+                              <th className="border border-gray-200 px-3 py-2 text-right">Core W8</th>
+                            </>
+                          )}
+                          <th className="border border-gray-200 px-3 py-2 text-right">Net W8 (kgs)</th>
+                          <th className="border border-gray-200 px-3 py-2 text-right">
+                            {isFinishing ? "Pieces (Bags)" : "Meters"}
+                          </th>
+                          {isFabric && (
+                            <th className="border border-gray-200 px-3 py-2 text-right">Avg W8</th>
+                          )}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {summary.rolls.map((roll, idx) => (
+                          <tr
+                            key={roll.roll_number}
+                            className={idx % 2 === 0 ? "bg-white" : "bg-gray-50/60"}
+                          >
+                            <td className="border border-gray-200 px-3 py-1.5 text-left text-gray-600 font-mono">
+                              {roll.roll_number}
+                            </td>
+                            {isFabric && (
+                              <>
+                                <td className="border border-gray-200 px-3 py-1.5 text-right tabular-nums">
+                                  {formatNumber(roll.gross_weight)}
+                                </td>
+                                <td className="border border-gray-200 px-3 py-1.5 text-right tabular-nums">
+                                  {formatNumber(roll.core_weight)}
+                                </td>
+                              </>
+                            )}
+                            <td className="border border-gray-200 px-3 py-1.5 text-right tabular-nums font-semibold">
+                              {formatNumber(roll.net_weight)}
+                            </td>
+                            <td className="border border-gray-200 px-3 py-1.5 text-right tabular-nums">
+                              {formatNumber(Math.floor(roll.net_meters), 0)}
+                            </td>
+                            {isFabric && (
+                              <td className="border border-gray-200 px-3 py-1.5 text-right tabular-nums">
+                                {formatNumber(Math.floor(roll.average_meter_weight), 0)}
+                              </td>
+                            )}
+                          </tr>
+                        ))}
+                      </tbody>
+                      <tfoot>
+                        <tr className="border-t border-gray-300 bg-gray-50 font-bold">
+                          <td className="border border-gray-200 px-3 py-2 text-left uppercase text-gray-700">
+                            Total ({summary.totalRolls} {isFinishing ? "Bundles" : "Rolls"})
                           </td>
-                          <td className="border border-gray-200 px-3 py-1.5 text-right tabular-nums">
-                            {isFabric ? formatNumber(roll.core_weight) : "—"}
+                          {isFabric && (
+                            <>
+                              <td className="border border-gray-200 px-3 py-2 text-right tabular-nums">
+                                {formatNumber(summary.totalGrossWeight)}
+                              </td>
+                              <td className="border border-gray-200 px-3 py-2 text-right tabular-nums">
+                                {formatNumber(summary.totalCoreWeight)}
+                              </td>
+                            </>
+                          )}
+                          <td className="border border-gray-200 px-3 py-2 text-right tabular-nums text-emerald-950">
+                            {formatNumber(summary.totalNetWeight)} kg
                           </td>
-                        </>
-                      )}
-                      <td className="border border-gray-200 px-3 py-1.5 text-right tabular-nums font-semibold">
-                        {formatNumber(roll.net_weight)}
-                      </td>
-                      <td className="border border-gray-200 px-3 py-1.5 text-right tabular-nums">
-                        {formatNumber(Math.floor(roll.net_meters), 0)} {dept === "finishing" ? "bags" : ""}
-                      </td>
-                      {hasFabric && (
-                        <td className="border border-gray-200 px-3 py-1.5 text-right tabular-nums">
-                          {isFabric ? formatNumber(Math.floor(roll.average_meter_weight), 0) : "—"}
-                        </td>
-                      )}
-                    </tr>
-                  );
-                })}
-              </tbody>
-              <tfoot>
-                <tr className="border-t-2 border-gray-400 bg-gray-100 font-bold">
-                  <td
-                    className="border border-gray-200 px-3 py-2 text-right uppercase tracking-wide text-gray-700"
-                    colSpan={2}
-                  >
-                    Grand Total ({grandTotalRolls} {hasFinishing ? "Bundles" : "Rolls"})
-                  </td>
-                  {hasFabric && (
-                    <>
-                      <td className="border border-gray-200 px-3 py-2 text-right tabular-nums" />
-                      <td className="border border-gray-200 px-3 py-2 text-right tabular-nums" />
-                    </>
+                          <td className="border border-gray-200 px-3 py-2 text-right tabular-nums">
+                            {formatNumber(Math.floor(summary.totalMeters), 0)} {isFinishing ? "pcs" : "m"}
+                          </td>
+                          {isFabric && (
+                            <td className="border border-gray-200 px-3 py-2 text-right tabular-nums">
+                              {formatNumber(Math.floor(summary.avgWeight), 0)}
+                            </td>
+                          )}
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* ── Dispatch Summary Card ── */}
+            <div className="mt-8 border border-gray-300 rounded-lg p-4 bg-gray-50 break-inside-avoid">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-3 border-b border-gray-200 pb-1.5">
+                Dispatch Summary
+              </h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                {/* Left side: Product-wise totals */}
+                <div className="space-y-1.5">
+                  {productSummaries.map((s) => (
+                    <div key={s.productKey} className="flex justify-between items-center text-gray-700 font-medium">
+                      <span className="uppercase">{s.productKey}:</span>
+                      <span className="font-mono bg-white px-2 py-0.5 border border-gray-200 rounded">
+                        {formatNumber(s.totalNetWeight)} kg / {formatNumber(Math.floor(s.totalMeters), 0)} {s.dept === "finishing" ? "pcs" : "m"} ({s.totalRolls} {s.dept === "finishing" ? "Bundles" : "Rolls"})
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Right side: Overall totals */}
+                <div className="border-t md:border-t-0 md:border-l border-gray-200 pt-3 md:pt-0 md:pl-4 space-y-2">
+                  <div className="flex justify-between items-center text-gray-600">
+                    <span>Total Net Weight:</span>
+                    <span className="font-bold text-sm text-emerald-950 font-mono">
+                      {formatNumber(grandTotals.netWeight)} kg
+                    </span>
+                  </div>
+                  {grandTotals.meters > 0 && (
+                    <div className="flex justify-between items-center text-gray-600">
+                      <span>Total Fabric Length:</span>
+                      <span className="font-bold text-sm text-gray-800 font-mono">
+                        {formatNumber(Math.floor(grandTotals.meters), 0)} m
+                      </span>
+                    </div>
                   )}
-                  <td className="border border-gray-200 px-3 py-2 text-right tabular-nums text-emerald-950">
-                    {formatNumber(grandTotalNetWeight)} kg
-                  </td>
-                  <td className="border border-gray-200 px-3 py-2 text-right tabular-nums">
-                    {formatNumber(Math.floor(grandTotalMeters), 0)} {hasFinishing ? "bags" : "m"}
-                  </td>
-                  {hasFabric && (
-                    <td className="border border-gray-200 px-3 py-2" />
+                  {grandTotals.bags > 0 && (
+                    <div className="flex justify-between items-center text-gray-600">
+                      <span>Total Pieces (Bags):</span>
+                      <span className="font-bold text-sm text-gray-800 font-mono">
+                        {formatNumber(Math.floor(grandTotals.bags), 0)} pcs
+                      </span>
+                    </div>
                   )}
-                </tr>
-              </tfoot>
-            </table>
+                  <div className="flex justify-between items-center text-gray-600">
+                    <span>Total Count:</span>
+                    <span className="font-semibold text-gray-800 font-mono">
+                      {grandTotals.rollsCount} {grandTotals.bags > 0 && grandTotals.meters > 0 ? "Items" : grandTotals.bags > 0 ? "Bundles" : "Rolls"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         ) : (
           <p className="text-center py-8 text-sm text-gray-500">No products found for print.</p>

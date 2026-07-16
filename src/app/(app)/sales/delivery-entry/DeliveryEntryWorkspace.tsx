@@ -500,6 +500,14 @@ export function DeliveryEntryWorkspace({
     return map;
   }, [printGroups]);
 
+  const printDepartmentsByProduct = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const g of printGroups) {
+      map[g.productName] = g.department;
+    }
+    return map;
+  }, [printGroups]);
+
   // stagedPrintOrder representing currently selected rolls and items in workspace
   const stagedPrintOrder = useMemo(() => {
     if (!selectedCustomerId) return null;
@@ -530,6 +538,14 @@ export function DeliveryEntryWorkspace({
     const map: Record<string, any[]> = {};
     for (const g of stagedPrintGroups) {
       map[g.productName] = g.rolls;
+    }
+    return map;
+  }, [stagedPrintGroups]);
+
+  const stagedPrintDepartmentsByProduct = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const g of stagedPrintGroups) {
+      map[g.productName] = g.department;
     }
     return map;
   }, [stagedPrintGroups]);
@@ -593,7 +609,11 @@ export function DeliveryEntryWorkspace({
         <Button variant="outline" className="mb-4 no-print" onClick={() => setPrintOrderId(null)}>
           ← Back to Delivery Entry
         </Button>
-        <SalesPrintView order={printOrder as any} rollsByProduct={printRollsByProduct} />
+        <SalesPrintView
+          order={printOrder as any}
+          rollsByProduct={printRollsByProduct}
+          departmentsByProduct={printDepartmentsByProduct}
+        />
       </div>
     );
   }
@@ -607,7 +627,11 @@ export function DeliveryEntryWorkspace({
         <div className="mb-4 p-3.5 bg-amber-50 border border-amber-200 text-amber-800 text-xs rounded-lg no-print">
           <strong>Draft Mode:</strong> This is a preview of the dispatch note with currently selected rolls. It has not been saved or confirmed yet.
         </div>
-        <SalesPrintView order={stagedPrintOrder as any} rollsByProduct={stagedPrintRollsByProduct} />
+        <SalesPrintView
+          order={stagedPrintOrder as any}
+          rollsByProduct={stagedPrintRollsByProduct}
+          departmentsByProduct={stagedPrintDepartmentsByProduct}
+        />
       </div>
     );
   }
