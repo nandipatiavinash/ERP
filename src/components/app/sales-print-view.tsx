@@ -110,6 +110,11 @@ export function SalesPrintView({ order, rollsByProduct, departmentsByProduct }: 
       {/* ---------- Print-specific styles ---------- */}
       <style>{`
         @media print {
+          @page {
+            size: auto;
+            margin: 10mm 15mm 10mm 15mm;
+          }
+
           /* Hide headers, sidebars, buttons, etc. */
           header,
           aside,
@@ -142,6 +147,14 @@ export function SalesPrintView({ order, rollsByProduct, departmentsByProduct }: 
             padding: 0 !important;
             margin: 0 !important;
             width: 100% !important;
+          }
+
+          /* Prevent table rows and headers from splitting or breaking awkwardly */
+          tr {
+            break-inside: avoid !important;
+          }
+          thead {
+            display: table-header-group !important;
           }
         }
       `}</style>
@@ -185,7 +198,7 @@ export function SalesPrintView({ order, rollsByProduct, departmentsByProduct }: 
               const isFinishing = summary.dept === "finishing";
 
               return (
-                <div key={summary.productKey} className="break-inside-avoid">
+                <div key={summary.productKey} className="space-y-2">
                   {/* Product Specification Header */}
                   <div className="flex justify-between items-center mb-2 border-b border-gray-200 pb-1">
                     <h3 className="text-sm font-bold text-gray-800 uppercase">
