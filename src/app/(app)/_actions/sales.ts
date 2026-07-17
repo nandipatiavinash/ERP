@@ -136,6 +136,21 @@ export async function deleteSalesOrderItem(itemId: string) {
   }
 
   const orderId = item.sales_order_id;
+
+  const { data: order, error: orderError } = await (supabase
+    .from("sales_orders") as any)
+    .select("status")
+    .eq("id", orderId)
+    .single();
+
+  if (orderError || !order) {
+    throw new Error("Related sales order not found.");
+  }
+
+  if ((order as any).status === "confirmed") {
+    throw new Error("Items from confirmed sales orders cannot be deleted. Confirmed orders can only be deleted using SQL by database administrators.");
+  }
+
   const rollIds = (item.selected_roll_ids as string[]) || [];
 
   let tblName = "";
@@ -697,7 +712,7 @@ export async function deleteSalesOrderCompletely(orderId: string) {
 
   const { data: order, error: orderError } = await (supabase
     .from("sales_orders") as any)
-    .select("id, order_number, order_date, bill_number, customers(customer_name), sales_order_items(id, selected_roll_ids)")
+    .select("id, status, order_number, order_date, bill_number, customers(customer_name), sales_order_items(id, selected_roll_ids)")
     .eq("id", orderId)
     .single();
 
@@ -706,6 +721,9 @@ export async function deleteSalesOrderCompletely(orderId: string) {
   }
 
   const orderData = order as any;
+  if (orderData.status === "confirmed") {
+    throw new Error("Confirmed sales orders cannot be deleted. Confirmed orders can only be deleted using SQL by database administrators.");
+  }
   const billNumber = orderData.bill_number;
   const orderDate = orderData.order_date;
   const customerName = orderData.customers?.customer_name ?? "";

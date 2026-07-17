@@ -195,7 +195,9 @@ export function StockReportClient({
   // Data Processors
   // -------------------------------------------------------------
 
-  const getProductName = (dept: string, productId: string) => {
+  const getProductName = (item: any) => {
+    const dept = item.department;
+    const productId = item.product_id;
     if (dept === "fabric") {
       const f = fabricTypes.find((x) => x.id === productId);
       return f ? f.fabric_name : "Fabric Product";
@@ -210,8 +212,20 @@ export function StockReportClient({
       if (l) return l.name;
       return productId === "lam-film-25" ? "Laminated Film 2.5 mil" : "Laminated Film 3.0 mil";
     } else if (dept === "finishing") {
+      if (item.offset_product_id) {
+        const o = offsetProducts?.find((x) => x.id === item.offset_product_id);
+        if (o) return o.brand;
+      }
+      if (item.roto_product_id) {
+        const r = rotoProducts?.find((x) => x.id === item.roto_product_id);
+        if (r) return r.brand;
+      }
       const f = finishingProducts.find((x) => x.id === productId);
       if (f) return f.name;
+      if (item.fabric_type_id) {
+        const fab = fabricTypes.find((x) => x.id === item.fabric_type_id);
+        if (fab) return fab.fabric_name;
+      }
       return productId === "finished-bags-28" ? "Finished Bags W-28" : "Finished Bags W-32";
     }
     return "Unknown Product";
@@ -283,23 +297,24 @@ export function StockReportClient({
 
       const orderItems = (order.sales_order_items ?? []).map((item) => {
         const isFabric = item.department === "fabric";
+        const rollIds = item.selected_roll_ids ?? [];
+        const rollsCount = rollIds.length;
         let weightKg = 0;
-        let rollsCount = 0;
 
-        if (isFabric) {
-          const rollIds = item.selected_roll_ids ?? [];
-          rollsCount = rollIds.length;
+        if (rollIds.length > 0) {
           rollIds.forEach((rid) => {
             const r = rolls.find((roll) => roll.id === rid);
             if (r) {
               weightKg += Number(r.weight ?? 0);
             }
           });
-        } else {
+        }
+
+        if (weightKg === 0) {
           weightKg = Number(item.quantity ?? 0);
         }
 
-        const productName = getProductName(item.department, item.product_id);
+        const productName = getProductName(item);
 
         return {
           id: item.id,
@@ -332,7 +347,8 @@ export function StockReportClient({
       const firm = getOrCreateFirmGroup(supplierName);
 
       const mat = rawMaterials.find((r) => r.id === p.raw_material_id);
-      const materialName = mat ? `${mat.material_name} (${mat.unit})` : "Raw Material";
+      const formattedUnit = mat?.unit && mat.unit !== "-" ? ` (${mat.unit})` : "";
+      const materialName = mat ? `${mat.material_name}${formattedUnit}` : "Raw Material";
 
       const qty = Number(p.quantity ?? 0);
       firm.totalPurchasedKg += qty;
@@ -360,7 +376,8 @@ export function StockReportClient({
         let productName = "Waste Material";
         if (sale.type === "raw_material" && sale.raw_material_id) {
           const mat = rawMaterials.find((r) => r.id === sale.raw_material_id);
-          productName = mat ? `${mat.material_name} (${mat.unit})` : "Raw Material";
+          const formattedUnit = mat?.unit && mat.unit !== "-" ? ` (${mat.unit})` : "";
+          productName = mat ? `${mat.material_name}${formattedUnit}` : "Raw Material";
         }
 
         firm.orders.push({
@@ -841,7 +858,7 @@ export function StockReportClient({
                           {isExpanded && (
                             <TableRow className="bg-slate-50 hover:bg-slate-50 border-b border-slate-200">
                               <TableCell colSpan={6} className="p-4">
-                                <div className="rounded-lg border border-slate-200 bg-white shadow-inner overflow-hidden max-w-3xl mx-auto my-2">
+                                <div className="rounded-lg border border-slate-200 bg-white shadow-inner overflow-hidden my-2">
                                   <div className="bg-slate-100 px-4 py-2 border-b border-slate-200">
                                     <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
                                       Ledger: Purchases, Consumptions & Sales for {material.name}
@@ -995,7 +1012,7 @@ export function StockReportClient({
                           {isExpanded && (
                             <TableRow className="bg-slate-50 hover:bg-slate-50 border-b border-slate-200">
                               <TableCell colSpan={3} className="p-4">
-                                <div className="rounded-lg border border-slate-200 bg-white shadow-inner overflow-hidden max-w-4xl mx-auto my-2">
+                                <div className="rounded-lg border border-slate-200 bg-white shadow-inner overflow-hidden my-2">
                                   <div className="bg-slate-100 px-4 py-2 border-b border-slate-200">
                                     <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
                                       Sales Bills for {item.departmentLabel}
@@ -1036,7 +1053,7 @@ export function StockReportClient({
                                             {isBillExpanded && (
                                               <TableRow className="bg-slate-50/50 hover:bg-slate-50/50">
                                                 <TableCell colSpan={5} className="p-3">
-                                                  <div className="rounded border border-slate-200 bg-white overflow-hidden max-w-2xl mx-auto my-1">
+                                                  <div className="rounded border border-slate-200 bg-white overflow-hidden my-1">
                                                     <div className="bg-slate-100/70 px-3 py-1.5 border-b border-slate-200">
                                                       <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">
                                                         Bill Roll Details ({item.departmentLabel})
@@ -1119,7 +1136,7 @@ export function StockReportClient({
                           {isExpanded && (
                             <TableRow className="bg-slate-50 hover:bg-slate-50 border-b border-slate-200">
                               <TableCell colSpan={3} className="p-4">
-                                <div className="rounded-lg border border-slate-200 bg-white shadow-inner overflow-hidden max-w-3xl mx-auto my-2">
+                                <div className="rounded-lg border border-slate-200 bg-white shadow-inner overflow-hidden my-2">
                                   <div className="bg-slate-100 px-4 py-2 border-b border-slate-200">
                                     <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
                                       {group.departmentLabel} — Entries
@@ -1212,7 +1229,7 @@ export function StockReportClient({
                           {isClientExpanded && (
                             <TableRow className="bg-slate-50/50 hover:bg-slate-50/50 border-b border-slate-200">
                               <TableCell colSpan={5} className="p-4">
-                                <div className="rounded-lg border border-slate-200 bg-white shadow-inner overflow-hidden max-w-5xl mx-auto my-2 p-4 space-y-5">
+                                <div className="rounded-lg border border-slate-200 bg-white shadow-inner overflow-hidden my-2 p-4 space-y-5">
                                   
                                   {/* --- Purchases Section --- */}
                                   {client.incomingPurchases.length > 0 && (
@@ -1295,7 +1312,7 @@ export function StockReportClient({
                                                   {isBillExpanded && (
                                                     <TableRow className="bg-slate-50 hover:bg-slate-50 border-b border-slate-200">
                                                       <TableCell colSpan={5} className="p-3">
-                                                        <div className="rounded-md border border-slate-200 bg-white shadow-sm overflow-hidden max-w-4xl mx-auto my-1">
+                                                        <div className="rounded-md border border-slate-200 bg-white shadow-sm overflow-hidden my-1">
                                                           <div className="bg-slate-50 px-3 py-1.5 border-b border-slate-200 flex justify-between">
                                                             <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider">
                                                               Bill Details: {order.billNumber}
@@ -1318,7 +1335,7 @@ export function StockReportClient({
                                                                   <td className="p-2 font-semibold text-slate-800">{item.productName}</td>
                                                                   <td className="p-2 text-right font-mono">{formatNumber(item.quantity, 1)}</td>
                                                                   <td className="p-2 text-right font-mono font-semibold">{formatNumber(item.weightKg, 2)} kg</td>
-                                                                  <td className="p-2 text-right font-mono pr-4">{item.isFabric ? item.rollsCount : "—"}</td>
+                                                                  <td className="p-2 text-right font-mono pr-4">{item.rollsCount || "—"}</td>
                                                                 </tr>
                                                               ))}
                                                             </tbody>

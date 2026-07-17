@@ -121,19 +121,19 @@ export function SalesConfirmationReportClient({
     return Array.from(clientsMap.values()).sort((a, b) => a.name.localeCompare(b.name));
   }, [orders, pendingOrders]);
 
-  const displayedOrders = activeTab === "pending" ? pendingOrders : orders;
+  const filteredPending = useMemo(() => {
+    if (!clientSearch) return pendingOrders;
+    return pendingOrders.filter((order) => order.customers?.id === clientSearch);
+  }, [pendingOrders, clientSearch]);
 
-  const filteredDisplayedOrders = useMemo(() => {
-    if (!clientSearch) return displayedOrders;
-    return displayedOrders.filter((order) => {
-      return order.customers?.id === clientSearch;
-    });
-  }, [displayedOrders, clientSearch]);
+  const filteredCompleted = useMemo(() => {
+    if (!clientSearch) return orders;
+    return orders.filter((order) => order.customers?.id === clientSearch);
+  }, [orders, clientSearch]);
 
-  // Group displayed orders by order number
-  const groupedOrders = useMemo(() => {
+  const pendingGroups = useMemo(() => {
     const groups: Record<string, any> = {};
-    for (const order of filteredDisplayedOrders) {
+    for (const order of filteredPending) {
       const orderNo = order.order_number;
       if (!orderNo) continue;
       if (!groups[orderNo]) {
@@ -152,41 +152,43 @@ export function SalesConfirmationReportClient({
         groups[orderNo].bill_value += (order.bill_value ?? 0);
       }
     }
-    return Object.values(groups);
-  }, [filteredDisplayedOrders]);
+    return Object.values(groups).filter((group) => !isOrderRatesConfirmed(group));
+  }, [filteredPending]);
 
-  // Sort and filter orders
+  const completedGroups = useMemo(() => {
+    const groups: Record<string, any> = {};
+    for (const order of filteredCompleted) {
+      const orderNo = order.order_number;
+      if (!orderNo) continue;
+      if (!groups[orderNo]) {
+        groups[orderNo] = {
+          ...order,
+          bill_value: order.bill_value ?? 0,
+          order_ids: [order.id],
+          order_number: order.order_number,
+          order_numbers: [order.order_number],
+          sales_order_items: [...(order.sales_order_items ?? [])],
+        };
+      } else {
+        groups[orderNo].order_ids.push(order.id);
+        groups[orderNo].order_numbers.push(order.order_number);
+        groups[orderNo].sales_order_items.push(...(order.sales_order_items ?? []));
+        groups[orderNo].bill_value += (order.bill_value ?? 0);
+      }
+    }
+    return Object.values(groups).filter((group) => isOrderRatesConfirmed(group));
+  }, [filteredCompleted]);
+
   const sortedOrders = useMemo(() => {
-    const sorted = [...groupedOrders].sort((a, b) => {
+    const groups = activeTab === "pending" ? pendingGroups : completedGroups;
+    return [...groups].sort((a, b) => {
       const nameA = a.customers?.customer_name || "";
       const nameB = b.customers?.customer_name || "";
       const nameComp = nameA.localeCompare(nameB);
       if (nameComp !== 0) return nameComp;
       return (a.order_number || "").localeCompare(b.order_number || "");
     });
-
-    return sorted.filter((group) => {
-      const confirmed = isOrderRatesConfirmed(group);
-      return activeTab === "completed" ? confirmed : !confirmed;
-    });
-  }, [groupedOrders, activeTab]);
-
-  const completedGroupCount = useMemo(() => {
-    const groups: Record<string, any> = {};
-    for (const order of orders) {
-      const orderNo = order.order_number;
-      if (!orderNo) continue;
-      if (!groups[orderNo]) {
-        groups[orderNo] = {
-          ...order,
-          sales_order_items: [...(order.sales_order_items ?? [])],
-        };
-      } else {
-        groups[orderNo].sales_order_items.push(...(order.sales_order_items ?? []));
-      }
-    }
-    return Object.values(groups).filter(isOrderRatesConfirmed).length;
-  }, [orders]);
+  }, [activeTab, pendingGroups, completedGroups]);
 
   useEffect(() => {
     const initialPrices: Record<string, number> = {};
@@ -390,7 +392,7 @@ export function SalesConfirmationReportClient({
                 : "border-transparent text-slate-500 hover:text-slate-700"
             }`}
           >
-            Pending Confirmation ({sortedOrders.length})
+            Pending Confirmation ({pendingGroups.length})
           </button>
           <button
             onClick={() => {
@@ -405,7 +407,7 @@ export function SalesConfirmationReportClient({
                 : "border-transparent text-slate-500 hover:text-slate-700"
             }`}
           >
-            Completed Deliveries ({completedGroupCount})
+            Completed Deliveries ({completedGroups.length})
           </button>
         </div>
 

@@ -69,7 +69,7 @@ export default async function StockReportPage({ searchParams }: { searchParams: 
           bill_value,
           customer_id,
           customers(customer_name, alias),
-          sales_order_items(id, department, product_id, quantity, selected_roll_ids)
+          sales_order_items(id, department, product_id, quantity, selected_roll_ids, fabric_type_id, roto_product_id, offset_product_id)
         `)
         .is("deleted_at", null)
     ),
