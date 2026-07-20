@@ -221,19 +221,10 @@ export function SalesPrintView({ order, rollsByProduct, departmentsByProduct }: 
                           <th className="border border-gray-200 px-3 py-2">
                             {isFinishing ? "Bundle No" : "Roll No"}
                           </th>
-                          {isFabric && (
-                            <>
-                              <th className="border border-gray-200 px-3 py-2 text-right">Gross W8</th>
-                              <th className="border border-gray-200 px-3 py-2 text-right">Core W8</th>
-                            </>
-                          )}
                           <th className="border border-gray-200 px-3 py-2 text-right">Net W8 (kgs)</th>
                           <th className="border border-gray-200 px-3 py-2 text-right">
                             {isFinishing ? "Pieces (Bags)" : "Meters"}
                           </th>
-                          {isFabric && (
-                            <th className="border border-gray-200 px-3 py-2 text-right">Avg W8</th>
-                          )}
                         </tr>
                       </thead>
                       <tbody>
@@ -245,27 +236,12 @@ export function SalesPrintView({ order, rollsByProduct, departmentsByProduct }: 
                             <td className="border border-gray-200 px-3 py-1.5 text-left text-gray-600 font-mono">
                               {roll.roll_number}
                             </td>
-                            {isFabric && (
-                              <>
-                                <td className="border border-gray-200 px-3 py-1.5 text-right tabular-nums">
-                                  {formatNumber(roll.gross_weight)}
-                                </td>
-                                <td className="border border-gray-200 px-3 py-1.5 text-right tabular-nums">
-                                  {formatNumber(roll.core_weight)}
-                                </td>
-                              </>
-                            )}
                             <td className="border border-gray-200 px-3 py-1.5 text-right tabular-nums font-semibold">
                               {formatNumber(roll.net_weight)}
                             </td>
                             <td className="border border-gray-200 px-3 py-1.5 text-right tabular-nums">
                               {formatNumber(Math.floor(roll.net_meters), 0)}
                             </td>
-                            {isFabric && (
-                              <td className="border border-gray-200 px-3 py-1.5 text-right tabular-nums">
-                                {formatNumber(Math.floor(roll.average_meter_weight), 0)}
-                              </td>
-                            )}
                           </tr>
                         ))}
                       </tbody>
@@ -274,27 +250,12 @@ export function SalesPrintView({ order, rollsByProduct, departmentsByProduct }: 
                           <td className="border border-gray-200 px-3 py-2 text-left uppercase text-gray-700">
                             Total ({summary.totalRolls} {isFinishing ? "Bundles" : "Rolls"})
                           </td>
-                          {isFabric && (
-                            <>
-                              <td className="border border-gray-200 px-3 py-2 text-right tabular-nums">
-                                {formatNumber(summary.totalGrossWeight)}
-                              </td>
-                              <td className="border border-gray-200 px-3 py-2 text-right tabular-nums">
-                                {formatNumber(summary.totalCoreWeight)}
-                              </td>
-                            </>
-                          )}
                           <td className="border border-gray-200 px-3 py-2 text-right tabular-nums text-emerald-950">
                             {formatNumber(summary.totalNetWeight)} kg
                           </td>
                           <td className="border border-gray-200 px-3 py-2 text-right tabular-nums">
                             {formatNumber(Math.floor(summary.totalMeters), 0)} {isFinishing ? "pcs" : "m"}
                           </td>
-                          {isFabric && (
-                            <td className="border border-gray-200 px-3 py-2 text-right tabular-nums">
-                              {formatNumber(Math.floor(summary.avgWeight), 0)}
-                            </td>
-                          )}
                         </tr>
                       </tfoot>
                     </table>
