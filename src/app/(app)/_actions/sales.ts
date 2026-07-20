@@ -1602,85 +1602,9 @@ export async function saveSalesOrderBillingDirect(formData: FormData) {
   let customerAc = customerAcResult.data as any;
   const salesAc = salesAcResult.data as any;
 
-  const linkedCustomerId = orders[0]?.customers?.linked_customer_id;
-  const calculatedTotalAmount = orders.reduce((sum: number, o: any) => sum + Number(o.total_amount || 0), 0);
-  const balance = billValue - calculatedTotalAmount;
-
   const journalNo = await generateNextJournalNo(supabase);
-  const journalInserts = [];
-
-  let parent = null;
-  if (linkedCustomerId && Math.abs(balance) > 100) {
-    try {
-      const parentResult = await supabase
-        .from("customers")
-        .select("id, customer_name")
-        .eq("id", linkedCustomerId)
-        .is("deleted_at", null)
-        .maybeSingle();
-      parent = parentResult.data as any;
-    } catch (parentErr) {
-      console.error("Failed to fetch linked customer:", parentErr);
-    }
-  }
-
-  if (parent && Math.abs(balance) > 100) {
-    // 1. Client Account debit (calculated base amount)
-    journalInserts.push({
-      journal_no: journalNo,
-      entry_date: entryDate,
-      account_id: customerAc?.id ?? null,
-      account_name: customerAc?.customer_name ?? customerName,
-      entry_type: "debit" as const,
-      amount: calculatedTotalAmount,
-      description: `Bill ${billNumber} for Dispatch ${orders[0].order_number} (Base Delivery)`,
-      created_by: user.id,
-      updated_by: user.id,
-    });
-
-    // 2. Reference Account adjustment (difference amount > 100)
-    const adjAmount = Math.abs(balance);
-    if (balance > 0) {
-      journalInserts.push({
-        journal_no: journalNo,
-        entry_date: entryDate,
-        account_id: parent.id,
-        account_name: parent.customer_name,
-        entry_type: "debit" as const,
-        amount: adjAmount,
-        description: `Bill ${billNumber} for Dispatch ${orders[0].order_number} (Excess Bill Value Adjustment)`,
-        created_by: user.id,
-        updated_by: user.id,
-      });
-    } else {
-      journalInserts.push({
-        journal_no: journalNo,
-        entry_date: entryDate,
-        account_id: parent.id,
-        account_name: parent.customer_name,
-        entry_type: "credit" as const,
-        amount: adjAmount,
-        description: `Bill ${billNumber} for Dispatch ${orders[0].order_number} (Short Bill Value Adjustment)`,
-        created_by: user.id,
-        updated_by: user.id,
-      });
-    }
-
-    // 3. Sales A/c credit (full bill value)
-    journalInserts.push({
-      journal_no: journalNo,
-      entry_date: entryDate,
-      account_id: salesAc?.id ?? null,
-      account_name: salesAc?.customer_name ?? "Sales A/c",
-      entry_type: "credit" as const,
-      amount: billValue,
-      description: `Bill ${billNumber} for Dispatch ${orders[0].order_number} (${customerAc?.customer_name ?? customerName})`,
-      created_by: user.id,
-      updated_by: user.id,
-    });
-  } else {
-    // Standard billing - no reference account activation
-    journalInserts.push({
+  const journalInserts = [
+    {
       journal_no: journalNo,
       entry_date: entryDate,
       account_id: customerAc?.id ?? null,
@@ -1690,8 +1614,8 @@ export async function saveSalesOrderBillingDirect(formData: FormData) {
       description: `Bill ${billNumber} for Dispatch ${orders[0].order_number}`,
       created_by: user.id,
       updated_by: user.id,
-    });
-    journalInserts.push({
+    },
+    {
       journal_no: journalNo,
       entry_date: entryDate,
       account_id: salesAc?.id ?? null,
@@ -1701,8 +1625,8 @@ export async function saveSalesOrderBillingDirect(formData: FormData) {
       description: `Bill ${billNumber} for Dispatch ${orders[0].order_number} (${customerAc?.customer_name ?? customerName})`,
       created_by: user.id,
       updated_by: user.id,
-    });
-  }
+    },
+  ];
 
   const { error: journalError } = await (supabase.from("accounts_journal") as any).insert(journalInserts);
   if (journalError) throw new Error(journalError.message);
