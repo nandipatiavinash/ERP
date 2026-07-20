@@ -279,12 +279,8 @@ export function SalesPrintView({ order, rollsByProduct, departmentsByProduct }: 
                           </td>
                           {isFabric && (
                             <>
-                              <td className="border border-gray-200 px-3 py-2 text-right tabular-nums">
-                                {formatNumber(summary.totalGrossWeight)}
-                              </td>
-                              <td className="border border-gray-200 px-3 py-2 text-right tabular-nums">
-                                {formatNumber(summary.totalCoreWeight)}
-                              </td>
+                              <td className="border border-gray-200 px-3 py-2 text-right"></td>
+                              <td className="border border-gray-200 px-3 py-2 text-right"></td>
                             </>
                           )}
                           <td className="border border-gray-200 px-3 py-2 text-right tabular-nums text-emerald-950">
@@ -294,9 +290,7 @@ export function SalesPrintView({ order, rollsByProduct, departmentsByProduct }: 
                             {formatNumber(Math.floor(summary.totalMeters), 0)} {isFinishing ? "pcs" : "m"}
                           </td>
                           {isFabric && (
-                            <td className="border border-gray-200 px-3 py-2 text-right tabular-nums">
-                              {formatNumber(Math.floor(summary.avgWeight), 0)}
-                            </td>
+                            <td className="border border-gray-200 px-3 py-2 text-right"></td>
                           )}
                         </tr>
                       </tfoot>
