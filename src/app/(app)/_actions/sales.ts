@@ -810,29 +810,7 @@ export async function saveSalesConfirmationRates(
   const siblingOrders = [order];
   const siblingIds = siblingOrders.map(o => o.id);
 
-  const { error: orderError } = await (supabase
-    .from("sales_orders") as any)
-    .update({ gst_rate: gstRate, updated_by: user.id } as any)
-    .in("id", siblingIds);
-
-  if (orderError) {
-    throw new Error(orderError.message);
-  }
-
-  const itemUpdates = Object.entries(itemPrices).map(([itemId, price]) =>
-    (supabase
-      .from("sales_order_items") as any)
-      .update({ price } as any)
-      .eq("id", itemId)
-  );
-
-  const results = await Promise.all(itemUpdates);
-  for (const res of results) {
-    if (res.error) {
-      throw new Error(res.error.message);
-    }
-  }
-
+  // Fetch rolls to calculate old base total and new base total
   const items = siblingOrders.flatMap(o => o.sales_order_items || []) as any[];
   const allRollIds: string[] = [];
   items.forEach((item: any) => {
@@ -872,6 +850,52 @@ export async function saveSalesConfirmationRates(
     (rotoMetRes.data || []).forEach((r: any) => { rollsData[r.id] = Number(r.weight_kg || 0); });
   }
 
+  // Calculate Old Calculated Total (with old prices from DB before update)
+  let oldBaseTotal = 0;
+  for (const item of items) {
+    let qty = 0;
+    const selectedIds = item.selected_roll_ids || [];
+    if (selectedIds.length > 0) {
+      selectedIds.forEach((rid: string) => {
+        if (item.department === "finishing") {
+          qty += finishingBagsData[rid] || 0;
+        } else {
+          qty += rollsData[rid] || 0;
+        }
+      });
+    } else {
+      qty = Number(item.quantity || 0);
+    }
+    const price = Number(item.price ?? 0);
+    oldBaseTotal += qty * price;
+  }
+  const oldCalculatedTotal = oldBaseTotal + (oldBaseTotal * order.gst_rate / 100);
+
+  // Perform database price updates
+  const { error: orderError } = await (supabase
+    .from("sales_orders") as any)
+    .update({ gst_rate: gstRate, updated_by: user.id } as any)
+    .in("id", siblingIds);
+
+  if (orderError) {
+    throw new Error(orderError.message);
+  }
+
+  const itemUpdates = Object.entries(itemPrices).map(([itemId, price]) =>
+    (supabase
+      .from("sales_order_items") as any)
+      .update({ price } as any)
+      .eq("id", itemId)
+  );
+
+  const results = await Promise.all(itemUpdates);
+  for (const res of results) {
+    if (res.error) {
+      throw new Error(res.error.message);
+    }
+  }
+
+  // Calculate New Calculated Total
   let baseTotal = 0;
   for (const item of items) {
     let qty = 0;
@@ -895,91 +919,152 @@ export async function saveSalesConfirmationRates(
   const combinedBillValue = siblingOrders.reduce((sum, o) => sum + Number(o.bill_value ?? 0), 0);
   const balance = calculatedTotal - combinedBillValue;
 
+  // Clear existing balance adjustment entries for this dispatch
   await (supabase
     .from("accounts_journal") as any)
     .delete()
     .or(`description.eq."Balance adjustment for Dispatch ${order.order_number}",description.like."Balance adjustment for Dispatch ${order.order_number} (%)"`);
 
-  if (Math.abs(balance) > 100) {
-    let targetAccountId = customerId;
-    let targetAccountName = order.customers?.customer_name ?? "Unknown";
+  const linkedCustomerId = order.customers?.linked_customer_id;
 
-    const linkedCustomerId = order.customers?.linked_customer_id;
-    if (linkedCustomerId) {
+  if (linkedCustomerId) {
+    // Difference clientDiff = calculatedTotal - oldCalculatedTotal
+    const clientDiff = calculatedTotal - oldCalculatedTotal;
+
+    if (Math.abs(clientDiff) > 100) {
       const { data: parentData } = await supabase
         .from("customers")
         .select("id, customer_name")
         .eq("id", linkedCustomerId)
         .is("deleted_at", null)
         .maybeSingle();
-      if (parentData) {
-        targetAccountId = (parentData as any).id;
-        targetAccountName = (parentData as any).customer_name;
+      const parent = parentData as any;
+
+      if (parent) {
+        const journalNo = await generateNextJournalNo(supabase);
+        const journalInserts = [];
+        const absDiff = Math.abs(clientDiff);
+
+        if (clientDiff > 0) {
+          // Debit Client (increase owes), Credit Parent (decrease adjustment)
+          journalInserts.push({
+            journal_no: journalNo,
+            entry_date: order.order_date ?? todayInIndia(),
+            account_id: customerId,
+            account_name: order.customers?.customer_name ?? "Unknown",
+            entry_type: "debit" as const,
+            amount: absDiff,
+            description: `Balance adjustment for Dispatch ${order.order_number}`,
+            created_by: user.id,
+            updated_by: user.id,
+          });
+          journalInserts.push({
+            journal_no: journalNo,
+            entry_date: order.order_date ?? todayInIndia(),
+            account_id: parent.id,
+            account_name: parent.customer_name,
+            entry_type: "credit" as const,
+            amount: absDiff,
+            description: `Balance adjustment for Dispatch ${order.order_number} (${order.customers?.customer_name ?? "Unknown"})`,
+            created_by: user.id,
+            updated_by: user.id,
+          });
+        } else {
+          // Debit Parent (increase adjustment), Credit Client (decrease owes)
+          journalInserts.push({
+            journal_no: journalNo,
+            entry_date: order.order_date ?? todayInIndia(),
+            account_id: parent.id,
+            account_name: parent.customer_name,
+            entry_type: "debit" as const,
+            amount: absDiff,
+            description: `Balance adjustment for Dispatch ${order.order_number} (${order.customers?.customer_name ?? "Unknown"})`,
+            created_by: user.id,
+            updated_by: user.id,
+          });
+          journalInserts.push({
+            journal_no: journalNo,
+            entry_date: order.order_date ?? todayInIndia(),
+            account_id: customerId,
+            account_name: order.customers?.customer_name ?? "Unknown",
+            entry_type: "credit" as const,
+            amount: absDiff,
+            description: `Balance adjustment for Dispatch ${order.order_number}`,
+            created_by: user.id,
+            updated_by: user.id,
+          });
+        }
+
+        const { error: journalError } = await (supabase.from("accounts_journal") as any).insert(journalInserts);
+        if (journalError) throw new Error(journalError.message);
       }
     }
+  } else {
+    // If NO reference account, adjust between Client Account and Sales A/c
+    if (Math.abs(balance) > 100) {
+      const { data: salesAcData } = await (supabase
+        .from("customers") as any)
+        .select("id, customer_name")
+        .ilike("customer_name", "Sales A/c")
+        .is("deleted_at", null)
+        .maybeSingle();
+      const salesAc = salesAcData as any;
 
-    const { data: salesAcData } = await (supabase
-      .from("customers") as any)
-      .select("id, customer_name")
-      .ilike("customer_name", "Sales A/c")
-      .is("deleted_at", null)
-      .maybeSingle();
-    const salesAc = salesAcData as any;
+      const journalNo = await generateNextJournalNo(supabase);
+      const journalInserts = [];
+      const absBalance = Math.abs(balance);
 
-    const journalNo = await generateNextJournalNo(supabase);
-    const journalInserts = [];
-    const absBalance = Math.abs(balance);
+      if (balance > 100) {
+        journalInserts.push({
+          journal_no: journalNo,
+          entry_date: order.order_date ?? todayInIndia(),
+          account_id: customerId,
+          account_name: order.customers?.customer_name ?? "Unknown",
+          entry_type: "debit" as const,
+          amount: absBalance,
+          description: `Balance adjustment for Dispatch ${order.order_number}`,
+          created_by: user.id,
+          updated_by: user.id,
+        });
+        journalInserts.push({
+          journal_no: journalNo,
+          entry_date: order.order_date ?? todayInIndia(),
+          account_id: salesAc?.id ?? null,
+          account_name: salesAc?.customer_name ?? "Sales A/c",
+          entry_type: "credit" as const,
+          amount: absBalance,
+          description: `Balance adjustment for Dispatch ${order.order_number} (${order.customers?.customer_name ?? "Unknown"})`,
+          created_by: user.id,
+          updated_by: user.id,
+        });
+      } else {
+        journalInserts.push({
+          journal_no: journalNo,
+          entry_date: order.order_date ?? todayInIndia(),
+          account_id: salesAc?.id ?? null,
+          account_name: salesAc?.customer_name ?? "Sales A/c",
+          entry_type: "debit" as const,
+          amount: absBalance,
+          description: `Balance adjustment for Dispatch ${order.order_number} (${order.customers?.customer_name ?? "Unknown"})`,
+          created_by: user.id,
+          updated_by: user.id,
+        });
+        journalInserts.push({
+          journal_no: journalNo,
+          entry_date: order.order_date ?? todayInIndia(),
+          account_id: customerId,
+          account_name: order.customers?.customer_name ?? "Unknown",
+          entry_type: "credit" as const,
+          amount: absBalance,
+          description: `Balance adjustment for Dispatch ${order.order_number}`,
+          created_by: user.id,
+          updated_by: user.id,
+        });
+      }
 
-    if (balance > 100) {
-      journalInserts.push({
-        journal_no: journalNo,
-        entry_date: order.order_date ?? todayInIndia(),
-        account_id: targetAccountId,
-        account_name: targetAccountName,
-        entry_type: "debit",
-        amount: absBalance,
-        description: `Balance adjustment for Dispatch ${order.order_number}`,
-        created_by: user.id,
-        updated_by: user.id,
-      });
-      journalInserts.push({
-        journal_no: journalNo,
-        entry_date: order.order_date ?? todayInIndia(),
-        account_id: salesAc?.id ?? null,
-        account_name: salesAc?.customer_name ?? "Sales A/c",
-        entry_type: "credit",
-        amount: absBalance,
-        description: `Balance adjustment for Dispatch ${order.order_number} (${targetAccountName})`,
-        created_by: user.id,
-        updated_by: user.id,
-      });
-    } else {
-      journalInserts.push({
-        journal_no: journalNo,
-        entry_date: order.order_date ?? todayInIndia(),
-        account_id: salesAc?.id ?? null,
-        account_name: salesAc?.customer_name ?? "Sales A/c",
-        entry_type: "debit",
-        amount: absBalance,
-        description: `Balance adjustment for Dispatch ${order.order_number} (${targetAccountName})`,
-        created_by: user.id,
-        updated_by: user.id,
-      });
-      journalInserts.push({
-        journal_no: journalNo,
-        entry_date: order.order_date ?? todayInIndia(),
-        account_id: targetAccountId,
-        account_name: targetAccountName,
-        entry_type: "credit",
-        amount: absBalance,
-        description: `Balance adjustment for Dispatch ${order.order_number}`,
-        created_by: user.id,
-        updated_by: user.id,
-      });
+      const { error: journalError } = await (supabase.from("accounts_journal") as any).insert(journalInserts);
+      if (journalError) throw new Error(journalError.message);
     }
-
-    const { error: journalError } = await (supabase.from("accounts_journal") as any).insert(journalInserts);
-    if (journalError) throw new Error(journalError.message);
   }
 
   revalidatePath("/reports/sales-confirmation");
@@ -1517,41 +1602,14 @@ export async function saveSalesOrderBillingDirect(formData: FormData) {
   let customerAc = customerAcResult.data as any;
   const salesAc = salesAcResult.data as any;
 
-  const journalNo = await generateNextJournalNo(supabase);
-  const journalInserts = [
-    {
-      journal_no: journalNo,
-      entry_date: entryDate,
-      account_id: customerAc?.id ?? null,
-      account_name: customerAc?.customer_name ?? customerName,
-      entry_type: "debit",
-      amount: billValue,
-      description: `Bill ${billNumber} for Dispatch ${orders[0].order_number}`,
-      created_by: user.id,
-      updated_by: user.id,
-    },
-    {
-      journal_no: journalNo,
-      entry_date: entryDate,
-      account_id: salesAc?.id ?? null,
-      account_name: salesAc?.customer_name ?? "Sales A/c",
-      entry_type: "credit",
-      amount: billValue,
-      description: `Bill ${billNumber} for Dispatch ${orders[0].order_number} (${customerAc?.customer_name ?? customerName})`,
-      created_by: user.id,
-      updated_by: user.id,
-    },
-  ];
-
-  const { error: journalError } = await (supabase.from("accounts_journal") as any).insert(journalInserts);
-  if (journalError) throw new Error(journalError.message);
-
-  // Adjustment for linked/reference accounts if balance is > +/- 100
   const linkedCustomerId = orders[0]?.customers?.linked_customer_id;
   const calculatedTotalAmount = orders.reduce((sum: number, o: any) => sum + Number(o.total_amount || 0), 0);
   const balance = billValue - calculatedTotalAmount;
 
-  let adjJournalNo: string | null = null;
+  const journalNo = await generateNextJournalNo(supabase);
+  const journalInserts = [];
+
+  let parent = null;
   if (linkedCustomerId && Math.abs(balance) > 100) {
     try {
       const parentResult = await supabase
@@ -1560,45 +1618,94 @@ export async function saveSalesOrderBillingDirect(formData: FormData) {
         .eq("id", linkedCustomerId)
         .is("deleted_at", null)
         .maybeSingle();
-      const parent = parentResult.data as any;
-
-      if (parent) {
-        adjJournalNo = await generateNextJournalNo(supabase);
-        const adjAmount = Math.abs(balance);
-        const adjJournalInserts = [
-          {
-            journal_no: adjJournalNo,
-            entry_date: entryDate,
-            account_id: balance > 0 ? parent.id : salesAc?.id ?? null,
-            account_name: balance > 0 ? parent.customer_name : salesAc?.customer_name ?? "Sales A/c",
-            entry_type: "debit" as const,
-            amount: adjAmount,
-            description: `Adjustment for Bill ${billNumber} (Calculated: ${calculatedTotalAmount.toFixed(2)}, Actual: ${billValue.toFixed(2)})`,
-            created_by: user.id,
-            updated_by: user.id,
-          },
-          {
-            journal_no: adjJournalNo,
-            entry_date: entryDate,
-            account_id: balance > 0 ? salesAc?.id ?? null : parent.id,
-            account_name: balance > 0 ? salesAc?.customer_name ?? "Sales A/c" : parent.customer_name,
-            entry_type: "credit" as const,
-            amount: adjAmount,
-            description: `Adjustment for Bill ${billNumber} (Calculated: ${calculatedTotalAmount.toFixed(2)}, Actual: ${billValue.toFixed(2)})`,
-            created_by: user.id,
-            updated_by: user.id,
-          }
-        ];
-
-        const { error: adjError } = await (supabase.from("accounts_journal") as any).insert(adjJournalInserts);
-        if (adjError) {
-          console.error("Failed to insert adjustment journal entries:", adjError.message);
-        }
-      }
-    } catch (adjErr) {
-      console.error("Adjustment journal entry generation failed:", adjErr);
+      parent = parentResult.data as any;
+    } catch (parentErr) {
+      console.error("Failed to fetch linked customer:", parentErr);
     }
   }
+
+  if (parent && Math.abs(balance) > 100) {
+    // 1. Client Account debit (calculated base amount)
+    journalInserts.push({
+      journal_no: journalNo,
+      entry_date: entryDate,
+      account_id: customerAc?.id ?? null,
+      account_name: customerAc?.customer_name ?? customerName,
+      entry_type: "debit" as const,
+      amount: calculatedTotalAmount,
+      description: `Bill ${billNumber} for Dispatch ${orders[0].order_number} (Base Delivery)`,
+      created_by: user.id,
+      updated_by: user.id,
+    });
+
+    // 2. Reference Account adjustment (difference amount > 100)
+    const adjAmount = Math.abs(balance);
+    if (balance > 0) {
+      journalInserts.push({
+        journal_no: journalNo,
+        entry_date: entryDate,
+        account_id: parent.id,
+        account_name: parent.customer_name,
+        entry_type: "debit" as const,
+        amount: adjAmount,
+        description: `Bill ${billNumber} for Dispatch ${orders[0].order_number} (Excess Bill Value Adjustment)`,
+        created_by: user.id,
+        updated_by: user.id,
+      });
+    } else {
+      journalInserts.push({
+        journal_no: journalNo,
+        entry_date: entryDate,
+        account_id: parent.id,
+        account_name: parent.customer_name,
+        entry_type: "credit" as const,
+        amount: adjAmount,
+        description: `Bill ${billNumber} for Dispatch ${orders[0].order_number} (Short Bill Value Adjustment)`,
+        created_by: user.id,
+        updated_by: user.id,
+      });
+    }
+
+    // 3. Sales A/c credit (full bill value)
+    journalInserts.push({
+      journal_no: journalNo,
+      entry_date: entryDate,
+      account_id: salesAc?.id ?? null,
+      account_name: salesAc?.customer_name ?? "Sales A/c",
+      entry_type: "credit" as const,
+      amount: billValue,
+      description: `Bill ${billNumber} for Dispatch ${orders[0].order_number} (${customerAc?.customer_name ?? customerName})`,
+      created_by: user.id,
+      updated_by: user.id,
+    });
+  } else {
+    // Standard billing - no reference account activation
+    journalInserts.push({
+      journal_no: journalNo,
+      entry_date: entryDate,
+      account_id: customerAc?.id ?? null,
+      account_name: customerAc?.customer_name ?? customerName,
+      entry_type: "debit" as const,
+      amount: billValue,
+      description: `Bill ${billNumber} for Dispatch ${orders[0].order_number}`,
+      created_by: user.id,
+      updated_by: user.id,
+    });
+    journalInserts.push({
+      journal_no: journalNo,
+      entry_date: entryDate,
+      account_id: salesAc?.id ?? null,
+      account_name: salesAc?.customer_name ?? "Sales A/c",
+      entry_type: "credit" as const,
+      amount: billValue,
+      description: `Bill ${billNumber} for Dispatch ${orders[0].order_number} (${customerAc?.customer_name ?? customerName})`,
+      created_by: user.id,
+      updated_by: user.id,
+    });
+  }
+
+  const { error: journalError } = await (supabase.from("accounts_journal") as any).insert(journalInserts);
+  if (journalError) throw new Error(journalError.message);
 
   try {
     for (let idx = 0; idx < orders.length; idx++) {
@@ -1621,9 +1728,6 @@ export async function saveSalesOrderBillingDirect(formData: FormData) {
   } catch (err: any) {
     // Rollback journal entries
     await (supabase.from("accounts_journal") as any).delete().eq("journal_no", journalNo);
-    if (adjJournalNo) {
-      await (supabase.from("accounts_journal") as any).delete().eq("journal_no", adjJournalNo);
-    }
     throw err;
   }
 
