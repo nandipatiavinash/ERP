@@ -252,50 +252,54 @@ export function SalesConfirmationReportClient({
       else if ((item as any).lamination_type === "F_S") suffix = "F";
       else if ((item as any).lamination_type === "H_S") suffix = "H";
 
-      if ((item as any).lamination_type === "PLAIN" || (item as any).lamination_type === "NW") {
-        return `${brand}(${fab})`.toUpperCase();
-      } else {
-        return `${brand}(${fab})(${suffix})`.toUpperCase();
-      }
-    }
-
-    if (item.department === "offset-printing") {
-      const o = offsetProducts.find((x) => x.id === (item as any).offset_product_id || x.id === item.product_id);
-      const brand = getCleanBrand(o?.brand);
-      const subFabName = (item as any).offset_type === "NW" ? "NW" : fab;
-      return `${brand}(${subFabName})`.toUpperCase();
-    }
-
-    if (item.department === "finishing") {
-      const finishType = (item as any).lamination_type ? "LAMINATION" : ((item as any).offset_type !== "none" && (item as any).offset_type ? "OFFSET" : "FABRIC");
-      
-      if (finishType === "FABRIC") {
-        return `PLAIN(${fab})`.toUpperCase();
-      } else if (finishType === "LAMINATION") {
-        const brand = ["BOX", "F_S", "H_S"].includes((item as any).lamination_type || "")
-          ? getCleanBrand(rotoProducts.find((x) => x.id === (item as any).roto_product_id)?.brand)
-          : (item as any).lamination_type === "NW"
-          ? "NW"
-          : "PLAIN";
-        
-        let suffix = "";
-        if ((item as any).lamination_type === "PLAIN") suffix = "";
-        else if ((item as any).lamination_type === "NW") suffix = "";
-        else if ((item as any).lamination_type === "BOX") suffix = "B";
-        else if ((item as any).lamination_type === "F_S") suffix = "F";
-        else if ((item as any).lamination_type === "H_S") suffix = "H";
+        const met = (["BOX", "F_S", "H_S"].includes((item as any).lamination_type || "") && (item as any).is_metallic) ? "(MT)" : "";
 
         if ((item as any).lamination_type === "PLAIN" || (item as any).lamination_type === "NW") {
-          return `${brand}(${fab})`.toUpperCase();
+          return `${brand}(${fab})${met}`.toUpperCase();
         } else {
-          return `${brand}(${fab})(${suffix})`.toUpperCase();
+          return `${brand}(${fab})(${suffix})${met}`.toUpperCase();
         }
-      } else {
-        // OFFSET
-        const brand = getCleanBrand(offsetProducts.find((x) => x.id === (item as any).offset_product_id)?.brand);
-        return `${brand}(${fab})`.toUpperCase();
       }
-    }
+
+      if (item.department === "offset-printing") {
+        const o = offsetProducts.find((x) => x.id === (item as any).offset_product_id || x.id === item.product_id);
+        const brand = getCleanBrand(o?.brand);
+        const subFabName = (item as any).offset_type === "NW" ? "NW" : fab;
+        return `${brand}(${subFabName})`.toUpperCase();
+      }
+
+      if (item.department === "finishing") {
+        const finishType = (item as any).lamination_type ? "LAMINATION" : ((item as any).offset_type !== "none" && (item as any).offset_type ? "OFFSET" : "FABRIC");
+        
+        if (finishType === "FABRIC") {
+          return `PLAIN(${fab})`.toUpperCase();
+        } else if (finishType === "LAMINATION") {
+          const brand = ["BOX", "F_S", "H_S"].includes((item as any).lamination_type || "")
+            ? getCleanBrand(rotoProducts.find((x) => x.id === (item as any).roto_product_id)?.brand)
+            : (item as any).lamination_type === "NW"
+            ? "NW"
+            : "PLAIN";
+          
+          let suffix = "";
+          if ((item as any).lamination_type === "PLAIN") suffix = "";
+          else if ((item as any).lamination_type === "NW") suffix = "";
+          else if ((item as any).lamination_type === "BOX") suffix = "B";
+          else if ((item as any).lamination_type === "F_S") suffix = "F";
+          else if ((item as any).lamination_type === "H_S") suffix = "H";
+
+          const met = (["BOX", "F_S", "H_S"].includes((item as any).lamination_type || "") && (item as any).is_metallic) ? "(MT)" : "";
+
+          if ((item as any).lamination_type === "PLAIN" || (item as any).lamination_type === "NW") {
+            return `${brand}(${fab})${met}`.toUpperCase();
+          } else {
+            return `${brand}(${fab})(${suffix})${met}`.toUpperCase();
+          }
+        } else {
+          // OFFSET
+          const brand = getCleanBrand(offsetProducts.find((x) => x.id === (item as any).offset_product_id)?.brand);
+          return `${brand}(${fab})`.toUpperCase();
+        }
+      }
 
     return "Unknown Product";
   };

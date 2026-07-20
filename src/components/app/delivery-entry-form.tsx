@@ -21,6 +21,7 @@ type DeliveryEntryFormProps = {
   offsetProducts: ProductOption[];
   laminationProducts: ProductOption[];
   finishingProducts: ProductOption[];
+  colorProducts?: ProductOption[];
 };
 
 type ConfirmedRow = {
@@ -38,6 +39,7 @@ type ConfirmedRow = {
   isMetallic?: boolean;
   laminationType?: string | null;
   offsetType?: string | null;
+  colorId?: string | null;
 };
 
 const DEPT_LABELS: Record<string, string> = {
@@ -55,6 +57,7 @@ export function DeliveryEntryForm({
   offsetProducts,
   laminationProducts,
   finishingProducts,
+  colorProducts = [],
 }: DeliveryEntryFormProps) {
   const [confirmedRows, setConfirmedRows] = useState<ConfirmedRow[]>([]);
   const [isPending, setIsPending] = useState(false);
@@ -85,6 +88,10 @@ export function DeliveryEntryForm({
     return [...finishingProducts].sort((a, b) => a.label.localeCompare(b.label));
   }, [finishingProducts]);
 
+  const sortedColorProducts = useMemo(() => {
+    return [...colorProducts].sort((a, b) => a.label.localeCompare(b.label));
+  }, [colorProducts]);
+
   // Staged Item Form State
   const [department, setDepartment] = useState<string>("");
   const [fabricTypeId, setFabricTypeId] = useState<string>("");
@@ -96,6 +103,7 @@ export function DeliveryEntryForm({
   const [filmType, setFilmType] = useState<string>("none");
   const [rotoProductId, setRotoProductId] = useState<string>("");
   const [isMetallic, setIsMetallic] = useState<boolean>(false);
+  const [colorId, setColorId] = useState<string>("");
   const [quantity, setQuantity] = useState<string>("");
 
   // Determine active fields
@@ -122,6 +130,7 @@ export function DeliveryEntryForm({
     setFilmType("none");
     setRotoProductId("");
     setIsMetallic(false);
+    setColorId("");
     setQuantity("");
   };
 
@@ -129,6 +138,7 @@ export function DeliveryEntryForm({
     const fab = fabricProducts.find((x) => x.id === row.fabricTypeId)?.label;
     const roto = rotoProducts.find((x) => x.id === row.rotoProductId)?.label;
     const off = offsetProducts.find((x) => x.id === row.offsetProductId)?.label;
+    const col = colorProducts.find((x) => x.id === row.colorId)?.label;
 
     if (row.department === "fabric") {
       return `Fabric ID: ${fab || "Unspecified"}`;
@@ -154,6 +164,9 @@ export function DeliveryEntryForm({
         extra = ` · Lamination: ${row.laminationType}${lamDetails}`;
       } else if (row.offsetType && row.offsetType !== "none") {
         extra = ` · Offset: ${row.offsetType} [Brand: ${off || "Unspecified"}]`;
+      }
+      if (col) {
+        extra += ` · Color: ${col}`;
       }
       return `Fabric: ${fab || "Unspecified"}${extra}`;
     }
@@ -206,10 +219,12 @@ export function DeliveryEntryForm({
       else if (laminationType === "F_S") suffix = "F";
       else if (laminationType === "H_S") suffix = "H";
 
+      const met = (["BOX", "F_S", "H_S"].includes(laminationType) && isMetallic) ? "(MT)" : "";
+
       if (laminationType === "PLAIN" || laminationType === "NW") {
-        resProductLabel = `${brand}(${fabName})`.toUpperCase();
+        resProductLabel = `${brand}(${fabName})${met}`.toUpperCase();
       } else {
-        resProductLabel = `${brand}(${fabName})(${suffix})`.toUpperCase();
+        resProductLabel = `${brand}(${fabName})(${suffix})${met}`.toUpperCase();
       }
     } else if (department === "offset-printing") {
       resProductId = offsetProductId;
@@ -219,9 +234,12 @@ export function DeliveryEntryForm({
     } else if (department === "finishing") {
       resProductId = fabricTypeId;
       const finishType = laminationType ? "LAMINATION" : (offsetType !== "none" && offsetType ? "OFFSET" : "FABRIC");
+      const colName = colorProducts.find((x) => x.id === colorId)?.label;
+      const colStr = colName ? `(${colName})` : "";
+      const met = (laminationType && ["BOX", "F_S", "H_S"].includes(laminationType) && isMetallic) ? "(MT)" : "";
       
       if (finishType === "FABRIC") {
-        resProductLabel = `PLAIN(${fabName})`.toUpperCase();
+        resProductLabel = `PLAIN(${fabName})${colStr}`.toUpperCase();
       } else if (finishType === "LAMINATION") {
         const brand = ["BOX", "F_S", "H_S"].includes(laminationType)
           ? getCleanBrand(rotoProducts.find((x) => x.id === rotoProductId)?.label)
@@ -237,14 +255,14 @@ export function DeliveryEntryForm({
         else if (laminationType === "H_S") suffix = "H";
 
         if (laminationType === "PLAIN" || laminationType === "NW") {
-          resProductLabel = `${brand}(${fabName})`.toUpperCase();
+          resProductLabel = `${brand}(${fabName})${colStr}${met}`.toUpperCase();
         } else {
-          resProductLabel = `${brand}(${fabName})(${suffix})`.toUpperCase();
+          resProductLabel = `${brand}(${fabName})(${suffix})${colStr}${met}`.toUpperCase();
         }
       } else {
         // OFFSET
         const brand = getCleanBrand(offsetProducts.find((x) => x.id === offsetProductId)?.label);
-        resProductLabel = `${brand}(${fabName})`.toUpperCase();
+        resProductLabel = `${brand}(${fabName})${colStr}`.toUpperCase();
       }
     }
 
@@ -262,6 +280,7 @@ export function DeliveryEntryForm({
       isMetallic: isMetallicActive ? isMetallic : false,
       laminationType: isLamTypeActive ? laminationType : null,
       offsetType: isOffsetTypeActive ? offsetType : null,
+      colorId: department === "finishing" && colorId ? colorId : null,
     };
 
     setConfirmedRows((prev) => [...prev, newRow]);
@@ -276,6 +295,7 @@ export function DeliveryEntryForm({
     setFilmType("none");
     setRotoProductId("");
     setIsMetallic(false);
+    setColorId("");
     setQuantity("");
   };
 
@@ -503,6 +523,23 @@ export function DeliveryEntryForm({
               <Label htmlFor="is_metallic" className="text-xs font-semibold text-slate-700 cursor-pointer select-none">
                 Metallic (Optional)
               </Label>
+            </div>
+          )}
+
+          {/* Bag Color Dropdown (Finishing) */}
+          {department === "finishing" && (
+            <div className="w-full md:w-[calc(33.333%-11px)] min-w-[240px] space-y-1">
+              <Label className="text-xs font-semibold text-slate-700">Bag Color (Optional)</Label>
+              <select
+                value={colorId}
+                onChange={(e) => setColorId(e.target.value)}
+                className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+              >
+                <option value="">Select bag color (Optional)</option>
+                {sortedColorProducts.map((opt) => (
+                  <option key={opt.id} value={opt.id}>{opt.label}</option>
+                ))}
+              </select>
             </div>
           )}
 

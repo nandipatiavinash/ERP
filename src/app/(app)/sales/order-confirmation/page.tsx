@@ -26,6 +26,7 @@ export default async function OrderConfirmationPage({
     { data: offset },
     { data: laminationProds },
     { data: finishingProds },
+    { data: colors },
     { data: orders }
   ] = await Promise.all([
     supabase.from("customers").select("id, customer_name, alias").eq("status", "active").eq("is_internal", "client a/c").is("deleted_at", null).order("customer_name"),
@@ -34,6 +35,7 @@ export default async function OrderConfirmationPage({
     supabase.from("offset_products").select("id, brand, width, height, status").order("brand"),
     supabase.from("lamination_products").select("id, name, status").is("deleted_at", null).order("name"),
     supabase.from("finishing_products").select("id, name, status").is("deleted_at", null).order("name"),
+    supabase.from("roto_colors").select("id, color_name, status").is("deleted_at", null).order("color_name"),
     supabase
       .from("sales_orders")
       .select("*, customers(customer_name, alias), sales_order_items(id, department, quantity, product_id, fabric_type_id, lamination_type, offset_type, film_type, is_metallic, roto_product_id, offset_product_id)")
@@ -99,6 +101,7 @@ export default async function OrderConfirmationPage({
 
   const laminationOptions = ((laminationProds ?? []) as any[]).filter(l => l.status === "active").map((l) => ({ id: l.id, label: l.name }));
   const finishingOptions = ((finishingProds ?? []) as any[]).filter(f => f.status === "active").map((f) => ({ id: f.id, label: f.name }));
+  const colorOptions = ((colors ?? []) as any[]).filter(c => c.status === "active").map((c) => ({ id: c.id, label: c.color_name }));
   const orderRows = (orders ?? []) as any[];
 
   return (
@@ -117,6 +120,7 @@ export default async function OrderConfirmationPage({
             offsetProducts={offsetOptionsActive}
             laminationProducts={laminationOptions}
             finishingProducts={finishingOptions}
+            colorProducts={colorOptions}
           />
         </CardContent>
       </Card>

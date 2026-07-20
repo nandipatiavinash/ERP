@@ -230,10 +230,12 @@ export function StockReportClient({
       else if (item.lamination_type === "F_S") suffix = "F";
       else if (item.lamination_type === "H_S") suffix = "H";
 
+      const met = (["BOX", "F_S", "H_S"].includes(item.lamination_type || "") && item.is_metallic) ? "(MT)" : "";
+
       if (item.lamination_type === "PLAIN" || item.lamination_type === "NW") {
-        return `${brand}(${fab})`.toUpperCase();
+        return `${brand}(${fab})${met}`.toUpperCase();
       } else {
-        return `${brand}(${fab})(${suffix})`.toUpperCase();
+        return `${brand}(${fab})(${suffix})${met}`.toUpperCase();
       }
     }
 
@@ -263,10 +265,12 @@ export function StockReportClient({
         else if (item.lamination_type === "F_S") suffix = "F";
         else if (item.lamination_type === "H_S") suffix = "H";
 
+        const met = (["BOX", "F_S", "H_S"].includes(item.lamination_type || "") && item.is_metallic) ? "(MT)" : "";
+
         if (item.lamination_type === "PLAIN" || item.lamination_type === "NW") {
-          return `${brand}(${fab})`.toUpperCase();
+          return `${brand}(${fab})${met}`.toUpperCase();
         } else {
-          return `${brand}(${fab})(${suffix})`.toUpperCase();
+          return `${brand}(${fab})(${suffix})${met}`.toUpperCase();
         }
       } else {
         // OFFSET
