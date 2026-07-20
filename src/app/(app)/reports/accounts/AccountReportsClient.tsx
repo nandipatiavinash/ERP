@@ -76,9 +76,15 @@ export function AccountReportsClient({
   
   const { clientAccountsOnly, referenceAccountsOnly } = useMemo(() => {
     const clients = groupedAccounts["client a/c"] ?? [];
+    
+    // A customer is a Reference Account if its ID is linked by another customer
+    const referenceIds = new Set(
+      clients.map((c) => c.linked_customer_id).filter(Boolean) as string[]
+    );
+
     return {
-      clientAccountsOnly: clients.filter(c => !c.linked_customer_id),
-      referenceAccountsOnly: clients.filter(c => c.linked_customer_id),
+      clientAccountsOnly: clients.filter((c) => !referenceIds.has(c.id)),
+      referenceAccountsOnly: clients.filter((c) => referenceIds.has(c.id)),
     };
   }, [groupedAccounts]);
 
@@ -307,18 +313,25 @@ export function AccountReportsClient({
           >
             <option value="">-- All Accounts (Daybook) --</option>
             <optgroup label="Client Accounts">
-              {clientAccountsOnly.map((acc) => (
-                <option key={acc.id} value={acc.id}>
-                  {acc.customer_name}
-                </option>
-              ))}
+              {clientAccountsOnly.map((acc) => {
+                const parent = accounts.find((a) => a.id === acc.linked_customer_id);
+                const displayLabel = parent
+                  ? `${acc.customer_name} (Reference Account: ${parent.customer_name})`
+                  : acc.customer_name;
+                return (
+                  <option key={acc.id} value={acc.id}>
+                    {displayLabel}
+                  </option>
+                );
+              })}
             </optgroup>
             {referenceAccountsOnly.length > 0 && (
               <optgroup label="Reference Accounts">
                 {referenceAccountsOnly.map((acc) => {
-                  const parent = accounts.find((a) => a.id === acc.linked_customer_id);
-                  const displayLabel = parent
-                    ? `${acc.customer_name} (Reference Account: ${parent.customer_name})`
+                  const children = accounts.filter((a) => a.linked_customer_id === acc.id);
+                  const childrenNames = children.map((c) => c.customer_name).join(", ");
+                  const displayLabel = childrenNames
+                    ? `${acc.customer_name} (Reference for: ${childrenNames})`
                     : acc.customer_name;
                   return (
                     <option key={acc.id} value={acc.id}>

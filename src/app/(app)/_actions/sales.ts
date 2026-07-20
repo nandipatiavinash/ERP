@@ -901,7 +901,22 @@ export async function saveSalesConfirmationRates(
     .or(`description.eq."Balance adjustment for Dispatch ${order.order_number}",description.like."Balance adjustment for Dispatch ${order.order_number} (%)"`);
 
   if (Math.abs(balance) > 100) {
-    const customerName = order.customers?.customer_name ?? "Unknown";
+    let targetAccountId = customerId;
+    let targetAccountName = order.customers?.customer_name ?? "Unknown";
+
+    const linkedCustomerId = order.customers?.linked_customer_id;
+    if (linkedCustomerId) {
+      const { data: parentData } = await supabase
+        .from("customers")
+        .select("id, customer_name")
+        .eq("id", linkedCustomerId)
+        .is("deleted_at", null)
+        .maybeSingle();
+      if (parentData) {
+        targetAccountId = (parentData as any).id;
+        targetAccountName = (parentData as any).customer_name;
+      }
+    }
 
     const { data: salesAcData } = await (supabase
       .from("customers") as any)
@@ -919,8 +934,8 @@ export async function saveSalesConfirmationRates(
       journalInserts.push({
         journal_no: journalNo,
         entry_date: order.order_date ?? todayInIndia(),
-        account_id: customerId,
-        account_name: customerName,
+        account_id: targetAccountId,
+        account_name: targetAccountName,
         entry_type: "debit",
         amount: absBalance,
         description: `Balance adjustment for Dispatch ${order.order_number}`,
@@ -934,7 +949,7 @@ export async function saveSalesConfirmationRates(
         account_name: salesAc?.customer_name ?? "Sales A/c",
         entry_type: "credit",
         amount: absBalance,
-        description: `Balance adjustment for Dispatch ${order.order_number} (${customerName})`,
+        description: `Balance adjustment for Dispatch ${order.order_number} (${targetAccountName})`,
         created_by: user.id,
         updated_by: user.id,
       });
@@ -946,15 +961,15 @@ export async function saveSalesConfirmationRates(
         account_name: salesAc?.customer_name ?? "Sales A/c",
         entry_type: "debit",
         amount: absBalance,
-        description: `Balance adjustment for Dispatch ${order.order_number} (${customerName})`,
+        description: `Balance adjustment for Dispatch ${order.order_number} (${targetAccountName})`,
         created_by: user.id,
         updated_by: user.id,
       });
       journalInserts.push({
         journal_no: journalNo,
         entry_date: order.order_date ?? todayInIndia(),
-        account_id: customerId,
-        account_name: customerName,
+        account_id: targetAccountId,
+        account_name: targetAccountName,
         entry_type: "credit",
         amount: absBalance,
         description: `Balance adjustment for Dispatch ${order.order_number}`,
