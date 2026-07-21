@@ -89,31 +89,31 @@ function getItemLabel(
   if (item.department === "roto-printing") {
     const r = rotoProducts.find((x) => x.id === item.roto_product_id || x.id === item.product_id);
     const brand = getCleanBrand(r?.brand);
-    const filmChar = item.film_type === "gloss" ? "G" : item.film_type === "matt" ? "M" : "?";
+    const filmChar = item.film_type === "gloss" ? "G" : item.film_type === "matt" ? "M" : "";
     const met = item.is_metallic ? "(MT)" : "";
     return `${brand}(${filmChar})${met}`.toUpperCase();
   }
 
   if (item.department === "lamination") {
-    const brand = ["BOX", "F_S", "H_S"].includes(item.lamination_type || "")
-      ? getCleanBrand(rotoProducts.find((x) => x.id === item.roto_product_id)?.brand)
+    const brand = getCleanBrand(rotoProducts.find((x) => x.id === item.roto_product_id)?.brand);
+    const filmChar = item.film_type === "gloss" ? "G" : item.film_type === "matt" ? "M" : "";
+    const met = (["BOX", "F_S", "H_S"].includes(item.lamination_type || "") && item.is_metallic) ? "(MT)" : "";
+    
+    const rotoRollId = ["BOX", "F_S", "H_S"].includes(item.lamination_type || "")
+      ? `${brand}(${filmChar})${met}`
       : item.lamination_type === "NW"
       ? "NW"
       : "PLAIN";
     
     let suffix = "";
-    if (item.lamination_type === "PLAIN") suffix = "";
-    else if (item.lamination_type === "NW") suffix = "";
-    else if (item.lamination_type === "BOX") suffix = "B";
+    if (item.lamination_type === "BOX") suffix = "B";
     else if (item.lamination_type === "F_S") suffix = "F";
     else if (item.lamination_type === "H_S") suffix = "H";
 
-    const met = (["BOX", "F_S", "H_S"].includes(item.lamination_type || "") && item.is_metallic) ? "(MT)" : "";
-
     if (item.lamination_type === "PLAIN" || item.lamination_type === "NW") {
-      return `${brand}(${fab})${met}`.toUpperCase();
+      return `${rotoRollId}(${fab})`.toUpperCase();
     } else {
-      return `${brand}(${fab})(${suffix})${met}`.toUpperCase();
+      return `${rotoRollId}(${fab})(${suffix})`.toUpperCase();
     }
   }
 
@@ -130,30 +130,31 @@ function getItemLabel(
     if (finishType === "FABRIC") {
       return `PLAIN(${fab})`.toUpperCase();
     } else if (finishType === "LAMINATION") {
-      const brand = ["BOX", "F_S", "H_S"].includes(item.lamination_type || "")
-        ? getCleanBrand(rotoProducts.find((x) => x.id === item.roto_product_id)?.brand)
+      const brand = getCleanBrand(rotoProducts.find((x) => x.id === item.roto_product_id)?.brand);
+      const filmChar = item.film_type === "gloss" ? "G" : item.film_type === "matt" ? "M" : "";
+      const met = (["BOX", "F_S", "H_S"].includes(item.lamination_type || "") && item.is_metallic) ? "(MT)" : "";
+      
+      const rotoRollId = ["BOX", "F_S", "H_S"].includes(item.lamination_type || "")
+        ? `${brand}(${filmChar})${met}`
         : item.lamination_type === "NW"
         ? "NW"
         : "PLAIN";
       
       let suffix = "";
-      if (item.lamination_type === "PLAIN") suffix = "";
-      else if (item.lamination_type === "NW") suffix = "";
-      else if (item.lamination_type === "BOX") suffix = "B";
+      if (item.lamination_type === "BOX") suffix = "B";
       else if (item.lamination_type === "F_S") suffix = "F";
       else if (item.lamination_type === "H_S") suffix = "H";
 
-      const met = (["BOX", "F_S", "H_S"].includes(item.lamination_type || "") && item.is_metallic) ? "(MT)" : "";
-
       if (item.lamination_type === "PLAIN" || item.lamination_type === "NW") {
-        return `${brand}(${fab})${met}`.toUpperCase();
+        return `${rotoRollId}(${fab})`.toUpperCase();
       } else {
-        return `${brand}(${fab})(${suffix})${met}`.toUpperCase();
+        return `${rotoRollId}(${fab})(${suffix})`.toUpperCase();
       }
     } else {
       // OFFSET
       const brand = getCleanBrand(offsetProducts.find((x) => x.id === item.offset_product_id)?.brand);
-      return `${brand}(${fab})`.toUpperCase();
+      const subFabName = item.offset_type === "NW" ? "NW" : fab;
+      return `${brand}(${subFabName})`.toUpperCase();
     }
   }
 

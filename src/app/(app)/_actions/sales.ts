@@ -381,11 +381,22 @@ export async function confirmSalesDelivery(
   }
 
   if (backorderItems.length > 0) {
+    let boOrderNumber = "";
+    const { data: boNumData } = await (supabase as any).rpc("get_next_order_no", { p_order_date: order.order_date });
+    if (boNumData) {
+      boOrderNumber = String(boNumData);
+    } else {
+      const dateParts = String(order.order_date).split("-");
+      const mmDd = dateParts.length >= 3 ? `${dateParts[1]}-${dateParts[2]}` : "01-01";
+      boOrderNumber = `${mmDd}-${Math.floor(Math.random() * 90 + 10)}`;
+    }
+
     const { data: newOrder, error: newOrderError } = await (supabase
       .from("sales_orders") as any)
       .insert({
         customer_id: order.customer_id,
         order_date: order.order_date,
+        order_number: boOrderNumber,
         status: "draft",
         created_by: user.id,
         updated_by: user.id,
