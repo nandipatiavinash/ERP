@@ -36,14 +36,31 @@ export default async function PortalDashboardPage({
   // Fetch customer details
   let customerName = "Your Account";
   let customerCode = "";
+  let customerIds: string[] = [];
+
   if (customerId) {
     const { data: cust } = await (supabase.from("customers") as any)
-      .select("customer_name, alias")
+      .select("id, customer_name, alias, linked_customer_id")
       .eq("id", customerId)
       .single();
     if (cust) {
       customerName = cust.customer_name;
       customerCode = cust.alias ?? "";
+      customerIds.push(customerId);
+
+      // Fetch all associated firm IDs
+      const parentId = cust.linked_customer_id;
+      const { data: siblings } = await (supabase.from("customers") as any)
+        .select("id")
+        .or(`linked_customer_id.eq.${customerId}${parentId ? `,linked_customer_id.eq.${parentId},id.eq.${parentId}` : ""}`);
+
+      if (siblings) {
+        siblings.forEach((s: any) => {
+          if (!customerIds.includes(s.id)) {
+            customerIds.push(s.id);
+          }
+        });
+      }
     }
   } else if (user.roles?.name === "admin") {
     customerName = "Admin Preview";
@@ -53,8 +70,8 @@ export default async function PortalDashboardPage({
   let ordersData: any[] = [];
   if (customerId) {
     const { data } = await (supabase.from("sales_orders") as any)
-      .select("id, order_number, order_date, status, bill_number, bill_value, created_at")
-      .eq("customer_id", customerId)
+      .select("id, order_number, order_date, status, bill_number, bill_value, created_at, customers(customer_name)")
+      .in("customer_id", customerIds)
       .is("deleted_at", null)
       .order("order_date", { ascending: false });
     ordersData = data ?? [];
@@ -226,8 +243,7 @@ export default async function PortalDashboardPage({
                             {order.bill_number && (
                               <span className="font-mono">Bill: {order.bill_number}</span>
                             )}
-                            {/* admin sees firm name */}
-                            {user.roles?.name === "admin" && order.customers?.customer_name && (
+                            {order.customers?.customer_name && (
                               <span className="text-slate-500 font-semibold">{order.customers.customer_name}</span>
                             )}
                           </div>
