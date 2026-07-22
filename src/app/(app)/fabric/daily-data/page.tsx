@@ -71,7 +71,7 @@ export default async function DailyDataPage() {
       {/* System Date Indicator */}
       <div className="mb-6 p-4 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-between">
         <div>
-          <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Entry Date (Kolkata Standard Time)</span>
+          <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Entry Date</span>
           <h2 className="text-lg font-bold text-slate-800 font-sans mt-0.5">{today}</h2>
         </div>
         <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold bg-emerald-100 text-emerald-800 tracking-wider">

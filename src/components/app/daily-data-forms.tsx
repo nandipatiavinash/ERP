@@ -85,7 +85,7 @@ export function TapeLineForm() {
           confirmTitle="Submit Tape Line entry?"
           confirmDescription="This will record the Tape Line entry for today."
         >
-          Submit Tape Line
+          Submit
         </ConfirmSubmitButton>
       </div>
     </form>
@@ -192,7 +192,7 @@ export function LoomShiftMetersForm({ looms }: { looms: LoomOption[] }) {
           confirmTitle="Submit Loom Shift Meters?"
           confirmDescription="This will update shift meters for the selected Loom today."
         >
-          Submit Loom Shifts
+          Submit
         </ConfirmSubmitButton>
       </div>
     </form>
@@ -254,7 +254,7 @@ export function ElectricityUnitsForm() {
           confirmTitle="Submit Electricity Units?"
           confirmDescription="This will update the electricity units consumed today."
         >
-          Submit Units
+          Submit
         </ConfirmSubmitButton>
       </div>
     </form>
