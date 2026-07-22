@@ -11,6 +11,7 @@ import * as products from "./_actions/products";
 import * as journal from "./_actions/journal";
 import * as accounts from "./_actions/accounts";
 import * as clientOrders from "./_actions/client-orders";
+import * as dailyData from "./_actions/daily-data";
 
 // Master Actions
 export async function saveMaster(moduleKey: string, formData: FormData) {
@@ -84,6 +85,9 @@ export async function createSalesOrder(formData: FormData) {
 }
 export async function deleteSalesOrderItem(itemId: string) {
   return sales.deleteSalesOrderItem(itemId);
+}
+export async function updateSalesOrderItemJobwork(formData: FormData) {
+  return sales.updateSalesOrderItemJobwork(formData);
 }
 export async function confirmSalesDelivery(
   orderId: string,
@@ -260,5 +264,25 @@ export async function approveClientOrder(clientOrderId: string) {
 
 export async function cancelClientOrder(clientOrderId: string) {
   return clientOrders.cancelClientOrder(clientOrderId);
+}
+
+// Daily Data Actions
+export async function saveTapeLineEntry(formData: FormData) {
+  return dailyData.saveTapeLineEntry(formData);
+}
+export async function deleteTapeLineEntry(formData: FormData) {
+  return dailyData.deleteTapeLineEntry(formData);
+}
+export async function saveLoomShiftMeters(formData: FormData) {
+  return dailyData.saveLoomShiftMeters(formData);
+}
+export async function deleteLoomShiftMeters(formData: FormData) {
+  return dailyData.deleteLoomShiftMeters(formData);
+}
+export async function saveElectricityUnits(formData: FormData) {
+  return dailyData.saveElectricityUnits(formData);
+}
+export async function deleteElectricityUnits(formData: FormData) {
+  return dailyData.deleteElectricityUnits(formData);
 }
 

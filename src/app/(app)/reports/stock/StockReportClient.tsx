@@ -1,13 +1,16 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { useState, useMemo, useTransition } from "react";
+import { ChevronDown, ChevronRight, Save, Loader2, User, TrendingUp, TrendingDown } from "lucide-react";
 import { PageHeader } from "@/components/app/page-header";
 import { DateRangeFilter } from "@/components/app/date-range-filter";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatNumber, todayInIndia, formatDate } from "@/lib/utils";
+import { updateSalesOrderItemJobwork } from "@/app/(app)/_actions";
+import { showSuccess } from "@/lib/toast";
+import { Badge } from "@/components/ui/badge";
 
 interface RawMaterial {
   id: string;
@@ -74,6 +77,7 @@ interface SalesOrder {
   bill_number: string | null;
   bill_value?: number | null;
   customer_id: string;
+  is_jobwork?: boolean;
   customers: {
     customer_name: string | null;
     alias: string | null;
@@ -84,6 +88,8 @@ interface SalesOrder {
     product_id: string;
     quantity: number | string;
     selected_roll_ids: string[] | null;
+    pp_percent?: number | null;
+    filler_percent?: number | null;
   }> | null;
 }
 
@@ -134,9 +140,143 @@ export function StockReportClient({
   laminationProducts = [],
   finishingProducts = [],
 }: StockReportClientProps) {
-  const [activeSection, setActiveSection] = useState<"raw_material" | "stock" | "sale" | "clients">("raw_material");
+  const [activeSection, setActiveSection] = useState<"raw_material" | "stock" | "sale" | "clients" | "jobwork">("raw_material");
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [expandedBills, setExpandedBills] = useState<Record<string, boolean>>({});
+  const [selectedJobworkClient, setSelectedJobworkClient] = useState<string>("");
+
+  // Jobwork calculations
+  // Get all unique customers linked to jobwork
+  const customersList = useMemo(() => {
+    const listMap = new Map<string, { id: string; name: string }>();
+    salesOrders.forEach((o) => {
+      if (o.is_jobwork && o.customers) {
+        listMap.set(o.customer_id, { id: o.customer_id, name: o.customers.customer_name || "" });
+      }
+    });
+    purchases.forEach((p) => {
+      // purchases has is_jobwork and supplier_name
+      if ((p as any).is_jobwork && p.supplier_name) {
+        const match = salesOrders.find((so) => so.customers?.customer_name === p.supplier_name);
+        const id = match?.customer_id || p.supplier_name;
+        listMap.set(id, { id, name: p.supplier_name });
+      }
+    });
+    return Array.from(listMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [salesOrders, purchases]);
+
+  // Calculate ledger items for the selected client
+  const jobworkLedger = useMemo(() => {
+    if (!selectedJobworkClient) return [];
+    const client = customersList.find((c) => c.id === selectedJobworkClient);
+    if (!client) return [];
+
+    const ledgerItems: any[] = [];
+
+    // Filter purchases
+    purchases.forEach((p) => {
+      if ((p as any).is_jobwork && p.supplier_name?.trim().toLowerCase() === client.name.trim().toLowerCase()) {
+        if (p.purchase_date >= from && p.purchase_date <= to) {
+          const mat = rawMaterials.find((r) => r.id === p.raw_material_id);
+          const matName = mat?.material_name ?? "Raw Material";
+          const isPP = matName.toLowerCase().includes("pp") || matName.toLowerCase().includes("polypropylene");
+          const isFiller = matName.toLowerCase().includes("filler");
+
+          ledgerItems.push({
+            id: p.id || Math.random().toString(),
+            date: p.purchase_date,
+            type: "purchase",
+            ref: p.bill_number || "Purchase",
+            details: matName,
+            qty: Number(p.quantity ?? 0),
+            amount: Number(p.total_amount ?? 0),
+            isPP,
+            isFiller,
+          });
+        }
+      }
+    });
+
+    // Filter sales orders
+    salesOrders.forEach((o) => {
+      if ((o as any).is_jobwork && o.customer_id === client.id) {
+        if (o.order_date >= from && o.order_date <= to && o.status !== "draft") {
+          const items = (o.sales_order_items ?? []).map((item: any) => {
+            const rollIds = item.selected_roll_ids ?? [];
+            let weight = 0;
+            if (rollIds.length > 0) {
+              rollIds.forEach((rid: string) => {
+                const r = rolls.find((roll) => roll.id === rid);
+                if (r) weight += Number(r.weight ?? 0);
+              });
+            }
+            if (weight === 0) {
+              weight = Number(item.quantity ?? 0);
+            }
+            const productName = getProductName(item);
+
+            return {
+              id: item.id,
+              productName,
+              weight,
+              pp_percent: Number(item.pp_percent ?? 0),
+              filler_percent: Number(item.filler_percent ?? 0),
+            };
+          });
+
+          const totalWeight = items.reduce((sum: number, it: any) => sum + it.weight, 0);
+
+          ledgerItems.push({
+            id: o.id,
+            date: o.order_date,
+            type: "sale",
+            ref: o.bill_number || o.order_number || "Sale",
+            details: "Sale Dispatch",
+            qty: totalWeight,
+            amount: Number(o.bill_value ?? 0),
+            items,
+          });
+        }
+      }
+    });
+
+    // Sort chronologically
+    return ledgerItems.sort((a, b) => a.date.localeCompare(b.date));
+  }, [selectedJobworkClient, customersList, purchases, salesOrders, rawMaterials, rolls, from, to]);
+
+  // Top Row Summary metrics
+  const jobworkSummary = useMemo(() => {
+    let totalPurchaseAmount = 0;
+    let totalPurchasePP = 0;
+    let totalPurchaseFiller = 0;
+
+    let totalSaleAmount = 0;
+    let totalSalePP = 0;
+    let totalSaleFiller = 0;
+
+    jobworkLedger.forEach((entry) => {
+      if (entry.type === "purchase") {
+        totalPurchaseAmount += entry.amount;
+        if (entry.isPP) totalPurchasePP += entry.qty;
+        if (entry.isFiller) totalPurchaseFiller += entry.qty;
+      } else if (entry.type === "sale") {
+        totalSaleAmount += entry.amount;
+        (entry.items ?? []).forEach((item: any) => {
+          totalSalePP += item.weight * (item.pp_percent / 100);
+          totalSaleFiller += item.weight * (item.filler_percent / 100);
+        });
+      }
+    });
+
+    return {
+      totalPurchaseAmount,
+      totalPurchasePP,
+      totalPurchaseFiller,
+      totalSaleAmount,
+      totalSalePP,
+      totalSaleFiller,
+    };
+  }, [jobworkLedger]);
 
   const toggleExpand = (id: string) => {
     setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
@@ -852,6 +992,19 @@ export function StockReportClient({
           >
             Clients
           </button>
+          <button
+            onClick={() => {
+              setActiveSection("jobwork");
+              setExpanded({});
+            }}
+            className={`px-4 py-1.5 text-xs font-bold transition-all rounded-md ${
+              activeSection === "jobwork"
+                ? "bg-slate-900 text-white shadow-sm"
+                : "text-slate-600 hover:bg-slate-50"
+            }`}
+          >
+            Jobwork
+          </button>
         </div>
 
         <DateRangeFilter from={from} to={to} baseUrl="/reports/stock" />
@@ -1416,8 +1569,224 @@ export function StockReportClient({
               )}
             </>
           )}
+          {/* SECTION 5: Jobwork */}
+          {activeSection === "jobwork" && (
+            <div className="p-6 space-y-6">
+              {/* Client Selector Dropdown */}
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-slate-400 uppercase tracking-widest">Select Jobwork Client</label>
+                  <select
+                    value={selectedJobworkClient}
+                    onChange={(e) => setSelectedJobworkClient(e.target.value)}
+                    className="h-10 w-full sm:w-[320px] rounded-md border bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                  >
+                    <option value="">Select Client</option>
+                    {customersList.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {selectedJobworkClient && (
+                  <div className="text-right text-xs text-slate-500 font-mono font-semibold">
+                    Total Transactions: {jobworkLedger.length}
+                  </div>
+                )}
+              </div>
+
+              {!selectedJobworkClient ? (
+                <EmptyState
+                  title="Select a Jobwork Client"
+                  description="Choose a client from the dropdown above to view their jobwork ledger."
+                />
+              ) : (
+                <>
+                  {/* Top Row Summary Cards */}
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {/* Purchases Summary Card */}
+                    <Card className="border-slate-200 bg-slate-50/50 shadow-xs">
+                      <CardContent className="p-4 space-y-3">
+                        <div className="flex items-center gap-1.5 text-xs font-bold text-blue-800 uppercase tracking-wider">
+                          <TrendingUp className="h-4 w-4" /> Incoming Purchases Summary
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 pt-1.5 text-xs text-slate-650">
+                          <div>
+                            <span className="block text-[10px] font-bold text-slate-400 uppercase">Total Value</span>
+                            <span className="font-mono font-bold text-slate-900 text-sm">
+                              ₹{formatNumber(jobworkSummary.totalPurchaseAmount, 2)}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="block text-[10px] font-bold text-slate-400 uppercase">PP Weight</span>
+                            <span className="font-mono font-bold text-slate-900 text-sm">
+                              {formatNumber(jobworkSummary.totalPurchasePP, 1)} kg
+                            </span>
+                          </div>
+                          <div>
+                            <span className="block text-[10px] font-bold text-slate-400 uppercase">Filler Weight</span>
+                            <span className="font-mono font-bold text-slate-900 text-sm">
+                              {formatNumber(jobworkSummary.totalPurchaseFiller, 1)} kg
+                            </span>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    {/* Sales Summary Card */}
+                    <Card className="border-slate-200 bg-slate-50/50 shadow-xs">
+                      <CardContent className="p-4 space-y-3">
+                        <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-800 uppercase tracking-wider">
+                          <TrendingDown className="h-4 w-4" /> Finished Product Sales
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 pt-1.5 text-xs text-slate-650">
+                          <div>
+                            <span className="block text-[10px] font-bold text-slate-400 uppercase">Total Value</span>
+                            <span className="font-mono font-bold text-slate-900 text-sm">
+                              ₹{formatNumber(jobworkSummary.totalSaleAmount, 2)}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="block text-[10px] font-bold text-slate-400 uppercase">PP Weight</span>
+                            <span className="font-mono font-bold text-slate-900 text-sm">
+                              {formatNumber(jobworkSummary.totalSalePP, 1)} kg
+                            </span>
+                          </div>
+                          <div>
+                            <span className="block text-[10px] font-bold text-slate-400 uppercase">Filler Weight</span>
+                            <span className="font-mono font-bold text-slate-900 text-sm">
+                              {formatNumber(jobworkSummary.totalSaleFiller, 1)} kg
+                            </span>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* Ledger Table */}
+                  <div className="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-xs">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-slate-50/70">
+                          <TableHead className="font-bold text-slate-750">Date</TableHead>
+                          <TableHead className="font-bold text-slate-755">Type</TableHead>
+                          <TableHead className="font-bold text-slate-755">Ref / Bill No</TableHead>
+                          <TableHead className="font-bold text-slate-755">Details</TableHead>
+                          <TableHead className="font-bold text-slate-755 text-right">Quantity (kg)</TableHead>
+                          <TableHead className="font-bold text-slate-755 text-right pr-4">Amount (₹)</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {jobworkLedger.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={6} className="text-center py-8 text-slate-400 font-medium">
+                              No jobwork transactions found in selected date range.
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          jobworkLedger.map((entry) => (
+                            <TableRow key={entry.id} className="border-b last:border-0 hover:bg-slate-50/50">
+                              <TableCell className="font-semibold text-slate-500 text-xs">{formatDate(entry.date)}</TableCell>
+                              <TableCell className="text-xs">
+                                {entry.type === "purchase" ? (
+                                  <Badge className="bg-blue-50 text-blue-700 border-0 hover:bg-blue-50 font-bold px-2 py-0.5 text-[10px]">PURCHASE</Badge>
+                                ) : (
+                                  <Badge className="bg-emerald-50 text-emerald-700 border-0 hover:bg-emerald-50 font-bold px-2 py-0.5 text-[10px]">SALE</Badge>
+                                )}
+                              </TableCell>
+                              <TableCell className="font-bold text-slate-800 text-xs">{entry.ref}</TableCell>
+                              <TableCell className="text-slate-800 text-xs max-w-sm">
+                                {entry.type === "purchase" ? (
+                                  <span className="font-medium text-slate-700">{entry.details}</span>
+                                ) : (
+                                  <div className="space-y-3 py-1">
+                                    {(entry.items ?? []).map((item: any) => (
+                                      <div key={item.id} className="border-b border-slate-100 pb-2 last:border-0 last:pb-0">
+                                        <div className="font-bold text-slate-850">{item.productName}</div>
+                                        <div className="text-[10px] text-slate-500 font-mono mt-0.5">
+                                          Weight: {formatNumber(item.weight, 1)} kg
+                                        </div>
+                                        <JobworkRowEditor item={item} />
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </TableCell>
+                              <TableCell className="text-right font-mono font-bold text-slate-800 text-xs">
+                                {formatNumber(entry.qty, 1)}
+                              </TableCell>
+                              <TableCell className="text-right font-mono font-bold text-slate-900 text-xs pr-4">
+                                ₹{formatNumber(entry.amount, 2)}
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+function JobworkRowEditor({ item }: { item: any }) {
+  const [isPending, startTransition] = useTransition();
+  const [ppPercent, setPpPercent] = useState(String(item.pp_percent ?? 0));
+  const [fillerPercent, setFillerPercent] = useState(String(item.filler_percent ?? 0));
+
+  const handleSave = () => {
+    startTransition(async () => {
+      try {
+        const formData = new FormData();
+        formData.set("id", item.id);
+        formData.set("pp_percent", ppPercent);
+        formData.set("filler_percent", fillerPercent);
+        await updateSalesOrderItemJobwork(formData);
+        showSuccess("Percentages updated successfully!");
+      } catch (err: any) {
+        alert(err.message || "Failed to update percentages");
+      }
+    });
+  };
+
+  return (
+    <div className="flex flex-wrap items-center gap-2.5 mt-1.5">
+      <div className="flex items-center gap-1">
+        <span className="text-[9px] text-slate-500 font-extrabold uppercase tracking-wide">PP%:</span>
+        <input
+          type="number"
+          step="0.1"
+          value={ppPercent}
+          disabled={isPending}
+          onChange={(e) => setPpPercent(e.target.value)}
+          className="w-12 h-6 border rounded px-1.5 text-xs font-mono font-bold bg-slate-50 focus:bg-white text-slate-800"
+        />
+      </div>
+      <div className="flex items-center gap-1">
+        <span className="text-[9px] text-slate-500 font-extrabold uppercase tracking-wide">Filler%:</span>
+        <input
+          type="number"
+          step="0.1"
+          value={fillerPercent}
+          disabled={isPending}
+          onChange={(e) => setFillerPercent(e.target.value)}
+          className="w-12 h-6 border rounded px-1.5 text-xs font-mono font-bold bg-slate-50 focus:bg-white text-slate-800"
+        />
+      </div>
+      <button
+        onClick={handleSave}
+        disabled={isPending}
+        className="px-2 py-1 rounded bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-[9px] text-white font-bold flex items-center gap-1 transition-colors shadow-xs"
+      >
+        {isPending ? <Loader2 className="h-2.5 w-2.5 animate-spin" /> : <Save className="h-2.5 w-2.5" />}
+        Save
+      </button>
     </div>
   );
 }

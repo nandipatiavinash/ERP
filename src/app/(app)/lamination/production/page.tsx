@@ -1,13 +1,7 @@
 import { requirePermission } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/app/page-header";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { EmptyState } from "@/components/ui/empty-state";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { LaminationProductionForm } from "@/components/app/lamination-production-form";
-import { deleteLaminationProduction } from "@/app/(app)/_actions";
-import { ConfirmSubmitButton } from "@/components/app/confirm-submit-button";
-import { formatDate } from "@/lib/utils";
+import { LaminationProductionClient } from "./LaminationProductionClient";
 
 export default async function LaminationProductionPage() {
   await requirePermission("lamination.production");
@@ -25,6 +19,7 @@ export default async function LaminationProductionPage() {
     { data: activeRotoMetallic },
     { data: todayLaminationEntries },
     activeFabricRolls,
+    pendingOrdersRes,
   ] = await Promise.all([
     supabase
       .from("fabric_types")
@@ -54,16 +49,66 @@ export default async function LaminationProductionPage() {
       .from("fabric_rolls")
       .select("fabric_type_id")
       .eq("status", "available")
+      .is("deleted_at", null),
+    supabase
+      .from("sales_orders")
+      .select(`
+        id,
+        order_number,
+        order_date,
+        priority,
+        customers(customer_name, alias),
+        sales_order_items(id, department, quantity, fabric_type_id, roto_product_id, offset_product_id, film_type, is_metallic, lamination_type, offset_type)
+      `)
+      .eq("status", "draft")
       .is("deleted_at", null)
+      .order("order_date", { ascending: true })
   ]);
 
   const availableFabricTypeIds = new Set((activeFabricRolls?.data || []).map((fr: any) => fr.fabric_type_id));
-  const fabricTypes = ((activeFabricTypes ?? []) as any[]).filter((ft) => availableFabricTypeIds.has(ft.id));
+  
+  // Wait, let's load all active fabric types for details mapping, and filter the ones for available rolls
+  const rawFabricTypes = (activeFabricTypes ?? []) as any[];
+  const fabricTypes = rawFabricTypes.filter((ft) => availableFabricTypeIds.has(ft.id));
+  
   const rotoProducts = [
     ...((activeRotoFilm ?? []) as any[]),
     ...((activeRotoMetallic ?? []) as any[])
   ];
   const laminationRows = (todayLaminationEntries ?? []) as any[];
+
+  // Flatten pending order items for lamination
+  const rawOrders = (pendingOrdersRes.data ?? []) as any[];
+  const pendingOrders: any[] = [];
+  for (const order of rawOrders) {
+    const cust = order.customers;
+    const customerName = cust ? (cust.alias || cust.customer_name) : "General";
+    for (const item of (order.sales_order_items ?? [])) {
+      if (item.department === "lamination") {
+        const fab = rawFabricTypes.find(f => f.id === item.fabric_type_id);
+        const roto = rotoProducts.find(r => r.id === item.roto_product_id);
+        
+        pendingOrders.push({
+          id: item.id,
+          sales_order_id: order.id,
+          order_number: order.order_number,
+          order_date: order.order_date,
+          priority: Number(order.priority ?? 0),
+          customerName,
+          department: item.department,
+          quantity: Number(item.quantity ?? 0),
+          fabricTypeId: item.fabric_type_id,
+          fabricName: fab?.fabric_name ?? "Fabric",
+          fabricWidth: fab?.width, // In case width is there
+          rotoProductId: item.roto_product_id,
+          rotoBrand: roto?.roll_id ?? "PLAIN",
+          lamination_type: item.lamination_type,
+          is_metallic: item.is_metallic,
+          raw_item: item,
+        });
+      }
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -72,63 +117,12 @@ export default async function LaminationProductionPage() {
         description="Log lamination output using a fabric type or raw NW material."
       />
 
-      <Card className="mb-5">
-        <CardHeader>
-          <CardTitle>Submit Lamination Production</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <LaminationProductionForm
-            fabricTypes={fabricTypes}
-            rotoProducts={rotoProducts}
-            rows={laminationRows}
-          />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Recent Lamination Production Entries</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {laminationRows.length === 0 ? (
-            <EmptyState title="No entries found" description="Laminated rolls produced will appear here." />
-          ) : (
-            <div className="overflow-x-auto rounded-lg border border-slate-100">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-slate-50/50">
-                    <TableHead>Laminated Roll ID</TableHead>
-                    <TableHead className="text-right">KGs</TableHead>
-                    <TableHead className="text-right">Meters</TableHead>
-                    <TableHead className="text-center">Action</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {laminationRows.map((row) => (
-                    <TableRow key={row.id}>
-                      <TableCell className="font-mono font-bold text-emerald-950">{row.roll_id}</TableCell>
-                      <TableCell className="text-right font-mono">{row.weight_kg}</TableCell>
-                      <TableCell className="text-right font-mono">{row.meters}</TableCell>
-                      <TableCell className="text-center">
-                        <form action={deleteLaminationProduction.bind(null, row.id)}>
-                          <ConfirmSubmitButton
-                             size="sm"
-                             variant="destructive"
-                             confirmTitle="Delete lamination entry?"
-                             confirmDescription="This will delete this roll and revert any metallic roll back to available stock."
-                          >
-                            Delete
-                          </ConfirmSubmitButton>
-                        </form>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      <LaminationProductionClient
+        fabricTypes={fabricTypes}
+        rotoProducts={rotoProducts}
+        laminationRows={laminationRows}
+        pendingOrders={pendingOrders}
+      />
     </div>
   );
 }

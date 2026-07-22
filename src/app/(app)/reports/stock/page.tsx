@@ -41,7 +41,7 @@ export default async function StockReportPage({ searchParams }: { searchParams: 
     fetchPagedData(
       supabase
         .from("raw_material_purchases")
-        .select("id, raw_material_id, purchase_date, supplier_name, bill_number, quantity, rate, total_amount")
+        .select("id, raw_material_id, purchase_date, supplier_name, bill_number, quantity, rate, total_amount, is_jobwork")
         .gte("purchase_date", from)
         .is("deleted_at", null)
     ),
@@ -68,8 +68,9 @@ export default async function StockReportPage({ searchParams }: { searchParams: 
           bill_number,
           bill_value,
           customer_id,
+          is_jobwork,
           customers(customer_name, alias),
-          sales_order_items(id, department, product_id, quantity, selected_roll_ids, fabric_type_id, roto_product_id, offset_product_id)
+          sales_order_items(id, department, product_id, quantity, selected_roll_ids, fabric_type_id, roto_product_id, offset_product_id, pp_percent, filler_percent)
         `)
         .is("deleted_at", null)
     ),

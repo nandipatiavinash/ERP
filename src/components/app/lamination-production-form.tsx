@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useMemo } from "react";
+import { useState, useTransition, useMemo, useEffect } from "react";
 import { showSuccess } from "@/lib/toast";
 import { saveLaminationProduction } from "@/app/(app)/_actions";
 import { Button } from "@/components/ui/button";
@@ -32,6 +32,7 @@ interface LaminationProductionFormProps {
   rotoProducts: { id: string; roll_id: string; s_no: number }[];
   onSuccess?: (newRollInfo: { rollId: string; weight: number; meters: number }) => void;
   rows?: any[];
+  prefillData?: { lamType: string; fabricTypeId: string; rotoProductId: string } | null;
 }
 
 export function LaminationProductionForm({
@@ -39,11 +40,20 @@ export function LaminationProductionForm({
   rotoProducts,
   onSuccess,
   rows,
+  prefillData,
 }: LaminationProductionFormProps) {
   const [isPending, startTransition] = useTransition();
   const [lamType, setLamType] = useState<string>("");
   const [selectedFabricTypeId, setSelectedFabricTypeId] = useState<string>("");
   const [selectedRotoProductId, setSelectedRotoProductId] = useState<string>("");
+
+  useEffect(() => {
+    if (prefillData) {
+      setLamType(prefillData.lamType || "");
+      setSelectedFabricTypeId(prefillData.fabricTypeId || "");
+      setSelectedRotoProductId(prefillData.rotoProductId || "");
+    }
+  }, [prefillData]);
   const [weightKg, setWeightKg] = useState<string>("");
   const [meters, setMeters] = useState<string>("");
   const [entryDate, setEntryDate] = useState<string>(

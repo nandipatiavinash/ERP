@@ -8,7 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Label } from "@/components/ui/label";
-import { formatNumber, cn } from "@/lib/utils";
+import { formatNumber, cn, cleanJournalDescription } from "@/lib/utils";
 
 interface Account {
   id: string;
@@ -446,7 +446,7 @@ export function AccountReportsClient({
                       <TableRow key={entry.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/20">
                         <TableCell className="py-3 text-slate-600 text-sm">{entry.entry_date}</TableCell>
                         <TableCell className="py-3 text-slate-800 text-sm">
-                          {entry.description || "Journal Entry"}
+                          {cleanJournalDescription(entry.description) || "Journal Entry"}
                         </TableCell>
                         <TableCell className="py-3 text-right text-slate-900 text-sm">
                           {entry.entry_type === "debit" ? formatNumber(amt, 0) : "-"}

@@ -112,6 +112,12 @@ export default async function PortalDashboardPage({
           </div>
           <div className="flex items-center gap-2">
             <Link
+              href={"/portal/stock" as any}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold transition-all"
+            >
+              Available Stock
+            </Link>
+            <Link
               href={"/portal/catalog" as any}
               className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-950 hover:bg-slate-900 text-white text-xs font-bold transition-all shadow-sm"
             >

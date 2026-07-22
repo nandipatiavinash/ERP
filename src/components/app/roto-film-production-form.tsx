@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useMemo } from "react";
+import { useState, useTransition, useMemo, useEffect } from "react";
 import { showSuccess } from "@/lib/toast";
 import { saveRotoFilmProduction } from "@/app/(app)/_actions";
 import { Button } from "@/components/ui/button";
@@ -33,6 +33,7 @@ interface RotoFilmProductionFormProps {
   rotoColors: RotoColor[];
   onSuccess?: (newRollInfo: { rollId: string; weight: number; meters: number }) => void;
   rows?: any[];
+  prefillData?: { productId: string; filmType: string } | null;
 }
 
 export function RotoFilmProductionForm({
@@ -41,10 +42,18 @@ export function RotoFilmProductionForm({
   rotoColors,
   onSuccess,
   rows,
+  prefillData,
 }: RotoFilmProductionFormProps) {
   const [isPending, startTransition] = useTransition();
   const [selectedProductId, setSelectedProductId] = useState<string>("");
   const [filmType, setFilmType] = useState<string>("");
+
+  useEffect(() => {
+    if (prefillData) {
+      setSelectedProductId(prefillData.productId);
+      setFilmType(prefillData.filmType || "");
+    }
+  }, [prefillData]);
   const [selectedColorId, setSelectedColorId] = useState<string>("");
   const [weightKg, setWeightKg] = useState<string>("");
   const [meters, setMeters] = useState<string>("");

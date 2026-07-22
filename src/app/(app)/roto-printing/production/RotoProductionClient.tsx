@@ -10,6 +10,8 @@ import { deleteRotoFilmProduction, deleteRotoMetallicProduction } from "@/app/(a
 import { ConfirmSubmitButton } from "@/components/app/confirm-submit-button";
 import { formatDate } from "@/lib/utils";
 
+import { PendingProductionQueue, type QueueItem } from "@/components/app/pending-production-queue";
+
 interface RotoProductionClientProps {
   rotoProducts: any[];
   rotoColors: any[];
@@ -17,6 +19,7 @@ interface RotoProductionClientProps {
   filmRolls: any[];
   filmRows: any[];
   metallicRows: any[];
+  pendingOrders?: QueueItem[];
 }
 
 export function RotoProductionClient({
@@ -26,8 +29,17 @@ export function RotoProductionClient({
   filmRolls,
   filmRows,
   metallicRows,
+  pendingOrders = [],
 }: RotoProductionClientProps) {
   const [activeTab, setActiveTab] = useState<"film" | "metallic">("film");
+  const [prefill, setPrefill] = useState<{ productId: string; filmType: string } | null>(null);
+
+  const handleSelectOrder = (item: QueueItem) => {
+    setPrefill({
+      productId: item.rotoProductId || "",
+      filmType: item.film_type || ""
+    });
+  };
 
   return (
     <div className="space-y-6">
@@ -56,66 +68,80 @@ export function RotoProductionClient({
       </div>
 
       {activeTab === "film" ? (
-        <>
-          <Card>
-            <CardHeader>
-              <CardTitle>Submit Film Production</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <RotoFilmProductionForm
-                rotoProducts={rotoProducts}
-                customers={customers}
-                rotoColors={rotoColors}
-                rows={filmRows}
-              />
-            </CardContent>
-          </Card>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Submit Film Production</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <RotoFilmProductionForm
+                  rotoProducts={rotoProducts}
+                  customers={customers}
+                  rotoColors={rotoColors}
+                  rows={filmRows}
+                  prefillData={prefill}
+                />
+              </CardContent>
+            </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Recent Film Production Entries</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {filmRows.length === 0 ? (
-                <EmptyState title="No entries found" description="Film rolls logged will appear here." />
-              ) : (
-                <div className="overflow-x-auto rounded-lg border border-slate-100">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-slate-50/50">
-                        <TableHead>Roll ID</TableHead>
-                        <TableHead className="text-right">KGs</TableHead>
-                        <TableHead className="text-right">Meters</TableHead>
-                        <TableHead className="text-center">Action</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filmRows.map((row) => (
-                        <TableRow key={row.id}>
-                          <TableCell className="font-mono font-bold text-emerald-950">{row.roll_id}</TableCell>
-                          <TableCell className="text-right font-mono">{row.weight_kg}</TableCell>
-                          <TableCell className="text-right font-mono">{row.meters}</TableCell>
-                          <TableCell className="text-center">
-                            <form action={deleteRotoFilmProduction.bind(null, row.id)}>
-                              <ConfirmSubmitButton
-                                size="sm"
-                                variant="destructive"
-                                confirmTitle="Delete film production entry?"
-                                confirmDescription="This will delete the roll and free up any downstream items."
-                              >
-                                Delete
-                              </ConfirmSubmitButton>
-                            </form>
-                          </TableCell>
+            <Card>
+              <CardHeader>
+                <CardTitle>Recent Film Production Entries</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {filmRows.length === 0 ? (
+                  <EmptyState title="No entries found" description="Film rolls logged will appear here." />
+                ) : (
+                  <div className="overflow-x-auto rounded-lg border border-slate-100">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-slate-50/50">
+                          <TableHead>Roll ID</TableHead>
+                          <TableHead className="text-right">KGs</TableHead>
+                          <TableHead className="text-right">Meters</TableHead>
+                          <TableHead className="text-center">Action</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </>
+                      </TableHeader>
+                      <TableBody>
+                        {filmRows.map((row) => (
+                          <TableRow key={row.id}>
+                            <TableCell className="font-mono font-bold text-emerald-950">{row.roll_id}</TableCell>
+                            <TableCell className="text-right font-mono">{row.weight_kg}</TableCell>
+                            <TableCell className="text-right font-mono">{row.meters}</TableCell>
+                            <TableCell className="text-center">
+                              <form action={deleteRotoFilmProduction.bind(null, row.id)}>
+                                <ConfirmSubmitButton
+                                  size="sm"
+                                  variant="destructive"
+                                  confirmTitle="Delete film production entry?"
+                                  confirmDescription="This will delete the roll and free up any downstream items."
+                                >
+                                  Delete
+                                </ConfirmSubmitButton>
+                              </form>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          <div>
+            <Card className="h-full border border-slate-200">
+              <CardContent className="p-4">
+                <PendingProductionQueue
+                  items={pendingOrders}
+                  onSelect={handleSelectOrder}
+                />
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       ) : (
         <>
           <Card>

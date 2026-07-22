@@ -1671,3 +1671,23 @@ export async function saveSalesOrderBillingDirect(formData: FormData) {
   revalidatePath("/sales/delivery-entry");
   revalidateAllReports();
 }
+
+export async function updateSalesOrderItemJobwork(formData: FormData) {
+  const user = await requirePermission("reports.stock");
+  const itemId = String(formData.get("id") ?? "");
+  const ppPercent = Number(formData.get("pp_percent") ?? 0);
+  const fillerPercent = Number(formData.get("filler_percent") ?? 0);
+
+  if (!itemId || isNaN(ppPercent) || isNaN(fillerPercent)) {
+    throw new Error("Invalid parameters.");
+  }
+
+  const supabase = await createClient();
+  const { error } = await (supabase
+    .from("sales_order_items" as any) as any)
+    .update({ pp_percent: ppPercent, filler_percent: fillerPercent })
+    .eq("id", itemId);
+
+  if (error) throw new Error(error.message);
+  revalidateAllReports();
+}

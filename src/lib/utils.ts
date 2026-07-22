@@ -59,3 +59,8 @@ export function isRedirectError(err: any): boolean {
     err.digest.startsWith("NEXT_REDIRECT")
   );
 }
+
+export function cleanJournalDescription(description: string | null | undefined): string {
+  if (!description) return "";
+  return description.replace(/\s*\((RM|SO|PP):[^)]+\)/gi, "").trim();
+}

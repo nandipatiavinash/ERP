@@ -7,7 +7,7 @@ import { PageHeader } from "@/components/app/page-header";
 import { softDeleteJournalEntryGroup } from "@/app/(app)/_actions";
 import { requirePermission, getSessionPermissions } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { formatDate, formatNumber, todayInIndia } from "@/lib/utils";
+import { formatDate, formatNumber, todayInIndia, cleanJournalDescription } from "@/lib/utils";
 import { DateFilter } from "@/components/app/date-filter";
 import Link from "next/link";
 
@@ -191,9 +191,11 @@ export default async function AccountsJournalPage(props: {
                                 <span className={line.entry_type === "credit" ? "pl-6 text-slate-500" : "font-semibold text-slate-800"}>
                                   {line.account_name}
                                 </span>
-                                <span className="text-xs text-muted-foreground ml-2 block sm:inline">
-                                  ({line.description})
-                                </span>
+                                {cleanJournalDescription(line.description) ? (
+                                  <span className="text-xs text-muted-foreground ml-2 block sm:inline">
+                                    ({cleanJournalDescription(line.description)})
+                                  </span>
+                                ) : null}
                               </div>
                               <span className="text-xs font-mono font-bold text-slate-400 border border-slate-100 px-1.5 py-0.5 rounded bg-slate-50">
                                 {line.entry_type === "debit" ? "Dr" : "Cr"}

@@ -34,6 +34,7 @@ export const navGroups: NavGroup[] = [
     label: "Fabric",
     roles: ["admin", "operator"],
     items: [
+      { href: "/fabric/daily-data", label: "Daily Data", roles: ["admin", "operator"], permission: "fabric.daily_data" },
       { href: "/fabric/production", label: "Production", roles: ["admin", "operator"], permission: "fabric.production" },
       { href: "/fabric/consumption", label: "Consumption", roles: ["admin", "operator"], permission: "fabric.consumption" },
       { href: "/fabric/stock", label: "Stock", roles: ["admin", "operator"], permission: "fabric.stock" },
@@ -110,6 +111,7 @@ export const navGroups: NavGroup[] = [
       { href: "/reports/accounts", label: "Account Reports", roles: ["admin"], permission: "reports.accounts" },
       { href: "/reports/opening-balance", label: "Opening Balance", roles: ["admin"], permission: "reports.opening_balance" },
       { href: "/reports/stock", label: "Stock Report", roles: ["admin", "operator"], permission: "reports.stock" },
+      { href: "/reports/wastage", label: "Wastage Report", roles: ["admin", "operator"], permission: "reports.stock" },
       { href: "/reports/closing-stock", label: "Closing Stock", roles: ["admin", "operator"], permission: "reports.closing_stock" },
       { href: "/reports/profit-loss", label: "Profit & Loss", roles: ["admin"], permission: "reports.profit_loss" },
       { href: "/reports/balance-sheet", label: "Balance Sheet", roles: ["admin"], permission: "reports.balance_sheet" },

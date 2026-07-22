@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useMemo } from "react";
+import { useState, useTransition, useMemo, useEffect } from "react";
 import { showSuccess } from "@/lib/toast";
 import { saveOffsetProduction } from "@/app/(app)/_actions";
 import { Button } from "@/components/ui/button";
@@ -60,6 +60,7 @@ interface OffsetProductionFormProps {
   offsetProducts: OffsetProduct[];
   onSuccess?: (newRollInfo: { rollId: string; weight: number }) => void;
   rows?: any[];
+  prefillData?: { offsetType: string; fabricTypeId: string; offsetProductId: string } | null;
 }
 
 export function OffsetProductionForm({
@@ -68,12 +69,21 @@ export function OffsetProductionForm({
   offsetProducts,
   onSuccess,
   rows,
+  prefillData,
 }: OffsetProductionFormProps) {
   const [isPending, startTransition] = useTransition();
   const [offsetType, setOffsetType] = useState<string>("");
   const [selectedFabricTypeId, setSelectedFabricTypeId] = useState<string>("");
   const [selectedLamRollId, setSelectedLamRollId] = useState<string>("");
   const [selectedBrandId, setSelectedBrandId] = useState<string>("");
+
+  useEffect(() => {
+    if (prefillData) {
+      setOffsetType(prefillData.offsetType || "");
+      setSelectedFabricTypeId(prefillData.fabricTypeId || "");
+      setSelectedBrandId(prefillData.offsetProductId || "");
+    }
+  }, [prefillData]);
   const [weightKg, setWeightKg] = useState<string>("");
   const [entryDate, setEntryDate] = useState<string>(
     new Date().toLocaleDateString("en-CA")

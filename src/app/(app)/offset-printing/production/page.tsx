@@ -1,13 +1,7 @@
 import { requirePermission } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/app/page-header";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { EmptyState } from "@/components/ui/empty-state";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { OffsetProductionForm } from "@/components/app/offset-production-form";
-import { deleteOffsetProduction } from "@/app/(app)/_actions";
-import { ConfirmSubmitButton } from "@/components/app/confirm-submit-button";
-import { formatDate } from "@/lib/utils";
+import { OffsetProductionClient } from "./OffsetProductionClient";
 
 export default async function OffsetPrintingProductionPage() {
   await requirePermission("offset_printing.production");
@@ -25,6 +19,7 @@ export default async function OffsetPrintingProductionPage() {
     { data: activeOffsetProducts },
     { data: todayOffsetEntries },
     { data: availableRolls },
+    pendingOrdersRes,
   ] = await Promise.all([
     supabase
       .from("fabric_types")
@@ -40,7 +35,7 @@ export default async function OffsetPrintingProductionPage() {
       .order("roll_id"),
     supabase
       .from("offset_products")
-      .select("id, brand")
+      .select("id, brand, width, height")
       .eq("status", "active")
       .order("brand"),
     supabase
@@ -54,18 +49,66 @@ export default async function OffsetPrintingProductionPage() {
       .select("fabric_type_id")
       .eq("status", "available")
       .is("deleted_at", null),
+    supabase
+      .from("sales_orders")
+      .select(`
+        id,
+        order_number,
+        order_date,
+        priority,
+        customers(customer_name, alias),
+        sales_order_items(id, department, quantity, fabric_type_id, roto_product_id, offset_product_id, film_type, is_metallic, lamination_type, offset_type)
+      `)
+      .eq("status", "draft")
+      .is("deleted_at", null)
+      .order("order_date", { ascending: true })
   ]);
 
   const availableFabricTypeIds = Array.from(
     new Set((availableRolls ?? []).map((r: any) => r.fabric_type_id).filter(Boolean))
   );
 
-  const fabricTypes = ((activeFabricTypes ?? []) as any[]).filter((t) =>
+  const rawFabricTypes = (activeFabricTypes ?? []) as any[];
+  const fabricTypes = rawFabricTypes.filter((t) =>
     availableFabricTypeIds.includes(t.id)
   );
   const laminationRolls = (activeLamRolls ?? []) as any[];
   const offsetProducts = (activeOffsetProducts ?? []) as any[];
   const offsetRows = (todayOffsetEntries ?? []) as any[];
+
+  // Flatten pending order items for offset
+  const rawOrders = (pendingOrdersRes.data ?? []) as any[];
+  const pendingOrders: any[] = [];
+  for (const order of rawOrders) {
+    const cust = order.customers;
+    const customerName = cust ? (cust.alias || cust.customer_name) : "General";
+    for (const item of (order.sales_order_items ?? [])) {
+      if (item.department === "offset-printing") {
+        const fab = rawFabricTypes.find(f => f.id === item.fabric_type_id);
+        const prod = offsetProducts.find(p => p.id === item.offset_product_id);
+        
+        pendingOrders.push({
+          id: item.id,
+          sales_order_id: order.id,
+          order_number: order.order_number,
+          order_date: order.order_date,
+          priority: Number(order.priority ?? 0),
+          customerName,
+          department: item.department,
+          quantity: Number(item.quantity ?? 0),
+          fabricTypeId: item.fabric_type_id,
+          fabricName: fab?.fabric_name ?? "Fabric",
+          fabricWidth: fab?.width,
+          offsetProductId: item.offset_product_id,
+          offsetBrand: prod?.brand ?? "Offset Product",
+          offsetWidth: prod?.width,
+          offsetHeight: prod?.height,
+          offset_type: item.offset_type,
+          raw_item: item,
+        });
+      }
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -74,62 +117,13 @@ export default async function OffsetPrintingProductionPage() {
         description="Log offset printing output using a fabric type, laminated NW/Plain roll, or raw NW material."
       />
 
-      <Card className="mb-5">
-        <CardHeader>
-          <CardTitle>Submit Offset Production</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <OffsetProductionForm
-            fabricTypes={fabricTypes}
-            laminationRolls={laminationRolls}
-            offsetProducts={offsetProducts}
-            rows={offsetRows}
-          />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Recent Offset Production Entries</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {offsetRows.length === 0 ? (
-            <EmptyState title="No entries found" description="Offset rolls produced will appear here." />
-          ) : (
-            <div className="overflow-x-auto rounded-lg border border-slate-100">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-slate-50/50">
-                    <TableHead>Offset Roll ID</TableHead>
-                    <TableHead className="text-right">KGs</TableHead>
-                    <TableHead className="text-center">Action</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {offsetRows.map((row) => (
-                    <TableRow key={row.id}>
-                      <TableCell className="font-mono font-bold text-emerald-950">{row.roll_id}</TableCell>
-                      <TableCell className="text-right font-mono">{row.weight_kg}</TableCell>
-                      <TableCell className="text-center">
-                        <form action={deleteOffsetProduction.bind(null, row.id)}>
-                          <ConfirmSubmitButton
-                            size="sm"
-                            variant="destructive"
-                            confirmTitle="Delete offset production entry?"
-                            confirmDescription="This will delete this roll and revert any source laminated roll back to available stock."
-                          >
-                            Delete
-                          </ConfirmSubmitButton>
-                        </form>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      <OffsetProductionClient
+        fabricTypes={fabricTypes}
+        laminationRolls={laminationRolls}
+        offsetProducts={offsetProducts}
+        offsetRows={offsetRows}
+        pendingOrders={pendingOrders}
+      />
     </div>
   );
 }
