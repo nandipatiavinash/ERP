@@ -21,7 +21,7 @@ export type ClientOrderItemPayload = {
   offsetType?: string | null;
 };
 
-export async function createClientOrder(items: ClientOrderItemPayload[]) {
+export async function createClientOrder(items: ClientOrderItemPayload[], targetCustomerId?: string | null) {
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -43,6 +43,30 @@ export async function createClientOrder(items: ClientOrderItemPayload[]) {
       throw new Error("Your account is not linked to a customer firm. Please contact your administrator.");
     }
 
+    let finalCustomerId = dbUser.customer_id;
+    if (targetCustomerId && targetCustomerId !== dbUser.customer_id) {
+      // Validate sibling/parent association
+      const { data: sibling } = await (supabase.from("customers") as any)
+        .select("id, linked_customer_id")
+        .eq("id", targetCustomerId)
+        .maybeSingle();
+
+      const { data: primaryCust } = await (supabase.from("customers") as any)
+        .select("id, linked_customer_id")
+        .eq("id", dbUser.customer_id)
+        .maybeSingle();
+
+      const isLinkMatch =
+        sibling?.linked_customer_id === dbUser.customer_id ||
+        (sibling?.linked_customer_id && sibling?.linked_customer_id === primaryCust?.linked_customer_id) ||
+        sibling?.id === primaryCust?.linked_customer_id;
+
+      if (!isLinkMatch) {
+        throw new Error("Unauthorized to place order for this firm.");
+      }
+      finalCustomerId = targetCustomerId;
+    }
+
     const admin = createAdminClient();
 
     // Generate order number
@@ -54,7 +78,7 @@ export async function createClientOrder(items: ClientOrderItemPayload[]) {
       .from("client_orders") as any)
       .insert({
         order_number: orderNumber,
-        customer_id: dbUser.customer_id,
+        customer_id: finalCustomerId,
         order_date: new Date().toISOString().split("T")[0],
         status: "pending",
         created_by: user.id,

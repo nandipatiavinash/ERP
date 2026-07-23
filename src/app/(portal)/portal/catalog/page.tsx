@@ -13,6 +13,37 @@ export default async function PortalCatalogPage() {
   const customerId = (user as any).customer_id;
   const supabase = await createClient();
 
+  // Fetch all associated customer IDs and names
+  const customerIds = [customerId].filter(Boolean);
+  let associatedFirms: Array<{ id: string; customer_name: string }> = [];
+
+  if (customerId) {
+    const { data: primaryCust } = await (supabase
+      .from("customers") as any)
+      .select("id, customer_name, linked_customer_id")
+      .eq("id", customerId)
+      .single();
+
+    if (primaryCust) {
+      associatedFirms.push({ id: primaryCust.id, customer_name: primaryCust.customer_name });
+
+      const parentId = primaryCust.linked_customer_id;
+      const { data: siblings } = await (supabase
+        .from("customers") as any)
+        .select("id, customer_name")
+        .or(`linked_customer_id.eq.${customerId}${parentId ? `,linked_customer_id.eq.${parentId},id.eq.${parentId}` : ""}`);
+
+      if (siblings) {
+        siblings.forEach((s: any) => {
+          if (!customerIds.includes(s.id)) {
+            customerIds.push(s.id);
+            associatedFirms.push({ id: s.id, customer_name: s.customer_name });
+          }
+        });
+      }
+    }
+  }
+
   // Fetch fabric types: show general ones (customer_id IS NULL) + their own brand
   const fabricQuery = supabase
     .from("fabric_types")
@@ -36,14 +67,14 @@ export default async function PortalCatalogPage() {
     supabase.from("offset_products").select("id, brand, status").eq("status", "active"),
   ]);
 
-  // Filter: show general (no customer) OR matching the client's customer_id
+  // Filter: show general (no customer) OR matching any of the client's customer IDs
   const filterProducts = (products: any[]) => {
     if (!products) return [];
     // Admin sees all
     if (user.roles?.name === "admin") return products;
-    // Client sees: general + their own brand
+    // Client sees: general + associated brand products
     return products.filter(
-      (p) => p.customer_id === null || p.customer_id === customerId
+      (p) => p.customer_id === null || customerIds.includes(p.customer_id)
     );
   };
 
@@ -88,6 +119,7 @@ export default async function PortalCatalogPage() {
             rotoProducts={rotoProds ?? []}
             offsetProducts={offsetProds ?? []}
             customerId={customerId ?? null}
+            associatedFirms={associatedFirms}
           />
         )}
       </main>

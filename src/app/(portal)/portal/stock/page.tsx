@@ -14,15 +14,35 @@ export default async function PortalStockPage() {
   const customerId = (user as any).customer_id;
   const supabase = await createClient();
 
-  // Fetch customer details
+  // Fetch all associated customer IDs
+  const customerIds = [customerId].filter(Boolean);
   let customerName = "Your Account";
+  let associatedFirmsCount = 0;
+
   if (customerId) {
-    const { data: cust } = await (supabase.from("customers") as any)
-      .select("customer_name, alias")
+    const { data: primaryCust } = await (supabase
+      .from("customers") as any)
+      .select("id, customer_name, linked_customer_id")
       .eq("id", customerId)
       .single();
-    if (cust) {
-      customerName = cust.customer_name;
+
+    if (primaryCust) {
+      customerName = primaryCust.customer_name;
+
+      const parentId = primaryCust.linked_customer_id;
+      const { data: siblings } = await (supabase
+        .from("customers") as any)
+        .select("id")
+        .or(`linked_customer_id.eq.${customerId}${parentId ? `,linked_customer_id.eq.${parentId},id.eq.${parentId}` : ""}`);
+
+      if (siblings) {
+        siblings.forEach((s: any) => {
+          if (!customerIds.includes(s.id)) {
+            customerIds.push(s.id);
+            associatedFirmsCount++;
+          }
+        });
+      }
     }
   } else if (user.roles?.name === "admin") {
     customerName = "Admin Preview Mode";
@@ -65,24 +85,24 @@ export default async function PortalStockPage() {
     }
   });
 
-  // Filter: show general (no customer) OR matching the client's customer_id
+  // Filter: show general (no customer) OR matching any of the client's customer IDs
   const filterFabrics = (fabrics: any[]) => {
     if (!fabrics) return [];
     if (user.roles?.name === "admin") return fabrics;
-    return fabrics.filter((p) => p.customer_id === null || p.customer_id === customerId);
+    return fabrics.filter((p) => p.customer_id === null || customerIds.includes(p.customer_id));
   };
 
   const filterFinishing = (products: any[]) => {
     if (!products) return [];
     if (user.roles?.name === "admin") return products;
-    return products.filter((p) => p.customer_id === null || p.customer_id === customerId);
+    return products.filter((p) => p.customer_id === null || customerIds.includes(p.customer_id));
   };
 
   const fabricTypes = filterFabrics(allFabrics ?? []);
   const finishingProducts = filterFinishing(allFinishing ?? []);
 
-  // Split bags by own brand vs general brand
-  const ownBrandBags = finishingProducts.filter((p) => p.customer_id === customerId);
+  // Split bags by own brand (includes associate brands) vs general brand
+  const ownBrandBags = finishingProducts.filter((p) => p.customer_id !== null);
   const generalBrandBags = finishingProducts.filter((p) => p.customer_id === null);
 
   return (
@@ -115,7 +135,14 @@ export default async function PortalStockPage() {
         <div className="bg-slate-900 text-white rounded-2xl p-6 md:p-8 shadow-md relative overflow-hidden">
           <div className="relative z-10 space-y-2">
             <p className="text-emerald-400 text-xs font-bold uppercase tracking-widest">Welcome</p>
-            <h2 className="text-xl md:text-3xl font-black font-sans">{customerName}</h2>
+            <h2 className="text-xl md:text-3xl font-black font-sans">
+              {customerName}
+              {associatedFirmsCount > 0 && (
+                <span className="text-[10px] sm:text-xs font-bold bg-emerald-500/20 text-emerald-350 border border-emerald-500/35 px-2 py-0.5 rounded-full inline-block ml-3 align-middle uppercase tracking-widest">
+                  &amp; {associatedFirmsCount} Associated Firms
+                </span>
+              )}
+            </h2>
             <p className="text-slate-400 text-xs md:text-sm max-w-xl">
               Verify your active Fabric rolls catalog and view your available Bag stocks.
             </p>

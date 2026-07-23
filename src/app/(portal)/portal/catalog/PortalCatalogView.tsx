@@ -68,6 +68,7 @@ type Props = {
   rotoProducts: RotoProduct[];
   offsetProducts: OffsetProduct[];
   customerId: string | null;
+  associatedFirms?: Array<{ id: string; customer_name: string }>;
 };
 
 function ProductCard({
@@ -128,7 +129,7 @@ function ProductCard({
   );
 }
 
-export function PortalCatalogView({ fabricTypes, finishingProducts, rotoProducts, offsetProducts, customerId }: Props) {
+export function PortalCatalogView({ fabricTypes, finishingProducts, rotoProducts, offsetProducts, customerId, associatedFirms = [] }: Props) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
@@ -137,6 +138,7 @@ export function PortalCatalogView({ fabricTypes, finishingProducts, rotoProducts
   const [cart, setCart] = useState<CartItem[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
   const [status, setStatus] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const [selectedFirmId, setSelectedFirmId] = useState(customerId || "");
 
   const allProducts = useMemo(() => {
     const list: Array<{
@@ -271,7 +273,7 @@ export function PortalCatalogView({ fabricTypes, finishingProducts, rotoProducts
           laminationType: c.laminationType,
           offsetType: c.offsetType,
         }));
-        const result = await createClientOrder(items);
+        const result = await createClientOrder(items, selectedFirmId);
         if (result && !result.success) {
           setStatus({ type: "error", message: result.error || "Failed to place order." });
           return;
@@ -594,6 +596,24 @@ export function PortalCatalogView({ fabricTypes, finishingProducts, rotoProducts
                   <div className="flex items-center justify-between text-xs">
                     <span className="text-slate-400 font-bold uppercase tracking-wider">Est. Total</span>
                     <span className="text-slate-900 font-extrabold text-base">₹{cartTotal.toLocaleString("en-IN", { minimumFractionDigits: 2 })}</span>
+                  </div>
+                )}
+                {associatedFirms.length > 1 && (
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest block">
+                      Order On Behalf Of Firm
+                    </label>
+                    <select
+                      value={selectedFirmId}
+                      onChange={(e) => setSelectedFirmId(e.target.value)}
+                      className="w-full h-9 rounded-xl border border-slate-200 bg-white text-slate-800 px-3 text-xs focus:outline-none focus:border-slate-400 transition-all font-semibold"
+                    >
+                      {associatedFirms.map((firm) => (
+                        <option key={firm.id} value={firm.id}>
+                          {firm.customer_name}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 )}
                 <button
