@@ -949,28 +949,36 @@ export async function saveSalesConfirmationRates(
       const parent = parentData as any;
 
       if (parent) {
+        const { data: salesAcData } = await (supabase
+          .from("customers") as any)
+          .select("id, customer_name")
+          .ilike("customer_name", "Sales A/c")
+          .is("deleted_at", null)
+          .maybeSingle();
+        const salesAc = salesAcData as any;
+
         const journalNo = await generateNextJournalNo(supabase);
         const journalInserts = [];
         const absDiff = Math.abs(balance);
 
         if (balance > 0) {
-          // Debit Client (increase owes), Credit Parent (Reference Account)
+          // Debit Reference Account (Parent), Credit Sales A/c
           journalInserts.push({
             journal_no: journalNo,
             entry_date: order.order_date ?? todayInIndia(),
-            account_id: customerId,
-            account_name: order.customers?.customer_name ?? "Unknown",
+            account_id: parent.id,
+            account_name: parent.customer_name,
             entry_type: "debit" as const,
             amount: absDiff,
-            description: `Balance adjustment for Dispatch ${order.order_number}${billSuffix}`,
+            description: `Balance adjustment for Dispatch ${order.order_number}${billSuffix} (${order.customers?.customer_name ?? "Unknown"})`,
             created_by: user.id,
             updated_by: user.id,
           });
           journalInserts.push({
             journal_no: journalNo,
             entry_date: order.order_date ?? todayInIndia(),
-            account_id: parent.id,
-            account_name: parent.customer_name,
+            account_id: salesAc?.id ?? null,
+            account_name: salesAc?.customer_name ?? "Sales A/c",
             entry_type: "credit" as const,
             amount: absDiff,
             description: `Balance adjustment for Dispatch ${order.order_number}${billSuffix} (${order.customers?.customer_name ?? "Unknown"})`,
@@ -978,12 +986,12 @@ export async function saveSalesConfirmationRates(
             updated_by: user.id,
           });
         } else {
-          // Debit Parent (Reference Account), Credit Client (decrease owes)
+          // Debit Sales A/c, Credit Reference Account (Parent)
           journalInserts.push({
             journal_no: journalNo,
             entry_date: order.order_date ?? todayInIndia(),
-            account_id: parent.id,
-            account_name: parent.customer_name,
+            account_id: salesAc?.id ?? null,
+            account_name: salesAc?.customer_name ?? "Sales A/c",
             entry_type: "debit" as const,
             amount: absDiff,
             description: `Balance adjustment for Dispatch ${order.order_number}${billSuffix} (${order.customers?.customer_name ?? "Unknown"})`,
@@ -993,11 +1001,11 @@ export async function saveSalesConfirmationRates(
           journalInserts.push({
             journal_no: journalNo,
             entry_date: order.order_date ?? todayInIndia(),
-            account_id: customerId,
-            account_name: order.customers?.customer_name ?? "Unknown",
+            account_id: parent.id,
+            account_name: parent.customer_name,
             entry_type: "credit" as const,
             amount: absDiff,
-            description: `Balance adjustment for Dispatch ${order.order_number}${billSuffix}`,
+            description: `Balance adjustment for Dispatch ${order.order_number}${billSuffix} (${order.customers?.customer_name ?? "Unknown"})`,
             created_by: user.id,
             updated_by: user.id,
           });
