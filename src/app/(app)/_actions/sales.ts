@@ -927,12 +927,13 @@ export async function saveSalesConfirmationRates(
   const calculatedTotal = baseTotal + (baseTotal * gstRate / 100);
   const combinedBillValue = siblingOrders.reduce((sum, o) => sum + Number(o.bill_value ?? 0), 0);
   const balance = calculatedTotal - combinedBillValue;
+  const billSuffix = order.bill_number ? ` (Bill ${order.bill_number})` : "";
 
   // Clear existing balance adjustment entries for this dispatch
   await (supabase
     .from("accounts_journal") as any)
     .delete()
-    .or(`description.eq."Balance adjustment for Dispatch ${order.order_number}",description.like."Balance adjustment for Dispatch ${order.order_number} (%)"`);
+    .or(`description.eq."Balance adjustment for Dispatch ${order.order_number}",description.like."Balance adjustment for Dispatch ${order.order_number} %"`);
 
   const linkedCustomerId = order.customers?.linked_customer_id;
 
@@ -961,7 +962,7 @@ export async function saveSalesConfirmationRates(
             account_name: order.customers?.customer_name ?? "Unknown",
             entry_type: "debit" as const,
             amount: absDiff,
-            description: `Balance adjustment for Dispatch ${order.order_number}`,
+            description: `Balance adjustment for Dispatch ${order.order_number}${billSuffix}`,
             created_by: user.id,
             updated_by: user.id,
           });
@@ -972,7 +973,7 @@ export async function saveSalesConfirmationRates(
             account_name: parent.customer_name,
             entry_type: "credit" as const,
             amount: absDiff,
-            description: `Balance adjustment for Dispatch ${order.order_number} (${order.customers?.customer_name ?? "Unknown"})`,
+            description: `Balance adjustment for Dispatch ${order.order_number}${billSuffix} (${order.customers?.customer_name ?? "Unknown"})`,
             created_by: user.id,
             updated_by: user.id,
           });
@@ -985,7 +986,7 @@ export async function saveSalesConfirmationRates(
             account_name: parent.customer_name,
             entry_type: "debit" as const,
             amount: absDiff,
-            description: `Balance adjustment for Dispatch ${order.order_number} (${order.customers?.customer_name ?? "Unknown"})`,
+            description: `Balance adjustment for Dispatch ${order.order_number}${billSuffix} (${order.customers?.customer_name ?? "Unknown"})`,
             created_by: user.id,
             updated_by: user.id,
           });
@@ -996,7 +997,7 @@ export async function saveSalesConfirmationRates(
             account_name: order.customers?.customer_name ?? "Unknown",
             entry_type: "credit" as const,
             amount: absDiff,
-            description: `Balance adjustment for Dispatch ${order.order_number}`,
+            description: `Balance adjustment for Dispatch ${order.order_number}${billSuffix}`,
             created_by: user.id,
             updated_by: user.id,
           });
@@ -1029,7 +1030,7 @@ export async function saveSalesConfirmationRates(
           account_name: order.customers?.customer_name ?? "Unknown",
           entry_type: "debit" as const,
           amount: absBalance,
-          description: `Balance adjustment for Dispatch ${order.order_number}`,
+          description: `Balance adjustment for Dispatch ${order.order_number}${billSuffix}`,
           created_by: user.id,
           updated_by: user.id,
         });
@@ -1040,7 +1041,7 @@ export async function saveSalesConfirmationRates(
           account_name: salesAc?.customer_name ?? "Sales A/c",
           entry_type: "credit" as const,
           amount: absBalance,
-          description: `Balance adjustment for Dispatch ${order.order_number} (${order.customers?.customer_name ?? "Unknown"})`,
+          description: `Balance adjustment for Dispatch ${order.order_number}${billSuffix} (${order.customers?.customer_name ?? "Unknown"})`,
           created_by: user.id,
           updated_by: user.id,
         });
@@ -1052,7 +1053,7 @@ export async function saveSalesConfirmationRates(
           account_name: salesAc?.customer_name ?? "Sales A/c",
           entry_type: "debit" as const,
           amount: absBalance,
-          description: `Balance adjustment for Dispatch ${order.order_number} (${order.customers?.customer_name ?? "Unknown"})`,
+          description: `Balance adjustment for Dispatch ${order.order_number}${billSuffix} (${order.customers?.customer_name ?? "Unknown"})`,
           created_by: user.id,
           updated_by: user.id,
         });
@@ -1063,7 +1064,7 @@ export async function saveSalesConfirmationRates(
           account_name: order.customers?.customer_name ?? "Unknown",
           entry_type: "credit" as const,
           amount: absBalance,
-          description: `Balance adjustment for Dispatch ${order.order_number}`,
+          description: `Balance adjustment for Dispatch ${order.order_number}${billSuffix}`,
           created_by: user.id,
           updated_by: user.id,
         });
