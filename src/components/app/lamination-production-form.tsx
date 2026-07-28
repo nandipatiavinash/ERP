@@ -55,12 +55,37 @@ export function LaminationProductionForm({
     }
   }, [prefillData]);
   const [weightKg, setWeightKg] = useState<string>("");
+  const [grossWeight, setGrossWeight] = useState<string>("");
+  const [coreWeight, setCoreWeight] = useState<string>("");
+  const [netWeight, setNetWeight] = useState<string>("");
   const [meters, setMeters] = useState<string>("");
   const [entryDate, setEntryDate] = useState<string>(
     new Date().toLocaleDateString("en-CA")
   );
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  const handleGrossChange = (val: string) => {
+    setGrossWeight(val);
+    const g = parseFloat(val);
+    const c = parseFloat(coreWeight);
+    if (!isNaN(g) && !isNaN(c)) {
+      const net = String(Math.max(0, Number((g - c).toFixed(2))));
+      setNetWeight(net);
+      setWeightKg(net);
+    }
+  };
+
+  const handleCoreChange = (val: string) => {
+    setCoreWeight(val);
+    const g = parseFloat(grossWeight);
+    const c = parseFloat(val);
+    if (!isNaN(g) && !isNaN(c)) {
+      const net = String(Math.max(0, Number((g - c).toFixed(2))));
+      setNetWeight(net);
+      setWeightKg(net);
+    }
+  };
 
   // Sort fabric types and roto products alphabetically
   const sortedFabricTypes = useMemo(() => {
@@ -141,6 +166,9 @@ export function LaminationProductionForm({
         fd.append("weight_kg", String(w));
         fd.append("meters", String(m));
         fd.append("entry_date", entryDate);
+        if (grossWeight) fd.append("gross_weight", grossWeight);
+        if (coreWeight) fd.append("core_weight", coreWeight);
+        if (netWeight) fd.append("net_weight", netWeight);
 
         await saveLaminationProduction(fd);
         showSuccess("Submitted successfully!");
@@ -155,6 +183,9 @@ export function LaminationProductionForm({
         setSelectedRotoProductId("");
         setWeightKg("");
         setMeters("");
+        setGrossWeight("");
+        setCoreWeight("");
+        setNetWeight("");
       } catch (err: any) {
         if (isRedirectError(err)) throw err;
         setErrorMsg(err.message || "Failed to save.");
@@ -230,21 +261,65 @@ export function LaminationProductionForm({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* KGs */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        {/* Gross Weight */}
+        <div className="space-y-1">
+          <Label htmlFor="gross_weight" className="text-xs font-semibold text-slate-700">Gross Weight (kg) <span className="text-slate-400 font-normal">(Optional)</span></Label>
+          <Input
+            id="gross_weight"
+            type="number"
+            step="0.01"
+            placeholder="Enter Gross Weight"
+            value={grossWeight}
+            onChange={(e) => handleGrossChange(e.target.value)}
+            className="h-10 text-sm border-slate-200"
+          />
+        </div>
+
+        {/* Core Weight */}
+        <div className="space-y-1">
+          <Label htmlFor="core_weight" className="text-xs font-semibold text-slate-700">Core Weight (kg) <span className="text-slate-400 font-normal">(Optional)</span></Label>
+          <Input
+            id="core_weight"
+            type="number"
+            step="0.01"
+            placeholder="Enter Core Weight"
+            value={coreWeight}
+            onChange={(e) => handleCoreChange(e.target.value)}
+            className="h-10 text-sm border-slate-200"
+          />
+        </div>
+
+        {/* Net Weight */}
+        <div className="space-y-1">
+          <Label htmlFor="net_weight" className="text-xs font-semibold text-slate-700">Net Weight (kg) <span className="text-slate-400 font-normal">(Optional)</span></Label>
+          <Input
+            id="net_weight"
+            type="number"
+            step="0.01"
+            placeholder="Enter Net Weight"
+            value={netWeight}
+            onChange={(e) => setNetWeight(e.target.value)}
+            className="h-10 text-sm border-slate-200"
+          />
+        </div>
+
+        {/* Laminated Roll KGs */}
         <div className="space-y-1">
           <Label htmlFor="weight_kg" className="text-xs font-semibold text-slate-700">Laminated Roll KGs</Label>
           <Input
             id="weight_kg"
             type="number"
             step="0.01"
-            placeholder="0.00"
+            placeholder="Enter Laminated Roll KGs"
             value={weightKg}
             onChange={(e) => setWeightKg(e.target.value)}
             className="h-10 text-sm border-slate-200"
           />
         </div>
+      </div>
 
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Meters */}
         <div className="space-y-1">
           <Label htmlFor="meters" className="text-xs font-semibold text-slate-700">Laminated Roll Mtrs</Label>
@@ -252,7 +327,7 @@ export function LaminationProductionForm({
             id="meters"
             type="number"
             step="0.01"
-            placeholder="0.00"
+            placeholder="Enter Laminated Roll Mtrs"
             value={meters}
             onChange={(e) => setMeters(e.target.value)}
             className="h-10 text-sm border-slate-200"

@@ -31,6 +31,9 @@ export async function saveProductPurchase(formData: FormData) {
   const film_types = formData.getAll("film_type").map(String);
   const is_metallics = formData.getAll("is_metallic").map((v) => v === "true");
   const color_ids = formData.getAll("color_id").map(String);
+  const gross_weights = formData.getAll("gross_weight").map((v) => v ? Number(v) : null);
+  const core_weights = formData.getAll("core_weight").map((v) => v ? Number(v) : null);
+  const net_weights = formData.getAll("net_weight").map((v) => v ? Number(v) : null);
 
   if (!purchase_date || !supplier_name || !bill_number) {
     throw new Error("Purchase date, supplier, and bill number are required.");
@@ -289,6 +292,10 @@ export async function saveProductPurchase(formData: FormData) {
         rollId = baseId;
       }
 
+      const grossWeight = gross_weights[i] !== undefined ? gross_weights[i] : null;
+      const coreWeight = core_weights[i] !== undefined ? core_weights[i] : null;
+      const netWeight = net_weights[i] !== undefined ? net_weights[i] : null;
+
       const { data: stockItem, error: stockErr } = await (adminSupabase
         .from("lamination_rolls") as any)
         .insert({
@@ -300,6 +307,9 @@ export async function saveProductPurchase(formData: FormData) {
           film_roll_id: null,
           nw_material_id: null,
           weight_kg: weight,
+          gross_weight: grossWeight,
+          core_weight: coreWeight,
+          net_weight: netWeight ?? (grossWeight && coreWeight ? grossWeight - coreWeight : null),
           meters: qty,
           entry_date: purchase_date,
           status: "available",

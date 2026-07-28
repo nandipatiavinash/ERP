@@ -303,12 +303,23 @@ export async function saveLaminationProduction(formData: FormData) {
   const lamType = String(formData.get("lam_type") ?? "");
   const fabricTypeId = String(formData.get("fabric_type_id") ?? "");
   const rotoProductId = formData.get("roto_product_id") ? String(formData.get("roto_product_id")) : null;
-  const weightKg = Number(formData.get("weight_kg") ?? 0);
+  const rawWeightKg = Number(formData.get("weight_kg") ?? 0);
   const meters = Number(formData.get("meters") ?? 0);
   const entryDate = String(formData.get("entry_date") ?? todayInIndia());
 
+  const grossWeight = formData.get("gross_weight") ? Number(formData.get("gross_weight")) : null;
+  const coreWeight = formData.get("core_weight") ? Number(formData.get("core_weight")) : null;
+  const netWeight = formData.get("net_weight") ? Number(formData.get("net_weight")) : null;
+
+  let weightKg = rawWeightKg;
+  if (netWeight && netWeight > 0) {
+    weightKg = netWeight;
+  } else if (grossWeight && coreWeight && grossWeight >= coreWeight) {
+    weightKg = grossWeight - coreWeight;
+  }
+
   if (!lamType || !fabricTypeId || weightKg <= 0 || meters <= 0) {
-    throw new Error("Invalid parameters.");
+    throw new Error("Invalid parameters. Weight and meters must be positive.");
   }
 
   const supabase = await createClient();
@@ -405,6 +416,9 @@ export async function saveLaminationProduction(formData: FormData) {
       film_roll_id: matchedMetallicRollId,
       nw_material_id: null,
       weight_kg: weightKg,
+      gross_weight: grossWeight,
+      core_weight: coreWeight,
+      net_weight: netWeight ?? (grossWeight && coreWeight ? grossWeight - coreWeight : null),
       meters: meters,
       entry_date: entryDate,
       status: "available",

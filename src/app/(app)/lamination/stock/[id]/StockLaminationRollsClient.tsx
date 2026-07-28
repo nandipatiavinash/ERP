@@ -22,6 +22,9 @@ interface LaminationRoll {
   entry_date: string;
   status: string;
   supplier_roll_id?: string | null;
+  gross_weight?: number | null;
+  core_weight?: number | null;
+  net_weight?: number | null;
 }
 
 interface AllocationInfo {
@@ -157,9 +160,14 @@ export function StockLaminationRollsClient({ rolls, rollAllocationMap, fabricNam
                           {roll.status === "available" && (
                             <span className="text-emerald-600 font-semibold">In Stock</span>
                           )}
-                          {roll.supplier_roll_id && (
-                            <div className="text-[10px] text-slate-500 font-medium">Supplier ID: {roll.supplier_roll_id}</div>
-                          )}
+                           {roll.supplier_roll_id && (
+                             <div className="text-[10px] text-slate-500 font-medium">Supplier ID: {roll.supplier_roll_id}</div>
+                           )}
+                           {roll.gross_weight !== undefined && roll.gross_weight !== null && (
+                             <div className="text-[10px] text-slate-500 font-medium mt-0.5">
+                               Gross: {formatNumber(roll.gross_weight, 2)}kg | Core: {formatNumber(roll.core_weight ?? 0, 2)}kg | Net: {formatNumber(roll.net_weight ?? 0, 2)}kg
+                             </div>
+                           )}
                         </TableCell>
                       </TableRow>
                     );

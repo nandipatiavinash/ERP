@@ -38,6 +38,9 @@ type PurchaseItemRow = {
   colorLabel: string;
   sourceRollLabel: string;
   supplierRollId: string;
+  grossWeight?: number;
+  coreWeight?: number;
+  netWeight?: number;
 };
 
 export function ProductPurchaseForm({
@@ -78,6 +81,31 @@ export function ProductPurchaseForm({
   const [quantity, setQuantity] = useState("");
   const [weight, setWeight] = useState("");
   const [supplierRollId, setSupplierRollId] = useState("");
+  const [grossWeight, setGrossWeight] = useState("");
+  const [coreWeight, setCoreWeight] = useState("");
+  const [netWeight, setNetWeight] = useState("");
+
+  const handleGrossChange = (val: string) => {
+    setGrossWeight(val);
+    const g = parseFloat(val);
+    const c = parseFloat(coreWeight);
+    if (!isNaN(g) && !isNaN(c)) {
+      const net = String(Math.max(0, Number((g - c).toFixed(2))));
+      setNetWeight(net);
+      setWeight(net);
+    }
+  };
+
+  const handleCoreChange = (val: string) => {
+    setCoreWeight(val);
+    const g = parseFloat(grossWeight);
+    const c = parseFloat(val);
+    if (!isNaN(g) && !isNaN(c)) {
+      const net = String(Math.max(0, Number((g - c).toFixed(2))));
+      setNetWeight(net);
+      setWeight(net);
+    }
+  };
 
   // Manual total bill value
   const [manualBillValue, setManualBillValue] = useState("");
@@ -115,6 +143,9 @@ export function ProductPurchaseForm({
     setIsMetallic(false);
     setColorId("");
     setSourceType("fabric");
+    setGrossWeight("");
+    setCoreWeight("");
+    setNetWeight("");
   };
 
   const handleSourceRollChange = (rollIdVal: string) => {
@@ -239,6 +270,9 @@ export function ProductPurchaseForm({
       colorLabel,
       sourceRollLabel,
       supplierRollId: ["lamination", "offset-printing", "roto-printing", "finishing"].includes(department) ? supplierRollId.trim() : "",
+      grossWeight: department === "lamination" && grossWeight ? Number(grossWeight) : undefined,
+      coreWeight: department === "lamination" && coreWeight ? Number(coreWeight) : undefined,
+      netWeight: department === "lamination" && netWeight ? Number(netWeight) : undefined,
     };
 
     setItems((prev) => [...prev, newRow]);
@@ -253,6 +287,9 @@ export function ProductPurchaseForm({
     setFilmType("gloss");
     setIsMetallic(false);
     setColorId("");
+    setGrossWeight("");
+    setCoreWeight("");
+    setNetWeight("");
   };
 
   const handleRemoveItem = (key: string) => {
@@ -292,6 +329,9 @@ export function ProductPurchaseForm({
         formData.append("film_type", item.filmType);
         formData.append("is_metallic", String(item.isMetallic));
         formData.append("color_id", item.colorId);
+        formData.append("gross_weight", item.grossWeight ? String(item.grossWeight) : "");
+        formData.append("core_weight", item.coreWeight ? String(item.coreWeight) : "");
+        formData.append("net_weight", item.netWeight ? String(item.netWeight) : "");
       });
 
       const result = await saveProductPurchase(formData);
@@ -485,67 +525,85 @@ export function ProductPurchaseForm({
           )}
 
           {showLaminationFields && (
-            <div className="grid grid-cols-3 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-[10px] font-bold text-slate-600">Lamination Type</Label>
-                <select value={laminationType} onChange={(e) => setLaminationType(e.target.value)} className="w-full h-8 text-[11px] border border-slate-200 rounded bg-white px-2 py-0.5 focus:outline-none font-semibold">
-                  <option value="PLAIN">PLAIN</option>
-                  <option value="NW">NW</option>
-                  <option value="LAMINATED">LAMINATED</option>
-                  <option value="BOX">BOX</option>
-                  <option value="F_S">F_S</option>
-                  <option value="H_S">H_S</option>
-                </select>
+            <div className="space-y-3">
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] font-bold text-slate-600">Lamination Type</Label>
+                  <select value={laminationType} onChange={(e) => setLaminationType(e.target.value)} className="w-full h-8 text-[11px] border border-slate-200 rounded bg-white px-2 py-0.5 focus:outline-none font-semibold">
+                    <option value="PLAIN">PLAIN</option>
+                    <option value="NW">NW</option>
+                    <option value="LAMINATED">LAMINATED</option>
+                    <option value="BOX">BOX</option>
+                    <option value="F_S">F_S</option>
+                    <option value="H_S">H_S</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] font-bold text-slate-600">Fabric Specification</Label>
+                  <select
+                    value={fabricTypeId}
+                    onChange={(e) => setFabricTypeId(e.target.value)}
+                    className="w-full h-8 text-[11px] border border-slate-200 rounded bg-white px-2 py-0.5 focus:outline-none font-semibold"
+                  >
+                    <option value="">Select FabricSpec...</option>
+                    {fabricTypes.map((fab) => (
+                      <option key={fab.id} value={fab.id}>{fab.fabric_name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  {["BOX", "F_S", "H_S"].includes(laminationType) ? (
+                    <>
+                      <Label className="text-[10px] font-bold text-slate-600">Brand / Design (Roto Spec)</Label>
+                      <select
+                        value={brandProductId}
+                        onChange={(e) => setBrandProductId(e.target.value)}
+                        className="w-full h-8 text-[11px] border border-slate-200 rounded bg-white px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-semibold"
+                      >
+                        <option value="">Select Brand...</option>
+                        {activeBrandsCatalog.map((prod) => (
+                          <option key={prod.id} value={prod.id}>{prod.brand}</option>
+                        ))}
+                      </select>
+                    </>
+                  ) : (
+                    <div className="h-full bg-slate-50 border border-dashed border-slate-200 rounded flex items-center justify-center text-[10px] text-slate-400 font-medium p-2">
+                      No brand spec required
+                    </div>
+                  )}
+                </div>
               </div>
 
-              <div className="space-y-1.5">
-                <Label className="text-[10px] font-bold text-slate-600">Fabric Specification</Label>
-                <select
-                  value={fabricTypeId}
-                  onChange={(e) => setFabricTypeId(e.target.value)}
-                  className="w-full h-8 text-[11px] border border-slate-200 rounded bg-white px-2 py-0.5 focus:outline-none font-semibold"
-                >
-                  <option value="">Select FabricSpec...</option>
-                  {fabricTypes.map((fab) => (
-                    <option key={fab.id} value={fab.id}>{fab.fabric_name}</option>
-                  ))}
-                </select>
+              <div className="grid grid-cols-4 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] font-bold text-slate-600">Gross Weight (Optional)</Label>
+                  <Input type="number" min="0" max="999999" step="0.1" placeholder="Enter Gross Weight" value={grossWeight} onChange={(e) => handleGrossChange(e.target.value)} className="h-8 text-xs font-semibold w-full font-mono" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] font-bold text-slate-600">Core Weight (Optional)</Label>
+                  <Input type="number" min="0" max="999999" step="0.1" placeholder="Enter Core Weight" value={coreWeight} onChange={(e) => handleCoreChange(e.target.value)} className="h-8 text-xs font-semibold w-full font-mono" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] font-bold text-slate-600">Net Weight (Optional)</Label>
+                  <Input type="number" min="0" max="999999" step="0.1" placeholder="Enter Net Weight" value={netWeight} onChange={(e) => setNetWeight(e.target.value)} className="h-8 text-xs font-semibold w-full font-mono" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] font-bold text-slate-600">Quantity (Meters)</Label>
+                  <Input type="number" min="0" max="999999" placeholder="Enter Quantity" value={quantity} onChange={(e) => setQuantity(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
+                </div>
               </div>
 
-              <div className="space-y-1.5">
-                {["BOX", "F_S", "H_S"].includes(laminationType) ? (
-                  <>
-                    <Label className="text-[10px] font-bold text-slate-600">Brand / Design (Roto Spec)</Label>
-                    <select
-                      value={brandProductId}
-                      onChange={(e) => setBrandProductId(e.target.value)}
-                      className="w-full h-8 text-[11px] border border-slate-200 rounded bg-white px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-semibold"
-                    >
-                      <option value="">Select Brand...</option>
-                      {activeBrandsCatalog.map((prod) => (
-                        <option key={prod.id} value={prod.id}>{prod.brand}</option>
-                      ))}
-                    </select>
-                  </>
-                ) : (
-                  <div className="h-full bg-slate-50 border border-dashed border-slate-200 rounded flex items-center justify-center text-[10px] text-slate-400 font-medium p-2">
-                    No brand spec required
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1.5 col-span-1">
+                  <Label className="text-[10px] font-bold text-slate-600">Total/Net Weight (KG)</Label>
+                  <div className="flex gap-2">
+                    <Input type="number" min="0" max="999999" step="0.1" placeholder="Enter Weight" value={weight} onChange={(e) => setWeight(e.target.value)} className="h-8 text-xs font-semibold w-full font-mono" />
+                    <Button type="button" onClick={handleAddItem} className="h-8 text-[10px] bg-slate-800 hover:bg-slate-700 px-3 text-white font-semibold">
+                      <Plus className="w-3.5 h-3.5 mr-1" /> Add
+                    </Button>
                   </div>
-                )}
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-[10px] font-bold text-slate-600">Quantity (Meters)</Label>
-                <Input type="number" min="0" max="999999" placeholder="Enter Quantity" value={quantity} onChange={(e) => setQuantity(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
-              </div>
-
-              <div className="space-y-1.5 col-span-1">
-                <Label className="text-[10px] font-bold text-slate-600">Weight (KG)</Label>
-                <div className="flex gap-2">
-                  <Input type="number" min="0" max="999999" step="0.1" placeholder="Enter Weight" value={weight} onChange={(e) => setWeight(e.target.value)} className="h-8 text-xs font-semibold w-full font-mono" />
-                  <Button type="button" onClick={handleAddItem} className="h-8 text-[10px] bg-slate-800 hover:bg-slate-700 px-3 text-white font-semibold">
-                    <Plus className="w-3.5 h-3.5 mr-1" /> Add
-                  </Button>
                 </div>
               </div>
             </div>
