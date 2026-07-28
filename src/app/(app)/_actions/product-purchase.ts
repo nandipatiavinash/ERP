@@ -33,7 +33,6 @@ export async function saveProductPurchase(formData: FormData) {
   const color_ids = formData.getAll("color_id").map(String);
   const gross_weights = formData.getAll("gross_weight").map((v) => v ? Number(v) : null);
   const core_weights = formData.getAll("core_weight").map((v) => v ? Number(v) : null);
-  const net_weights = formData.getAll("net_weight").map((v) => v ? Number(v) : null);
 
   if (!purchase_date || !supplier_name || !bill_number) {
     throw new Error("Purchase date, supplier, and bill number are required.");
@@ -294,7 +293,6 @@ export async function saveProductPurchase(formData: FormData) {
 
       const grossWeight = gross_weights[i] !== undefined ? gross_weights[i] : null;
       const coreWeight = core_weights[i] !== undefined ? core_weights[i] : null;
-      const netWeight = net_weights[i] !== undefined ? net_weights[i] : null;
 
       const { data: stockItem, error: stockErr } = await (adminSupabase
         .from("lamination_rolls") as any)
@@ -309,7 +307,7 @@ export async function saveProductPurchase(formData: FormData) {
           weight_kg: weight,
           gross_weight: grossWeight,
           core_weight: coreWeight,
-          net_weight: netWeight ?? (grossWeight && coreWeight ? grossWeight - coreWeight : null),
+          net_weight: grossWeight && coreWeight ? Number((grossWeight - coreWeight).toFixed(1)) : null,
           meters: qty,
           entry_date: purchase_date,
           status: "available",

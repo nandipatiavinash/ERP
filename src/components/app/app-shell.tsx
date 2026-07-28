@@ -212,10 +212,6 @@ export function AppShell({
     const addMinAttributeAndValidate = () => {
       document.querySelectorAll('input[type="number"]').forEach((el) => {
         if (el instanceof HTMLInputElement) {
-          const minVal = el.getAttribute("min");
-          if (!minVal || Number(minVal) <= 0) {
-            el.setAttribute("min", "0.00001");
-          }
           validateNumberInput(el);
         }
       });

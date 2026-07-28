@@ -309,13 +309,10 @@ export async function saveLaminationProduction(formData: FormData) {
 
   const grossWeight = formData.get("gross_weight") ? Number(formData.get("gross_weight")) : null;
   const coreWeight = formData.get("core_weight") ? Number(formData.get("core_weight")) : null;
-  const netWeight = formData.get("net_weight") ? Number(formData.get("net_weight")) : null;
 
   let weightKg = rawWeightKg;
-  if (netWeight && netWeight > 0) {
-    weightKg = netWeight;
-  } else if (grossWeight && coreWeight && grossWeight >= coreWeight) {
-    weightKg = grossWeight - coreWeight;
+  if (grossWeight && coreWeight && grossWeight >= coreWeight) {
+    weightKg = Number((grossWeight - coreWeight).toFixed(1));
   }
 
   if (!lamType || !fabricTypeId || weightKg <= 0 || meters <= 0) {
@@ -418,7 +415,7 @@ export async function saveLaminationProduction(formData: FormData) {
       weight_kg: weightKg,
       gross_weight: grossWeight,
       core_weight: coreWeight,
-      net_weight: netWeight ?? (grossWeight && coreWeight ? grossWeight - coreWeight : null),
+      net_weight: grossWeight && coreWeight ? Number((grossWeight - coreWeight).toFixed(1)) : null,
       meters: meters,
       entry_date: entryDate,
       status: "available",

@@ -40,7 +40,6 @@ type PurchaseItemRow = {
   supplierRollId: string;
   grossWeight?: number;
   coreWeight?: number;
-  netWeight?: number;
 };
 
 export function ProductPurchaseForm({
@@ -83,15 +82,13 @@ export function ProductPurchaseForm({
   const [supplierRollId, setSupplierRollId] = useState("");
   const [grossWeight, setGrossWeight] = useState("");
   const [coreWeight, setCoreWeight] = useState("");
-  const [netWeight, setNetWeight] = useState("");
 
   const handleGrossChange = (val: string) => {
     setGrossWeight(val);
     const g = parseFloat(val);
     const c = parseFloat(coreWeight);
     if (!isNaN(g) && !isNaN(c)) {
-      const net = String(Math.max(0, Number((g - c).toFixed(2))));
-      setNetWeight(net);
+      const net = String(Math.max(0, Number((g - c).toFixed(1))));
       setWeight(net);
     }
   };
@@ -101,8 +98,7 @@ export function ProductPurchaseForm({
     const g = parseFloat(grossWeight);
     const c = parseFloat(val);
     if (!isNaN(g) && !isNaN(c)) {
-      const net = String(Math.max(0, Number((g - c).toFixed(2))));
-      setNetWeight(net);
+      const net = String(Math.max(0, Number((g - c).toFixed(1))));
       setWeight(net);
     }
   };
@@ -145,7 +141,6 @@ export function ProductPurchaseForm({
     setSourceType("fabric");
     setGrossWeight("");
     setCoreWeight("");
-    setNetWeight("");
   };
 
   const handleSourceRollChange = (rollIdVal: string) => {
@@ -272,7 +267,6 @@ export function ProductPurchaseForm({
       supplierRollId: ["lamination", "offset-printing", "roto-printing", "finishing"].includes(department) ? supplierRollId.trim() : "",
       grossWeight: department === "lamination" && grossWeight ? Number(grossWeight) : undefined,
       coreWeight: department === "lamination" && coreWeight ? Number(coreWeight) : undefined,
-      netWeight: department === "lamination" && netWeight ? Number(netWeight) : undefined,
     };
 
     setItems((prev) => [...prev, newRow]);
@@ -289,7 +283,6 @@ export function ProductPurchaseForm({
     setColorId("");
     setGrossWeight("");
     setCoreWeight("");
-    setNetWeight("");
   };
 
   const handleRemoveItem = (key: string) => {
@@ -331,7 +324,6 @@ export function ProductPurchaseForm({
         formData.append("color_id", item.colorId);
         formData.append("gross_weight", item.grossWeight ? String(item.grossWeight) : "");
         formData.append("core_weight", item.coreWeight ? String(item.coreWeight) : "");
-        formData.append("net_weight", item.netWeight ? String(item.netWeight) : "");
       });
 
       const result = await saveProductPurchase(formData);
@@ -576,7 +568,7 @@ export function ProductPurchaseForm({
                 </div>
               </div>
 
-              <div className="grid grid-cols-4 gap-3">
+              <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1.5">
                   <Label className="text-[10px] font-bold text-slate-600">Gross Weight (Optional)</Label>
                   <Input type="number" min="0" max="999999" step="0.1" placeholder="Enter Gross Weight" value={grossWeight} onChange={(e) => handleGrossChange(e.target.value)} className="h-8 text-xs font-semibold w-full font-mono" />
@@ -584,10 +576,6 @@ export function ProductPurchaseForm({
                 <div className="space-y-1.5">
                   <Label className="text-[10px] font-bold text-slate-600">Core Weight (Optional)</Label>
                   <Input type="number" min="0" max="999999" step="0.1" placeholder="Enter Core Weight" value={coreWeight} onChange={(e) => handleCoreChange(e.target.value)} className="h-8 text-xs font-semibold w-full font-mono" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-[10px] font-bold text-slate-600">Net Weight (Optional)</Label>
-                  <Input type="number" min="0" max="999999" step="0.1" placeholder="Enter Net Weight" value={netWeight} onChange={(e) => setNetWeight(e.target.value)} className="h-8 text-xs font-semibold w-full font-mono" />
                 </div>
                 <div className="space-y-1.5">
                   <Label className="text-[10px] font-bold text-slate-600">Quantity (Meters)</Label>
