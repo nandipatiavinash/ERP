@@ -350,7 +350,7 @@ export function ProductPurchaseForm({
 
         <div className="space-y-1.5 col-span-1">
           <Label htmlFor="bill_number" className="text-xs font-semibold text-slate-700">Bill Number</Label>
-          <Input id="bill_number" name="bill_number" type="text" placeholder="BP-1234" required className="h-9 text-xs font-semibold font-mono" />
+          <Input id="bill_number" name="bill_number" type="text" placeholder="Enter Bill Number" required className="h-9 text-xs font-semibold font-mono" />
         </div>
 
         <div className="space-y-1.5 col-span-1">
@@ -463,13 +463,13 @@ export function ProductPurchaseForm({
 
                 <div className="space-y-1.5">
                   <Label className="text-[10px] font-bold text-slate-600">Quantity (Meters)</Label>
-                  <Input type="number" min="0" max="999999" placeholder="1000" value={quantity} onChange={(e) => setQuantity(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
+                  <Input type="number" min="0" max="999999" placeholder="Enter Quantity" value={quantity} onChange={(e) => setQuantity(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
                 </div>
 
-                <div className="space-y-1.5 col-span-1">
-                  <Label className="text-[10px] font-bold text-slate-600">Weight (KG)</Label>
+                <div className="space-y-1">
+                  <Label className="text-[10px] font-bold text-slate-500">Weight (kg)</Label>
                   <div className="flex gap-2">
-                    <Input type="number" min="0" max="999999" step="0.1" placeholder="50.0" value={weight} onChange={(e) => setWeight(e.target.value)} className="h-8 text-xs font-semibold w-full font-mono" />
+                    <Input type="number" min="0" max="999999" step="0.1" placeholder="Enter Weight" value={weight} onChange={(e) => setWeight(e.target.value)} className="h-8 text-xs font-semibold w-full font-mono" />
                     <Button type="button" onClick={handleAddItem} className="h-8 text-[10px] bg-slate-800 hover:bg-slate-700 px-3 text-white font-semibold">
                       <Plus className="w-3.5 h-3.5 mr-1" /> Add
                     </Button>
@@ -536,13 +536,13 @@ export function ProductPurchaseForm({
 
               <div className="space-y-1.5">
                 <Label className="text-[10px] font-bold text-slate-600">Quantity (Meters)</Label>
-                <Input type="number" min="0" max="999999" placeholder="1000" value={quantity} onChange={(e) => setQuantity(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
+                <Input type="number" min="0" max="999999" placeholder="Enter Quantity" value={quantity} onChange={(e) => setQuantity(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
               </div>
 
               <div className="space-y-1.5 col-span-1">
                 <Label className="text-[10px] font-bold text-slate-600">Weight (KG)</Label>
                 <div className="flex gap-2">
-                  <Input type="number" min="0" max="999999" step="0.1" placeholder="50.0" value={weight} onChange={(e) => setWeight(e.target.value)} className="h-8 text-xs font-semibold w-full font-mono" />
+                  <Input type="number" min="0" max="999999" step="0.1" placeholder="Enter Weight" value={weight} onChange={(e) => setWeight(e.target.value)} className="h-8 text-xs font-semibold w-full font-mono" />
                   <Button type="button" onClick={handleAddItem} className="h-8 text-[10px] bg-slate-800 hover:bg-slate-700 px-3 text-white font-semibold">
                     <Plus className="w-3.5 h-3.5 mr-1" /> Add
                   </Button>
@@ -593,13 +593,13 @@ export function ProductPurchaseForm({
 
               <div className="space-y-1.5">
                 <Label className="text-[10px] font-bold text-slate-600">Quantity (Meters)</Label>
-                <Input type="number" min="0" max="999999" placeholder="1000" value={quantity} onChange={(e) => setQuantity(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
+                <Input type="number" min="0" max="999999" placeholder="Enter Quantity" value={quantity} onChange={(e) => setQuantity(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
               </div>
 
               <div className="space-y-1.5 col-span-1">
                 <Label className="text-[10px] font-bold text-slate-600">Weight (KG)</Label>
                 <div className="flex gap-2">
-                  <Input type="number" min="0" max="999999" step="0.1" placeholder="50.0" value={weight} onChange={(e) => setWeight(e.target.value)} className="h-8 text-xs font-semibold w-full font-mono" />
+                  <Input type="number" min="0" max="999999" step="0.1" placeholder="Enter Weight" value={weight} onChange={(e) => setWeight(e.target.value)} className="h-8 text-xs font-semibold w-full font-mono" />
                   <Button type="button" onClick={handleAddItem} className="h-8 text-[10px] bg-slate-800 hover:bg-slate-700 px-3 text-white font-semibold">
                     <Plus className="w-3.5 h-3.5 mr-1" /> Add
                   </Button>
@@ -679,13 +679,13 @@ export function ProductPurchaseForm({
 
               <div className="space-y-1.5">
                 <Label className="text-[10px] font-bold text-slate-600">Quantity (Bags)</Label>
-                <Input type="number" min="0" max="999999" placeholder="1000" value={quantity} onChange={(e) => setQuantity(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
+                <Input type="number" min="0" max="999999" placeholder="Enter Quantity" value={quantity} onChange={(e) => setQuantity(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
               </div>
 
               <div className="space-y-1.5 col-span-1">
                 <Label className="text-[10px] font-bold text-slate-600">Weight (KG)</Label>
                 <div className="flex gap-2">
-                  <Input type="number" min="0" max="999999" step="0.1" placeholder="50.0" value={weight} onChange={(e) => setWeight(e.target.value)} className="h-8 text-xs font-semibold w-full font-mono" />
+                  <Input type="number" min="0" max="999999" step="0.1" placeholder="Enter Weight" value={weight} onChange={(e) => setWeight(e.target.value)} className="h-8 text-xs font-semibold w-full font-mono" />
                   <Button type="button" onClick={handleAddItem} className="h-8 text-[10px] bg-slate-800 hover:bg-slate-700 px-3 text-white font-semibold">
                     <Plus className="w-3.5 h-3.5 mr-1" /> Add
                   </Button>

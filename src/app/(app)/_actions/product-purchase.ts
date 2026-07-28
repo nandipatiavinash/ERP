@@ -100,12 +100,12 @@ export async function saveProductPurchase(formData: FormData) {
 
     // --- Insert into appropriate Stock Registers ---
     if (dept === "fabric") {
-      const nextNoRes = await (adminSupabase.rpc("next_year_number", {
-        prefix: "ROLL",
-        table_name: "fabric_rolls",
-        column_name: "roll_number"
-      } as any) as any);
-      const nextNo = nextNoRes.data || "1";
+      const { count } = await adminSupabase
+        .from("fabric_rolls")
+        .select("id", { count: "exact", head: true })
+        .like("roll_number", "E-%")
+        .is("deleted_at", null);
+      const nextNo = (count ?? 0) + 1;
       const rollNumber = `E-${nextNo}`;
 
       const { data: stockItem, error: stockErr } = await (adminSupabase

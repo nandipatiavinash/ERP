@@ -276,9 +276,7 @@ export async function confirmSalesDelivery(
     else if (item.department === "roto-printing") tblName = item.is_metallic ? "roto_metallic_rolls" : "roto_film_rolls";
 
     if (tblName) {
-      const deliveredQty = item.department === "fabric"
-        ? newRollIds.length
-        : item.department === "finishing"
+      const deliveredQty = item.department === "finishing"
         ? newRollIds.reduce((sum, rid) => sum + (rollsBagsData[rid] || 0), 0)
         : newRollIds.reduce((sum, rid) => sum + (rollsData[rid] || 0), 0);
 
@@ -1411,9 +1409,7 @@ export async function confirmMultipleSalesDeliveries(
     else if (item.department === "roto-printing") tblName = item.is_metallic ? "roto_metallic_rolls" : "roto_film_rolls";
 
     if (tblName) {
-      const deliveredQty = item.department === "fabric"
-        ? newRollIds.length
-        : item.department === "finishing"
+      const deliveredQty = item.department === "finishing"
         ? newRollIds.reduce((sum, rid) => sum + (rollsBagsData[rid] || 0), 0)
         : newRollIds.reduce((sum, rid) => sum + (rollsData[rid] || 0), 0);
 

@@ -169,12 +169,34 @@ export function AppShell({
       }
     };
 
+    const validateNumberInput = (el: HTMLInputElement, forceShow = false) => {
+      const valText = el.value;
+      if (valText === "") {
+        if (el.required && (forceShow || el.dataset.touched === "true")) {
+          el.classList.add("border-destructive", "ring-destructive", "ring-1", "bg-red-50/50");
+        } else {
+          el.classList.remove("border-destructive", "ring-destructive", "ring-1", "bg-red-50/50");
+        }
+        return;
+      }
+      const val = Number(valText);
+      if (isNaN(val) || val <= 0) {
+        el.classList.add("border-destructive", "ring-destructive", "ring-1", "bg-red-50/50");
+      } else {
+        el.classList.remove("border-destructive", "ring-destructive", "ring-1", "bg-red-50/50");
+      }
+    };
+
     const handlePaste = (e: ClipboardEvent) => {
       const target = e.target as HTMLElement;
       if (target instanceof HTMLInputElement && target.type === "number") {
         const text = e.clipboardData?.getData("text");
-        if (text && (Number(text) < 0 || isNaN(Number(text)))) {
-          e.preventDefault();
+        if (text) {
+          const val = Number(text);
+          if (isNaN(val) || val <= 0) {
+            e.preventDefault();
+            target.classList.add("border-destructive", "ring-destructive", "ring-1", "bg-red-50/50");
+          }
         }
       }
     };
@@ -182,32 +204,57 @@ export function AppShell({
     const handleInput = (e: Event) => {
       const target = e.target as HTMLElement;
       if (target instanceof HTMLInputElement && target.type === "number") {
-        if (Number(target.value) < 0) {
-          target.value = "0";
-        }
+        target.dataset.touched = "true";
+        validateNumberInput(target);
       }
     };
 
-    const addMinAttribute = () => {
+    const addMinAttributeAndValidate = () => {
       document.querySelectorAll('input[type="number"]').forEach((el) => {
-        if (!el.hasAttribute("min")) {
-          el.setAttribute("min", "0");
+        if (el instanceof HTMLInputElement) {
+          const minVal = el.getAttribute("min");
+          if (!minVal || Number(minVal) <= 0) {
+            el.setAttribute("min", "0.00001");
+          }
+          validateNumberInput(el);
         }
       });
+    };
+
+    const handleSubmit = (e: Event) => {
+      const form = e.target as HTMLFormElement;
+      let firstInvalid: HTMLInputElement | null = null;
+      form.querySelectorAll('input[type="number"]').forEach((el) => {
+        if (el instanceof HTMLInputElement) {
+          validateNumberInput(el, true);
+          const val = Number(el.value);
+          if (el.value === "" && !el.required) return;
+          if (el.value === "" || isNaN(val) || val <= 0) {
+            if (!firstInvalid) firstInvalid = el;
+          }
+        }
+      });
+      if (firstInvalid) {
+        e.preventDefault();
+        e.stopPropagation();
+        (firstInvalid as HTMLInputElement).focus();
+      }
     };
 
     window.addEventListener("keydown", handleKeyDown, { capture: true });
     window.addEventListener("paste", handlePaste, { capture: true });
     window.addEventListener("input", handleInput, { capture: true });
+    window.addEventListener("submit", handleSubmit, { capture: true });
 
-    addMinAttribute();
-    const observer = new MutationObserver(addMinAttribute);
+    addMinAttributeAndValidate();
+    const observer = new MutationObserver(addMinAttributeAndValidate);
     observer.observe(document.body, { childList: true, subtree: true });
 
     return () => {
       window.removeEventListener("keydown", handleKeyDown, { capture: true });
       window.removeEventListener("paste", handlePaste, { capture: true });
       window.removeEventListener("input", handleInput, { capture: true });
+      window.removeEventListener("submit", handleSubmit, { capture: true });
       observer.disconnect();
     };
   }, []);

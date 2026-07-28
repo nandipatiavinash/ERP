@@ -590,12 +590,13 @@ export function DeliveryEntryWorkspace({
           const selectedIds = allocation[item.id] || [];
           const selectedRolls = rolls.filter((r) => selectedIds.includes(r.id));
           const totalWeight = selectedRolls.reduce((sum, r) => sum + Number(r.weight || 0), 0);
+          const totalMeters = selectedRolls.reduce((sum, r) => sum + Number(r.meters || 0), 0);
           
           return {
             ...item,
             productName: getItemLabel(item),
-            rollsCount: item.department === "fabric" ? selectedRolls.length : 0,
-            weight: item.department === "fabric" ? totalWeight : item.quantity,
+            rollsCount: selectedRolls.length,
+            weight: item.department === "finishing" ? totalMeters : totalWeight,
           };
         });
       
@@ -877,6 +878,8 @@ export function DeliveryEntryWorkspace({
 
                                   const totalMeters = selectedRolls.reduce((sum, r) => sum + Number(r.meters || 0), 0);
                                   const totalWeight = selectedRolls.reduce((sum, r) => sum + Number(r.weight || 0), 0);
+                                  const totalAvailableWeight = itemRolls.reduce((sum, r) => sum + Number(r.weight || 0), 0);
+                                  const totalAvailableBags = itemRolls.reduce((sum, r) => sum + Number(r.meters || 0), 0);
 
                                   const isExpanded = !!expandedItems[item.id];
                                   const isChecked = selectedItemIds.includes(item.id);
@@ -928,12 +931,20 @@ export function DeliveryEntryWorkspace({
                                             </span>
                                           </div>
                                           {isChecked && (
-                                            <div className="text-right">
-                                              <span className="text-muted-foreground block">Selected</span>
-                                              <span className={`font-bold ${totalWeight >= item.quantity ? "text-emerald-700" : "text-amber-700"}`}>
-                                                {formatNumber(item.department === "finishing" ? totalMeters : totalWeight)} {item.department === "finishing" ? "pcs" : "kg"}
-                                              </span>
-                                            </div>
+                                            <>
+                                              <div className="text-right">
+                                                <span className="text-muted-foreground block">Available</span>
+                                                <span className="font-bold text-slate-500">
+                                                  {formatNumber(item.department === "finishing" ? totalAvailableBags : totalAvailableWeight)} {item.department === "finishing" ? "pcs" : "kg"}
+                                                </span>
+                                              </div>
+                                              <div className="text-right">
+                                                <span className="text-muted-foreground block">Selected</span>
+                                                <span className={`font-bold ${totalWeight >= item.quantity ? "text-emerald-700" : "text-amber-700"}`}>
+                                                  {formatNumber(item.department === "finishing" ? totalMeters : totalWeight)} {item.department === "finishing" ? "pcs" : "kg"}
+                                                </span>
+                                              </div>
+                                            </>
                                           )}
                                           <button
                                             type="button"
@@ -948,7 +959,7 @@ export function DeliveryEntryWorkspace({
                                       {/* Card Content */}
                                       {isExpanded && isChecked && (
                                         <div className="p-4 space-y-4 border-t bg-slate-50/20">
-                                          <div className="grid grid-cols-3 gap-4 bg-muted/40 p-3 rounded-lg text-xs font-semibold">
+                                          <div className="grid grid-cols-4 gap-4 bg-muted/40 p-3 rounded-lg text-xs font-semibold">
                                             <div>
                                               <div className="text-muted-foreground text-[10px]">
                                                 {item.department === "finishing" ? "Selected Bundles" : "Selected Rolls"}
@@ -963,6 +974,23 @@ export function DeliveryEntryWorkspace({
                                                 {item.department === "finishing" 
                                                   ? formatNumber(totalMeters, 0)
                                                   : formatNumber(totalWeight, 2)
+                                                } {item.department === "finishing" ? "pcs" : "kg"}
+                                              </div>
+                                            </div>
+                                            <div>
+                                              <div className="text-muted-foreground text-[10px]">
+                                                {item.department === "finishing" ? "Available Bundles" : "Available Rolls"}
+                                              </div>
+                                              <div>{itemRolls.length} {item.department === "finishing" ? "bundles" : "rolls"}</div>
+                                            </div>
+                                            <div>
+                                              <div className="text-muted-foreground text-[10px]">
+                                                {item.department === "finishing" ? "Available Bags (pcs)" : "Available Weight (kg)"}
+                                              </div>
+                                              <div>
+                                                {item.department === "finishing"
+                                                  ? formatNumber(totalAvailableBags, 0)
+                                                  : formatNumber(totalAvailableWeight, 2)
                                                 } {item.department === "finishing" ? "pcs" : "kg"}
                                               </div>
                                             </div>
@@ -1223,10 +1251,10 @@ export function DeliveryEntryWorkspace({
                         <span className="text-slate-500 capitalize ml-1">({item.department})</span>
                       </div>
                       <div className="text-right font-mono font-medium">
-                        {item.department === "fabric" ? (
-                          <span>{item.rollsCount} roll{item.rollsCount !== 1 ? "s" : ""} · {formatNumber(item.weight, 2)} kg</span>
+                        {item.department === "finishing" ? (
+                          <span>{item.rollsCount} bundle{item.rollsCount !== 1 ? "s" : ""} · {formatNumber(item.weight, 0)} pcs</span>
                         ) : (
-                          <span>{formatNumber(item.weight, 2)} units</span>
+                          <span>{item.rollsCount} roll{item.rollsCount !== 1 ? "s" : ""} · {formatNumber(item.weight, 2)} kg</span>
                         )}
                       </div>
                     </div>

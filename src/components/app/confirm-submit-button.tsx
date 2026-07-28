@@ -119,7 +119,19 @@ export function ConfirmSubmitButton({
   function submitForm() {
     const form = buttonRef.current?.closest("form");
     setOpen(false);
-    window.setTimeout(() => form?.requestSubmit(), 0);
+    if (form) {
+      window.setTimeout(() => {
+        if (typeof form.requestSubmit === "function") {
+          form.requestSubmit();
+        } else {
+          const submitEvent = new Event("submit", { bubbles: true, cancelable: true });
+          form.dispatchEvent(submitEvent);
+          if (!submitEvent.defaultPrevented) {
+            form.submit();
+          }
+        }
+      }, 0);
+    }
   }
 
   return (

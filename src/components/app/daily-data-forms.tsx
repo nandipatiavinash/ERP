@@ -72,7 +72,7 @@ export function TapeLineForm() {
             step="0.01"
             value={loads}
             onChange={(e) => setLoads(e.target.value)}
-            placeholder="e.g. 5.0"
+            placeholder="Enter Loads"
             required
             disabled={isSaving}
           />
@@ -165,7 +165,7 @@ export function LoomShiftMetersForm({ looms }: { looms: LoomOption[] }) {
             step="0.01"
             value={dayMeters}
             onChange={(e) => setDayMeters(e.target.value)}
-            placeholder="e.g. 150.00"
+            placeholder="Enter Day Shift Meters"
             required
             disabled={isSaving}
           />
@@ -179,7 +179,7 @@ export function LoomShiftMetersForm({ looms }: { looms: LoomOption[] }) {
             step="0.01"
             value={nightMeters}
             onChange={(e) => setNightMeters(e.target.value)}
-            placeholder="e.g. 140.00"
+            placeholder="Enter Night Shift Meters"
             required
             disabled={isSaving}
           />
@@ -242,7 +242,7 @@ export function ElectricityUnitsForm() {
           step="0.01"
           value={units}
           onChange={(e) => setUnits(e.target.value)}
-          placeholder="e.g. 450.50"
+          placeholder="Enter Electricity Units"
           required
           disabled={isSaving}
         />
