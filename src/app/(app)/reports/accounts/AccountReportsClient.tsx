@@ -91,6 +91,30 @@ export function AccountReportsClient({
     };
   }, [groupedAccounts]);
 
+  const filteredEntries = useMemo(() => {
+    if (!selectedAccount) return entries;
+
+    const counts: Record<string, { dr: number; cr: number }> = {};
+    entries.forEach((entry) => {
+      const jNo = entry.journal_no || "";
+      if (!counts[jNo]) {
+        counts[jNo] = { dr: 0, cr: 0 };
+      }
+      if (entry.entry_type === "debit") {
+        counts[jNo].dr++;
+      } else {
+        counts[jNo].cr++;
+      }
+    });
+
+    return entries.filter((entry) => {
+      const jNo = entry.journal_no || "";
+      if (!jNo) return true;
+      const c = counts[jNo];
+      return !(c && c.dr > 0 && c.cr > 0);
+    });
+  }, [entries, selectedAccount]);
+
   // Calculations for Case A: Specific Account Selected
   const ledgerData = useMemo(() => {
     if (!selectedAccount) return null;
@@ -102,7 +126,7 @@ export function AccountReportsClient({
     let historicalCredit = 0;
     const inRangeEntries: JournalEntry[] = [];
 
-    entries.forEach((entry) => {
+    filteredEntries.forEach((entry) => {
       const amt = Number(entry.amount);
       if (entry.entry_date < from) {
         if (entry.entry_type === "debit") {
@@ -148,14 +172,14 @@ export function AccountReportsClient({
       balanceDr: Math.floor(balanceDr),
       balanceCr: Math.floor(balanceCr),
     };
-  }, [selectedAccount, entries, from, to]);
+  }, [selectedAccount, filteredEntries, from, to]);
 
   // Calculations for Case B: No Account Selected (Daybook)
   const daybookTotals = useMemo(() => {
     if (selectedAccount) return null;
     let totalDr = 0;
     let totalCr = 0;
-    entries.forEach((entry) => {
+    filteredEntries.forEach((entry) => {
       const amt = Number(entry.amount);
       if (entry.entry_type === "debit") {
         totalDr += amt;
@@ -167,7 +191,7 @@ export function AccountReportsClient({
       totalDr: Math.floor(totalDr),
       totalCr: Math.floor(totalCr),
     };
-  }, [selectedAccount, entries]);
+  }, [selectedAccount, filteredEntries]);
 
   const categorySummary = useMemo(() => {
     if (selectedAccount) return null;
@@ -183,7 +207,7 @@ export function AccountReportsClient({
 
     const otherSums: Record<string, { dr: number; cr: number; name: string }> = {};
 
-    entries.forEach((entry) => {
+    filteredEntries.forEach((entry) => {
       const amt = Number(entry.amount);
       if (entry.account_id && accountSums[entry.account_id]) {
         if (entry.entry_type === "debit") {
@@ -274,7 +298,7 @@ export function AccountReportsClient({
     });
 
     return groups;
-  }, [selectedAccount, entries, accounts]);
+  }, [selectedAccount, filteredEntries, accounts]);
 
   const grandTotals = useMemo(() => {
     if (!categorySummary) return { totalDr: 0, totalCr: 0 };
