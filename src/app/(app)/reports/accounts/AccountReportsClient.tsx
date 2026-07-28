@@ -75,7 +75,10 @@ export function AccountReportsClient({
   }, [accounts]);
   
   const { clientAccountsOnly, referenceAccountsOnly } = useMemo(() => {
-    const clients = groupedAccounts["client a/c"] ?? [];
+    const clients = [
+      ...(groupedAccounts["client a/c"] ?? []),
+      ...(groupedAccounts["reference a/c"] ?? []),
+    ];
     
     // A customer is a Reference Account if its ID is linked by another customer
     const referenceIds = new Set(
@@ -394,12 +397,12 @@ export function AccountReportsClient({
           <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-650 flex flex-col gap-1">
             {parent && (
               <span>
-                ℹ️ This is a reference account for: <strong>{parent.customer_name}</strong>.
+                ℹ️ This is a child account under reference account: <strong>{parent.customer_name}</strong>.
               </span>
             )}
             {children.length > 0 && (
               <span>
-                ℹ️ This account has reference accounts: <strong>{children.map(c => c.customer_name).join(", ")}</strong>.
+                ℹ️ This is a reference account for: <strong>{children.map(c => c.customer_name).join(", ")}</strong>.
               </span>
             )}
           </div>
