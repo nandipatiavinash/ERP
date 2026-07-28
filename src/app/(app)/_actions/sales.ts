@@ -937,10 +937,8 @@ export async function saveSalesConfirmationRates(
   const linkedCustomerId = order.customers?.linked_customer_id;
 
   if (linkedCustomerId) {
-    // Difference clientDiff = calculatedTotal - oldCalculatedTotal
-    const clientDiff = calculatedTotal - oldCalculatedTotal;
-
-    if (Math.abs(clientDiff) > 100) {
+    // Only adjust reference account when there is a difference between calculated total and actual billed value
+    if (Math.abs(balance) > 100) {
       const { data: parentData } = await supabase
         .from("customers")
         .select("id, customer_name")
@@ -952,10 +950,10 @@ export async function saveSalesConfirmationRates(
       if (parent) {
         const journalNo = await generateNextJournalNo(supabase);
         const journalInserts = [];
-        const absDiff = Math.abs(clientDiff);
+        const absDiff = Math.abs(balance);
 
-        if (clientDiff > 0) {
-          // Debit Client (increase owes), Credit Parent (decrease adjustment)
+        if (balance > 0) {
+          // Debit Client (increase owes), Credit Parent (Reference Account)
           journalInserts.push({
             journal_no: journalNo,
             entry_date: order.order_date ?? todayInIndia(),
@@ -979,7 +977,7 @@ export async function saveSalesConfirmationRates(
             updated_by: user.id,
           });
         } else {
-          // Debit Parent (increase adjustment), Credit Client (decrease owes)
+          // Debit Parent (Reference Account), Credit Client (decrease owes)
           journalInserts.push({
             journal_no: journalNo,
             entry_date: order.order_date ?? todayInIndia(),
