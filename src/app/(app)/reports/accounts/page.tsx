@@ -40,38 +40,28 @@ export default async function AccountReportsPage({ searchParams }: { searchParam
       .is("deleted_at", null);
 
     if (selectedAccount) {
-      // Find all child accounts that link to this selectedAccount
-      const childAccounts = customers?.filter((c) => c.linked_customer_id === selectedAccount.id) || [];
-      const accountIds = [selectedAccount.id, ...childAccounts.map((c) => c.id)];
-
-      // Build OR conditions for all of these accounts
+      // Each account's ledger shows only its own directly posted entries.
+      // Reference accounts (those that other clients link to) should NOT pull in
+      // child/client entries — those belong in the client's own ledger only.
       const conditions: string[] = [];
-      accountIds.forEach((id) => {
-        conditions.push(`account_id.eq.${id}`);
-      });
-
-      // Fetch names and aliases for all involved accounts
-      const involvedAccounts = [selectedAccount, ...childAccounts];
-      involvedAccounts.forEach((acc) => {
-        conditions.push(`account_name.ilike."${acc.customer_name}"`);
-        const nameWithAc = acc.customer_name.toLowerCase().endsWith(" a/c")
-          ? acc.customer_name
-          : `${acc.customer_name} A/c`;
-        conditions.push(`account_name.ilike."${nameWithAc}"`);
-        if (acc.alias) {
-          conditions.push(`account_name.ilike."${acc.alias}"`);
-          conditions.push(`account_name.ilike."${acc.alias} A/c"`);
-        }
-      });
-      
+      conditions.push(`account_id.eq.${selectedAccount.id}`);
+      conditions.push(`account_name.ilike."${selectedAccount.customer_name}"`);
+      const nameWithAc = selectedAccount.customer_name.toLowerCase().endsWith(" a/c")
+        ? selectedAccount.customer_name
+        : `${selectedAccount.customer_name} A/c`;
+      conditions.push(`account_name.ilike."${nameWithAc}"`);
+      if (selectedAccount.alias) {
+        conditions.push(`account_name.ilike."${selectedAccount.alias}"`);
+        conditions.push(`account_name.ilike."${selectedAccount.alias} A/c"`);
+      }
       query = query.or(conditions.join(","));
     } else {
       query = query.eq("account_id", accountId);
     }
 
-    // Fetch and aggregate opening balances for selected account and its children
-    const childAccountsForBal = customers?.filter((c) => c.linked_customer_id === selectedAccount?.id) || [];
-    const accountIdsForBal = selectedAccount ? [selectedAccount.id, ...childAccountsForBal.map((c) => c.id)] : [accountId];
+    // Opening balance: only for the selected account itself (not children)
+    const childAccountsForBal: any[] = [];
+    const accountIdsForBal = selectedAccount ? [selectedAccount.id] : [accountId];
 
     const openingBalancesRes = await Promise.all(
       accountIdsForBal.map((id) =>
