@@ -73,6 +73,18 @@ function parseOffsetRollId(rollId: string, fabricTypes: any[], offsetProducts: a
 function parseFinishingBundleId(bundleId: string, fabricTypes: any[], rotoProducts: any[], offsetProducts: any[]) {
   const upper = (bundleId || "").toUpperCase();
   
+  let lamType = "PLAIN";
+  if (upper.endsWith("(B)")) lamType = "BOX";
+  else if (upper.endsWith("(F)")) lamType = "F_S";
+  else if (upper.endsWith("(H)")) lamType = "H_S";
+  else if (upper.startsWith("NW(")) lamType = "NW";
+
+  const isMetallic = upper.includes("(MT)");
+
+  let filmType = null;
+  if (upper.includes("(G)")) filmType = "gloss";
+  else if (upper.includes("(M)")) filmType = "matt";
+  
   let fabricTypeId = null;
   for (const ft of fabricTypes) {
     if (upper.includes(`(${ft.fabric_name.toUpperCase()})`)) {
@@ -99,7 +111,7 @@ function parseFinishingBundleId(bundleId: string, fabricTypes: any[], rotoProduc
     }
   }
 
-  return { fabricTypeId, rotoProductId, offsetProductId };
+  return { lamType, isMetallic, filmType, fabricTypeId, rotoProductId, offsetProductId };
 }
 
 export default async function OrderWorkspacePage({
