@@ -615,15 +615,23 @@ export async function saveFinishingBundle(formData: FormData) {
     throw new Error("Unsupported finishing type.");
   }
 
-  // bundle_id is the spec ID directly e.g. PLAIN(N-19-3.5)
   const bundleId = specId;
+
+  // Compute sequential serial number for this specific specification
+  const { count } = await (supabase
+    .from("finishing_bundles") as any)
+    .select("id", { count: "exact", head: true })
+    .eq("bundle_id", bundleId)
+    .is("deleted_at", null);
+
+  const seq = (count ?? 0) + 1;
 
   const adminSupabase = createAdminClient();
   const { error: insertError } = await (adminSupabase
     .from("finishing_bundles") as any)
     .insert({
       bundle_id: bundleId,
-      s_no: 1,
+      s_no: seq,
       finish_type: finishType,
       product_id: null,
       source_lam_roll_id: sourceLamRollId,

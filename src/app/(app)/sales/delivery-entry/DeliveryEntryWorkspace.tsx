@@ -33,7 +33,6 @@ type Roll = {
     average_meter_weight: number;
   } | null;
 };
-
 type OrderItem = {
   id: string;
   sales_order_id: string;
@@ -47,8 +46,8 @@ type OrderItem = {
   film_type?: string | null;
   is_metallic?: boolean;
   roto_product_id?: string | null;
+  offset_product_id?: string | null;
 };
-
 type Customer = {
   id: string;
   customer_name: string;
@@ -412,32 +411,76 @@ export function DeliveryEntryWorkspace({
   };
 
   const getItemRolls = (item: OrderItem) => {
-    // For roto-printing, product_id = brand_id is the primary discriminator.
-    // For all other departments, matching is done via fabric_type_id + lam_type/offset_type,
-    // so product_id check is skipped (lamination/offset/finishing rolls have null/mismatched product_id).
-    const useProductIdCheck = item.department === "roto-printing";
-    const useNameMatchCheck = item.department === "lamination" || item.department === "offset-printing" || item.department === "finishing";
-    const expectedLabel = useNameMatchCheck ? getItemLabel(item) : "";
-
     return rolls
       .filter(
-        (r: any) =>
-          r.department === item.department &&
-          (!useNameMatchCheck || r.roll_number === expectedLabel) &&
-          (!useProductIdCheck || !item.product_id || r.product_id === item.product_id) &&
-          (!item.fabric_type_id || r.fabric_type_id === item.fabric_type_id) &&
-          (item.department === "finishing" || !item.lamination_type || r.lam_type === item.lamination_type) &&
-          (item.department === "finishing" || !item.offset_type || item.offset_type === "none" || r.offset_type === item.offset_type) &&
-          (
-            (item.department !== "roto-printing" && item.department !== "lamination") ||
-            (
-              (!item.film_type || item.film_type === "none" || r.film_type === item.film_type) &&
-              (item.department !== "roto-printing" || !!r.is_metallic === !!item.is_metallic) &&
-              (item.department !== "lamination" || !item.roto_product_id || r.roto_product_id === item.roto_product_id) &&
-              (item.department !== "lamination" || !["BOX", "F_S", "H_S"].includes(item.lamination_type || "") || !!r.is_metallic === !!item.is_metallic)
-            )
-          ) &&
-          (r.status === "available" || item.selected_roll_ids?.includes(r.id) || (allocation[item.id] ?? []).includes(r.id))
+        (r: any) => {
+          if (r.department !== item.department) return false;
+          if (r.status !== "available" && !item.selected_roll_ids?.includes(r.id) && !(allocation[item.id] ?? []).includes(r.id)) return false;
+
+          // 1. Fabric
+          if (item.department === "fabric") {
+            return r.fabric_type_id === item.product_id;
+          }
+
+          // 2. Roto-printing
+          if (item.department === "roto-printing") {
+            const matchesBrand = r.product_id === item.roto_product_id || r.product_id === item.product_id;
+            const matchesFilm = !item.film_type || item.film_type === "none" || r.film_type === item.film_type;
+            const matchesMetallic = !!r.is_metallic === !!item.is_metallic;
+            return matchesBrand && matchesFilm && matchesMetallic;
+          }
+
+          // 3. Lamination
+          if (item.department === "lamination") {
+            const matchesFabric = r.fabric_type_id === item.fabric_type_id;
+            const matchesLamType = r.lam_type === item.lamination_type;
+            if (!matchesFabric || !matchesLamType) return false;
+            
+            if (["BOX", "F_S", "H_S"].includes(item.lamination_type || "")) {
+              const matchesBrand = r.roto_product_id === item.roto_product_id;
+              const matchesMetallic = !!r.is_metallic === !!item.is_metallic;
+              const matchesFilm = !item.film_type || item.film_type === "none" || r.film_type === item.film_type;
+              return matchesBrand && matchesMetallic && matchesFilm;
+            }
+            return true;
+          }
+
+          // 4. Offset Printing
+          if (item.department === "offset-printing") {
+            const matchesFabric = item.offset_type === "NW" || r.fabric_type_id === item.fabric_type_id;
+            const matchesOffsetType = r.offset_type === item.offset_type;
+            const matchesBrand = r.offset_product_id === item.offset_product_id || r.offset_product_id === item.product_id;
+            return matchesFabric && matchesOffsetType && matchesBrand;
+          }
+
+          // 5. Finishing
+          if (item.department === "finishing") {
+            const finishType = item.lamination_type ? "LAMINATION" : (item.offset_type !== "none" && item.offset_type ? "OFFSET" : "FABRIC");
+            if (r.finish_type !== finishType) return false;
+            
+            const matchesFabric = r.fabric_type_id === item.fabric_type_id;
+            if (!matchesFabric) return false;
+
+            if (finishType === "LAMINATION") {
+              const matchesLamType = r.lam_type === item.lamination_type;
+              if (!matchesLamType) return false;
+              if (["BOX", "F_S", "H_S"].includes(item.lamination_type || "")) {
+                const matchesBrand = r.roto_product_id === item.roto_product_id;
+                const matchesMetallic = !!r.is_metallic === !!item.is_metallic;
+                const matchesFilm = !item.film_type || item.film_type === "none" || r.film_type === item.film_type;
+                return matchesBrand && matchesMetallic && matchesFilm;
+              }
+              return true;
+            } else if (finishType === "OFFSET") {
+              const matchesOffsetType = r.offset_type === item.offset_type;
+              const matchesBrand = r.offset_product_id === item.offset_product_id;
+              return matchesOffsetType && matchesBrand;
+            }
+            return true;
+          }
+
+          return false;
+        }
       )
       .sort((a, b) => a.roll_number.localeCompare(b.roll_number, undefined, { numeric: true, sensitivity: "base" }));
   };

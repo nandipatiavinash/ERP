@@ -96,6 +96,7 @@ export default async function FinishingProductionPage() {
                 <TableHeader>
                   <TableRow className="bg-slate-50/50">
                     <TableHead>Bundle ID</TableHead>
+                    <TableHead>Bundle No</TableHead>
                     <TableHead className="text-right">No. of Bags</TableHead>
                     <TableHead className="text-right">KGs</TableHead>
                     <TableHead className="text-center">Action</TableHead>
@@ -105,8 +106,9 @@ export default async function FinishingProductionPage() {
                   {finishingRows.map((row) => (
                     <TableRow key={row.id}>
                       <TableCell className="font-mono font-bold text-emerald-950">{row.bundle_id}</TableCell>
+                      <TableCell className="text-sm font-bold text-emerald-900">{row.s_no ?? "-"}</TableCell>
                       <TableCell className="text-right font-mono">{row.num_bags}</TableCell>
-                      <TableCell className="text-right font-mono">{row.weight_kg}</TableCell>
+                      <TableCell className="text-right font-mono">{row.weight_kg != null ? row.weight_kg.toLocaleString("en-IN", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : "-"}</TableCell>
                       <TableCell className="text-center">
                         <form action={deleteFinishingBundle.bind(null, row.id)}>
                           <ConfirmSubmitButton
