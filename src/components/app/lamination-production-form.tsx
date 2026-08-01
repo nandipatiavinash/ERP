@@ -4,6 +4,7 @@ import { useState, useTransition, useMemo, useEffect } from "react";
 import { showSuccess } from "@/lib/toast";
 import { saveLaminationProduction } from "@/app/(app)/_actions";
 import { Button } from "@/components/ui/button";
+import { ConfirmSubmitButton } from "@/components/app/confirm-submit-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -201,6 +202,30 @@ export function LaminationProductionForm({
 
   const isBrandRequired = ["BOX", "F_S", "H_S"].includes(lamType);
 
+  const confirmSummary = useMemo(() => {
+    const fabName = sortedFabricTypes.find((f) => f.id === selectedFabricTypeId)?.fabric_name ?? "";
+    const netW = parseFloat(weightKg) || 0;
+    const mtrs = parseFloat(meters) || 0;
+    const avg = mtrs > 0 ? (netW / mtrs) * 1000 : 0;
+
+    const summaryRows = [
+      { label: "FABRIC ID", value: livePreviewId },
+      { label: "LAM TYPE", value: lamType },
+      { label: "FABRIC TYPE", value: fabName },
+    ];
+
+    if (grossWeight) summaryRows.push({ label: "GROSS WEIGHT", value: grossWeight });
+    if (coreWeight) summaryRows.push({ label: "CORE WEIGHT", value: coreWeight });
+
+    summaryRows.push(
+      { label: "NET WEIGHT", value: String(netW) },
+      { label: "NET METERS", value: String(mtrs) },
+      { label: "AVERAGE METER WEIGHT", value: String(Math.floor(avg)) }
+    );
+
+    return summaryRows;
+  }, [livePreviewId, lamType, sortedFabricTypes, selectedFabricTypeId, grossWeight, coreWeight, weightKg, meters]);
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4 w-full bg-white p-6 rounded-2xl border border-slate-100 shadow-sm">
       {errorMsg && (
@@ -332,13 +357,15 @@ export function LaminationProductionForm({
         </Badge>
       </div>
 
-      <Button
-        type="submit"
-        className="w-fit px-6 h-9 bg-emerald-600 hover:bg-emerald-700 text-white font-medium transition-colors"
+      <ConfirmSubmitButton
+        confirmTitle="Create production entry?"
+        confirmDescription="Confirm the lamination type, fabric type, weight, and meter readings before saving."
+        summary={confirmSummary}
         disabled={isPending}
+        className="w-fit px-6 h-9 bg-emerald-600 hover:bg-emerald-700 text-white font-medium transition-colors"
       >
-        {isPending ? "Submitting..." : "Submit Production"}
-      </Button>
+        {isPending ? "Submitting..." : "Create Production Entry"}
+      </ConfirmSubmitButton>
     </form>
   );
 }
