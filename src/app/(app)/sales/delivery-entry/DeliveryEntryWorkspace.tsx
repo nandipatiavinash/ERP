@@ -20,6 +20,10 @@ import { todayInIndia } from "@/lib/utils";
 type Roll = {
   id: string;
   roll_number: string;
+  s_no?: number | string | null;
+  gross_weight?: number | null;
+  core_weight?: number | null;
+  net_weight?: number | null;
   meters: number;
   weight: number;
   status: string;
@@ -515,13 +519,18 @@ export function DeliveryEntryWorkspace({
         const roll = rolls.find((r) => r.id === rollId);
         if (!roll) return null;
         const prod = roll.loom_production_entries;
+        const netWeight = prod?.net_weight ?? roll.net_weight ?? roll.weight ?? 0;
+        const netMeters = prod?.net_meters ?? roll.meters ?? 0;
+        const avgMeterWeight = prod?.average_meter_weight ?? (netMeters > 0 ? (netWeight / netMeters) * 1000 : 0);
+
         return {
           roll_number: roll.roll_number,
-          gross_weight: prod?.gross_weight ?? roll.weight ?? 0,
-          core_weight: prod?.core_weight ?? 0,
-          net_weight: prod?.net_weight ?? (roll.weight ?? 0),
-          net_meters: prod?.net_meters ?? (roll.meters ?? 0),
-          average_meter_weight: prod?.average_meter_weight ?? 0,
+          s_no: roll.s_no,
+          gross_weight: prod?.gross_weight ?? roll.gross_weight ?? netWeight,
+          core_weight: prod?.core_weight ?? roll.core_weight ?? 0,
+          net_weight: netWeight,
+          net_meters: netMeters,
+          average_meter_weight: avgMeterWeight,
         };
       }).filter(Boolean) as any[];
 
@@ -1089,7 +1098,7 @@ export function DeliveryEntryWorkspace({
                                                       <th className="p-2.5">
                                                         {item.department === "finishing" ? "Bundle ID" : "Roll ID"}
                                                       </th>
-                                                      {item.department === "fabric" && (
+                                                      {["fabric", "lamination"].includes(item.department) && (
                                                         <>
                                                           <th className="p-2.5 text-center">Gross Wt (kg)</th>
                                                           <th className="p-2.5 text-center">Core Wt (kg)</th>
@@ -1102,10 +1111,10 @@ export function DeliveryEntryWorkspace({
                                                       {item.department === "finishing" && (
                                                         <th className="p-2.5 text-center">Quantity (pcs)</th>
                                                       )}
-                                                      {item.department === "fabric" && (
+                                                      {["fabric", "lamination"].includes(item.department) && (
                                                         <>
                                                           <th className="p-2.5 text-center">Avg Meter Wt</th>
-                                                          <th className="p-2.5">Loom</th>
+                                                          {item.department === "fabric" ? <th className="p-2.5">Loom</th> : null}
                                                         </>
                                                       )}
                                                     </tr>
@@ -1130,23 +1139,25 @@ export function DeliveryEntryWorkspace({
                                                             />
                                                           </td>
                                                           <td className="p-2.5 font-mono font-semibold text-slate-800">{roll.roll_number}</td>
-                                                          {item.department === "fabric" && (
+                                                          {["fabric", "lamination"].includes(item.department) && (
                                                             <>
-                                                              <td className="p-2.5 text-center font-mono">{formatNumber(roll.loom_production_entries?.gross_weight ?? roll.weight, 2)}</td>
-                                                              <td className="p-2.5 text-center font-mono">{formatNumber(roll.loom_production_entries?.core_weight ?? 0, 2)}</td>
+                                                              <td className="p-2.5 text-center font-mono">{formatNumber(roll.gross_weight ?? roll.loom_production_entries?.gross_weight ?? roll.weight, 2)}</td>
+                                                              <td className="p-2.5 text-center font-mono">{formatNumber(roll.core_weight ?? roll.loom_production_entries?.core_weight ?? 0, 2)}</td>
                                                             </>
                                                           )}
-                                                          <td className="p-2.5 text-center font-mono font-semibold">{formatNumber(roll.weight, 2)}</td>
+                                                          <td className="p-2.5 text-center font-mono font-semibold">{formatNumber(roll.net_weight ?? roll.weight, 2)}</td>
                                                           {item.department !== "finishing" && (
                                                             <td className="p-2.5 text-center font-mono">{formatNumber(roll.meters, 0)}</td>
                                                           )}
                                                           {item.department === "finishing" && (
                                                             <td className="p-2.5 text-center font-mono font-semibold">{formatNumber(roll.meters, 0)}</td>
                                                           )}
-                                                          {item.department === "fabric" && (
+                                                          {["fabric", "lamination"].includes(item.department) && (
                                                             <>
-                                                              <td className="p-2.5 text-center font-mono">{formatNumber(Math.floor(roll.loom_production_entries?.average_meter_weight ?? 0), 0)}</td>
-                                                              <td className="p-2.5 font-medium">{roll.looms?.loom_number ?? "-"}</td>
+                                                              <td className="p-2.5 text-center font-mono">{formatNumber(Math.floor(roll.loom_production_entries?.average_meter_weight ?? (roll.meters ? ((roll.net_weight ?? roll.weight) / roll.meters) * 1000 : 0)), 0)}</td>
+                                                              {item.department === "fabric" ? (
+                                                                <td className="p-2.5 font-medium">{roll.looms?.loom_number ?? "-"}</td>
+                                                              ) : null}
                                                             </>
                                                           )}
                                                         </tr>

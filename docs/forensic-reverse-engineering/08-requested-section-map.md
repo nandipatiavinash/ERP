@@ -1,0 +1,262 @@
+# 08 Requested Section Map
+
+- Section 1 System Architecture: 01-system-architecture.md.
+- Section 2 Database Documentation: 02-database-documentation.md.
+- Section 3 Page Analysis: 03-page-analysis.md.
+- Section 4 Complete CRUD Analysis: 04-crud-data-flow-business-logic.md.
+- Section 5 Data Flow: 04-crud-data-flow-business-logic.md.
+- Section 6 Business Logic: 04-crud-data-flow-business-logic.md.
+- Section 7 Calculations: 04-crud-data-flow-business-logic.md.
+- Section 8 Delete Impact Analysis: 05-delete-update-impact.md.
+- Section 9 Update Impact Analysis: 05-delete-update-impact.md.
+- Section 10 Module Documentation: 03-page-analysis.md and 06-function-api-state-dependency-risks.md.
+- Section 11 Function Trace: 06-function-api-state-dependency-risks.md and 07-file-by-file-analysis.md.
+- Section 12 API Documentation: 06-function-api-state-dependency-risks.md.
+- Section 13 State Transitions: 05-delete-update-impact.md and 06-function-api-state-dependency-risks.md.
+- Section 14 Dependency Graph: 01-system-architecture.md and 06-function-api-state-dependency-risks.md.
+- Section 15 Known Risks: 06-function-api-state-dependency-risks.md.
+- Section 16 File-By-File Analysis: 07-file-by-file-analysis.md.
+- Section 17 End-To-End User Flows: 04-crud-data-flow-business-logic.md.
+- Section 18 Code References: all generated documents.
+
+
+## Module Navigation Evidence
+
+- [src/lib/navigation.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/navigation.ts:3) (module-navigation): `export type NavSubItem = { href: string; label: string; roles: RoleName[]; permission: string };`
+- [src/lib/navigation.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/navigation.ts:6) (module-navigation): `key: string;`
+- [src/lib/navigation.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/navigation.ts:7) (module-navigation): `label: string;`
+- [src/lib/navigation.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/navigation.ts:8) (module-navigation): `roles: RoleName[];`
+- [src/lib/navigation.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/navigation.ts:14) (module-navigation): `key: "admin",`
+- [src/lib/navigation.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/navigation.ts:15) (module-navigation): `label: "Admin",`
+- [src/lib/navigation.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/navigation.ts:16) (module-navigation): `roles: ["admin"],`
+- [src/lib/navigation.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/navigation.ts:18) (module-navigation): `{ href: "/admin/credentials", label: "Login Credentials", roles: ["admin"], permission: "admin.credentials" },`
+- [src/lib/navigation.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/navigation.ts:19) (module-navigation): `{ href: "/admin/permissions", label: "Login Permissions", roles: ["admin"], permission: "admin.permissions" },`
+- [src/lib/navigation.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/navigation.ts:20) (module-navigation): `{ href: "/admin/raw-materials", label: "Raw Material IDs", roles: ["admin"], permission: "admin.raw_materials" },`
+- [src/lib/navigation.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/navigation.ts:21) (module-navigation): `{ href: "/admin/products", label: "Product IDs", roles: ["admin"], permission: "admin.products" },`
+- [src/lib/navigation.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/navigation.ts:22) (module-navigation): `{ href: "/admin/catalog", label: "Catalogue", roles: ["admin"], permission: "admin.products" },`
+- [src/lib/navigation.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/navigation.ts:23) (module-navigation): `{ href: "/admin/clients", label: "Account/Client IDs", roles: ["admin"], permission: "admin.clients" },`
+- [src/lib/navigation.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/navigation.ts:24) (module-navigation): `{ href: "/admin/looms", label: "Loom IDs", roles: ["admin"], permission: "admin.looms" },`
+- [src/lib/navigation.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/navigation.ts:25) (module-navigation): `{ href: "/admin/colors", label: "Printing Colour IDs", roles: ["admin"], permission: "admin.colors" },`
+- [src/lib/navigation.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/navigation.ts:26) (module-navigation): `{ href: "/admin/critical-levels", label: "Raw Material Critical Levels", roles: ["admin"], permission: "admin.critical_levels" },`
+- [src/lib/navigation.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/navigation.ts:27) (module-navigation): `{ href: "/admin/employees", label: "Employees", roles: ["admin"], permission: "admin.employees" },`
+- [src/lib/navigation.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/navigation.ts:28) (module-navigation): `{ href: "/admin/attendance", label: "Attendance", roles: ["admin"], permission: "admin.attendance" },`
+- [src/lib/navigation.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/navigation.ts:29) (module-navigation): `{ href: "/admin/reset", label: "System Reset", roles: ["admin"], permission: "admin.reset" },`
+- [src/lib/navigation.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/navigation.ts:33) (module-navigation): `key: "fabric",`
+- [src/lib/navigation.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/navigation.ts:34) (module-navigation): `label: "Fabric",`
+- [src/lib/navigation.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/navigation.ts:35) (module-navigation): `roles: ["admin", "operator"],`
+- [src/lib/navigation.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/navigation.ts:37) (module-navigation): `{ href: "/fabric/production", label: "Production", roles: ["admin", "operator"], permission: "fabric.production" },`
+- [src/lib/navigation.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/navigation.ts:38) (module-navigation): `{ href: "/fabric/consumption", label: "Consumption", roles: ["admin", "operator"], permission: "fabric.consumption" },`
+- [src/lib/navigation.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/navigation.ts:39) (module-navigation): `{ href: "/fabric/stock", label: "Stock", roles: ["admin", "operator"], permission: "fabric.stock" },`
+- [src/lib/navigation.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/navigation.ts:43) (module-navigation): `key: "roto-printing",`
+- [src/lib/navigation.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/navigation.ts:44) (module-navigation): `label: "Roto Printing",`
+- [src/lib/navigation.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/navigation.ts:45) (module-navigation): `roles: ["admin", "operator"],`
+- [src/lib/navigation.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/navigation.ts:47) (module-navigation): `{ href: "/roto-printing/production", label: "Production", roles: ["admin", "operator"], permission: "roto_printing.production" },`
+- [src/lib/navigation.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/navigation.ts:48) (module-navigation): `{ href: "/roto-printing/consumption", label: "Consumption", roles: ["admin", "operator"], permission: "roto_printing.consumption" },`
+- [src/lib/navigation.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/navigation.ts:49) (module-navigation): `{ href: "/roto-printing/stock", label: "Stock", roles: ["admin", "operator"], permission: "roto_printing.stock" },`
+- [src/lib/navigation.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/navigation.ts:53) (module-navigation): `key: "lamination",`
+- [src/lib/navigation.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/navigation.ts:54) (module-navigation): `label: "Lamination",`
+- [src/lib/navigation.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/navigation.ts:55) (module-navigation): `roles: ["admin", "operator"],`
+- [src/lib/navigation.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/navigation.ts:57) (module-navigation): `{ href: "/lamination/production", label: "Production", roles: ["admin", "operator"], permission: "lamination.production" },`
+- [src/lib/navigation.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/navigation.ts:58) (module-navigation): `{ href: "/lamination/consumption", label: "Consumption", roles: ["admin", "operator"], permission: "lamination.consumption" },`
+- [src/lib/navigation.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/navigation.ts:59) (module-navigation): `{ href: "/lamination/stock", label: "Stock", roles: ["admin", "operator"], permission: "lamination.stock" },`
+- [src/lib/navigation.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/navigation.ts:63) (module-navigation): `key: "offset-printing",`
+- [src/lib/navigation.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/navigation.ts:64) (module-navigation): `label: "Offset Printing",`
+- [src/lib/navigation.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/navigation.ts:65) (module-navigation): `roles: ["admin", "operator"],`
+- [src/lib/navigation.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/navigation.ts:67) (module-navigation): `{ href: "/offset-printing/production", label: "Production", roles: ["admin", "operator"], permission: "offset_printing.production" },`
+- [src/lib/navigation.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/navigation.ts:68) (module-navigation): `{ href: "/offset-printing/consumption", label: "Consumption", roles: ["admin", "operator"], permission: "offset_printing.consumption" },`
+- [src/lib/navigation.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/navigation.ts:69) (module-navigation): `{ href: "/offset-printing/stock", label: "Stock", roles: ["admin", "operator"], permission: "offset_printing.stock" },`
+- [src/lib/navigation.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/navigation.ts:73) (module-navigation): `key: "finishing",`
+- [src/lib/navigation.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/navigation.ts:74) (module-navigation): `label: "Finishing",`
+- [src/lib/navigation.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/navigation.ts:75) (module-navigation): `roles: ["admin", "operator"],`
+- [src/lib/navigation.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/navigation.ts:77) (module-navigation): `{ href: "/finishing/production", label: "Production", roles: ["admin", "operator"], permission: "finishing.production" },`
+- [src/lib/navigation.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/navigation.ts:78) (module-navigation): `{ href: "/finishing/consumption", label: "Consumption", roles: ["admin", "operator"], permission: "finishing.consumption" },`
+- [src/lib/navigation.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/navigation.ts:79) (module-navigation): `{ href: "/finishing/stock", label: "Stock", roles: ["admin", "operator"], permission: "finishing.stock" },`
+- [src/lib/navigation.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/navigation.ts:83) (module-navigation): `key: "sales",`
+- [src/lib/navigation.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/navigation.ts:84) (module-navigation): `label: "Sales",`
+- [src/lib/navigation.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/navigation.ts:85) (module-navigation): `roles: ["admin"],`
+- [src/lib/navigation.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/navigation.ts:87) (module-navigation): `{ href: "/sales/client-orders", label: "Client Portal Orders", roles: ["admin"], permission: "sales.order_confirmation" },`
+- [src/lib/navigation.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/navigation.ts:88) (module-navigation): `{ href: "/sales/order-confirmation", label: "Order Confirmation", roles: ["admin"], permission: "sales.order_confirmation" },`
+- [src/lib/navigation.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/navigation.ts:89) (module-navigation): `{ href: "/sales/delivery-entry", label: "Delivery Entry", roles: ["admin"], permission: "sales.delivery_entry" },`
+- [src/lib/navigation.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/navigation.ts:93) (module-navigation): `key: "accounts",`
+- [src/lib/navigation.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/navigation.ts:94) (module-navigation): `label: "Accounts",`
+- [src/lib/navigation.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/navigation.ts:95) (module-navigation): `roles: ["admin"],`
+- [src/lib/navigation.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/navigation.ts:97) (module-navigation): `{ href: "/accounts/journal", label: "Journal Entry", roles: ["admin"], permission: "accounts.journal" },`
+- [src/lib/navigation.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/navigation.ts:98) (module-navigation): `{ href: "/accounts/purchase", label: "Purchase Entry", roles: ["admin"], permission: "accounts.purchase" },`
+- [src/lib/navigation.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/navigation.ts:99) (module-navigation): `{ href: "/accounts/product-purchase", label: "Product Purchase", roles: ["admin"], permission: "accounts.product_purchase" },`
+- [src/lib/navigation.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/navigation.ts:100) (module-navigation): `{ href: "/accounts/sales", label: "Sales Entry", roles: ["admin"], permission: "accounts.sales" },`
+- [src/lib/navigation.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/navigation.ts:101) (module-navigation): `{ href: "/accounts/material", label: "Material Sales", roles: ["admin"], permission: "accounts.material" },`
+- [src/lib/navigation.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/navigation.ts:105) (module-navigation): `key: "reports",`
+- [src/lib/navigation.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/navigation.ts:106) (module-navigation): `label: "Reports",`
+- [src/lib/navigation.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/navigation.ts:107) (module-navigation): `roles: ["admin", "operator"],`
+- [src/lib/navigation.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/navigation.ts:109) (module-navigation): `{ href: "/reports/sales-confirmation", label: "Sales Confirmation", roles: ["admin"], permission: "reports.sales_confirmation" },`
+- [src/lib/navigation.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/navigation.ts:110) (module-navigation): `{ href: "/reports/accounts", label: "Account Reports", roles: ["admin"], permission: "reports.accounts" },`
+- [src/lib/navigation.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/navigation.ts:111) (module-navigation): `{ href: "/reports/opening-balance", label: "Opening Balance", roles: ["admin"], permission: "reports.opening_balance" },`
+- [src/lib/navigation.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/navigation.ts:112) (module-navigation): `{ href: "/reports/stock", label: "Stock Report", roles: ["admin", "operator"], permission: "reports.stock" },`
+- [src/lib/navigation.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/navigation.ts:113) (module-navigation): `{ href: "/reports/closing-stock", label: "Closing Stock", roles: ["admin", "operator"], permission: "reports.closing_stock" },`
+- [src/lib/navigation.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/navigation.ts:114) (module-navigation): `{ href: "/reports/profit-loss", label: "Profit & Loss", roles: ["admin"], permission: "reports.profit_loss" },`
+- [src/lib/navigation.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/navigation.ts:115) (module-navigation): `{ href: "/reports/balance-sheet", label: "Balance Sheet", roles: ["admin"], permission: "reports.balance_sheet" },`
+
+
+## Module Configuration Evidence
+
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:7) (module-config): `label: string;`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:9) (module-config): `required?: boolean;`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:12) (module-config): `options?: { label: string; value: string }[];`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:16) (module-config): `key: string;`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:17) (module-config): `title: string;`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:18) (module-config): `table: string;`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:19) (module-config): `path: string;`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:21) (module-config): `fields: FieldConfig[];`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:22) (module-config): `columns: { key: string; label: string }[];`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:23) (module-config): `searchColumns: string[];`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:27) (module-config): `{ label: "Active", value: "active" },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:28) (module-config): `{ label: "Inactive", value: "inactive" },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:33) (module-config): `key: "looms",`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:34) (module-config): `title: "Loom Management",`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:35) (module-config): `table: "looms",`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:36) (module-config): `path: "/admin/looms",`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:38) (module-config): `fields: [`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:39) (module-config): `{ name: "loom_number", label: "Loom ID", type: "text", required: true },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:40) (module-config): `{ name: "description", label: "Description", type: "textarea" },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:41) (module-config): `{ name: "status", label: "Status", type: "select", options: statusOptions, required: true },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:43) (module-config): `columns: [`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:44) (module-config): `{ key: "loom_number", label: "Loom ID" },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:45) (module-config): `{ key: "description", label: "Description" },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:46) (module-config): `{ key: "status", label: "Status" },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:48) (module-config): `searchColumns: ["loom_number", "description", "status"],`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:51) (module-config): `key: "fabric-types",`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:52) (module-config): `title: "Fabric Type Management",`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:53) (module-config): `table: "fabric_types",`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:54) (module-config): `path: "/admin/products",`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:56) (module-config): `fields: [`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:57) (module-config): `{ name: "fabric_name", label: "Fabric ID", type: "text", required: true },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:58) (module-config): `{ name: "description", label: "Description", type: "textarea" },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:59) (module-config): `{ name: "status", label: "Status", type: "select", options: statusOptions, required: true },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:61) (module-config): `columns: [`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:62) (module-config): `{ key: "fabric_name", label: "Fabric ID" },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:63) (module-config): `{ key: "description", label: "Description" },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:64) (module-config): `{ key: "status", label: "Status" },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:66) (module-config): `searchColumns: ["fabric_name", "description", "status"],`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:69) (module-config): `key: "raw-materials",`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:70) (module-config): `title: "Raw Materials ID",`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:71) (module-config): `table: "raw_materials",`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:72) (module-config): `path: "/admin/raw-materials",`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:74) (module-config): `fields: [`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:75) (module-config): `{ name: "department", label: "Department", type: "select", fullWidth: true, options: [`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:76) (module-config): `{ label: "Fabric", value: "fabric" },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:77) (module-config): `{ label: "Roto Printing", value: "roto-printing" },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:78) (module-config): `{ label: "Lamination", value: "lamination" },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:79) (module-config): `{ label: "Off-set Printing", value: "offset-printing" },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:80) (module-config): `{ label: "Finishing", value: "finishing" },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:81) (module-config): `], required: true },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:82) (module-config): `{ name: "material_name", label: "Raw Material ID", type: "text", required: true },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:83) (module-config): `{ name: "description", label: "Description", type: "text", required: false },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:84) (module-config): `{ name: "critical_level", label: "Critical Stock Level", type: "number", step: "0.01", required: true },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:85) (module-config): `{ name: "status", label: "Status", type: "select", options: statusOptions, required: true },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:87) (module-config): `columns: [`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:88) (module-config): `{ key: "department", label: "Department" },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:89) (module-config): `{ key: "material_name", label: "Raw Material ID" },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:90) (module-config): `{ key: "description", label: "Description" },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:91) (module-config): `{ key: "critical_level", label: "Critical Level" },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:92) (module-config): `{ key: "status", label: "Status" },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:94) (module-config): `searchColumns: ["material_name", "description", "department", "status"],`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:97) (module-config): `key: "employees",`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:98) (module-config): `title: "Employee Management",`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:99) (module-config): `table: "employees",`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:100) (module-config): `path: "/admin/employees",`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:102) (module-config): `fields: [`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:103) (module-config): `{ name: "employee_code", label: "Employee Code", type: "text", required: true },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:104) (module-config): `{ name: "name", label: "Name", type: "text", required: true },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:105) (module-config): `{ name: "department", label: "Department", type: "text", required: true },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:106) (module-config): `{ name: "designation", label: "Designation", type: "text", required: true },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:107) (module-config): `{ name: "salary", label: "Salary", type: "number", step: "0.01", required: true },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:108) (module-config): `{ name: "joining_date", label: "Joining Date", type: "date" },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:109) (module-config): `{ name: "shift_start", label: "Shift Start", type: "time", required: true },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:110) (module-config): `{ name: "shift_end", label: "Shift End", type: "time", required: true },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:111) (module-config): `{ name: "status", label: "Status", type: "select", options: statusOptions, required: true },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:113) (module-config): `columns: [`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:114) (module-config): `{ key: "employee_code", label: "Code" },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:115) (module-config): `{ key: "name", label: "Name" },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:116) (module-config): `{ key: "department", label: "Department" },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:117) (module-config): `{ key: "designation", label: "Designation" },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:118) (module-config): `{ key: "joining_date", label: "Joined" },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:119) (module-config): `{ key: "shift_start", label: "Shift Start" },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:120) (module-config): `{ key: "shift_end", label: "Shift End" },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:121) (module-config): `{ key: "salary", label: "Salary" },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:122) (module-config): `{ key: "status", label: "Status" },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:124) (module-config): `searchColumns: ["employee_code", "name", "department", "designation"],`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:127) (module-config): `key: "customers",`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:128) (module-config): `title: "Firm Management",`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:129) (module-config): `table: "customers",`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:130) (module-config): `path: "/admin/clients",`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:132) (module-config): `fields: [`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:133) (module-config): `{ name: "customer_name", label: "Firm Name", type: "text", required: true },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:134) (module-config): `{ name: "linked_customer_id", label: "Linked Account", type: "select" },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:135) (module-config): `{ name: "phone", label: "Phone", type: "text" },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:136) (module-config): `{ name: "gst_number", label: "GST Number", type: "text" },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:137) (module-config): `{ name: "address", label: "Address", type: "textarea" },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:138) (module-config): `{ name: "is_internal", label: "Account Type", type: "select", options: [`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:139) (module-config): `{ label: "client a/c", value: "client a/c" },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:140) (module-config): `{ label: "profit and loss a/c", value: "profit and loss a/c" },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:141) (module-config): `{ label: "capital a/c", value: "capital a/c" },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:142) (module-config): `{ label: "loan a/c", value: "loan a/c" },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:143) (module-config): `{ label: "balance sheet a/c", value: "balance sheet a/c" },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:144) (module-config): `{ label: "reference a/c", value: "reference a/c" },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:145) (module-config): `], required: true },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:146) (module-config): `{ name: "status", label: "Status", type: "select", options: statusOptions, required: true },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:148) (module-config): `columns: [`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:149) (module-config): `{ key: "customer_name", label: "Firm Name" },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:150) (module-config): `{ key: "linked_customer_id", label: "Linked Account ID" },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:151) (module-config): `{ key: "phone", label: "Phone" },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:152) (module-config): `{ key: "gst_number", label: "GST" },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:153) (module-config): `{ key: "is_internal", label: "Account Type" },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:154) (module-config): `{ key: "status", label: "Status" },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:156) (module-config): `searchColumns: ["customer_name", "linked_customer_id", "phone", "gst_number"],`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:159) (module-config): `key: "roto-colors",`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:160) (module-config): `title: "Printing Color Management",`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:161) (module-config): `table: "roto_colors",`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:162) (module-config): `path: "/admin/colors",`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:164) (module-config): `fields: [`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:165) (module-config): `{ name: "color_name", label: "Color ID/Name", type: "text", required: true },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:166) (module-config): `{ name: "description", label: "Description", type: "textarea" },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:167) (module-config): `{ name: "status", label: "Status", type: "select", options: statusOptions, required: true },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:169) (module-config): `columns: [`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:170) (module-config): `{ key: "color_name", label: "Color ID/Name" },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:171) (module-config): `{ key: "description", label: "Description" },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:172) (module-config): `{ key: "status", label: "Status" },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:174) (module-config): `searchColumns: ["color_name", "description", "status"],`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:177) (module-config): `key: "lamination-products",`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:178) (module-config): `title: "Lamination Film Product Management",`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:179) (module-config): `table: "lamination_products",`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:180) (module-config): `path: "/admin/products",`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:182) (module-config): `fields: [`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:183) (module-config): `{ name: "name", label: "Product Name", type: "text", required: true },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:184) (module-config): `{ name: "status", label: "Status", type: "select", options: statusOptions, required: true },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:186) (module-config): `columns: [`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:187) (module-config): `{ key: "name", label: "Product Name" },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:188) (module-config): `{ key: "status", label: "Status" },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:190) (module-config): `searchColumns: ["name", "status"],`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:193) (module-config): `key: "finishing-products",`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:194) (module-config): `title: "Finished Bag Product Management",`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:195) (module-config): `table: "finishing_products",`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:196) (module-config): `path: "/admin/products",`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:198) (module-config): `fields: [`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:199) (module-config): `{ name: "name", label: "Product Name", type: "text", required: true },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:200) (module-config): `{ name: "status", label: "Status", type: "select", options: statusOptions, required: true },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:202) (module-config): `columns: [`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:203) (module-config): `{ key: "name", label: "Product Name" },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:204) (module-config): `{ key: "status", label: "Status" },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:206) (module-config): `searchColumns: ["name", "status"],`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:211) (module-config): `{ label: "Present", value: "present" },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:212) (module-config): `{ label: "Absent", value: "absent" },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:213) (module-config): `{ label: "Half Day", value: "half_day" },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:214) (module-config): `{ label: "Leave", value: "leave" },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:218) (module-config): `{ label: "Pending", value: "draft" },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:219) (module-config): `{ label: "Confirmed", value: "confirmed" },`
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:220) (module-config): `{ label: "Cancelled", value: "cancelled" },`
+
+
+## End-To-End Flow Evidence Rule
+
+Every action flow is documented as code evidence: UI action evidence and backend/database calls in the same file are listed in [04 CRUD Data Flow Business Logic](./04-crud-data-flow-business-logic.md), and the full per-file trace is listed in [07 File By File Analysis](./07-file-by-file-analysis.md). If a click-to-database sequence is not directly present in the same source files, it is marked "Not found in source code." in the relevant operation section.
+

@@ -1,0 +1,429 @@
+# 00 Coverage
+
+Text/source files read: 354.
+
+Binary/non-text artifacts cataloged: 61.
+
+
+## Source Files
+
+- [.github/workflows/build-apk.yml](C:/Users/spsch/Downloads/ERP-main/ERP-main/.github/workflows/build-apk.yml:1): 55 lines, 1418 bytes.
+- [.gitignore](C:/Users/spsch/Downloads/ERP-main/ERP-main/.gitignore:1): 40 lines, 385 bytes.
+- [android/.gitignore](C:/Users/spsch/Downloads/ERP-main/ERP-main/android/.gitignore:1): 102 lines, 1824 bytes.
+- [android/app/.gitignore](C:/Users/spsch/Downloads/ERP-main/ERP-main/android/app/.gitignore:1): 3 lines, 26 bytes.
+- [android/app/build.gradle](C:/Users/spsch/Downloads/ERP-main/ERP-main/android/app/build.gradle:1): 55 lines, 2142 bytes.
+- [android/app/capacitor.build.gradle](C:/Users/spsch/Downloads/ERP-main/ERP-main/android/app/capacitor.build.gradle:1): 20 lines, 370 bytes.
+- [android/app/src/androidTest/java/com/getcapacitor/myapp/ExampleInstrumentedTest.java](C:/Users/spsch/Downloads/ERP-main/ERP-main/android/app/src/androidTest/java/com/getcapacitor/myapp/ExampleInstrumentedTest.java:1): 27 lines, 774 bytes.
+- [android/app/src/main/AndroidManifest.xml](C:/Users/spsch/Downloads/ERP-main/ERP-main/android/app/src/main/AndroidManifest.xml:1): 42 lines, 1537 bytes.
+- [android/app/src/main/java/com/rkglobal/fabricerp/MainActivity.java](C:/Users/spsch/Downloads/ERP-main/ERP-main/android/app/src/main/java/com/rkglobal/fabricerp/MainActivity.java:1): 6 lines, 126 bytes.
+- [android/app/src/main/res/drawable-v24/ic_launcher_foreground.xml](C:/Users/spsch/Downloads/ERP-main/ERP-main/android/app/src/main/res/drawable-v24/ic_launcher_foreground.xml:1): 35 lines, 1880 bytes.
+- [android/app/src/main/res/drawable/ic_launcher_background.xml](C:/Users/spsch/Downloads/ERP-main/ERP-main/android/app/src/main/res/drawable/ic_launcher_background.xml:1): 171 lines, 5606 bytes.
+- [android/app/src/main/res/layout/activity_main.xml](C:/Users/spsch/Downloads/ERP-main/ERP-main/android/app/src/main/res/layout/activity_main.xml:1): 13 lines, 535 bytes.
+- [android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml](C:/Users/spsch/Downloads/ERP-main/ERP-main/android/app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml:1): 5 lines, 265 bytes.
+- [android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml](C:/Users/spsch/Downloads/ERP-main/ERP-main/android/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml:1): 5 lines, 265 bytes.
+- [android/app/src/main/res/values/ic_launcher_background.xml](C:/Users/spsch/Downloads/ERP-main/ERP-main/android/app/src/main/res/values/ic_launcher_background.xml:1): 4 lines, 120 bytes.
+- [android/app/src/main/res/values/strings.xml](C:/Users/spsch/Downloads/ERP-main/ERP-main/android/app/src/main/res/values/strings.xml:1): 8 lines, 324 bytes.
+- [android/app/src/main/res/values/styles.xml](C:/Users/spsch/Downloads/ERP-main/ERP-main/android/app/src/main/res/values/styles.xml:1): 22 lines, 823 bytes.
+- [android/app/src/main/res/xml/file_paths.xml](C:/Users/spsch/Downloads/ERP-main/ERP-main/android/app/src/main/res/xml/file_paths.xml:1): 5 lines, 213 bytes.
+- [android/app/src/test/java/com/getcapacitor/myapp/ExampleUnitTest.java](C:/Users/spsch/Downloads/ERP-main/ERP-main/android/app/src/test/java/com/getcapacitor/myapp/ExampleUnitTest.java:1): 19 lines, 402 bytes.
+- [android/build.gradle](C:/Users/spsch/Downloads/ERP-main/ERP-main/android/build.gradle:1): 30 lines, 637 bytes.
+- [android/capacitor.settings.gradle](C:/Users/spsch/Downloads/ERP-main/ERP-main/android/capacitor.settings.gradle:1): 4 lines, 207 bytes.
+- [android/gradle.properties](C:/Users/spsch/Downloads/ERP-main/ERP-main/android/gradle.properties:1): 23 lines, 987 bytes.
+- [android/gradle/wrapper/gradle-wrapper.properties](C:/Users/spsch/Downloads/ERP-main/ERP-main/android/gradle/wrapper/gradle-wrapper.properties:1): 8 lines, 253 bytes.
+- [android/gradlew.bat](C:/Users/spsch/Downloads/ERP-main/ERP-main/android/gradlew.bat:1): 95 lines, 2843 bytes.
+- [android/settings.gradle](C:/Users/spsch/Downloads/ERP-main/ERP-main/android/settings.gradle:1): 5 lines, 208 bytes.
+- [android/variables.gradle](C:/Users/spsch/Downloads/ERP-main/ERP-main/android/variables.gradle:1): 16 lines, 498 bytes.
+- [capacitor.config.json](C:/Users/spsch/Downloads/ERP-main/ERP-main/capacitor.config.json:1): 22 lines, 492 bytes.
+- [components.json](C:/Users/spsch/Downloads/ERP-main/ERP-main/components.json:1): 20 lines, 404 bytes.
+- [DOCS_SCHEMA_MIGRATIONS.md](C:/Users/spsch/Downloads/ERP-main/ERP-main/DOCS_SCHEMA_MIGRATIONS.md:1): 93 lines, 7840 bytes.
+- [docs/ER_DIAGRAM.md](C:/Users/spsch/Downloads/ERP-main/ERP-main/docs/ER_DIAGRAM.md:1): 146 lines, 2942 bytes.
+- [docs/SECURITY_AND_IMPLEMENTATION_AUDIT.md](C:/Users/spsch/Downloads/ERP-main/ERP-main/docs/SECURITY_AND_IMPLEMENTATION_AUDIT.md:1): 47 lines, 3730 bytes.
+- [inspect_stock.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/inspect_stock.mjs:1): 34 lines, 1138 bytes.
+- [latency_test_suite.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/latency_test_suite.mjs:1): 297 lines, 12407 bytes.
+- [list-permissions.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/list-permissions.mjs:1): 23 lines, 804 bytes.
+- [middleware.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/middleware.ts:1): 11 lines, 326 bytes.
+- [next-env.d.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/next-env.d.ts:1): 7 lines, 268 bytes.
+- [next.config.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/next.config.ts:1): 45 lines, 1489 bytes.
+- [package-lock.json](C:/Users/spsch/Downloads/ERP-main/ERP-main/package-lock.json:1): 10088 lines, 352015 bytes.
+- [package.json](C:/Users/spsch/Downloads/ERP-main/ERP-main/package.json:1): 59 lines, 1630 bytes.
+- [postcss.config.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/postcss.config.mjs:1): 9 lines, 105 bytes.
+- [public/rk-global-logo.svg](C:/Users/spsch/Downloads/ERP-main/ERP-main/public/rk-global-logo.svg:1): 12 lines, 1066 bytes.
+- [public/sw.js](C:/Users/spsch/Downloads/ERP-main/ERP-main/public/sw.js:1): 2 lines, 52324 bytes.
+- [README.md](C:/Users/spsch/Downloads/ERP-main/ERP-main/README.md:1): 46 lines, 1114 bytes.
+- [scratch/apply-date-permission.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/apply-date-permission.mjs:1): 29 lines, 1022 bytes.
+- [scratch/check_columns.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/check_columns.mjs:1): 31 lines, 1200 bytes.
+- [scratch/check_db.js](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/check_db.js:1): 56 lines, 1677 bytes.
+- [scratch/check_fabric_types.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/check_fabric_types.mjs:1): 32 lines, 901 bytes.
+- [scratch/check_lam_rolls.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/check_lam_rolls.mjs:1): 33 lines, 944 bytes.
+- [scratch/check_offset_rolls.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/check_offset_rolls.mjs:1): 33 lines, 937 bytes.
+- [scratch/check_order_items.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/check_order_items.mjs:1): 30 lines, 859 bytes.
+- [scratch/check_roto_products.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/check_roto_products.mjs:1): 33 lines, 932 bytes.
+- [scratch/check-has-permission.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/check-has-permission.mjs:1): 33 lines, 2399 bytes.
+- [scratch/check-materials.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/check-materials.mjs:1): 28 lines, 756 bytes.
+- [scratch/check-new-roll-lpe.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/check-new-roll-lpe.mjs:1): 36 lines, 1070 bytes.
+- [scratch/check-permissions.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/check-permissions.mjs:1): 59 lines, 1968 bytes.
+- [scratch/check-policies.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/check-policies.mjs:1): 23 lines, 1539 bytes.
+- [scratch/check-rls-as-user.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/check-rls-as-user.mjs:1): 89 lines, 3614 bytes.
+- [scratch/check-rolls-status.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/check-rolls-status.mjs:1): 33 lines, 1094 bytes.
+- [scratch/check-sales-order-anon.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/check-sales-order-anon.mjs:1): 58 lines, 2373 bytes.
+- [scratch/check-sales-order-items-keys.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/check-sales-order-items-keys.mjs:1): 28 lines, 1231 bytes.
+- [scratch/check-sales-order.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/check-sales-order.mjs:1): 23 lines, 920 bytes.
+- [scratch/check-user-columns.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/check-user-columns.mjs:1): 47 lines, 1548 bytes.
+- [scratch/check-user-details.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/check-user-details.mjs:1): 40 lines, 1453 bytes.
+- [scratch/check-user-permissions.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/check-user-permissions.mjs:1): 37 lines, 1211 bytes.
+- [scratch/clear_stock.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/clear_stock.mjs:1): 46 lines, 1231 bytes.
+- [scratch/clear-sales.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/clear-sales.mjs:1): 89 lines, 2888 bytes.
+- [scratch/create-placeholders.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/create-placeholders.mjs:1): 42 lines, 3551 bytes.
+- [scratch/create-test-client.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/create-test-client.mjs:1): 107 lines, 4033 bytes.
+- [scratch/crop-logo-centered.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/crop-logo-centered.mjs:1): 20 lines, 470 bytes.
+- [scratch/crop-logo.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/crop-logo.mjs:1): 25 lines, 717 bytes.
+- [scratch/diagnose-login-error.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/diagnose-login-error.mjs:1): 75 lines, 2347 bytes.
+- [scratch/execute-merge-w24.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/execute-merge-w24.mjs:1): 77 lines, 2963 bytes.
+- [scratch/find-duplicates.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/find-duplicates.mjs:1): 51 lines, 1646 bytes.
+- [scratch/find-ft-references.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/find-ft-references.mjs:1): 55 lines, 1883 bytes.
+- [scratch/find-journal-gaps.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/find-journal-gaps.mjs:1): 57 lines, 1622 bytes.
+- [scratch/find-logo-bounds.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/find-logo-bounds.mjs:1): 51 lines, 1529 bytes.
+- [scratch/find-polysquare-lldp.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/find-polysquare-lldp.mjs:1): 32 lines, 936 bytes.
+- [scratch/generate_assets.js](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/generate_assets.js:1): 118 lines, 3939 bytes.
+- [scratch/inspect_all_73.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/inspect_all_73.mjs:1): 43 lines, 1778 bytes.
+- [scratch/inspect_all_purchases_73.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/inspect_all_purchases_73.mjs:1): 47 lines, 1366 bytes.
+- [scratch/inspect_customer.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/inspect_customer.mjs:1): 45 lines, 1535 bytes.
+- [scratch/inspect_db.js](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/inspect_db.js:1): 69 lines, 1877 bytes.
+- [scratch/inspect_deliveries_73.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/inspect_deliveries_73.mjs:1): 35 lines, 1089 bytes.
+- [scratch/inspect_exact_order_journal.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/inspect_exact_order_journal.mjs:1): 35 lines, 970 bytes.
+- [scratch/inspect_is_draft_billing.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/inspect_is_draft_billing.mjs:1): 36 lines, 1022 bytes.
+- [scratch/inspect_journals.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/inspect_journals.mjs:1): 47 lines, 1368 bytes.
+- [scratch/inspect_material_purchases.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/inspect_material_purchases.mjs:1): 35 lines, 1037 bytes.
+- [scratch/inspect_material_sales.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/inspect_material_sales.mjs:1): 35 lines, 1010 bytes.
+- [scratch/inspect_order_2_journal.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/inspect_order_2_journal.mjs:1): 31 lines, 1090 bytes.
+- [scratch/inspect_order_73_pricing.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/inspect_order_73_pricing.mjs:1): 41 lines, 1468 bytes.
+- [scratch/inspect_sales_ac.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/inspect_sales_ac.mjs:1): 31 lines, 1073 bytes.
+- [scratch/inspect_sv_polytech_rows.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/inspect_sv_polytech_rows.mjs:1): 35 lines, 976 bytes.
+- [scratch/inspect_updated_at.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/inspect_updated_at.mjs:1): 31 lines, 856 bytes.
+- [scratch/inspect-created-times.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/inspect-created-times.mjs:1): 35 lines, 1029 bytes.
+- [scratch/inspect-journals.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/inspect-journals.mjs:1): 81 lines, 2505 bytes.
+- [scratch/inspect-kankariya.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/inspect-kankariya.mjs:1): 46 lines, 1832 bytes.
+- [scratch/inspect-loom-schema.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/inspect-loom-schema.mjs:1): 16 lines, 777 bytes.
+- [scratch/inspect-permissions.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/inspect-permissions.mjs:1): 26 lines, 775 bytes.
+- [scratch/inspect-purchases.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/inspect-purchases.mjs:1): 41 lines, 1108 bytes.
+- [scratch/inspect-tables.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/inspect-tables.mjs:1): 29 lines, 785 bytes.
+- [scratch/list_billed_orders.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/list_billed_orders.mjs:1): 37 lines, 1204 bytes.
+- [scratch/list_recent_purchases.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/list_recent_purchases.mjs:1): 39 lines, 1226 bytes.
+- [scratch/list-users-debug.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/list-users-debug.mjs:1): 60 lines, 2037 bytes.
+- [scratch/list-users.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/list-users.mjs:1): 23 lines, 740 bytes.
+- [scratch/login-test.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/login-test.mjs:1): 40 lines, 2196 bytes.
+- [scratch/query_all.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/query_all.mjs:1): 38 lines, 1516 bytes.
+- [scratch/query-w24.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/query-w24.mjs:1): 70 lines, 2286 bytes.
+- [scratch/restore-journals.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/restore-journals.mjs:1): 125 lines, 3561 bytes.
+- [scratch/SalesEntryClient_old.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/SalesEntryClient_old.tsx:1): 568 lines, 25609 bytes.
+- [scratch/search-logs.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/search-logs.mjs:1): 29 lines, 789 bytes.
+- [scratch/squash-migrations.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/squash-migrations.mjs:1): 49 lines, 1608 bytes.
+- [scratch/test_journal_insert.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/test_journal_insert.mjs:1): 86 lines, 2625 bytes.
+- [scratch/test_report_filtering.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/test_report_filtering.mjs:1): 144 lines, 4762 bytes.
+- [scratch/test_stock_query.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/test_stock_query.mjs:1): 100 lines, 3687 bytes.
+- [scratch/test-crud.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/test-crud.mjs:1): 609 lines, 21268 bytes.
+- [scratch/test-full-login-flow.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/test-full-login-flow.mjs:1): 54 lines, 1688 bytes.
+- [scratch/test-login-query.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/test-login-query.mjs:1): 37 lines, 1204 bytes.
+- [scratch/test-material-sales.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/test-material-sales.mjs:1): 32 lines, 1089 bytes.
+- [scratch/test-product-creation.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/test-product-creation.mjs:1): 61 lines, 1814 bytes.
+- [scratch/try-execute-sql-rpc.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/try-execute-sql-rpc.mjs:1): 21 lines, 700 bytes.
+- [scripts/analyze_inconsistencies.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scripts/analyze_inconsistencies.mjs:1): 91 lines, 3721 bytes.
+- [scripts/check-schema.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scripts/check-schema.mjs:1): 53 lines, 1595 bytes.
+- [scripts/create-user.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scripts/create-user.mjs:1): 94 lines, 2627 bytes.
+- [scripts/generate-forensic-docs.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scripts/generate-forensic-docs.mjs:1): 484 lines, 26557 bytes.
+- [scripts/test-db.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/scripts/test-db.mjs:1): 32 lines, 1017 bytes.
+- [src/app/(app)/_actions.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/_actions.ts:1): 265 lines, 9588 bytes.
+- [src/app/(app)/_actions/accounts.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/_actions/accounts.ts:1): 227 lines, 7053 bytes.
+- [src/app/(app)/_actions/attendance.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/_actions/attendance.ts:1): 114 lines, 4159 bytes.
+- [src/app/(app)/_actions/client-orders.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/_actions/client-orders.ts:1): 198 lines, 6758 bytes.
+- [src/app/(app)/_actions/client-sales.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/_actions/client-sales.ts:1): 84 lines, 2408 bytes.
+- [src/app/(app)/_actions/helpers.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/_actions/helpers.ts:1): 188 lines, 6563 bytes.
+- [src/app/(app)/_actions/journal.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/_actions/journal.ts:1): 161 lines, 5518 bytes.
+- [src/app/(app)/_actions/master.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/_actions/master.ts:1): 85 lines, 3104 bytes.
+- [src/app/(app)/_actions/product-purchase.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/_actions/product-purchase.ts:1): 667 lines, 26583 bytes.
+- [src/app/(app)/_actions/production.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/_actions/production.ts:1): 787 lines, 29859 bytes.
+- [src/app/(app)/_actions/products.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/_actions/products.ts:1): 347 lines, 13695 bytes.
+- [src/app/(app)/_actions/purchases.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/_actions/purchases.ts:1): 159 lines, 6334 bytes.
+- [src/app/(app)/_actions/raw-materials.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/_actions/raw-materials.ts:1): 305 lines, 10476 bytes.
+- [src/app/(app)/_actions/sales.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/_actions/sales.ts:1): 1602 lines, 58523 bytes.
+- [src/app/(app)/_actions/users-roles.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/_actions/users-roles.ts:1): 191 lines, 6614 bytes.
+- [src/app/(app)/403/page.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/403/page.tsx:1): 21 lines, 788 bytes.
+- [src/app/(app)/accounts/journal/loading.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/accounts/journal/loading.tsx:1): 5 lines, 159 bytes.
+- [src/app/(app)/accounts/journal/page.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/accounts/journal/page.tsx:1): 259 lines, 10953 bytes.
+- [src/app/(app)/accounts/material/loading.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/accounts/material/loading.tsx:1): 5 lines, 158 bytes.
+- [src/app/(app)/accounts/material/MaterialSalesForm.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/accounts/material/MaterialSalesForm.tsx:1): 403 lines, 16994 bytes.
+- [src/app/(app)/accounts/material/page.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/accounts/material/page.tsx:1): 122 lines, 3222 bytes.
+- [src/app/(app)/accounts/product-purchase/delete-button.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/accounts/product-purchase/delete-button.tsx:1): 47 lines, 1549 bytes.
+- [src/app/(app)/accounts/product-purchase/loading.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/accounts/product-purchase/loading.tsx:1): 5 lines, 161 bytes.
+- [src/app/(app)/accounts/product-purchase/page.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/accounts/product-purchase/page.tsx:1): 255 lines, 11375 bytes.
+- [src/app/(app)/accounts/product-purchase/ProductPurchaseForm.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/accounts/product-purchase/ProductPurchaseForm.tsx:1): 751 lines, 35734 bytes.
+- [src/app/(app)/accounts/purchase/delete-purchase-button.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/accounts/purchase/delete-purchase-button.tsx:1): 41 lines, 1194 bytes.
+- [src/app/(app)/accounts/purchase/loading.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/accounts/purchase/loading.tsx:1): 5 lines, 160 bytes.
+- [src/app/(app)/accounts/purchase/page.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/accounts/purchase/page.tsx:1): 177 lines, 6637 bytes.
+- [src/app/(app)/accounts/sales/loading.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/accounts/sales/loading.tsx:1): 5 lines, 157 bytes.
+- [src/app/(app)/accounts/sales/page.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/accounts/sales/page.tsx:1): 178 lines, 7528 bytes.
+- [src/app/(app)/accounts/sales/SalesEntryClient.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/accounts/sales/SalesEntryClient.tsx:1): 716 lines, 33514 bytes.
+- [src/app/(app)/admin/attendance/page.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/admin/attendance/page.tsx:1): 239 lines, 10518 bytes.
+- [src/app/(app)/admin/catalog/CatalogClient.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/admin/catalog/CatalogClient.tsx:1): 670 lines, 29315 bytes.
+- [src/app/(app)/admin/catalog/loading.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/admin/catalog/loading.tsx:1): 5 lines, 159 bytes.
+- [src/app/(app)/admin/catalog/page.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/admin/catalog/page.tsx:1): 91 lines, 2792 bytes.
+- [src/app/(app)/admin/clients/[id]/page.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/admin/clients/[id]/page.tsx:1): 180 lines, 8575 bytes.
+- [src/app/(app)/admin/clients/loading.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/admin/clients/loading.tsx:1): 5 lines, 152 bytes.
+- [src/app/(app)/admin/clients/page.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/admin/clients/page.tsx:1): 60 lines, 1860 bytes.
+- [src/app/(app)/admin/colors/page.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/admin/colors/page.tsx:1): 16 lines, 900 bytes.
+- [src/app/(app)/admin/credentials/page.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/admin/credentials/page.tsx:1): 72 lines, 3473 bytes.
+- [src/app/(app)/admin/critical-levels/page.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/admin/critical-levels/page.tsx:1): 150 lines, 7136 bytes.
+- [src/app/(app)/admin/employees/page.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/admin/employees/page.tsx:1): 16 lines, 962 bytes.
+- [src/app/(app)/admin/looms/page.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/admin/looms/page.tsx:1): 16 lines, 887 bytes.
+- [src/app/(app)/admin/permissions/[id]/page.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/admin/permissions/[id]/page.tsx:1): 84 lines, 3288 bytes.
+- [src/app/(app)/admin/permissions/page.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/admin/permissions/page.tsx:1): 96 lines, 4479 bytes.
+- [src/app/(app)/admin/products/loading.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/admin/products/loading.tsx:1): 5 lines, 152 bytes.
+- [src/app/(app)/admin/products/OffsetProductsClient.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/admin/products/OffsetProductsClient.tsx:1): 410 lines, 17750 bytes.
+- [src/app/(app)/admin/products/page.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/admin/products/page.tsx:1): 182 lines, 7060 bytes.
+- [src/app/(app)/admin/products/RotoColorsPreview.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/admin/products/RotoColorsPreview.tsx:1): 98 lines, 3598 bytes.
+- [src/app/(app)/admin/products/RotoProductsClient.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/admin/products/RotoProductsClient.tsx:1): 622 lines, 27695 bytes.
+- [src/app/(app)/admin/raw-materials/page.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/admin/raw-materials/page.tsx:1): 30 lines, 1024 bytes.
+- [src/app/(app)/admin/reset/page.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/admin/reset/page.tsx:1): 10 lines, 271 bytes.
+- [src/app/(app)/admin/reset/ResetClient.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/admin/reset/ResetClient.tsx:1): 129 lines, 5591 bytes.
+- [src/app/(app)/client/catalog/ClientCatalogView.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/client/catalog/ClientCatalogView.tsx:1): 413 lines, 18769 bytes.
+- [src/app/(app)/client/catalog/page.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/client/catalog/page.tsx:1): 65 lines, 2089 bytes.
+- [src/app/(app)/client/dashboard/page.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/client/dashboard/page.tsx:1): 209 lines, 9775 bytes.
+- [src/app/(app)/client/layout.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/client/layout.tsx:1): 20 lines, 571 bytes.
+- [src/app/(app)/dashboard/loading.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/dashboard/loading.tsx:1): 5 lines, 153 bytes.
+- [src/app/(app)/dashboard/page.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/dashboard/page.tsx:1): 70 lines, 3251 bytes.
+- [src/app/(app)/fabric/consumption/page.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/fabric/consumption/page.tsx:1): 127 lines, 5056 bytes.
+- [src/app/(app)/fabric/production/loading.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/fabric/production/loading.tsx:1): 5 lines, 161 bytes.
+- [src/app/(app)/fabric/production/page.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/fabric/production/page.tsx:1): 120 lines, 6148 bytes.
+- [src/app/(app)/fabric/stock/[id]/page.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/fabric/stock/[id]/page.tsx:1): 79 lines, 2757 bytes.
+- [src/app/(app)/fabric/stock/[id]/StockRollsClient.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/fabric/stock/[id]/StockRollsClient.tsx:1): 344 lines, 11644 bytes.
+- [src/app/(app)/fabric/stock/FabricStockClient.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/fabric/stock/FabricStockClient.tsx:1): 134 lines, 5905 bytes.
+- [src/app/(app)/fabric/stock/loading.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/fabric/stock/loading.tsx:1): 5 lines, 156 bytes.
+- [src/app/(app)/fabric/stock/page.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/fabric/stock/page.tsx:1): 43 lines, 1524 bytes.
+- [src/app/(app)/finishing/consumption/FinishingConsumptionClient.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/finishing/consumption/FinishingConsumptionClient.tsx:1): 476 lines, 22692 bytes.
+- [src/app/(app)/finishing/consumption/page.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/finishing/consumption/page.tsx:1): 140 lines, 4985 bytes.
+- [src/app/(app)/finishing/production/loading.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/finishing/production/loading.tsx:1): 5 lines, 164 bytes.
+- [src/app/(app)/finishing/production/page.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/finishing/production/page.tsx:1): 134 lines, 5243 bytes.
+- [src/app/(app)/finishing/stock/[id]/page.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/finishing/stock/[id]/page.tsx:1): 91 lines, 2899 bytes.
+- [src/app/(app)/finishing/stock/[id]/StockFinishingBundlesClient.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/finishing/stock/[id]/StockFinishingBundlesClient.tsx:1): 176 lines, 8159 bytes.
+- [src/app/(app)/finishing/stock/loading.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/finishing/stock/loading.tsx:1): 5 lines, 159 bytes.
+- [src/app/(app)/finishing/stock/page.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/finishing/stock/page.tsx:1): 97 lines, 4258 bytes.
+- [src/app/(app)/lamination/consumption/LaminationConsumptionClient.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/lamination/consumption/LaminationConsumptionClient.tsx:1): 388 lines, 18459 bytes.
+- [src/app/(app)/lamination/consumption/page.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/lamination/consumption/page.tsx:1): 149 lines, 5557 bytes.
+- [src/app/(app)/lamination/production/loading.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/lamination/production/loading.tsx:1): 5 lines, 165 bytes.
+- [src/app/(app)/lamination/production/page.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/lamination/production/page.tsx:1): 135 lines, 5240 bytes.
+- [src/app/(app)/lamination/stock/[id]/page.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/lamination/stock/[id]/page.tsx:1): 91 lines, 2881 bytes.
+- [src/app/(app)/lamination/stock/[id]/StockLaminationRollsClient.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/lamination/stock/[id]/StockLaminationRollsClient.tsx:1): 176 lines, 8021 bytes.
+- [src/app/(app)/lamination/stock/loading.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/lamination/stock/loading.tsx:1): 5 lines, 160 bytes.
+- [src/app/(app)/lamination/stock/page.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/lamination/stock/page.tsx:1): 106 lines, 4686 bytes.
+- [src/app/(app)/layout.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/layout.tsx:1): 49 lines, 1594 bytes.
+- [src/app/(app)/loading.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/loading.tsx:1): 15 lines, 646 bytes.
+- [src/app/(app)/offset-printing/consumption/OffsetConsumptionClient.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/offset-printing/consumption/OffsetConsumptionClient.tsx:1): 375 lines, 17713 bytes.
+- [src/app/(app)/offset-printing/consumption/page.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/offset-printing/consumption/page.tsx:1): 120 lines, 4286 bytes.
+- [src/app/(app)/offset-printing/production/loading.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/offset-printing/production/loading.tsx:1): 5 lines, 161 bytes.
+- [src/app/(app)/offset-printing/production/page.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/offset-printing/production/page.tsx:1): 136 lines, 5236 bytes.
+- [src/app/(app)/offset-printing/stock/[id]/page.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/offset-printing/stock/[id]/page.tsx:1): 91 lines, 2877 bytes.
+- [src/app/(app)/offset-printing/stock/[id]/StockOffsetRollsClient.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/offset-printing/stock/[id]/StockOffsetRollsClient.tsx:1): 171 lines, 7622 bytes.
+- [src/app/(app)/offset-printing/stock/loading.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/offset-printing/stock/loading.tsx:1): 5 lines, 156 bytes.
+- [src/app/(app)/offset-printing/stock/page.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/offset-printing/stock/page.tsx:1): 91 lines, 3789 bytes.
+- [src/app/(app)/page.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/page.tsx:1): 21 lines, 864 bytes.
+- [src/app/(app)/reports/accounts/AccountReportsClient.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/reports/accounts/AccountReportsClient.tsx:1): 572 lines, 23670 bytes.
+- [src/app/(app)/reports/accounts/loading.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/reports/accounts/loading.tsx:1): 5 lines, 159 bytes.
+- [src/app/(app)/reports/accounts/page.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/reports/accounts/page.tsx:1): 116 lines, 4237 bytes.
+- [src/app/(app)/reports/balance-sheet/BalanceSheetClient.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/reports/balance-sheet/BalanceSheetClient.tsx:1): 722 lines, 33241 bytes.
+- [src/app/(app)/reports/balance-sheet/loading.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/reports/balance-sheet/loading.tsx:1): 5 lines, 157 bytes.
+- [src/app/(app)/reports/balance-sheet/page.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/reports/balance-sheet/page.tsx:1): 140 lines, 5449 bytes.
+- [src/app/(app)/reports/closing-stock/ClosingStockReportClient.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/reports/closing-stock/ClosingStockReportClient.tsx:1): 672 lines, 27716 bytes.
+- [src/app/(app)/reports/closing-stock/page.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/reports/closing-stock/page.tsx:1): 183 lines, 6062 bytes.
+- [src/app/(app)/reports/opening-balance/OpeningBalanceClient.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/reports/opening-balance/OpeningBalanceClient.tsx:1): 191 lines, 7633 bytes.
+- [src/app/(app)/reports/opening-balance/page.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/reports/opening-balance/page.tsx:1): 24 lines, 754 bytes.
+- [src/app/(app)/reports/page.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/reports/page.tsx:1): 181 lines, 10010 bytes.
+- [src/app/(app)/reports/profit-loss/loading.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/reports/profit-loss/loading.tsx:1): 5 lines, 157 bytes.
+- [src/app/(app)/reports/profit-loss/page.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/reports/profit-loss/page.tsx:1): 114 lines, 3989 bytes.
+- [src/app/(app)/reports/profit-loss/ProfitLossReportClient.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/reports/profit-loss/ProfitLossReportClient.tsx:1): 537 lines, 21857 bytes.
+- [src/app/(app)/reports/sales-confirmation/page.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/reports/sales-confirmation/page.tsx:1): 165 lines, 6868 bytes.
+- [src/app/(app)/reports/sales-confirmation/SalesConfirmationReportClient.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/reports/sales-confirmation/SalesConfirmationReportClient.tsx:1): 700 lines, 31980 bytes.
+- [src/app/(app)/reports/stock/page.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/reports/stock/page.tsx:1): 210 lines, 6708 bytes.
+- [src/app/(app)/reports/stock/StockReportClient.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/reports/stock/StockReportClient.tsx:1): 1356 lines, 68390 bytes.
+- [src/app/(app)/rolls/[id]/loading.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/rolls/[id]/loading.tsx:1): 27 lines, 938 bytes.
+- [src/app/(app)/rolls/[id]/page.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/rolls/[id]/page.tsx:1): 130 lines, 6031 bytes.
+- [src/app/(app)/rolls/page.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/rolls/page.tsx:1): 76 lines, 3667 bytes.
+- [src/app/(app)/roto-printing/consumption/page.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/roto-printing/consumption/page.tsx:1): 69 lines, 2522 bytes.
+- [src/app/(app)/roto-printing/consumption/RotoConsumptionClient.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/roto-printing/consumption/RotoConsumptionClient.tsx:1): 129 lines, 5282 bytes.
+- [src/app/(app)/roto-printing/production/loading.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/roto-printing/production/loading.tsx:1): 5 lines, 159 bytes.
+- [src/app/(app)/roto-printing/production/page.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/roto-printing/production/page.tsx:1): 57 lines, 2434 bytes.
+- [src/app/(app)/roto-printing/production/RotoProductionClient.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/roto-printing/production/RotoProductionClient.tsx:1): 182 lines, 7526 bytes.
+- [src/app/(app)/roto-printing/stock/[id]/page.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/roto-printing/stock/[id]/page.tsx:1): 101 lines, 3207 bytes.
+- [src/app/(app)/roto-printing/stock/[id]/StockRotoRollsClient.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/roto-printing/stock/[id]/StockRotoRollsClient.tsx:1): 293 lines, 13742 bytes.
+- [src/app/(app)/roto-printing/stock/loading.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/roto-printing/stock/loading.tsx:1): 5 lines, 154 bytes.
+- [src/app/(app)/roto-printing/stock/page.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/roto-printing/stock/page.tsx:1): 181 lines, 8433 bytes.
+- [src/app/(app)/sales/client-orders/ClientOrdersList.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/sales/client-orders/ClientOrdersList.tsx:1): 179 lines, 8310 bytes.
+- [src/app/(app)/sales/client-orders/page.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/sales/client-orders/page.tsx:1): 42 lines, 1394 bytes.
+- [src/app/(app)/sales/delivery-entry/[id]/page.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/sales/delivery-entry/[id]/page.tsx:1): 247 lines, 10723 bytes.
+- [src/app/(app)/sales/delivery-entry/DeliveryEntryWorkspace.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/sales/delivery-entry/DeliveryEntryWorkspace.tsx:1): 1260 lines, 62703 bytes.
+- [src/app/(app)/sales/delivery-entry/page.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/sales/delivery-entry/page.tsx:1): 280 lines, 11658 bytes.
+- [src/app/(app)/sales/loading.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/sales/loading.tsx:1): 5 lines, 156 bytes.
+- [src/app/(app)/sales/order-confirmation/page.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(app)/sales/order-confirmation/page.tsx:1): 147 lines, 5819 bytes.
+- [src/app/(auth)/login/page.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(auth)/login/page.tsx:1): 18 lines, 534 bytes.
+- [src/app/(auth)/reset-password/page.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(auth)/reset-password/page.tsx:1): 18 lines, 546 bytes.
+- [src/app/(portal)/layout.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(portal)/layout.tsx:1): 22 lines, 625 bytes.
+- [src/app/(portal)/portal/catalog/page.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(portal)/portal/catalog/page.tsx:1): 97 lines, 4141 bytes.
+- [src/app/(portal)/portal/catalog/PortalCatalogView.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(portal)/portal/catalog/PortalCatalogView.tsx:1): 617 lines, 28418 bytes.
+- [src/app/(portal)/portal/dashboard/page.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/(portal)/portal/dashboard/page.tsx:1): 266 lines, 13299 bytes.
+- [src/app/actions.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/actions.ts:1): 64 lines, 2680 bytes.
+- [src/app/globals.css](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/globals.css:1): 165 lines, 3614 bytes.
+- [src/app/icon.svg](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/icon.svg:1): 12 lines, 1066 bytes.
+- [src/app/layout.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/layout.tsx:1): 36 lines, 850 bytes.
+- [src/app/manifest.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/manifest.ts:1): 28 lines, 667 bytes.
+- [src/app/sw.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/app/sw.ts:1): 16 lines, 430 bytes.
+- [src/components/app/app-shell.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/components/app/app-shell.tsx:1): 365 lines, 13534 bytes.
+- [src/components/app/auth-forms.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/components/app/auth-forms.tsx:1): 62 lines, 2668 bytes.
+- [src/components/app/brand-logo.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/components/app/brand-logo.tsx:1): 12 lines, 266 bytes.
+- [src/components/app/confirm-submit-button.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/components/app/confirm-submit-button.tsx:1): 175 lines, 6965 bytes.
+- [src/components/app/consumption-form.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/components/app/consumption-form.tsx:1): 148 lines, 5166 bytes.
+- [src/components/app/create-role-form.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/components/app/create-role-form.tsx:1): 48 lines, 1860 bytes.
+- [src/components/app/dashboard-chart.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/components/app/dashboard-chart.tsx:1): 21 lines, 714 bytes.
+- [src/components/app/date-filter.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/components/app/date-filter.tsx:1): 59 lines, 1857 bytes.
+- [src/components/app/date-range-filter.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/components/app/date-range-filter.tsx:1): 87 lines, 2803 bytes.
+- [src/components/app/delete-order-button.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/components/app/delete-order-button.tsx:1): 63 lines, 1940 bytes.
+- [src/components/app/delivery-entry-form.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/components/app/delivery-entry-form.tsx:1): 598 lines, 25804 bytes.
+- [src/components/app/export-buttons.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/components/app/export-buttons.tsx:1): 34 lines, 1280 bytes.
+- [src/components/app/finishing-production-form.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/components/app/finishing-production-form.tsx:1): 262 lines, 11570 bytes.
+- [src/components/app/journal-entry-form.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/components/app/journal-entry-form.tsx:1): 614 lines, 24502 bytes.
+- [src/components/app/lamination-production-form.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/components/app/lamination-production-form.tsx:1): 271 lines, 10035 bytes.
+- [src/components/app/master-page.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/components/app/master-page.tsx:1): 328 lines, 14081 bytes.
+- [src/components/app/offset-production-form.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/components/app/offset-production-form.tsx:1): 323 lines, 12354 bytes.
+- [src/components/app/page-header.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/components/app/page-header.tsx:1): 11 lines, 373 bytes.
+- [src/components/app/page-skeleton.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/components/app/page-skeleton.tsx:1): 30 lines, 1404 bytes.
+- [src/components/app/placeholder-page.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/components/app/placeholder-page.tsx:1): 21 lines, 992 bytes.
+- [src/components/app/production-edit-dialog.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/components/app/production-edit-dialog.tsx:1): 72 lines, 1771 bytes.
+- [src/components/app/production-form.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/components/app/production-form.tsx:1): 208 lines, 9499 bytes.
+- [src/components/app/purchase-form.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/components/app/purchase-form.tsx:1): 309 lines, 11461 bytes.
+- [src/components/app/recent-orders-table.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/components/app/recent-orders-table.tsx:1): 208 lines, 8676 bytes.
+- [src/components/app/role-permissions-editor.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/components/app/role-permissions-editor.tsx:1): 249 lines, 10196 bytes.
+- [src/components/app/roll-allocation-form.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/components/app/roll-allocation-form.tsx:1): 215 lines, 9085 bytes.
+- [src/components/app/roto-film-production-form.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/components/app/roto-film-production-form.tsx:1): 250 lines, 8817 bytes.
+- [src/components/app/roto-metallic-production-form.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/components/app/roto-metallic-production-form.tsx:1): 197 lines, 7315 bytes.
+- [src/components/app/sales-form.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/components/app/sales-form.tsx:1): 82 lines, 4688 bytes.
+- [src/components/app/sales-print-view.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/components/app/sales-print-view.tsx:1): 358 lines, 15325 bytes.
+- [src/components/app/splash-remover.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/components/app/splash-remover.tsx:1): 20 lines, 410 bytes.
+- [src/components/app/stage-production-form.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/components/app/stage-production-form.tsx:1): 277 lines, 9568 bytes.
+- [src/components/app/status-badge.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/components/app/status-badge.tsx:1): 13 lines, 626 bytes.
+- [src/components/app/user-form.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/components/app/user-form.tsx:1): 124 lines, 4847 bytes.
+- [src/components/app/user-row-actions.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/components/app/user-row-actions.tsx:1): 168 lines, 5943 bytes.
+- [src/components/ui/badge.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/components/ui/badge.tsx:1): 7 lines, 304 bytes.
+- [src/components/ui/button.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/components/ui/button.tsx:1): 33 lines, 1447 bytes.
+- [src/components/ui/card.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/components/ui/card.tsx:1): 23 lines, 1016 bytes.
+- [src/components/ui/dialog.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/components/ui/dialog.tsx:1): 37 lines, 1724 bytes.
+- [src/components/ui/empty-state.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/components/ui/empty-state.tsx:1): 12 lines, 505 bytes.
+- [src/components/ui/input.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/components/ui/input.tsx:1): 18 lines, 639 bytes.
+- [src/components/ui/label.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/components/ui/label.tsx:1): 12 lines, 476 bytes.
+- [src/components/ui/select.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/components/ui/select.tsx:1): 54 lines, 2343 bytes.
+- [src/components/ui/table.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/components/ui/table.tsx:1): 22 lines, 1222 bytes.
+- [src/components/ui/textarea.tsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/components/ui/textarea.tsx:1): 17 lines, 648 bytes.
+- [src/lib/auth.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/auth.ts:1): 127 lines, 4773 bytes.
+- [src/lib/database.types.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/database.types.ts:1): 318 lines, 9325 bytes.
+- [src/lib/master-query.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/master-query.ts:1): 65 lines, 1703 bytes.
+- [src/lib/modules.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/modules.ts:1): 222 lines, 8604 bytes.
+- [src/lib/navigation.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/navigation.ts:1): 119 lines, 6410 bytes.
+- [src/lib/supabase/admin.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/supabase/admin.ts:1): 20 lines, 604 bytes.
+- [src/lib/supabase/client.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/supabase/client.ts:1): 12 lines, 294 bytes.
+- [src/lib/supabase/middleware.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/supabase/middleware.ts:1): 37 lines, 1102 bytes.
+- [src/lib/supabase/server.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/supabase/server.ts:1): 36 lines, 982 bytes.
+- [src/lib/toast.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/toast.ts:1): 6 lines, 210 bytes.
+- [src/lib/utils.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/src/lib/utils.ts:1): 62 lines, 1764 bytes.
+- [STAGING_SETUP.md](C:/Users/spsch/Downloads/ERP-main/ERP-main/STAGING_SETUP.md:1): 202 lines, 8284 bytes.
+- [supabase/.gitignore](C:/Users/spsch/Downloads/ERP-main/ERP-main/supabase/.gitignore:1): 9 lines, 72 bytes.
+- [supabase/.temp/linked-project.json](C:/Users/spsch/Downloads/ERP-main/ERP-main/supabase/.temp/linked-project.json:1): 1 lines, 127 bytes.
+- [supabase/config.toml](C:/Users/spsch/Downloads/ERP-main/ERP-main/supabase/config.toml:1): 414 lines, 15478 bytes.
+- [supabase/migrations/001_initial_schema.sql](C:/Users/spsch/Downloads/ERP-main/ERP-main/supabase/migrations/001_initial_schema.sql:1): 3200 lines, 128803 bytes.
+- [supabase/migrations/002_change_total_amount_and_rls.sql](C:/Users/spsch/Downloads/ERP-main/ERP-main/supabase/migrations/002_change_total_amount_and_rls.sql:1): 41 lines, 1513 bytes.
+- [supabase/migrations/003_add_linked_customer_id.sql](C:/Users/spsch/Downloads/ERP-main/ERP-main/supabase/migrations/003_add_linked_customer_id.sql:1): 34 lines, 1720 bytes.
+- [supabase/migrations/004_journal_no_unique_and_indexes.sql](C:/Users/spsch/Downloads/ERP-main/ERP-main/supabase/migrations/004_journal_no_unique_and_indexes.sql:1): 34 lines, 1434 bytes.
+- [supabase/migrations/005_cleanup_duplicate_journal_entries.sql](C:/Users/spsch/Downloads/ERP-main/ERP-main/supabase/migrations/005_cleanup_duplicate_journal_entries.sql:1): 56 lines, 1778 bytes.
+- [supabase/migrations/006_generate_order_dispatch_numbers_rpc.sql](C:/Users/spsch/Downloads/ERP-main/ERP-main/supabase/migrations/006_generate_order_dispatch_numbers_rpc.sql:1): 68 lines, 1952 bytes.
+- [supabase/migrations/007_fix_production_rls.sql](C:/Users/spsch/Downloads/ERP-main/ERP-main/supabase/migrations/007_fix_production_rls.sql:1): 141 lines, 4833 bytes.
+- [supabase/migrations/008_fix_admin_hardcoded_policies.sql](C:/Users/spsch/Downloads/ERP-main/ERP-main/supabase/migrations/008_fix_admin_hardcoded_policies.sql:1): 299 lines, 11217 bytes.
+- [supabase/migrations/009_fix_rbac_and_initial_meters.sql](C:/Users/spsch/Downloads/ERP-main/ERP-main/supabase/migrations/009_fix_rbac_and_initial_meters.sql:1): 150 lines, 5644 bytes.
+- [supabase/migrations/010_dynamic_lamination_and_finishing_products.sql](C:/Users/spsch/Downloads/ERP-main/ERP-main/supabase/migrations/010_dynamic_lamination_and_finishing_products.sql:1): 100 lines, 4758 bytes.
+- [supabase/migrations/041_allow_sold_status.sql](C:/Users/spsch/Downloads/ERP-main/ERP-main/supabase/migrations/041_allow_sold_status.sql:1): 61 lines, 2817 bytes.
+- [supabase/migrations/042_redefine_roll_ids_and_sno.sql](C:/Users/spsch/Downloads/ERP-main/ERP-main/supabase/migrations/042_redefine_roll_ids_and_sno.sql:1): 131 lines, 4893 bytes.
+- [supabase/migrations/043_product_purchases.sql](C:/Users/spsch/Downloads/ERP-main/ERP-main/supabase/migrations/043_product_purchases.sql:1): 56 lines, 2853 bytes.
+- [supabase/migrations/044_product_purchase_enhancements.sql](C:/Users/spsch/Downloads/ERP-main/ERP-main/supabase/migrations/044_product_purchase_enhancements.sql:1): 18 lines, 1015 bytes.
+- [supabase/migrations/045_client_portal_setup.sql](C:/Users/spsch/Downloads/ERP-main/ERP-main/supabase/migrations/045_client_portal_setup.sql:1): 90 lines, 3377 bytes.
+- [supabase/migrations/046_make_fabric_rolls_nullable.sql](C:/Users/spsch/Downloads/ERP-main/ERP-main/supabase/migrations/046_make_fabric_rolls_nullable.sql:1): 6 lines, 189 bytes.
+- [supabase/migrations/047_client_orders.sql](C:/Users/spsch/Downloads/ERP-main/ERP-main/supabase/migrations/047_client_orders.sql:1): 81 lines, 3388 bytes.
+- [supabase/migrations/048_add_production_fields_to_client_order_items.sql](C:/Users/spsch/Downloads/ERP-main/ERP-main/supabase/migrations/048_add_production_fields_to_client_order_items.sql:1): 11 lines, 602 bytes.
+- [supabase/migrations/049_add_selling_price_to_finishing_products.sql](C:/Users/spsch/Downloads/ERP-main/ERP-main/supabase/migrations/049_add_selling_price_to_finishing_products.sql:1): 6 lines, 289 bytes.
+- [supabase/migrations/050_add_production_specs_to_finishing_products.sql](C:/Users/spsch/Downloads/ERP-main/ERP-main/supabase/migrations/050_add_production_specs_to_finishing_products.sql:1): 12 lines, 753 bytes.
+- [supabase/migrations/051_add_jobwork_flag.sql](C:/Users/spsch/Downloads/ERP-main/ERP-main/supabase/migrations/051_add_jobwork_flag.sql:1): 8 lines, 308 bytes.
+- [supabase/migrations/052_fix_get_opening_balance.sql](C:/Users/spsch/Downloads/ERP-main/ERP-main/supabase/migrations/052_fix_get_opening_balance.sql:1): 49 lines, 1587 bytes.
+- [supabase/migrations/053_restore_bill_73.sql](C:/Users/spsch/Downloads/ERP-main/ERP-main/supabase/migrations/053_restore_bill_73.sql:1): 34 lines, 4512 bytes.
+- [tailwind.config.ts](C:/Users/spsch/Downloads/ERP-main/ERP-main/tailwind.config.ts:1): 60 lines, 1590 bytes.
+- [test_suite.mjs](C:/Users/spsch/Downloads/ERP-main/ERP-main/test_suite.mjs:1): 210 lines, 8015 bytes.
+- [tsconfig.json](C:/Users/spsch/Downloads/ERP-main/ERP-main/tsconfig.json:1): 25 lines, 646 bytes.
+
+
+## Binary Or Non-Text Artifacts
+
+- [.env.example](C:/Users/spsch/Downloads/ERP-main/ERP-main/.env.example:1): 84 bytes. Binary content not decoded as source code.
+- [.env.local](C:/Users/spsch/Downloads/ERP-main/ERP-main/.env.local:1): 1877 bytes. Binary content not decoded as source code.
+- [.env.staging.test](C:/Users/spsch/Downloads/ERP-main/ERP-main/.env.staging.test:1): 1914 bytes. Binary content not decoded as source code.
+- [android/app/proguard-rules.pro](C:/Users/spsch/Downloads/ERP-main/ERP-main/android/app/proguard-rules.pro:1): 751 bytes. Binary content not decoded as source code.
+- [android/app/src/main/res/drawable-land-hdpi/splash.png](C:/Users/spsch/Downloads/ERP-main/ERP-main/android/app/src/main/res/drawable-land-hdpi/splash.png:1): 15511 bytes. Binary content not decoded as source code.
+- [android/app/src/main/res/drawable-land-mdpi/splash.png](C:/Users/spsch/Downloads/ERP-main/ERP-main/android/app/src/main/res/drawable-land-mdpi/splash.png:1): 9324 bytes. Binary content not decoded as source code.
+- [android/app/src/main/res/drawable-land-xhdpi/splash.png](C:/Users/spsch/Downloads/ERP-main/ERP-main/android/app/src/main/res/drawable-land-xhdpi/splash.png:1): 26255 bytes. Binary content not decoded as source code.
+- [android/app/src/main/res/drawable-land-xxhdpi/splash.png](C:/Users/spsch/Downloads/ERP-main/ERP-main/android/app/src/main/res/drawable-land-xxhdpi/splash.png:1): 36547 bytes. Binary content not decoded as source code.
+- [android/app/src/main/res/drawable-land-xxxhdpi/splash.png](C:/Users/spsch/Downloads/ERP-main/ERP-main/android/app/src/main/res/drawable-land-xxxhdpi/splash.png:1): 51887 bytes. Binary content not decoded as source code.
+- [android/app/src/main/res/drawable-port-hdpi/splash.png](C:/Users/spsch/Downloads/ERP-main/ERP-main/android/app/src/main/res/drawable-port-hdpi/splash.png:1): 15467 bytes. Binary content not decoded as source code.
+- [android/app/src/main/res/drawable-port-mdpi/splash.png](C:/Users/spsch/Downloads/ERP-main/ERP-main/android/app/src/main/res/drawable-port-mdpi/splash.png:1): 9312 bytes. Binary content not decoded as source code.
+- [android/app/src/main/res/drawable-port-xhdpi/splash.png](C:/Users/spsch/Downloads/ERP-main/ERP-main/android/app/src/main/res/drawable-port-xhdpi/splash.png:1): 26147 bytes. Binary content not decoded as source code.
+- [android/app/src/main/res/drawable-port-xxhdpi/splash.png](C:/Users/spsch/Downloads/ERP-main/ERP-main/android/app/src/main/res/drawable-port-xxhdpi/splash.png:1): 36616 bytes. Binary content not decoded as source code.
+- [android/app/src/main/res/drawable-port-xxxhdpi/splash.png](C:/Users/spsch/Downloads/ERP-main/ERP-main/android/app/src/main/res/drawable-port-xxxhdpi/splash.png:1): 51879 bytes. Binary content not decoded as source code.
+- [android/app/src/main/res/drawable/splash.png](C:/Users/spsch/Downloads/ERP-main/ERP-main/android/app/src/main/res/drawable/splash.png:1): 15144 bytes. Binary content not decoded as source code.
+- [android/app/src/main/res/mipmap-hdpi/ic_launcher_foreground.png](C:/Users/spsch/Downloads/ERP-main/ERP-main/android/app/src/main/res/mipmap-hdpi/ic_launcher_foreground.png:1): 5375 bytes. Binary content not decoded as source code.
+- [android/app/src/main/res/mipmap-hdpi/ic_launcher_round.png](C:/Users/spsch/Downloads/ERP-main/ERP-main/android/app/src/main/res/mipmap-hdpi/ic_launcher_round.png:1): 3795 bytes. Binary content not decoded as source code.
+- [android/app/src/main/res/mipmap-hdpi/ic_launcher.png](C:/Users/spsch/Downloads/ERP-main/ERP-main/android/app/src/main/res/mipmap-hdpi/ic_launcher.png:1): 3221 bytes. Binary content not decoded as source code.
+- [android/app/src/main/res/mipmap-mdpi/ic_launcher_foreground.png](C:/Users/spsch/Downloads/ERP-main/ERP-main/android/app/src/main/res/mipmap-mdpi/ic_launcher_foreground.png:1): 3477 bytes. Binary content not decoded as source code.
+- [android/app/src/main/res/mipmap-mdpi/ic_launcher_round.png](C:/Users/spsch/Downloads/ERP-main/ERP-main/android/app/src/main/res/mipmap-mdpi/ic_launcher_round.png:1): 2474 bytes. Binary content not decoded as source code.
+- [android/app/src/main/res/mipmap-mdpi/ic_launcher.png](C:/Users/spsch/Downloads/ERP-main/ERP-main/android/app/src/main/res/mipmap-mdpi/ic_launcher.png:1): 2127 bytes. Binary content not decoded as source code.
+- [android/app/src/main/res/mipmap-xhdpi/ic_launcher_foreground.png](C:/Users/spsch/Downloads/ERP-main/ERP-main/android/app/src/main/res/mipmap-xhdpi/ic_launcher_foreground.png:1): 7520 bytes. Binary content not decoded as source code.
+- [android/app/src/main/res/mipmap-xhdpi/ic_launcher_round.png](C:/Users/spsch/Downloads/ERP-main/ERP-main/android/app/src/main/res/mipmap-xhdpi/ic_launcher_round.png:1): 5198 bytes. Binary content not decoded as source code.
+- [android/app/src/main/res/mipmap-xhdpi/ic_launcher.png](C:/Users/spsch/Downloads/ERP-main/ERP-main/android/app/src/main/res/mipmap-xhdpi/ic_launcher.png:1): 4359 bytes. Binary content not decoded as source code.
+- [android/app/src/main/res/mipmap-xxhdpi/ic_launcher_foreground.png](C:/Users/spsch/Downloads/ERP-main/ERP-main/android/app/src/main/res/mipmap-xxhdpi/ic_launcher_foreground.png:1): 12025 bytes. Binary content not decoded as source code.
+- [android/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png](C:/Users/spsch/Downloads/ERP-main/ERP-main/android/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png:1): 8034 bytes. Binary content not decoded as source code.
+- [android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png](C:/Users/spsch/Downloads/ERP-main/ERP-main/android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png:1): 6765 bytes. Binary content not decoded as source code.
+- [android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_foreground.png](C:/Users/spsch/Downloads/ERP-main/ERP-main/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_foreground.png:1): 17345 bytes. Binary content not decoded as source code.
+- [android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png](C:/Users/spsch/Downloads/ERP-main/ERP-main/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png:1): 10880 bytes. Binary content not decoded as source code.
+- [android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png](C:/Users/spsch/Downloads/ERP-main/ERP-main/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png:1): 9157 bytes. Binary content not decoded as source code.
+- [android/gradle/wrapper/gradle-wrapper.jar](C:/Users/spsch/Downloads/ERP-main/ERP-main/android/gradle/wrapper/gradle-wrapper.jar:1): 43764 bytes. Binary content not decoded as source code.
+- [android/gradlew](C:/Users/spsch/Downloads/ERP-main/ERP-main/android/gradlew:1): 8733 bytes. Binary content not decoded as source code.
+- [ERP_All_Bills_Export.xlsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/ERP_All_Bills_Export.xlsx:1): 277033 bytes. Binary content not decoded as source code.
+- [ERP_Complete_Database_Backup_Export.xlsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/ERP_Complete_Database_Backup_Export.xlsx:1): 588027 bytes. Binary content not decoded as source code.
+- [ERP_Raw_Database_Complete_Backup.xlsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/ERP_Raw_Database_Complete_Backup.xlsx:1): 3303763 bytes. Binary content not decoded as source code.
+- [Fabric_Loom_Production_and_Inventory.xlsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/Fabric_Loom_Production_and_Inventory.xlsx:1): 615388 bytes. Binary content not decoded as source code.
+- [public/rk-global-circular.png](C:/Users/spsch/Downloads/ERP-main/ERP-main/public/rk-global-circular.png:1): 102671 bytes. Binary content not decoded as source code.
+- [Sales_Comprehensive_Billing_and_Specs_Report.xlsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/Sales_Comprehensive_Billing_and_Specs_Report.xlsx:1): 88201 bytes. Binary content not decoded as source code.
+- [Sales_Entries_and_Confirmation_Report.xlsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/Sales_Entries_and_Confirmation_Report.xlsx:1): 67712 bytes. Binary content not decoded as source code.
+- [scratch/find_all_inserts.py](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/find_all_inserts.py:1): 504 bytes. Binary content not decoded as source code.
+- [scratch/find_all_tables_2.py](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/find_all_tables_2.py:1): 372 bytes. Binary content not decoded as source code.
+- [scratch/find_all_tables_all.py](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/find_all_tables_all.py:1): 509 bytes. Binary content not decoded as source code.
+- [scratch/find_all_tables.py](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/find_all_tables.py:1): 352 bytes. Binary content not decoded as source code.
+- [scratch/find_def.py](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/find_def.py:1): 609 bytes. Binary content not decoded as source code.
+- [scratch/find_has_permission_all.py](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/find_has_permission_all.py:1): 569 bytes. Binary content not decoded as source code.
+- [scratch/find_has_permission.py](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/find_has_permission.py:1): 672 bytes. Binary content not decoded as source code.
+- [scratch/find_perm_inserts.py](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/find_perm_inserts.py:1): 378 bytes. Binary content not decoded as source code.
+- [scratch/find_perm_table_detail.py](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/find_perm_table_detail.py:1): 818 bytes. Binary content not decoded as source code.
+- [scratch/find_perm_table.py](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/find_perm_table.py:1): 439 bytes. Binary content not decoded as source code.
+- [scratch/logs.zip](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/logs.zip:1): 9 bytes. Binary content not decoded as source code.
+- [scratch/SalesEntryClient_diff.patch](C:/Users/spsch/Downloads/ERP-main/ERP-main/scratch/SalesEntryClient_diff.patch:1): 20419 bytes. Binary content not decoded as source code.
+- [supabase/.temp/cli-latest](C:/Users/spsch/Downloads/ERP-main/ERP-main/supabase/.temp/cli-latest:1): 8 bytes. Binary content not decoded as source code.
+- [supabase/.temp/gotrue-version](C:/Users/spsch/Downloads/ERP-main/ERP-main/supabase/.temp/gotrue-version:1): 8 bytes. Binary content not decoded as source code.
+- [supabase/.temp/pooler-url](C:/Users/spsch/Downloads/ERP-main/ERP-main/supabase/.temp/pooler-url:1): 97 bytes. Binary content not decoded as source code.
+- [supabase/.temp/postgres-version](C:/Users/spsch/Downloads/ERP-main/ERP-main/supabase/.temp/postgres-version:1): 10 bytes. Binary content not decoded as source code.
+- [supabase/.temp/project-ref](C:/Users/spsch/Downloads/ERP-main/ERP-main/supabase/.temp/project-ref:1): 20 bytes. Binary content not decoded as source code.
+- [supabase/.temp/rest-version](C:/Users/spsch/Downloads/ERP-main/ERP-main/supabase/.temp/rest-version:1): 5 bytes. Binary content not decoded as source code.
+- [supabase/.temp/storage-migration](C:/Users/spsch/Downloads/ERP-main/ERP-main/supabase/.temp/storage-migration:1): 33 bytes. Binary content not decoded as source code.
+- [supabase/.temp/storage-version](C:/Users/spsch/Downloads/ERP-main/ERP-main/supabase/.temp/storage-version:1): 7 bytes. Binary content not decoded as source code.
+- [Target_Accounts_Statement.xlsx](C:/Users/spsch/Downloads/ERP-main/ERP-main/Target_Accounts_Statement.xlsx:1): 100286 bytes. Binary content not decoded as source code.
+- [tsconfig.tsbuildinfo](C:/Users/spsch/Downloads/ERP-main/ERP-main/tsconfig.tsbuildinfo:1): 263965 bytes. Binary content not decoded as source code.
+
