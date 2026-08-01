@@ -44,6 +44,17 @@ export function ProductionForm({
   const [isSaving, setIsSaving] = useState(false);
   const [errorText, setErrorText] = useState<string | null>(null);
 
+  const handleDecimalChange = (value: string, setter: (v: string) => void) => {
+    if (value.includes(".")) {
+      const parts = value.split(".");
+      if (parts[1].length > 1) {
+        setter(`${parts[0]}.${parts[1].slice(0, 1)}`);
+        return;
+      }
+    }
+    setter(value);
+  };
+
   const sortedFabrics = useMemo(() => {
     return [...fabrics].sort((a, b) => a.label.localeCompare(b.label));
   }, [fabrics]);
@@ -66,7 +77,7 @@ export function ProductionForm({
     ? row.serial_number
     : (fabricId && nextSerials ? (nextSerials[fabricId] ?? "1") : "Select fabric");
 
-  const summary = useMemo(() => ({ netWeight, netMeters: Math.floor(netMeters), avg: Math.floor(avg) }), [netWeight, netMeters, avg]);
+  const summary = useMemo(() => ({ netWeight: Number(netWeight.toFixed(1)), netMeters: Math.floor(netMeters), avg: Math.floor(avg) }), [netWeight, netMeters, avg]);
 
   const confirmSummary = useMemo(() => {
     return [
@@ -74,7 +85,7 @@ export function ProductionForm({
       { label: "S. No", value: String(nextSerial) },
       { label: "GROSS WEIGHT", value: String(gross) },
       { label: "CORE WEIGHT", value: String(core) },
-      { label: "NET WEIGHT", value: String(netWeight) },
+      { label: "NET WEIGHT", value: String(netWeight.toFixed(1)) },
       { label: "NET METERS", value: String(Math.floor(netMeters)) },
       { label: "AVERAGE METER WEIGHT", value: String(Math.floor(avg)) },
     ];
@@ -169,11 +180,11 @@ export function ProductionForm({
       </div>
       <div className="space-y-2">
         <Label>Gross Weight</Label>
-        <Input name="gross_weight" type="number" step="0.01" value={gross} required disabled={isSaving} onChange={(event) => setGross(event.target.value)} />
+        <Input name="gross_weight" type="number" step="0.1" value={gross} required disabled={isSaving} onChange={(event) => handleDecimalChange(event.target.value, setGross)} />
       </div>
       <div className="space-y-2">
         <Label>Core Weight</Label>
-        <Input name="core_weight" type="number" step="0.01" value={core} required disabled={isSaving} onChange={(event) => setCore(event.target.value)} />
+        <Input name="core_weight" type="number" step="0.1" value={core} required disabled={isSaving} onChange={(event) => handleDecimalChange(event.target.value, setCore)} />
       </div>
       <div className="space-y-2">
         <Label>End Meters</Label>
@@ -181,7 +192,7 @@ export function ProductionForm({
       </div>
       <div className="rounded-md border bg-muted/40 p-3 text-sm">
         <div className="text-muted-foreground">Net Weight</div>
-        <div className="font-semibold">{summary.netWeight.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+        <div className="font-semibold">{summary.netWeight.toLocaleString("en-IN", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</div>
       </div>
       <div className="rounded-md border bg-muted/40 p-3 text-sm">
         <div className="text-muted-foreground">Net Meters</div>

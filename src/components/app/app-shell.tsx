@@ -163,28 +163,14 @@ export function AppShell({
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement;
       if (target instanceof HTMLInputElement && target.type === "number") {
-        if (e.key === "-" || e.key === "+" || e.key === "e" || e.key === "E") {
+        if (e.key === "-" || e.key === "+" || e.key === "e" || e.key === "E" || e.key === "ArrowUp" || e.key === "ArrowDown") {
           e.preventDefault();
         }
       }
     };
 
     const validateNumberInput = (el: HTMLInputElement, forceShow = false) => {
-      const valText = el.value;
-      if (valText === "") {
-        if (el.required && (forceShow || el.dataset.touched === "true")) {
-          el.classList.add("border-destructive", "ring-destructive", "ring-1", "bg-red-50/50");
-        } else {
-          el.classList.remove("border-destructive", "ring-destructive", "ring-1", "bg-red-50/50");
-        }
-        return;
-      }
-      const val = Number(valText);
-      if (isNaN(val) || val <= 0) {
-        el.classList.add("border-destructive", "ring-destructive", "ring-1", "bg-red-50/50");
-      } else {
-        el.classList.remove("border-destructive", "ring-destructive", "ring-1", "bg-red-50/50");
-      }
+      el.classList.remove("border-destructive", "ring-destructive", "ring-1", "bg-red-50/50");
     };
 
     const handlePaste = (e: ClipboardEvent) => {
@@ -195,7 +181,6 @@ export function AppShell({
           const val = Number(text);
           if (isNaN(val) || val <= 0) {
             e.preventDefault();
-            target.classList.add("border-destructive", "ring-destructive", "ring-1", "bg-red-50/50");
           }
         }
       }
@@ -206,6 +191,13 @@ export function AppShell({
       if (target instanceof HTMLInputElement && target.type === "number") {
         target.dataset.touched = "true";
         validateNumberInput(target);
+      }
+    };
+
+    const handleWheel = (e: WheelEvent) => {
+      const target = e.target as HTMLElement;
+      if (target instanceof HTMLInputElement && target.type === "number") {
+        target.blur();
       }
     };
 
@@ -241,6 +233,7 @@ export function AppShell({
     window.addEventListener("paste", handlePaste, { capture: true });
     window.addEventListener("input", handleInput, { capture: true });
     window.addEventListener("submit", handleSubmit, { capture: true });
+    window.addEventListener("wheel", handleWheel, { capture: true, passive: true });
 
     addMinAttributeAndValidate();
     const observer = new MutationObserver(addMinAttributeAndValidate);
@@ -251,6 +244,7 @@ export function AppShell({
       window.removeEventListener("paste", handlePaste, { capture: true });
       window.removeEventListener("input", handleInput, { capture: true });
       window.removeEventListener("submit", handleSubmit, { capture: true });
+      window.removeEventListener("wheel", handleWheel, { capture: true });
       observer.disconnect();
     };
   }, []);

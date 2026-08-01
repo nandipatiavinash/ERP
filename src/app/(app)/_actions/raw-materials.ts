@@ -45,9 +45,6 @@ export async function saveRawMaterialConsumption(formData: FormData) {
   if (!rawMaterialId || !department || quantity <= 0 || !consumptionDate) {
     throw new Error("Missing required consumption fields or invalid quantity.");
   }
-  if (quantity % 25 !== 0) {
-    throw new Error("Quantity must be a multiple of 25.");
-  }
 
   const supabase = await createClient();
   const payload = {

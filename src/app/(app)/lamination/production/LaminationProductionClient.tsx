@@ -63,31 +63,42 @@ export function LaminationProductionClient({
                   <TableHeader>
                     <TableRow className="bg-slate-50/50">
                       <TableHead>Laminated Roll ID</TableHead>
-                      <TableHead className="text-right">KGs</TableHead>
-                      <TableHead className="text-right">Meters</TableHead>
+                      <TableHead>Roll No</TableHead>
+                      <TableHead className="text-right">Gross Weight</TableHead>
+                      <TableHead className="text-right">Core Weight</TableHead>
+                      <TableHead className="text-right">Net Weight</TableHead>
+                      <TableHead className="text-right">Net Mtrs</TableHead>
+                      <TableHead className="text-right">Avg Mtr Weight</TableHead>
                       <TableHead className="text-center">Action</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {laminationRows.map((row) => (
-                      <TableRow key={row.id}>
-                        <TableCell className="font-mono font-bold text-emerald-950">{row.roll_id}</TableCell>
-                        <TableCell className="text-right font-mono">{row.weight_kg}</TableCell>
-                        <TableCell className="text-right font-mono">{row.meters}</TableCell>
-                        <TableCell className="text-center">
-                          <form action={deleteLaminationProduction.bind(null, row.id)}>
-                            <ConfirmSubmitButton
-                              size="sm"
-                              variant="destructive"
-                              confirmTitle="Delete lamination entry?"
-                              confirmDescription="This will delete this laminated roll and free up any downstream items."
-                            >
-                              Delete
-                            </ConfirmSubmitButton>
-                          </form>
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {laminationRows.map((row) => {
+                      const avgMeterWeight = row.meters > 0 ? Math.floor((row.weight_kg / row.meters) * 1000) : 0;
+                      return (
+                        <TableRow key={row.id}>
+                          <TableCell className="font-mono font-bold text-emerald-950">{row.roll_id}</TableCell>
+                          <TableCell className="text-sm font-bold text-emerald-900">{row.s_no ?? "-"}</TableCell>
+                          <TableCell className="text-right">{row.gross_weight != null ? row.gross_weight.toLocaleString("en-IN", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : "-"}</TableCell>
+                          <TableCell className="text-right">{row.core_weight != null ? row.core_weight.toLocaleString("en-IN", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : "-"}</TableCell>
+                          <TableCell className="text-right font-semibold">{row.weight_kg != null ? row.weight_kg.toLocaleString("en-IN", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : "-"}</TableCell>
+                          <TableCell className="text-right">{row.meters != null ? row.meters.toLocaleString("en-IN", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : "-"}</TableCell>
+                          <TableCell className="text-right">{avgMeterWeight > 0 ? avgMeterWeight.toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 0 }) : "-"}</TableCell>
+                          <TableCell className="text-center">
+                            <form action={deleteLaminationProduction.bind(null, row.id)}>
+                              <ConfirmSubmitButton
+                                size="sm"
+                                variant="destructive"
+                                confirmTitle="Delete lamination entry?"
+                                confirmDescription="This will delete this laminated roll and free up any downstream items."
+                              >
+                                Delete
+                              </ConfirmSubmitButton>
+                            </form>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>

@@ -63,44 +63,57 @@ export function LaminationProductionForm({
   );
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const handleDecimalChange = (value: string, setter: (v: string) => void) => {
+    if (value.includes(".")) {
+      const parts = value.split(".");
+      if (parts[1].length > 1) {
+        setter(`${parts[0]}.${parts[1].slice(0, 1)}`);
+        return;
+      }
+    }
+    setter(value);
+  };
 
   const handleGrossChange = (val: string) => {
-    setGrossWeight(val);
-    const g = parseFloat(val);
-    const c = parseFloat(coreWeight);
-    if (!isNaN(g) && !isNaN(c)) {
-      const net = String(Math.max(0, Number((g - c).toFixed(1))));
-      setWeightKg(net);
-    }
+    handleDecimalChange(val, (cleanVal) => {
+      setGrossWeight(cleanVal);
+      const g = parseFloat(cleanVal);
+      const c = parseFloat(coreWeight);
+      if (!isNaN(g) && !isNaN(c)) {
+        const net = String(Math.max(0, Number((g - c).toFixed(1))));
+        setWeightKg(net);
+      }
+    });
   };
 
   const handleCoreChange = (val: string) => {
-    setCoreWeight(val);
-    const g = parseFloat(grossWeight);
-    const c = parseFloat(val);
-    if (!isNaN(g) && !isNaN(c)) {
-      const net = String(Math.max(0, Number((g - c).toFixed(1))));
-      setWeightKg(net);
-    }
+    handleDecimalChange(val, (cleanVal) => {
+      setCoreWeight(cleanVal);
+      const g = parseFloat(grossWeight);
+      const c = parseFloat(cleanVal);
+      if (!isNaN(g) && !isNaN(c)) {
+        const net = String(Math.max(0, Number((g - c).toFixed(1))));
+        setWeightKg(net);
+      }
+    });
   };
 
   // Sort fabric types and roto products alphabetically
   const sortedFabricTypes = useMemo(() => {
-    return [...fabricTypes].sort((a, b) => a.fabric_name.localeCompare(b.fabric_name));
+    return [...fabricTypes].sort((a, b) => (a.fabric_name || "").localeCompare(b.fabric_name || ""));
   }, [fabricTypes]);
 
   const sortedRotoProducts = useMemo(() => {
     const map = new Map<string, typeof rotoProducts[number]>();
     [...rotoProducts]
-      .sort((a, b) => a.s_no - b.s_no)
+      .sort((a, b) => (a.s_no ?? 0) - (b.s_no ?? 0))
       .forEach((p) => {
-        if (!map.has(p.roll_id)) {
+        if (p.roll_id && !map.has(p.roll_id)) {
           map.set(p.roll_id, p);
         }
       });
-    return Array.from(map.values()).sort((a, b) => a.roll_id.localeCompare(b.roll_id));
+    return Array.from(map.values()).sort((a, b) => (a.roll_id || "").localeCompare(b.roll_id || ""));
   }, [rotoProducts]);
-
   // Compute live preview of lamination roll_id
   const livePreviewId = useMemo(() => {
     const fabType = fabricTypes.find((t) => t.id === selectedFabricTypeId);
@@ -165,11 +178,9 @@ export function LaminationProductionForm({
         fd.append("entry_date", entryDate);
         if (grossWeight) fd.append("gross_weight", grossWeight);
         if (coreWeight) fd.append("core_weight", coreWeight);
-
         await saveLaminationProduction(fd);
-        showSuccess("Submitted successfully!");
+        showSuccess(`Laminated Roll Created!\nID: ${livePreviewId}\nWeight: ${w} KGs\nMeters: ${m} Mtrs`);
         setSuccessMsg(`Lamination roll created: ${livePreviewId}`);
-
         if (onSuccess) {
           onSuccess({ rollId: livePreviewId, weight: w, meters: m });
         }
@@ -284,8 +295,6 @@ export function LaminationProductionForm({
             className="h-10 text-sm border-slate-200"
           />
         </div>
-
-        {/* Laminated Roll KGs */}
         <div className="space-y-1">
           <Label htmlFor="weight_kg" className="text-xs font-semibold text-slate-700">Laminated Roll KGs</Label>
           <Input
@@ -294,12 +303,11 @@ export function LaminationProductionForm({
             step="0.1"
             placeholder="Enter Laminated Roll KGs"
             value={weightKg}
-            onChange={(e) => setWeightKg(e.target.value)}
+            onChange={(e) => handleDecimalChange(e.target.value, setWeightKg)}
             className="h-10 text-sm border-slate-200"
           />
         </div>
       </div>
-
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Meters */}
         <div className="space-y-1">
@@ -310,7 +318,7 @@ export function LaminationProductionForm({
             step="0.1"
             placeholder="Enter Laminated Roll Mtrs"
             value={meters}
-            onChange={(e) => setMeters(e.target.value)}
+            onChange={(e) => handleDecimalChange(e.target.value, setMeters)}
             className="h-10 text-sm border-slate-200"
           />
         </div>
