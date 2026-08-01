@@ -246,6 +246,9 @@ export default async function OrderWorkspacePage({
       fabric_type_id: r.fabric_type_id || parsed.fabricTypeId,
       product_id: r.product_id,
       finish_type: r.finish_type,
+      lam_type: parsed.lamType,
+      film_type: parsed.filmType,
+      is_metallic: parsed.isMetallic,
       roto_product_id: parsed.rotoProductId,
       offset_product_id: parsed.offsetProductId,
       department: "finishing"

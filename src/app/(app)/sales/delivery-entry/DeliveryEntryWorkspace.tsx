@@ -412,11 +412,16 @@ export function DeliveryEntryWorkspace({
 
   const getItemRolls = (item: OrderItem) => {
     return rolls
-      .filter(
-        (r: any) => {
+      .filter(        (r: any) => {
           if (r.department !== item.department) return false;
-          if (r.status !== "available" && !item.selected_roll_ids?.includes(r.id) && !(allocation[item.id] ?? []).includes(r.id)) return false;
 
+          // If the order item has pre-allocated / reserved rolls, restrict selection to those rolls.
+          const hasReserved = item.selected_roll_ids && item.selected_roll_ids.length > 0;
+          if (hasReserved) {
+            return item.selected_roll_ids.includes(r.id) || (allocation[item.id] ?? []).includes(r.id);
+          }
+
+          if (r.status !== "available" && !item.selected_roll_ids?.includes(r.id) && !(allocation[item.id] ?? []).includes(r.id)) return false;
           // 1. Fabric
           if (item.department === "fabric") {
             return r.fabric_type_id === item.product_id;

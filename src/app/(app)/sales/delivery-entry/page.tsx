@@ -66,9 +66,20 @@ function parseOffsetRollId(rollId: string, fabricTypes: any[], offsetProducts: a
 
   return { fabricTypeId, offsetProductId };
 }
-
 function parseFinishingBundleId(bundleId: string, fabricTypes: any[], rotoProducts: any[], offsetProducts: any[]) {
   const upper = (bundleId || "").toUpperCase();
+  
+  let lamType = "PLAIN";
+  if (upper.endsWith("(B)")) lamType = "BOX";
+  else if (upper.endsWith("(F)")) lamType = "F_S";
+  else if (upper.endsWith("(H)")) lamType = "H_S";
+  else if (upper.startsWith("NW(")) lamType = "NW";
+
+  const isMetallic = upper.includes("(MT)");
+
+  let filmType = null;
+  if (upper.includes("(G)")) filmType = "gloss";
+  else if (upper.includes("(M)")) filmType = "matt";
   
   let fabricTypeId = null;
   for (const ft of fabricTypes) {
@@ -96,9 +107,8 @@ function parseFinishingBundleId(bundleId: string, fabricTypes: any[], rotoProduc
     }
   }
 
-  return { fabricTypeId, rotoProductId, offsetProductId };
+  return { lamType, isMetallic, filmType, fabricTypeId, rotoProductId, offsetProductId };
 }
-
 export default async function DeliveryEntryPage({
   searchParams,
 }: {
@@ -288,6 +298,9 @@ export default async function DeliveryEntryPage({
       fabric_type_id: r.fabric_type_id || parsed.fabricTypeId,
       product_id: r.product_id,
       finish_type: r.finish_type,
+      lam_type: parsed.lamType,
+      film_type: parsed.filmType,
+      is_metallic: parsed.isMetallic,
       roto_product_id: parsed.rotoProductId,
       offset_product_id: parsed.offsetProductId,
       department: "finishing"
