@@ -1095,6 +1095,7 @@ export function DeliveryEntryWorkspace({
                                                   <thead>
                                                     <tr className="bg-slate-100/50 border-b text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                                                       <th className="p-2.5 w-10 text-center">Select</th>
+                                                      <th className="p-2.5 text-center">S.No</th>
                                                       <th className="p-2.5">
                                                         {item.department === "finishing" ? "Bundle ID" : "Roll ID"}
                                                       </th>
@@ -1138,6 +1139,7 @@ export function DeliveryEntryWorkspace({
                                                               className="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
                                                             />
                                                           </td>
+                                                          <td className="p-2.5 text-center font-mono text-slate-700 font-medium">{roll.s_no ?? "-"}</td>
                                                           <td className="p-2.5 font-mono font-semibold text-slate-800">{roll.roll_number}</td>
                                                           {["fabric", "lamination"].includes(item.department) && (
                                                             <>
