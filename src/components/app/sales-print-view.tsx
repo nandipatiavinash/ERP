@@ -219,9 +219,8 @@ export function SalesPrintView({ order, rollsByProduct, departmentsByProduct }: 
                     <table className="w-full border-collapse text-xs border border-gray-200">
                       <thead>
                         <tr className="border-b border-gray-300 bg-gray-50 text-left text-[10px] font-semibold uppercase tracking-wider text-gray-500">
-                          <th className="border border-gray-200 px-3 py-2 text-center">S.No</th>
                           <th className="border border-gray-200 px-3 py-2">
-                            {isFinishing ? "Bundle No" : "Roll No"}
+                            {isFinishing ? "Bundle S.No" : "S.No"}
                           </th>
                           {isFabric && (
                             <>
@@ -246,11 +245,8 @@ export function SalesPrintView({ order, rollsByProduct, departmentsByProduct }: 
                               key={roll.roll_number}
                               className={idx % 2 === 0 ? "bg-white" : "bg-gray-50/60"}
                             >
-                              <td className="border border-gray-200 px-3 py-1.5 text-center text-gray-600 font-mono">
-                                {roll.s_no || (idx + 1)}
-                              </td>
                               <td className="border border-gray-200 px-3 py-1.5 text-left text-gray-600 font-mono">
-                                {roll.roll_number}
+                                {roll.s_no ?? roll.roll_number}
                               </td>
                               {isFabric && (
                                 <>
