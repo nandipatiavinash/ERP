@@ -247,7 +247,7 @@ export function SalesPrintView({ order, rollsByProduct, departmentsByProduct }: 
                               className={idx % 2 === 0 ? "bg-white" : "bg-gray-50/60"}
                             >
                               <td className="border border-gray-200 px-3 py-1.5 text-center text-gray-600 font-mono">
-                                {roll.s_no ?? "-"}
+                                {roll.s_no || (idx + 1)}
                               </td>
                               <td className="border border-gray-200 px-3 py-1.5 text-left text-gray-600 font-mono">
                                 {roll.roll_number}

@@ -1121,7 +1121,7 @@ export function DeliveryEntryWorkspace({
                                                     </tr>
                                                   </thead>
                                                   <tbody className="divide-y">
-                                                    {itemRolls.map((roll) => {
+                                                    {itemRolls.map((roll, idx) => {
                                                       const isSelected = selectedIds.includes(roll.id);
                                                       return (
                                                         <tr
@@ -1139,7 +1139,7 @@ export function DeliveryEntryWorkspace({
                                                               className="h-4 w-4 rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
                                                             />
                                                           </td>
-                                                          <td className="p-2.5 text-center font-mono text-slate-700 font-medium">{roll.s_no ?? "-"}</td>
+                                                          <td className="p-2.5 text-center font-mono text-slate-700 font-medium">{roll.s_no || (idx + 1)}</td>
                                                           <td className="p-2.5 font-mono font-semibold text-slate-800">{roll.roll_number}</td>
                                                           {["fabric", "lamination"].includes(item.department) && (
                                                             <>
