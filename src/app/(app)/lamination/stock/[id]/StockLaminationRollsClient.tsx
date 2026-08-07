@@ -108,66 +108,59 @@ export function StockLaminationRollsClient({ rolls, rollAllocationMap, fabricNam
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="cursor-pointer select-none" onClick={() => handleSort("roll_id")}>
-                      Roll ID {sortKey === "roll_id" ? (sortDir === "asc" ? "▲" : "▼") : "↕"}
+                    <TableHead className="cursor-pointer select-none" onClick={() => handleSort("s_no")}>
+                      S.No {sortKey === "s_no" ? (sortDir === "asc" ? "▲" : "▼") : "↕"}
                     </TableHead>
-                    <TableHead className="cursor-pointer select-none text-center" onClick={() => handleSort("s_no")}>
-                      Roll No / S.No {sortKey === "s_no" ? (sortDir === "asc" ? "▲" : "▼") : "↕"}
+                    <TableHead className="text-right whitespace-nowrap font-bold">Gross W8</TableHead>
+                    <TableHead className="text-right whitespace-nowrap font-bold">Core W8</TableHead>
+                    <TableHead className="text-right whitespace-nowrap font-bold" onClick={() => handleSort("weight_kg")}>
+                      Net W8 {sortKey === "weight_kg" ? (sortDir === "asc" ? "▲" : "▼") : "↕"}
                     </TableHead>
+                    <TableHead className="text-right whitespace-nowrap font-bold" onClick={() => handleSort("meters")}>
+                      Mtrs {sortKey === "meters" ? (sortDir === "asc" ? "▲" : "▼") : "↕"}
+                    </TableHead>
+                    <TableHead className="text-right whitespace-nowrap font-bold">Avg Mtrs</TableHead>
                     <TableHead className="cursor-pointer select-none" onClick={() => handleSort("lam_type")}>
-                      Lamination Type {sortKey === "lam_type" ? (sortDir === "asc" ? "▲" : "▼") : "↕"}
-                    </TableHead>
-                    <TableHead className="text-right cursor-pointer select-none" onClick={() => handleSort("weight_kg")}>
-                      Weight (kg) {sortKey === "weight_kg" ? (sortDir === "asc" ? "▲" : "▼") : "↕"}
-                    </TableHead>
-                    <TableHead className="text-right cursor-pointer select-none" onClick={() => handleSort("meters")}>
-                      Meters {sortKey === "meters" ? (sortDir === "asc" ? "▲" : "▼") : "↕"}
+                      Lam Type {sortKey === "lam_type" ? (sortDir === "asc" ? "▲" : "▼") : "↕"}
                     </TableHead>
                     <TableHead className="cursor-pointer select-none" onClick={() => handleSort("entry_date")}>
-                      Date Laminated {sortKey === "entry_date" ? (sortDir === "asc" ? "▲" : "▼") : "↕"}
+                      Prod Date {sortKey === "entry_date" ? (sortDir === "asc" ? "▲" : "▼") : "↕"}
                     </TableHead>
+                    <TableHead className="whitespace-nowrap">Dispatch Date</TableHead>
+                    <TableHead className="whitespace-nowrap">Client Name</TableHead>
                     <TableHead className="cursor-pointer select-none" onClick={() => handleSort("status")}>
                       Status {sortKey === "status" ? (sortDir === "asc" ? "▲" : "▼") : "↕"}
                     </TableHead>
-                    <TableHead>Allocation / Info</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {sortedRolls.map((roll) => {
                     const allocation = rollAllocationMap[roll.id];
+                    const grossWt = roll.gross_weight ?? roll.weight_kg;
+                    const coreWt = roll.core_weight ?? 0;
+                    const netWt = roll.net_weight ?? roll.weight_kg;
+                    const avgMtrWt = roll.meters > 0 ? (netWt * 1000) / roll.meters : 0;
+
                     return (
                       <TableRow key={roll.id}>
-                        <TableCell className="font-mono font-bold text-emerald-950">{roll.roll_id}</TableCell>
-                        <TableCell className="font-mono text-center font-semibold text-slate-700">
-                          {(roll.roll_id.toUpperCase().startsWith("E-") || (roll.supplier_roll_id !== undefined && roll.supplier_roll_id !== null)) ? `E-${roll.s_no}` : roll.s_no}
+                        <TableCell className="font-mono font-bold text-slate-800">
+                          {roll.s_no}
                         </TableCell>
-                        <TableCell className="font-semibold text-xs">{roll.lam_type}</TableCell>
-                        <TableCell className="text-right font-mono">{formatNumber(roll.weight_kg, 2)}</TableCell>
+                        <TableCell className="text-right font-mono">{formatNumber(grossWt, 2)}</TableCell>
+                        <TableCell className="text-right font-mono">{formatNumber(coreWt, 2)}</TableCell>
+                        <TableCell className="text-right font-mono font-semibold text-emerald-950">{formatNumber(netWt, 2)}</TableCell>
                         <TableCell className="text-right font-mono">{formatNumber(roll.meters, 0)}</TableCell>
+                        <TableCell className="text-right font-mono">{formatNumber(Math.floor(avgMtrWt), 0)}</TableCell>
+                        <TableCell className="font-semibold text-xs">{roll.lam_type}</TableCell>
                         <TableCell className="whitespace-nowrap">{formatDate(roll.entry_date)}</TableCell>
+                        <TableCell className="whitespace-nowrap text-xs font-medium text-slate-600">
+                          {allocation?.dispatchDate ? formatDate(allocation.dispatchDate) : "-"}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap text-xs font-semibold text-slate-800">
+                          {allocation?.clientName ?? "-"}
+                        </TableCell>
                         <TableCell>
                           <StatusBadge value={roll.status} />
-                        </TableCell>
-                        <TableCell className="text-xs font-semibold text-slate-700">
-                          {roll.status === "sold" && allocation && (
-                            <span className="text-blue-600">
-                              Sold to <strong className="font-bold">{allocation.clientName}</strong> on {formatDate(allocation.dispatchDate)}
-                            </span>
-                          )}
-                          {roll.status === "consumed" && (
-                            <span className="text-amber-600 font-semibold">Consumed in Production</span>
-                          )}
-                          {roll.status === "available" && (
-                            <span className="text-emerald-600 font-semibold">In Stock</span>
-                          )}
-                           {roll.supplier_roll_id && (
-                             <div className="text-[10px] text-slate-500 font-medium">Supplier ID: {roll.supplier_roll_id}</div>
-                           )}
-                           {roll.gross_weight !== undefined && roll.gross_weight !== null && (
-                             <div className="text-[10px] text-slate-500 font-medium mt-0.5">
-                               Gross: {formatNumber(roll.gross_weight, 2)}kg | Core: {formatNumber(roll.core_weight ?? 0, 2)}kg | Net: {formatNumber(roll.net_weight ?? 0, 2)}kg
-                             </div>
-                           )}
                         </TableCell>
                       </TableRow>
                     );
