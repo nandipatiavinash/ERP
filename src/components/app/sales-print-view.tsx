@@ -197,6 +197,7 @@ export function SalesPrintView({ order, rollsByProduct, departmentsByProduct }: 
             {productSummaries.map((summary) => {
               const isFabric = summary.dept === "fabric";
               const isFinishing = summary.dept === "finishing";
+              const showGrossCore = ["fabric", "lamination"].includes(summary.dept);
 
               return (
                 <div key={summary.productKey} className="space-y-2">
@@ -222,7 +223,7 @@ export function SalesPrintView({ order, rollsByProduct, departmentsByProduct }: 
                           <th className="border border-gray-200 px-3 py-2">
                             {isFinishing ? "Bundle S.No" : "S.No"}
                           </th>
-                          {isFabric && (
+                          {showGrossCore && (
                             <>
                               <th className="border border-gray-200 px-3 py-2 text-right">Gross W8</th>
                               <th className="border border-gray-200 px-3 py-2 text-right">Core W8</th>
@@ -232,7 +233,7 @@ export function SalesPrintView({ order, rollsByProduct, departmentsByProduct }: 
                           <th className="border border-gray-200 px-3 py-2 text-right">
                             {isFinishing ? "Pieces (Bags)" : "Meters"}
                           </th>
-                          {isFabric && (
+                          {showGrossCore && (
                             <th className="border border-gray-200 px-3 py-2 text-right">Avg W8</th>
                           )}
                         </tr>
@@ -248,7 +249,7 @@ export function SalesPrintView({ order, rollsByProduct, departmentsByProduct }: 
                               <td className="border border-gray-200 px-3 py-1.5 text-left text-gray-600 font-mono">
                                 {roll.s_no ?? roll.roll_number}
                               </td>
-                              {isFabric && (
+                              {showGrossCore && (
                                 <>
                                   <td className="border border-gray-200 px-3 py-1.5 text-right tabular-nums">
                                     {formatNumber(roll.gross_weight)}
@@ -264,7 +265,7 @@ export function SalesPrintView({ order, rollsByProduct, departmentsByProduct }: 
                               <td className="border border-gray-200 px-3 py-1.5 text-right tabular-nums">
                                 {formatNumber(Math.floor(roll.net_meters), 0)}
                               </td>
-                              {isFabric && (
+                              {showGrossCore && (
                                 <td className="border border-gray-200 px-3 py-1.5 text-right tabular-nums">
                                   {formatNumber(Math.floor(rollAvg), 0)}
                                 </td>
@@ -278,7 +279,7 @@ export function SalesPrintView({ order, rollsByProduct, departmentsByProduct }: 
                           <td className="border border-gray-200 px-3 py-2 text-left uppercase text-gray-700">
                             Total ({summary.totalRolls} {isFinishing ? "Bundles" : "Rolls"})
                           </td>
-                          {isFabric && (
+                          {showGrossCore && (
                             <>
                               <td className="border border-gray-200 px-3 py-2 text-right"></td>
                               <td className="border border-gray-200 px-3 py-2 text-right"></td>
@@ -290,7 +291,7 @@ export function SalesPrintView({ order, rollsByProduct, departmentsByProduct }: 
                           <td className="border border-gray-200 px-3 py-2 text-right tabular-nums">
                             {formatNumber(Math.floor(summary.totalMeters), 0)} {isFinishing ? "pcs" : "m"}
                           </td>
-                          {isFabric && (
+                          {showGrossCore && (
                             <td className="border border-gray-200 px-3 py-2 text-right"></td>
                           )}
                         </tr>
