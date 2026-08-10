@@ -101,6 +101,9 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     salesOrders,
     rotoProducts,
     finishingProducts,
+    consumedFabricLamination,
+    consumedMetallicLamination,
+    consumedFilmPlainLamination,
   ] = await Promise.all([
     supabase
       .from("raw_material_consumptions")
@@ -185,6 +188,28 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     supabase
       .from("finishing_products")
       .select("id, name, dimensions, roto_product_id"),
+    supabase
+      .from("fabric_rolls")
+      .select("weight, updated_at")
+      .eq("status", "consumed")
+      .in("current_stage", ["lamination", "lamination_consumption"])
+      .gte("updated_at", `${from}T00:00:00+05:30`)
+      .lte("updated_at", `${to}T23:59:59.999+05:30`)
+      .is("deleted_at", null),
+    supabase
+      .from("roto_metallic_rolls")
+      .select("weight_kg, updated_at")
+      .eq("status", "consumed")
+      .gte("updated_at", `${from}T00:00:00+05:30`)
+      .lte("updated_at", `${to}T23:59:59.999+05:30`)
+      .is("deleted_at", null),
+    supabase
+      .from("roto_film_rolls")
+      .select("weight_kg, updated_at")
+      .eq("status", "consumed")
+      .gte("updated_at", `${from}T00:00:00+05:30`)
+      .lte("updated_at", `${to}T23:59:59.999+05:30`)
+      .is("deleted_at", null),
   ] as any[]);
 
   // 1. Department summaries calculations
@@ -204,7 +229,12 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
 
   const lamProdKgs = ((lamRolls.data ?? []) as any[]).reduce((sum, e) => sum + Number(e.weight_kg || 0), 0);
   const lamProdMtrs = ((lamRolls.data ?? []) as any[]).reduce((sum, e) => sum + Number(e.meters || 0), 0);
-  const lamConsKgs = getRawDeptCons("lamination");
+  
+  const lamConsKgs =
+    getRawDeptCons("lamination") +
+    ((consumedFabricLamination.data ?? []) as any[]).reduce((sum, r) => sum + Number(r.weight || 0), 0) +
+    ((consumedMetallicLamination.data ?? []) as any[]).reduce((sum, r) => sum + Number(r.weight_kg || 0), 0) +
+    ((consumedFilmPlainLamination.data ?? []) as any[]).reduce((sum, r) => sum + Number(r.weight_kg || 0), 0);
 
   const offsetProdKgs = ((offsetRolls.data ?? []) as any[]).reduce((sum, e) => sum + Number(e.weight_kg || 0), 0);
   const offsetConsKgs = getRawDeptCons("offset-printing");
