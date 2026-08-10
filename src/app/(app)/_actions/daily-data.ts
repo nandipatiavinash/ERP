@@ -53,8 +53,15 @@ export async function deleteTapeLineEntry(formData: FormData) {
 export async function saveLoomShiftMeters(formData: FormData) {
   const user = await requirePermission("fabric.daily_data");
   const loomId = String(formData.get("loom_id") ?? "");
-  const dayMeters = Number(formData.get("day_shift_meters") ?? 0);
-  const nightMeters = Number(formData.get("night_shift_meters") ?? 0);
+  
+  const dayRaw = formData.get("day_shift_meters");
+  const nightRaw = formData.get("night_shift_meters");
+
+  const hasDay = dayRaw !== null && dayRaw !== "";
+  const hasNight = nightRaw !== null && nightRaw !== "";
+
+  const dayMeters = hasDay ? Number(dayRaw) : 0;
+  const nightMeters = hasNight ? Number(nightRaw) : 0;
   const entryDate = todayInIndia();
 
   if (!loomId || (dayMeters < 0 || nightMeters < 0)) {
@@ -73,13 +80,19 @@ export async function saveLoomShiftMeters(formData: FormData) {
     .maybeSingle();
 
   if (existing) {
+    const updateData: any = {
+      updated_by: user.id
+    };
+    if (hasDay) {
+      updateData.day_shift_meters = dayMeters;
+    }
+    if (hasNight) {
+      updateData.night_shift_meters = nightMeters;
+    }
+
     const { error } = await (adminSupabase
       .from("loom_shift_meters" as any) as any)
-      .update({
-        day_shift_meters: dayMeters,
-        night_shift_meters: nightMeters,
-        updated_by: user.id
-      })
+      .update(updateData)
       .eq("id", existing.id);
 
     if (error) throw new Error(error.message);

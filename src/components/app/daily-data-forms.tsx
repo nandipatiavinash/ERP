@@ -111,6 +111,10 @@ export function LoomShiftMetersForm({ looms }: { looms: LoomOption[] }) {
       setErrorText("Loom ID is required.");
       return;
     }
+    if (dayMeters === "" && nightMeters === "") {
+      setErrorText("At least one shift's meters (Day or Night) must be entered.");
+      return;
+    }
     if (dayNum < 0 || nightNum < 0) {
       setErrorText("Meters cannot be negative.");
       return;
@@ -166,7 +170,6 @@ export function LoomShiftMetersForm({ looms }: { looms: LoomOption[] }) {
             value={dayMeters}
             onChange={(e) => setDayMeters(e.target.value)}
             placeholder="Enter Day Shift Meters"
-            required
             disabled={isSaving}
           />
         </div>
@@ -180,7 +183,6 @@ export function LoomShiftMetersForm({ looms }: { looms: LoomOption[] }) {
             value={nightMeters}
             onChange={(e) => setNightMeters(e.target.value)}
             placeholder="Enter Night Shift Meters"
-            required
             disabled={isSaving}
           />
         </div>

@@ -66,6 +66,20 @@ export function AdminDashboardView({
 }: AdminDashboardViewProps) {
   const [expandFabricDaily, setExpandFabricDaily] = useState(false);
 
+  const totals = useMemo(() => {
+    return dailyEntries.reduce(
+      (acc, curr) => {
+        acc.tapeLoads += Number(curr.tapeLoads || 0);
+        acc.loomMetersDay += Number(curr.loomMetersDay || 0);
+        acc.loomMetersNight += Number(curr.loomMetersNight || 0);
+        acc.fabricProducedMtrs += Number(curr.fabricProducedMtrs || 0);
+        acc.electricityUnits += Number(curr.electricityUnits || 0);
+        return acc;
+      },
+      { tapeLoads: 0, loomMetersDay: 0, loomMetersNight: 0, fabricProducedMtrs: 0, electricityUnits: 0 }
+    );
+  }, [dailyEntries]);
+
   return (
     <div className="space-y-6">
       {/* Date Range Selector */}
@@ -199,121 +213,109 @@ export function AdminDashboardView({
         </button>
 
         {expandFabricDaily && (
-          <div className="border-t border-slate-200 overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-slate-50/30">
-                  <TableHead className="font-bold text-slate-700">Date</TableHead>
-                  <TableHead className="font-bold text-slate-700 text-right">Tape loads (No.)</TableHead>
-                  <TableHead className="font-bold text-slate-700 text-right">Loom Day (m)</TableHead>
-                  <TableHead className="font-bold text-slate-700 text-right">Loom Night (m)</TableHead>
-                  <TableHead className="font-bold text-slate-700 text-right">Fabric Produced (m)</TableHead>
-                  <TableHead className="font-bold text-slate-700 text-right pr-4">Electricity Units</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {dailyEntries.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center py-6 text-slate-400 text-xs">
-                      No daily records found in selected range.
-                    </TableCell>
+          <div className="border-t border-slate-200">
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-slate-50/30">
+                    <TableHead className="font-bold text-slate-700">Date</TableHead>
+                    <TableHead className="font-bold text-slate-700 text-right">Tape loads (No.)</TableHead>
+                    <TableHead className="font-bold text-slate-700 text-right">Loom Day (m)</TableHead>
+                    <TableHead className="font-bold text-slate-700 text-right">Loom Night (m)</TableHead>
+                    <TableHead className="font-bold text-slate-700 text-right">Fabric Produced (m)</TableHead>
+                    <TableHead className="font-bold text-slate-700 text-right pr-4">Electricity Units</TableHead>
                   </TableRow>
-                ) : (
-                  dailyEntries.map((row) => (
-                    <TableRow key={row.date} className="hover:bg-slate-50/30">
-                      <TableCell className="font-semibold text-slate-650 text-xs">{formatDate(row.date)}</TableCell>
-                      <TableCell className="text-right font-mono text-xs">{formatNumber(row.tapeLoads, 1)}</TableCell>
-                      <TableCell className="text-right font-mono text-xs">{formatNumber(row.loomMetersDay, 1)} m</TableCell>
-                      <TableCell className="text-right font-mono text-xs">{formatNumber(row.loomMetersNight, 1)} m</TableCell>
-                      <TableCell className="text-right font-mono text-xs">{formatNumber(row.fabricProducedMtrs, 1)} m</TableCell>
-                      <TableCell className="text-right font-mono text-xs pr-4">{formatNumber(row.electricityUnits, 1)} units</TableCell>
+                </TableHeader>
+                <TableBody>
+                  {dailyEntries.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-6 text-slate-400 text-xs">
+                        No daily records found in selected range.
+                      </TableCell>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
+                  ) : (
+                    dailyEntries.map((row) => (
+                      <TableRow key={row.date} className="hover:bg-slate-50/30">
+                        <TableCell className="font-semibold text-slate-650 text-xs">{formatDate(row.date)}</TableCell>
+                        <TableCell className="text-right font-mono text-xs">{formatNumber(row.tapeLoads, 1)}</TableCell>
+                        <TableCell className="text-right font-mono text-xs">{formatNumber(row.loomMetersDay, 1)} m</TableCell>
+                        <TableCell className="text-right font-mono text-xs">{formatNumber(row.loomMetersNight, 1)} m</TableCell>
+                        <TableCell className="text-right font-mono text-xs">{formatNumber(row.fabricProducedMtrs, 1)} m</TableCell>
+                        <TableCell className="text-right font-mono text-xs pr-4">{formatNumber(row.electricityUnits, 1)} units</TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+            {dailyEntries.length > 0 && (
+              <div className="bg-slate-50 border-t border-slate-200 px-6 py-4 flex flex-wrap items-center justify-between gap-4 text-xs font-semibold text-slate-650">
+                <span className="font-bold text-slate-800 uppercase tracking-wider text-[10px]">Total Sums:</span>
+                <div className="flex flex-wrap gap-x-8 gap-y-2">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-slate-400">Tape Loads:</span>
+                    <span className="font-mono font-bold text-slate-900 text-sm">{formatNumber(totals.tapeLoads, 1)}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-slate-400">Loom Day:</span>
+                    <span className="font-mono font-bold text-slate-900 text-sm">{formatNumber(totals.loomMetersDay, 1)} m</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-slate-400">Loom Night:</span>
+                    <span className="font-mono font-bold text-slate-900 text-sm">{formatNumber(totals.loomMetersNight, 1)} m</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-slate-400">Fabric Produced:</span>
+                    <span className="font-mono font-bold text-slate-900 text-sm">{formatNumber(totals.fabricProducedMtrs, 1)} m</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 font-bold">
+                    <span className="text-slate-400">Electricity:</span>
+                    <span className="font-mono font-bold text-slate-900 text-sm">{formatNumber(totals.electricityUnits, 1)} units</span>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
 
-      {/* 3. Receivables vs Payables Aging Lists */}
-      <div className="grid gap-6 md:grid-cols-2">
-        {/* Receivables Debit Balance aging */}
-        <Card className="border-slate-200 shadow-xs bg-white">
-          <CardHeader className="border-b border-slate-50 py-3.5 flex flex-row items-center justify-between">
-            <CardTitle className="text-xs font-black uppercase text-slate-500 tracking-wider">
-              Receivables aging (Dr. Balance - Highest First)
-            </CardTitle>
-            <Badge className="bg-red-50 text-red-700 border-0 hover:bg-red-50 text-[10px] font-bold">DEBIT BALANCES</Badge>
-          </CardHeader>
-          <CardContent className="p-0">
-            {receivables.length === 0 ? (
-              <p className="text-center py-8 text-xs text-slate-400">No receivable balances outstanding.</p>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-slate-50/30">
-                    <TableHead className="font-bold text-slate-700 text-xs">Customer Name</TableHead>
-                    <TableHead className="font-bold text-slate-700 text-right text-xs">Balance (₹)</TableHead>
-                    <TableHead className="font-bold text-slate-700 text-right text-xs pr-4">Days Outstanding</TableHead>
+      {/* 3. Payables Credit Balance aging */}
+      <Card className="border-slate-200 shadow-xs bg-white">
+        <CardHeader className="border-b border-slate-50 py-3.5 flex flex-row items-center justify-between">
+          <CardTitle className="text-xs font-black uppercase text-slate-500 tracking-wider">
+            Payables aging (Cr. Balance - Highest First)
+          </CardTitle>
+          <Badge className="bg-emerald-50 text-emerald-700 border-0 hover:bg-emerald-50 text-[10px] font-bold">CREDIT BALANCES</Badge>
+        </CardHeader>
+        <CardContent className="p-0">
+          {payables.length === 0 ? (
+            <p className="text-center py-8 text-xs text-slate-400">No supplier credit balances outstanding.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-slate-50/30">
+                  <TableHead className="font-bold text-slate-700 text-xs">Supplier / Account</TableHead>
+                  <TableHead className="font-bold text-slate-700 text-right text-xs">Balance (₹)</TableHead>
+                  <TableHead className="font-bold text-slate-700 text-right text-xs pr-4">Days Outstanding</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {payables.map((p, i) => (
+                  <TableRow key={i} className="hover:bg-slate-50/30">
+                    <TableCell className="font-bold text-slate-800 text-xs">{p.accountName}</TableCell>
+                    <TableCell className="text-right font-mono text-xs font-bold">₹{formatNumber(p.balance, 2)}</TableCell>
+                    <TableCell className="text-right font-mono text-xs pr-4">
+                      <span className={`px-2 py-0.5 rounded font-bold ${p.maxDays > 30 ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-800"}`}>
+                        {p.maxDays} Days
+                      </span>
+                    </TableCell>
                   </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {receivables.map((r, i) => (
-                    <TableRow key={i} className="hover:bg-slate-50/30">
-                      <TableCell className="font-bold text-slate-800 text-xs">{r.accountName}</TableCell>
-                      <TableCell className="text-right font-mono text-xs font-bold">₹{formatNumber(r.balance, 2)}</TableCell>
-                      <TableCell className="text-right font-mono text-xs pr-4">
-                        <span className={`px-2 py-0.5 rounded font-bold ${r.maxDays > 30 ? "bg-red-100 text-red-800" : "bg-slate-100 text-slate-800"}`}>
-                          {r.maxDays} Days
-                        </span>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Payables Credit Balance aging */}
-        <Card className="border-slate-200 shadow-xs bg-white">
-          <CardHeader className="border-b border-slate-50 py-3.5 flex flex-row items-center justify-between">
-            <CardTitle className="text-xs font-black uppercase text-slate-500 tracking-wider">
-              Payables aging (Cr. Balance - Highest First)
-            </CardTitle>
-            <Badge className="bg-emerald-50 text-emerald-700 border-0 hover:bg-emerald-50 text-[10px] font-bold">CREDIT BALANCES</Badge>
-          </CardHeader>
-          <CardContent className="p-0">
-            {payables.length === 0 ? (
-              <p className="text-center py-8 text-xs text-slate-400">No supplier credit balances outstanding.</p>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-slate-50/30">
-                    <TableHead className="font-bold text-slate-700 text-xs">Supplier / Account</TableHead>
-                    <TableHead className="font-bold text-slate-700 text-right text-xs">Balance (₹)</TableHead>
-                    <TableHead className="font-bold text-slate-700 text-right text-xs pr-4">Days Outstanding</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {payables.map((p, i) => (
-                    <TableRow key={i} className="hover:bg-slate-50/30">
-                      <TableCell className="font-bold text-slate-800 text-xs">{p.accountName}</TableCell>
-                      <TableCell className="text-right font-mono text-xs font-bold">₹{formatNumber(p.balance, 2)}</TableCell>
-                      <TableCell className="text-right font-mono text-xs pr-4">
-                        <span className={`px-2 py-0.5 rounded font-bold ${p.maxDays > 30 ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-800"}`}>
-                          {p.maxDays} Days
-                        </span>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
 
       {/* 4. Orders Summary Block */}
       <div className="space-y-3">
