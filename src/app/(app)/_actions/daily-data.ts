@@ -3,7 +3,6 @@
 import { revalidatePath } from "next/cache";
 import { requirePermission } from "@/lib/auth";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createClient } from "@/lib/supabase/server";
 import { todayInIndia } from "./helpers";
 
 export async function saveTapeLineEntry(formData: FormData) {
@@ -68,10 +67,9 @@ export async function saveLoomShiftMeters(formData: FormData) {
     throw new Error("Invalid parameters.");
   }
 
-  const supabase = await createClient();
   const adminSupabase = createAdminClient();
 
-  const { data: existing } = await (supabase
+  const { data: existing } = await (adminSupabase
     .from("loom_shift_meters" as any) as any)
     .select("id")
     .eq("entry_date", entryDate)
@@ -141,10 +139,9 @@ export async function saveElectricityUnits(formData: FormData) {
     throw new Error("Invalid units value.");
   }
 
-  const supabase = await createClient();
   const adminSupabase = createAdminClient();
 
-  const { data: existing } = await (supabase
+  const { data: existing } = await (adminSupabase
     .from("electricity_units_entries" as any) as any)
     .select("id")
     .eq("entry_date", entryDate)
