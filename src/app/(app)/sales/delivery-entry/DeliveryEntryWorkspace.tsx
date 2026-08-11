@@ -296,13 +296,15 @@ export function DeliveryEntryWorkspace({
       }
       map[cust.id].orders.push(order);
     }
-    return Object.values(map).filter((item) => {
-      const query = searchTerm.toLowerCase();
-      return (
-        item.customer.customer_name.toLowerCase().includes(query) ||
-        item.customer.alias?.toLowerCase().includes(query)
-      );
-    });
+    return Object.values(map)
+      .filter((item) => {
+        const query = searchTerm.toLowerCase();
+        return (
+          item.customer.customer_name.toLowerCase().includes(query) ||
+          item.customer.alias?.toLowerCase().includes(query)
+        );
+      })
+      .sort((a, b) => a.customer.customer_name.localeCompare(b.customer.customer_name));
   }, [orders, searchTerm]);
 
   // Selected customer's draft orders and items

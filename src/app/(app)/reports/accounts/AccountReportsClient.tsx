@@ -86,8 +86,12 @@ export function AccountReportsClient({
     );
 
     return {
-      clientAccountsOnly: clients.filter((c) => !referenceIds.has(c.id)),
-      referenceAccountsOnly: clients.filter((c) => referenceIds.has(c.id)),
+      clientAccountsOnly: clients
+        .filter((c) => !referenceIds.has(c.id))
+        .sort((a, b) => (a.customer_name || "").localeCompare(b.customer_name || "")),
+      referenceAccountsOnly: clients
+        .filter((c) => referenceIds.has(c.id))
+        .sort((a, b) => (a.customer_name || "").localeCompare(b.customer_name || "")),
     };
   }, [groupedAccounts]);
 

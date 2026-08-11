@@ -117,14 +117,24 @@ export function ProductPurchaseForm({
     return [...suppliers].sort((a, b) => a.customer_name.localeCompare(b.customer_name));
   }, [suppliers]);
 
-  // Brand catalog: shows all brands for the selected department
+  const sortedFabricTypes = useMemo(() => {
+    return [...fabricTypes].sort((a, b) => (a.fabric_name || "").localeCompare(b.fabric_name || ""));
+  }, [fabricTypes]);
+
+  const sortedColors = useMemo(() => {
+    return [...colors].sort((a, b) => (a.color_name || "").localeCompare(b.color_name || ""));
+  }, [colors]);
+
+  // Brand catalog: shows all brands for the selected department, sorted alphabetically
   const activeBrandsCatalog = useMemo(() => {
-    if (department === "roto-printing") return rotoProducts;
-    if (department === "lamination") return rotoProducts;
-    if (department === "offset-printing") return offsetProducts;
-    if (department === "finishing") return finishingProducts.map((p) => ({ ...p, brand: p.name }));
-    if (department === "fabric") return fabricTypes.map((f) => ({ ...f, brand: f.fabric_name }));
-    return [];
+    let list: CatalogOption[] = [];
+    if (department === "roto-printing") list = rotoProducts;
+    else if (department === "lamination") list = rotoProducts;
+    else if (department === "offset-printing") list = offsetProducts;
+    else if (department === "finishing") list = finishingProducts.map((p) => ({ ...p, brand: p.name }));
+    else if (department === "fabric") list = fabricTypes.map((f) => ({ ...f, brand: f.fabric_name }));
+    
+    return [...list].sort((a, b) => (a.brand || "").localeCompare(b.brand || ""));
   }, [department, rotoProducts, offsetProducts, finishingProducts, fabricTypes]);
 
   const handleDeptChange = (val: string) => {
@@ -433,7 +443,7 @@ export function ProductPurchaseForm({
                   className="w-full h-8 text-[11px] border border-slate-200 rounded bg-white px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-semibold"
                 >
                   <option value="">Select Brand...</option>
-                  {fabricTypes.map((fab) => (
+                  {sortedFabricTypes.map((fab) => (
                     <option key={fab.id} value={fab.id}>{fab.fabric_name}</option>
                   ))}
                 </select>
@@ -487,7 +497,7 @@ export function ProductPurchaseForm({
                   <Label className="text-[10px] font-bold text-slate-600">Color</Label>
                   <select value={colorId} onChange={(e) => setColorId(e.target.value)} className="w-full h-8 text-[11px] border border-slate-200 rounded bg-white px-2 py-0.5 focus:outline-none font-semibold">
                     <option value="">Select Color...</option>
-                    {colors.map((c) => (
+                    {sortedColors.map((c) => (
                       <option key={c.id} value={c.id}>{c.color_name}</option>
                     ))}
                   </select>
@@ -539,7 +549,7 @@ export function ProductPurchaseForm({
                     className="w-full h-8 text-[11px] border border-slate-200 rounded bg-white px-2 py-0.5 focus:outline-none font-semibold"
                   >
                     <option value="">Select FabricSpec...</option>
-                    {fabricTypes.map((fab) => (
+                    {sortedFabricTypes.map((fab) => (
                       <option key={fab.id} value={fab.id}>{fab.fabric_name}</option>
                     ))}
                   </select>
@@ -631,7 +641,7 @@ export function ProductPurchaseForm({
                   className="w-full h-8 text-[11px] border border-slate-200 rounded bg-white px-2 py-0.5 focus:outline-none font-semibold"
                 >
                   <option value="">Select FabricSpec...</option>
-                  {fabricTypes.map((fab) => (
+                  {sortedFabricTypes.map((fab) => (
                     <option key={fab.id} value={fab.id}>{fab.fabric_name}</option>
                   ))}
                 </select>
@@ -684,7 +694,7 @@ export function ProductPurchaseForm({
                     className="w-full h-8 text-[11px] border border-slate-200 rounded bg-white px-2 py-0.5 focus:outline-none font-semibold"
                   >
                     <option value="">Select FabricSpec...</option>
-                    {fabricTypes.map((fab) => (
+                    {sortedFabricTypes.map((fab) => (
                       <option key={fab.id} value={fab.id}>{fab.fabric_name}</option>
                     ))}
                   </select>

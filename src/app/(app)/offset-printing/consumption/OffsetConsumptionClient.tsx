@@ -51,7 +51,9 @@ export function OffsetConsumptionClient({
         typesMap.set(roll.fabric_type_id, roll.fabric_types.fabric_name);
       }
     });
-    return Array.from(typesMap.entries()).map(([id, name]) => ({ id, name }));
+    return Array.from(typesMap.entries())
+      .map(([id, name]) => ({ id, name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
   }, [availableFabric]);
 
   // Filter fabric rolls
