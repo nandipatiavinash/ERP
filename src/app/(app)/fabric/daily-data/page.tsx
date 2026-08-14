@@ -9,12 +9,14 @@ import { todayInIndia } from "@/app/(app)/_actions/helpers";
 import {
   TapeLineForm,
   LoomShiftMetersForm,
-  ElectricityUnitsForm
+  ElectricityUnitsForm,
+  DailyWasteForm
 } from "@/components/app/daily-data-forms";
 import {
   deleteTapeLineEntry,
   deleteLoomShiftMeters,
-  deleteElectricityUnits
+  deleteElectricityUnits,
+  deleteDailyWasteEntry
 } from "@/app/(app)/_actions";
 import { formatNumber } from "@/lib/utils";
 
@@ -28,7 +30,8 @@ export default async function DailyDataPage() {
     loomsRes,
     tapeRes,
     loomMetersRes,
-    electricityRes
+    electricityRes,
+    wasteRes
   ] = await Promise.all([
     supabase
       .from("looms")
@@ -53,6 +56,12 @@ export default async function DailyDataPage() {
       .select("*")
       .eq("entry_date", today)
       .is("deleted_at", null)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("daily_waste_entries")
+      .select("*")
+      .eq("entry_date", today)
+      .is("deleted_at", null)
       .order("created_at", { ascending: false })
   ]);
 
@@ -60,6 +69,7 @@ export default async function DailyDataPage() {
   const tapeEntries = (tapeRes.data ?? []) as any[];
   const loomMetersEntries = (loomMetersRes.data ?? []) as any[];
   const electricityEntries = (electricityRes.data ?? []) as any[];
+  const wasteEntries = (wasteRes.data ?? []) as any[];
 
   return (
     <>
@@ -193,69 +203,139 @@ export default async function DailyDataPage() {
         </div>
       </div>
 
-      {/* Loom Shift Meters Section */}
-      <div className="mt-6 space-y-6">
-        <Card className="shadow-xs border-slate-200">
-          <CardHeader className="border-b border-slate-100">
-            <CardTitle className="text-sm font-bold text-slate-800">Loom Shift Meters Entry</CardTitle>
-          </CardHeader>
-          <CardContent className="pt-5">
-            <LoomShiftMetersForm looms={looms.map(l => ({ id: l.id, label: l.loom_number }))} />
-          </CardContent>
-        </Card>
+      {/* Loom Shift Meters & Daily Waste Entry Row */}
+      <div className="mt-6 grid gap-6 md:grid-cols-2">
+        {/* Loom Shift Meters Section */}
+        <div className="space-y-6">
+          <Card className="shadow-xs border-slate-200">
+            <CardHeader className="border-b border-slate-100">
+              <CardTitle className="text-sm font-bold text-slate-800">Loom Shift Meters Entry</CardTitle>
+            </CardHeader>
+            <CardContent className="pt-5">
+              <LoomShiftMetersForm looms={looms.map(l => ({ id: l.id, label: l.loom_number }))} />
+            </CardContent>
+          </Card>
 
-        <Card className="shadow-xs border-slate-200">
-          <CardHeader className="border-b border-slate-100">
-            <CardTitle className="text-sm font-bold text-slate-800">Today's Loom Shift Meters</CardTitle>
-          </CardHeader>
-          <CardContent className="p-0">
-            {loomMetersEntries.length === 0 ? (
-              <div className="p-6">
-                <EmptyState title="No loom shifts logged today" description="Submit the form above to record loom shift meters." />
-              </div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-slate-50/50">
-                    <TableHead>Loom ID</TableHead>
-                    <TableHead>Day Shift (Mtrs)</TableHead>
-                    <TableHead>Night Shift (Mtrs)</TableHead>
-                    <TableHead>Total (Mtrs)</TableHead>
-                    <TableHead className="text-right w-[100px]">Action</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {loomMetersEntries.map((row) => {
-                    const day = Number(row.day_shift_meters || 0);
-                    const night = Number(row.night_shift_meters || 0);
-                    return (
-                      <TableRow key={row.id}>
-                        <TableCell className="font-semibold text-slate-800">{row.looms?.loom_number ?? "Unknown"}</TableCell>
-                        <TableCell className="font-mono">{formatNumber(day, 2)}</TableCell>
-                        <TableCell className="font-mono">{formatNumber(night, 2)}</TableCell>
-                        <TableCell className="font-mono font-bold text-slate-900">{formatNumber(day + night, 2)}</TableCell>
-                        <TableCell className="text-right">
-                          <form action={deleteLoomShiftMeters}>
-                            <input type="hidden" name="id" value={row.id} />
-                            <ConfirmSubmitButton
-                              variant="ghost"
-                              size="sm"
-                              confirmTitle="Delete Loom Shift entry?"
-                              confirmDescription="This will remove this loom shift meters entry."
-                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                            >
-                              Delete
-                            </ConfirmSubmitButton>
-                          </form>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
+          <Card className="shadow-xs border-slate-200">
+            <CardHeader className="border-b border-slate-100">
+              <CardTitle className="text-sm font-bold text-slate-800">Today's Loom Shift Meters</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              {loomMetersEntries.length === 0 ? (
+                <div className="p-6">
+                  <EmptyState title="No loom shifts logged today" description="Submit the form above to record loom shift meters." />
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-slate-50/50">
+                      <TableHead>Loom ID</TableHead>
+                      <TableHead>Day Shift (Mtrs)</TableHead>
+                      <TableHead>Night Shift (Mtrs)</TableHead>
+                      <TableHead>Total (Mtrs)</TableHead>
+                      <TableHead className="text-right w-[100px]">Action</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {loomMetersEntries.map((row) => {
+                      const day = Number(row.day_shift_meters || 0);
+                      const night = Number(row.night_shift_meters || 0);
+                      return (
+                        <TableRow key={row.id}>
+                          <TableCell className="font-semibold text-slate-800">{row.looms?.loom_number ?? "Unknown"}</TableCell>
+                          <TableCell className="font-mono">{formatNumber(day, 2)}</TableCell>
+                          <TableCell className="font-mono">{formatNumber(night, 2)}</TableCell>
+                          <TableCell className="font-mono font-bold text-slate-900">{formatNumber(day + night, 2)}</TableCell>
+                          <TableCell className="text-right">
+                            <form action={deleteLoomShiftMeters}>
+                              <input type="hidden" name="id" value={row.id} />
+                              <ConfirmSubmitButton
+                                variant="ghost"
+                                size="sm"
+                                confirmTitle="Delete Loom Shift entry?"
+                                confirmDescription="This will remove this loom shift meters entry."
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                              >
+                                Delete
+                              </ConfirmSubmitButton>
+                            </form>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Waste Entry Section */}
+        <div className="space-y-6">
+          <Card className="shadow-xs border-slate-200">
+            <CardHeader className="border-b border-slate-100">
+              <CardTitle className="text-sm font-bold text-slate-800">Waste Entry</CardTitle>
+            </CardHeader>
+            <CardContent className="pt-5">
+              <DailyWasteForm initialData={wasteEntries[0]} />
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-xs border-slate-200">
+            <CardHeader className="border-b border-slate-100">
+              <CardTitle className="text-sm font-bold text-slate-800">Today's Waste Entry</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              {wasteEntries.length === 0 ? (
+                <div className="p-6">
+                  <EmptyState title="No waste logged today" description="Submit the form above to record today's waste." />
+                </div>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-slate-50/50">
+                      <TableHead>Type</TableHead>
+                      <TableHead>Qty (Kgs)</TableHead>
+                      <TableHead className="text-right w-[100px]">Action</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow>
+                      <TableCell className="font-semibold text-slate-800">Plant Waste</TableCell>
+                      <TableCell className="font-mono">{formatNumber(wasteEntries[0].plant_waste, 2)} Kgs</TableCell>
+                      <TableCell rowSpan={4} className="text-right align-middle w-[100px] border-l border-slate-150">
+                        <form action={deleteDailyWasteEntry}>
+                          <input type="hidden" name="id" value={wasteEntries[0].id} />
+                          <ConfirmSubmitButton
+                            variant="ghost"
+                            size="sm"
+                            confirmTitle="Delete Waste Entry?"
+                            confirmDescription="This will remove today's waste entry."
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            Delete
+                          </ConfirmSubmitButton>
+                        </form>
+                      </TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell className="font-semibold text-slate-800">Bobon Waste</TableCell>
+                      <TableCell className="font-mono">{formatNumber(wasteEntries[0].bobon_waste, 2)} Kgs</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell className="font-semibold text-slate-800">Loom Waste</TableCell>
+                      <TableCell className="font-mono">{formatNumber(wasteEntries[0].loom_waste, 2)} Kgs</TableCell>
+                    </TableRow>
+                    <TableRow>
+                      <TableCell className="font-semibold text-slate-800">Pipe Cutting Waste</TableCell>
+                      <TableCell className="font-mono">{formatNumber(wasteEntries[0].pipe_cutting_waste, 2)} Kgs</TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </>
   );

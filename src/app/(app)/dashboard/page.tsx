@@ -104,6 +104,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     consumedFabricLamination,
     consumedMetallicLamination,
     consumedFilmPlainLamination,
+    dailyWaste,
   ] = await Promise.all([
     supabase
       .from("raw_material_consumptions")
@@ -210,6 +211,12 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       .gte("updated_at", `${from}T00:00:00+05:30`)
       .lte("updated_at", `${to}T23:59:59.999+05:30`)
       .is("deleted_at", null),
+    supabase
+      .from("daily_waste_entries")
+      .select("plant_waste, bobon_waste, loom_waste, pipe_cutting_waste, entry_date")
+      .gte("entry_date", from)
+      .lte("entry_date", to)
+      .is("deleted_at", null),
   ] as any[]);
 
   // 1. Department summaries calculations
@@ -250,6 +257,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       ...((loomShifts.data ?? []) as any[]).map((e) => e.entry_date),
       ...((loomEntries.data ?? []) as any[]).map((e) => e.entry_date),
       ...((elecEntries.data ?? []) as any[]).map((e) => e.entry_date),
+      ...((dailyWaste.data ?? []) as any[]).map((e) => e.entry_date),
     ])
   ).sort((a, b) => b.localeCompare(a)); // Descending chronological
 
@@ -274,6 +282,22 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       .filter((e) => e.entry_date === date)
       .reduce((sum, e) => sum + Number(e.units || 0), 0);
 
+    const plantWaste = ((dailyWaste.data ?? []) as any[])
+      .filter((e) => e.entry_date === date)
+      .reduce((sum, e) => sum + Number(e.plant_waste || 0), 0);
+
+    const bobonWaste = ((dailyWaste.data ?? []) as any[])
+      .filter((e) => e.entry_date === date)
+      .reduce((sum, e) => sum + Number(e.bobon_waste || 0), 0);
+
+    const loomWaste = ((dailyWaste.data ?? []) as any[])
+      .filter((e) => e.entry_date === date)
+      .reduce((sum, e) => sum + Number(e.loom_waste || 0), 0);
+
+    const pipeCuttingWaste = ((dailyWaste.data ?? []) as any[])
+      .filter((e) => e.entry_date === date)
+      .reduce((sum, e) => sum + Number(e.pipe_cutting_waste || 0), 0);
+
     return {
       date,
       tapeLoads,
@@ -281,6 +305,10 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       loomMetersNight,
       fabricProducedMtrs,
       electricityUnits,
+      plantWaste,
+      bobonWaste,
+      loomWaste,
+      pipeCuttingWaste,
     };
   });
 

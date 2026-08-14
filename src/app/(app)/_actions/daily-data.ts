@@ -191,3 +191,76 @@ export async function deleteElectricityUnits(formData: FormData) {
   revalidatePath("/fabric/daily-data");
   revalidatePath("/dashboard");
 }
+
+export async function saveDailyWasteEntry(formData: FormData) {
+  const user = await requirePermission("fabric.daily_data");
+  const plantWaste = Number(formData.get("plant_waste") ?? 0);
+  const bobonWaste = Number(formData.get("bobon_waste") ?? 0);
+  const loomWaste = Number(formData.get("loom_waste") ?? 0);
+  const pipeCuttingWaste = Number(formData.get("pipe_cutting_waste") ?? 0);
+  const entryDate = todayInIndia();
+
+  if (plantWaste < 0 || bobonWaste < 0 || loomWaste < 0 || pipeCuttingWaste < 0) {
+    throw new Error("Waste values cannot be negative.");
+  }
+
+  const adminSupabase = createAdminClient();
+
+  const { data: existing } = await (adminSupabase
+    .from("daily_waste_entries" as any) as any)
+    .select("id")
+    .eq("entry_date", entryDate)
+    .is("deleted_at", null)
+    .maybeSingle();
+
+  if (existing) {
+    const { error } = await (adminSupabase
+      .from("daily_waste_entries" as any) as any)
+      .update({
+        plant_waste: plantWaste,
+        bobon_waste: bobonWaste,
+        loom_waste: loomWaste,
+        pipe_cutting_waste: pipeCuttingWaste,
+        updated_by: user.id,
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", existing.id);
+
+    if (error) throw new Error(error.message);
+  } else {
+    const { error } = await (adminSupabase
+      .from("daily_waste_entries" as any) as any)
+      .insert({
+        entry_date: entryDate,
+        plant_waste: plantWaste,
+        bobon_waste: bobonWaste,
+        loom_waste: loomWaste,
+        pipe_cutting_waste: pipeCuttingWaste,
+        created_by: user.id
+      });
+
+    if (error) throw new Error(error.message);
+  }
+
+  revalidatePath("/fabric/daily-data");
+  revalidatePath("/dashboard");
+}
+
+export async function deleteDailyWasteEntry(formData: FormData) {
+  await requirePermission("fabric.daily_data");
+  const id = String(formData.get("id") ?? "");
+
+  if (!id) throw new Error("ID is required.");
+
+  const adminSupabase = createAdminClient();
+  const { error } = await (adminSupabase
+    .from("daily_waste_entries" as any) as any)
+    .update({ deleted_at: new Date().toISOString() })
+    .eq("id", id);
+
+  if (error) throw new Error(error.message);
+
+  revalidatePath("/fabric/daily-data");
+  revalidatePath("/dashboard");
+}
+

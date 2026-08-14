@@ -285,4 +285,11 @@ export async function saveElectricityUnits(formData: FormData) {
 export async function deleteElectricityUnits(formData: FormData) {
   return dailyData.deleteElectricityUnits(formData);
 }
+export async function saveDailyWasteEntry(formData: FormData) {
+  return dailyData.saveDailyWasteEntry(formData);
+}
+export async function deleteDailyWasteEntry(formData: FormData) {
+  return dailyData.deleteDailyWasteEntry(formData);
+}
+
 

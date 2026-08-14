@@ -9,7 +9,8 @@ import { Label } from "@/components/ui/label";
 import {
   saveTapeLineEntry,
   saveLoomShiftMeters,
-  saveElectricityUnits
+  saveElectricityUnits,
+  saveDailyWasteEntry
 } from "@/app/(app)/_actions";
 
 type LoomOption = { id: string; label: string };
@@ -262,3 +263,125 @@ export function ElectricityUnitsForm() {
     </form>
   );
 }
+
+// 4. Daily Waste Form
+export function DailyWasteForm({
+  initialData
+}: {
+  initialData?: {
+    plant_waste: number;
+    bobon_waste: number;
+    loom_waste: number;
+    pipe_cutting_waste: number;
+  } | null;
+}) {
+  const [isSaving, setIsSaving] = useState(false);
+  const [errorText, setErrorText] = useState<string | null>(null);
+  const [plantWaste, setPlantWaste] = useState(initialData?.plant_waste?.toString() ?? "");
+  const [bobonWaste, setBobonWaste] = useState(initialData?.bobon_waste?.toString() ?? "");
+  const [loomWaste, setLoomWaste] = useState(initialData?.loom_waste?.toString() ?? "");
+  const [pipeCuttingWaste, setPipeCuttingWaste] = useState(initialData?.pipe_cutting_waste?.toString() ?? "");
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (isSaving) return;
+
+    const plantNum = Number(plantWaste || 0);
+    const bobonNum = Number(bobonWaste || 0);
+    const loomNum = Number(loomWaste || 0);
+    const pipeCuttingNum = Number(pipeCuttingWaste || 0);
+
+    if (plantNum < 0 || bobonNum < 0 || loomNum < 0 || pipeCuttingNum < 0) {
+      setErrorText("Waste values must be non-negative.");
+      return;
+    }
+    setErrorText(null);
+
+    setIsSaving(true);
+    try {
+      const formData = new FormData(event.currentTarget);
+      await saveDailyWasteEntry(formData);
+      showSuccess("Daily waste entry submitted successfully!");
+    } catch (err: any) {
+      if (isRedirectError(err)) throw err;
+      setErrorText(err.message || "Failed to submit daily waste entry.");
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      {errorText && <div className="text-xs text-red-600 font-semibold">{errorText}</div>}
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div className="space-y-1.5">
+          <Label htmlFor="plant_waste">Plant Waste (Kgs)</Label>
+          <Input
+            id="plant_waste"
+            name="plant_waste"
+            type="number"
+            step="0.01"
+            value={plantWaste}
+            onChange={(e) => setPlantWaste(e.target.value)}
+            placeholder="Enter Plant Waste"
+            required
+            disabled={isSaving}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="bobon_waste">Bobon Waste (Kgs)</Label>
+          <Input
+            id="bobon_waste"
+            name="bobon_waste"
+            type="number"
+            step="0.01"
+            value={bobonWaste}
+            onChange={(e) => setBobonWaste(e.target.value)}
+            placeholder="Enter Bobon Waste"
+            required
+            disabled={isSaving}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="loom_waste">Loom Waste (Kgs)</Label>
+          <Input
+            id="loom_waste"
+            name="loom_waste"
+            type="number"
+            step="0.01"
+            value={loomWaste}
+            onChange={(e) => setLoomWaste(e.target.value)}
+            placeholder="Enter Loom Waste"
+            required
+            disabled={isSaving}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="pipe_cutting_waste">Pipe Cutting Waste (Kgs)</Label>
+          <Input
+            id="pipe_cutting_waste"
+            name="pipe_cutting_waste"
+            type="number"
+            step="0.01"
+            value={pipeCuttingWaste}
+            onChange={(e) => setPipeCuttingWaste(e.target.value)}
+            placeholder="Enter Pipe Cutting Waste"
+            required
+            disabled={isSaving}
+          />
+        </div>
+      </div>
+      <div className="flex justify-end pt-2">
+        <ConfirmSubmitButton
+          type="submit"
+          disabled={isSaving}
+          confirmTitle="Submit Daily Waste?"
+          confirmDescription="This will update today's daily waste entries."
+        >
+          Submit
+        </ConfirmSubmitButton>
+      </div>
+    </form>
+  );
+}
+

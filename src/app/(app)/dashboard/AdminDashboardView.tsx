@@ -38,6 +38,10 @@ interface AdminDashboardViewProps {
     loomMetersNight: number;
     fabricProducedMtrs: number;
     electricityUnits: number;
+    plantWaste: number;
+    bobonWaste: number;
+    loomWaste: number;
+    pipeCuttingWaste: number;
   }>;
   receivables: Array<{ accountName: string; balance: number; maxDays: number }>;
   payables: Array<{ accountName: string; balance: number; maxDays: number }>;
@@ -74,9 +78,23 @@ export function AdminDashboardView({
         acc.loomMetersNight += Number(curr.loomMetersNight || 0);
         acc.fabricProducedMtrs += Number(curr.fabricProducedMtrs || 0);
         acc.electricityUnits += Number(curr.electricityUnits || 0);
+        acc.plantWaste += Number(curr.plantWaste || 0);
+        acc.bobonWaste += Number(curr.bobonWaste || 0);
+        acc.loomWaste += Number(curr.loomWaste || 0);
+        acc.pipeCuttingWaste += Number(curr.pipeCuttingWaste || 0);
         return acc;
       },
-      { tapeLoads: 0, loomMetersDay: 0, loomMetersNight: 0, fabricProducedMtrs: 0, electricityUnits: 0 }
+      {
+        tapeLoads: 0,
+        loomMetersDay: 0,
+        loomMetersNight: 0,
+        fabricProducedMtrs: 0,
+        electricityUnits: 0,
+        plantWaste: 0,
+        bobonWaste: 0,
+        loomWaste: 0,
+        pipeCuttingWaste: 0,
+      }
     );
   }, [dailyEntries]);
 
@@ -223,13 +241,17 @@ export function AdminDashboardView({
                     <TableHead className="font-bold text-slate-700 text-right">Loom Day (m)</TableHead>
                     <TableHead className="font-bold text-slate-700 text-right">Loom Night (m)</TableHead>
                     <TableHead className="font-bold text-slate-700 text-right">Fabric Produced (m)</TableHead>
-                    <TableHead className="font-bold text-slate-700 text-right pr-4">Electricity Units</TableHead>
+                    <TableHead className="font-bold text-slate-700 text-right">Electricity Units</TableHead>
+                    <TableHead className="font-bold text-slate-700 text-right">Plant Waste (kg)</TableHead>
+                    <TableHead className="font-bold text-slate-700 text-right">Bobon Waste (kg)</TableHead>
+                    <TableHead className="font-bold text-slate-700 text-right">Loom Waste (kg)</TableHead>
+                    <TableHead className="font-bold text-slate-700 text-right pr-4">Pipe Cutting (kg)</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {dailyEntries.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center py-6 text-slate-400 text-xs">
+                      <TableCell colSpan={10} className="text-center py-6 text-slate-400 text-xs">
                         No daily records found in selected range.
                       </TableCell>
                     </TableRow>
@@ -241,7 +263,11 @@ export function AdminDashboardView({
                         <TableCell className="text-right font-mono text-xs">{formatNumber(row.loomMetersDay, 1)} m</TableCell>
                         <TableCell className="text-right font-mono text-xs">{formatNumber(row.loomMetersNight, 1)} m</TableCell>
                         <TableCell className="text-right font-mono text-xs">{formatNumber(row.fabricProducedMtrs, 1)} m</TableCell>
-                        <TableCell className="text-right font-mono text-xs pr-4">{formatNumber(row.electricityUnits, 1)} units</TableCell>
+                        <TableCell className="text-right font-mono text-xs">{formatNumber(row.electricityUnits, 1)} units</TableCell>
+                        <TableCell className="text-right font-mono text-xs">{formatNumber(row.plantWaste, 1)} kg</TableCell>
+                        <TableCell className="text-right font-mono text-xs">{formatNumber(row.bobonWaste, 1)} kg</TableCell>
+                        <TableCell className="text-right font-mono text-xs">{formatNumber(row.loomWaste, 1)} kg</TableCell>
+                        <TableCell className="text-right font-mono text-xs pr-4">{formatNumber(row.pipeCuttingWaste, 1)} kg</TableCell>
                       </TableRow>
                     ))
                   )}
@@ -268,9 +294,25 @@ export function AdminDashboardView({
                     <span className="text-slate-400">Fabric Produced:</span>
                     <span className="font-mono font-bold text-slate-900 text-sm">{formatNumber(totals.fabricProducedMtrs, 1)} m</span>
                   </div>
-                  <div className="flex items-center gap-1.5 font-bold">
+                  <div className="flex items-center gap-1.5">
                     <span className="text-slate-400">Electricity:</span>
                     <span className="font-mono font-bold text-slate-900 text-sm">{formatNumber(totals.electricityUnits, 1)} units</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-slate-400">Plant Waste:</span>
+                    <span className="font-mono font-bold text-slate-900 text-sm">{formatNumber(totals.plantWaste, 1)} kg</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-slate-400">Bobon Waste:</span>
+                    <span className="font-mono font-bold text-slate-900 text-sm">{formatNumber(totals.bobonWaste, 1)} kg</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-slate-400">Loom Waste:</span>
+                    <span className="font-mono font-bold text-slate-900 text-sm">{formatNumber(totals.loomWaste, 1)} kg</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 font-bold">
+                    <span className="text-slate-400">Pipe Cutting:</span>
+                    <span className="font-mono font-bold text-slate-900 text-sm">{formatNumber(totals.pipeCuttingWaste, 1)} kg</span>
                   </div>
                 </div>
               </div>
