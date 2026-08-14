@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { showSuccess } from "@/lib/toast";
 import { isRedirectError } from "@/lib/utils";
 import { ConfirmSubmitButton } from "@/components/app/confirm-submit-button";
@@ -277,10 +277,17 @@ export function DailyWasteForm({
 }) {
   const [isSaving, setIsSaving] = useState(false);
   const [errorText, setErrorText] = useState<string | null>(null);
-  const [plantWaste, setPlantWaste] = useState(initialData?.plant_waste?.toString() ?? "");
-  const [bobonWaste, setBobonWaste] = useState(initialData?.bobon_waste?.toString() ?? "");
-  const [loomWaste, setLoomWaste] = useState(initialData?.loom_waste?.toString() ?? "");
-  const [pipeCuttingWaste, setPipeCuttingWaste] = useState(initialData?.pipe_cutting_waste?.toString() ?? "");
+  const [plantWaste, setPlantWaste] = useState(initialData?.plant_waste ? initialData.plant_waste.toString() : "");
+  const [bobonWaste, setBobonWaste] = useState(initialData?.bobon_waste ? initialData.bobon_waste.toString() : "");
+  const [loomWaste, setLoomWaste] = useState(initialData?.loom_waste ? initialData.loom_waste.toString() : "");
+  const [pipeCuttingWaste, setPipeCuttingWaste] = useState(initialData?.pipe_cutting_waste ? initialData.pipe_cutting_waste.toString() : "");
+
+  useEffect(() => {
+    setPlantWaste(initialData?.plant_waste ? initialData.plant_waste.toString() : "");
+    setBobonWaste(initialData?.bobon_waste ? initialData.bobon_waste.toString() : "");
+    setLoomWaste(initialData?.loom_waste ? initialData.loom_waste.toString() : "");
+    setPipeCuttingWaste(initialData?.pipe_cutting_waste ? initialData.pipe_cutting_waste.toString() : "");
+  }, [initialData]);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -324,7 +331,6 @@ export function DailyWasteForm({
             value={plantWaste}
             onChange={(e) => setPlantWaste(e.target.value)}
             placeholder="Enter Plant Waste"
-            required
             disabled={isSaving}
           />
         </div>
@@ -338,7 +344,6 @@ export function DailyWasteForm({
             value={bobonWaste}
             onChange={(e) => setBobonWaste(e.target.value)}
             placeholder="Enter Bobon Waste"
-            required
             disabled={isSaving}
           />
         </div>
@@ -352,7 +357,6 @@ export function DailyWasteForm({
             value={loomWaste}
             onChange={(e) => setLoomWaste(e.target.value)}
             placeholder="Enter Loom Waste"
-            required
             disabled={isSaving}
           />
         </div>
@@ -366,7 +370,6 @@ export function DailyWasteForm({
             value={pipeCuttingWaste}
             onChange={(e) => setPipeCuttingWaste(e.target.value)}
             placeholder="Enter Pipe Cutting Waste"
-            required
             disabled={isSaving}
           />
         </div>
