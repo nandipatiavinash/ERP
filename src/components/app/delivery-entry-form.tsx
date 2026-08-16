@@ -348,7 +348,7 @@ export function DeliveryEntryForm({
           className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
         >
           <option value="" disabled>Select Firm</option>
-          {customers.map((c) => (
+          {sortedCustomers.map((c) => (
             <option key={c.id} value={c.id}>
               {c.name} {c.alias ? `(${c.alias})` : ""}
             </option>
@@ -388,7 +388,7 @@ export function DeliveryEntryForm({
                 className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
               >
                 <option value="">Select film product</option>
-                {laminationProducts.map((opt) => (
+                {sortedLaminationProducts.map((opt) => (
                   <option key={opt.id} value={opt.id}>{opt.label}</option>
                 ))}
               </select>
@@ -405,7 +405,7 @@ export function DeliveryEntryForm({
                 className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
               >
                 <option value="">Select bag product</option>
-                {finishingProducts.map((opt) => (
+                {sortedFinishingProducts.map((opt) => (
                   <option key={opt.id} value={opt.id}>{opt.label}</option>
                 ))}
               </select>
@@ -422,7 +422,7 @@ export function DeliveryEntryForm({
                 className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
               >
                 <option value="">Select Fabric ID</option>
-                {fabricProducts.map((opt) => (
+                {sortedFabricProducts.map((opt) => (
                   <option key={opt.id} value={opt.id}>{opt.label}</option>
                 ))}
               </select>
@@ -476,7 +476,7 @@ export function DeliveryEntryForm({
                 className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
               >
                 <option value="">Select offset brand</option>
-                {offsetProducts.map((opt) => (
+                {sortedOffsetProducts.map((opt) => (
                   <option key={opt.id} value={opt.id}>{opt.label}</option>
                 ))}
               </select>
@@ -509,7 +509,7 @@ export function DeliveryEntryForm({
                 className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
               >
                 <option value="">Select brand</option>
-                {rotoProducts.map((opt) => (
+                {sortedRotoProducts.map((opt) => (
                   <option key={opt.id} value={opt.id}>{opt.label}</option>
                 ))}
               </select>

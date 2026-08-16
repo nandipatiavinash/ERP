@@ -266,7 +266,7 @@ export function SalesEntryClient({
     return Object.entries(groups).map(([id, data]) => ({
       customerId: id,
       ...data
-    }));
+    })).sort((a, b) => a.customerName.localeCompare(b.customerName));
   }, [pendingOrders]);
 
   const handleSubmitOrderBilling = (orderId: string) => {
