@@ -12,6 +12,7 @@ import * as journal from "./_actions/journal";
 import * as accounts from "./_actions/accounts";
 import * as clientOrders from "./_actions/client-orders";
 import * as dailyData from "./_actions/daily-data";
+import * as dashboard from "./_actions/dashboard";
 
 // Master Actions
 export async function saveMaster(moduleKey: string, formData: FormData) {
@@ -291,5 +292,10 @@ export async function saveDailyWasteEntry(formData: FormData) {
 export async function deleteDailyWasteEntry(formData: FormData) {
   return dailyData.deleteDailyWasteEntry(formData);
 }
+
+export async function closeOperatorOrderItem(itemId: string, department: string) {
+  return dashboard.closeOperatorOrderItem(itemId, department);
+}
+
 
 

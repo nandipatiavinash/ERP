@@ -8,6 +8,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+import { Printer } from "lucide-react";
 import { formatNumber, cn, cleanJournalDescription } from "@/lib/utils";
 
 interface Account {
@@ -325,10 +327,12 @@ export function AccountReportsClient({
 
   return (
     <div className={cn("space-y-6 transition-opacity", isPending && "opacity-60")}>
-      <PageHeader
-        title="Account Reports"
-        description="View account ledger statements, debit/credit details, opening values, and transaction daybooks."
-      />
+      <div className="no-print">
+        <PageHeader
+          title="Account Reports"
+          description="View account ledger statements, debit/credit details, opening values, and transaction daybooks."
+        />
+      </div>
 
       <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between bg-slate-50 p-4 rounded-lg border border-slate-200">
         <div className="flex flex-col gap-1 w-full md:w-auto">
@@ -403,12 +407,23 @@ export function AccountReportsClient({
           </select>
         </div>
 
-        <div>
+        <div className="flex items-center gap-3 w-full md:w-auto justify-end">
           <DateRangeFilter
             from={from}
             to={to}
             baseUrl={accountId ? `/reports/accounts?accountId=${accountId}` : "/reports/accounts"}
           />
+          {selectedAccount && (
+            <Button
+              onClick={() => window.print()}
+              variant="outline"
+              size="default"
+              className="h-10 px-4 flex items-center gap-2 border-slate-200 hover:bg-slate-100 no-print"
+            >
+              <Printer className="h-4 w-4 text-slate-500" />
+              Print
+            </Button>
+          )}
         </div>
       </div>
 
@@ -436,6 +451,14 @@ export function AccountReportsClient({
           </div>
         );
       })()}
+      {/* Print-only Header */}
+      {selectedAccount && (
+        <div className="hidden print:block text-center mb-6">
+          <h1 className="text-xl font-bold uppercase tracking-wider">RK GLOBAL INDUSTRIES PRIVATE LIMITED</h1>
+          <p className="text-sm font-semibold text-slate-700">Ledger Account - {selectedAccount.customer_name}</p>
+          <p className="text-xs text-slate-500 mt-1">{from} to {to}</p>
+        </div>
+      )}
 
       <Card className="border border-slate-200 shadow-sm overflow-hidden">
         <CardContent className="p-0">
@@ -448,31 +471,58 @@ export function AccountReportsClient({
                   <TableHead className="font-semibold text-slate-700">Description</TableHead>
                   <TableHead className="font-semibold text-slate-700 text-right w-44">Dr. (Debit)</TableHead>
                   <TableHead className="font-semibold text-slate-700 text-right w-44">Cr. (Credit)</TableHead>
+                  <TableHead className="font-semibold text-slate-700 text-right w-44">Balance (Dr./Cr.)</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {/* Opening Value Row */}
-                <TableRow className="border-b border-slate-100 bg-slate-50/30">
-                  <TableCell className="py-3 text-slate-550 font-medium text-sm">{from}</TableCell>
-                  <TableCell className="py-3 font-bold text-slate-800 text-sm">OPENING VALUE</TableCell>
-                  <TableCell className="py-3 text-right text-slate-900 font-medium text-sm">
-                    {ledgerData.openingDr > 0 ? formatNumber(ledgerData.openingDr, 0) : "-"}
-                  </TableCell>
-                  <TableCell className="py-3 text-right text-slate-900 font-medium text-sm">
-                    {ledgerData.openingCr > 0 ? formatNumber(ledgerData.openingCr, 0) : "-"}
-                  </TableCell>
-                </TableRow>
+                {(() => {
+                  const runningBal = ledgerData.openingDr - ledgerData.openingCr;
+                  const displayBal = runningBal !== 0
+                    ? (runningBal > 0 ? `${formatNumber(runningBal, 0)} Dr` : `${formatNumber(Math.abs(runningBal), 0)} Cr`)
+                    : "0";
+                  return (
+                    <TableRow className="border-b border-slate-100 bg-slate-50/30">
+                      <TableCell className="py-3 text-slate-555 font-medium text-sm">{from}</TableCell>
+                      <TableCell className="py-3 font-bold text-slate-800 text-sm">OPENING VALUE</TableCell>
+                      <TableCell className="py-3 text-right text-slate-900 font-medium text-sm">
+                        {ledgerData.openingDr > 0 ? formatNumber(ledgerData.openingDr, 0) : "-"}
+                      </TableCell>
+                      <TableCell className="py-3 text-right text-slate-900 font-medium text-sm">
+                        {ledgerData.openingCr > 0 ? formatNumber(ledgerData.openingCr, 0) : "-"}
+                      </TableCell>
+                      <TableCell className="py-3 text-right text-slate-900 font-bold font-mono text-sm">
+                        {displayBal}
+                      </TableCell>
+                    </TableRow>
+                  );
+                })()}
 
                 {/* Range Transactions */}
-                {ledgerData.inRangeEntries.length === 0 ? (
-                  <TableRow className="border-b border-slate-100 last:border-0">
-                    <TableCell colSpan={4} className="text-center py-8 text-slate-400 text-sm">
-                      No transactions recorded in this date range.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  ledgerData.inRangeEntries.map((entry) => {
+                {(() => {
+                  let runningBal = ledgerData.openingDr - ledgerData.openingCr;
+                  if (ledgerData.inRangeEntries.length === 0) {
+                    return (
+                      <TableRow className="border-b border-slate-100 last:border-0">
+                        <TableCell colSpan={5} className="text-center py-8 text-slate-400 text-sm">
+                          No transactions recorded in this date range.
+                        </TableCell>
+                      </TableRow>
+                    );
+                  }
+
+                  return ledgerData.inRangeEntries.map((entry) => {
                     const amt = Math.floor(Number(entry.amount));
+                    if (entry.entry_type === "debit") {
+                      runningBal += amt;
+                    } else {
+                      runningBal -= amt;
+                    }
+
+                    const displayBal = runningBal !== 0
+                      ? (runningBal > 0 ? `${formatNumber(runningBal, 0)} Dr` : `${formatNumber(Math.abs(runningBal), 0)} Cr`)
+                      : "0";
+
                     return (
                       <TableRow key={entry.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/20">
                         <TableCell className="py-3 text-slate-600 text-sm">{entry.entry_date}</TableCell>
@@ -485,33 +535,38 @@ export function AccountReportsClient({
                         <TableCell className="py-3 text-right text-slate-900 text-sm">
                           {entry.entry_type === "credit" ? formatNumber(amt, 0) : "-"}
                         </TableCell>
+                        <TableCell className="py-3 text-right text-slate-905 font-bold font-mono text-sm">
+                          {displayBal}
+                        </TableCell>
                       </TableRow>
                     );
-                  })
-                )}
+                  });
+                })()}
 
                 {/* Total Row */}
                 <TableRow className="border-t border-slate-200 bg-slate-50/50 hover:bg-slate-50/50">
                   <TableCell className="py-3"></TableCell>
                   <TableCell className="py-3 font-bold text-slate-900 text-sm text-right">TOTAL</TableCell>
-                  <TableCell className="py-3 text-right text-slate-950 font-bold text-sm border-t border-slate-300">
+                  <TableCell className="py-3 text-right text-slate-955 font-bold text-sm border-t border-slate-300">
                     {ledgerData.totalDr > 0 ? formatNumber(ledgerData.totalDr, 0) : "-"}
                   </TableCell>
-                  <TableCell className="py-3 text-right text-slate-950 font-bold text-sm border-t border-slate-300">
+                  <TableCell className="py-3 text-right text-slate-955 font-bold text-sm border-t border-slate-300">
                     {ledgerData.totalCr > 0 ? formatNumber(ledgerData.totalCr, 0) : "-"}
                   </TableCell>
+                  <TableCell className="py-3 text-right font-bold text-sm border-t border-slate-300"></TableCell>
                 </TableRow>
 
                 {/* Balance Row */}
                 <TableRow className="bg-slate-100/40 hover:bg-slate-100/40">
                   <TableCell className="py-3"></TableCell>
                   <TableCell className="py-3 font-bold text-slate-900 text-sm text-right">BALANCE</TableCell>
-                  <TableCell className="py-3 text-right text-slate-950 font-black text-sm">
+                  <TableCell className="py-3 text-right text-slate-955 font-black text-sm">
                     {ledgerData.balanceDr > 0 ? `${formatNumber(ledgerData.balanceDr, 0)} Dr.` : "-"}
                   </TableCell>
-                  <TableCell className="py-3 text-right text-slate-950 font-black text-sm">
+                  <TableCell className="py-3 text-right text-slate-955 font-black text-sm">
                     {ledgerData.balanceCr > 0 ? `${formatNumber(ledgerData.balanceCr, 0)} Cr.` : "-"}
                   </TableCell>
+                  <TableCell className="py-3 text-right font-black text-sm"></TableCell>
                 </TableRow>
               </TableBody>
             </Table>

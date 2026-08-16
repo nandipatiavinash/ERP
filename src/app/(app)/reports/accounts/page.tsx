@@ -78,6 +78,12 @@ export default async function AccountReportsPage({ searchParams }: { searchParam
       }
     });
 
+    // If starting after 01st June 2026, roll the base opening balance into the starting opening balance
+    if (selectedAccount && from > "2026-06-01") {
+      totalDebit += Number(selectedAccount.opening_debit ?? 0);
+      totalCredit += Number(selectedAccount.opening_credit ?? 0);
+    }
+
     const { data: entries } = await query
       .order("entry_date", { ascending: true })
       .order("created_at", { ascending: true });
@@ -94,6 +100,7 @@ export default async function AccountReportsPage({ searchParams }: { searchParam
         amount: totalDebit,
         description: "Opening Balance",
         account_id: accountId,
+        created_at: "",
       });
     }
     if (totalCredit > 0) {
@@ -106,10 +113,51 @@ export default async function AccountReportsPage({ searchParams }: { searchParam
         amount: totalCredit,
         description: "Opening Balance",
         account_id: accountId,
+        created_at: "",
       });
     }
 
-    journalEntries = [...virtualEntries, ...(entries ?? [])];
+    // If starting on or before 01st June 2026 and range covers it, show base opening balance as a line item on 2026-06-01
+    const baseOpeningEntries = [];
+    if (selectedAccount && from <= "2026-06-01" && to >= "2026-06-01") {
+      const baseDebit = Number(selectedAccount.opening_debit ?? 0);
+      const baseCredit = Number(selectedAccount.opening_credit ?? 0);
+      if (baseDebit > 0) {
+        baseOpeningEntries.push({
+          id: "virtual-base-dr",
+          journal_no: "OPENING_BASE",
+          entry_date: "2026-06-01",
+          account_name: selectedAccount.customer_name,
+          entry_type: "debit" as const,
+          amount: baseDebit,
+          description: "Opening Balance (Base)",
+          account_id: accountId,
+          created_at: "",
+        });
+      }
+      if (baseCredit > 0) {
+        baseOpeningEntries.push({
+          id: "virtual-base-cr",
+          journal_no: "OPENING_BASE",
+          entry_date: "2026-06-01",
+          account_name: selectedAccount.customer_name,
+          entry_type: "credit" as const,
+          amount: baseCredit,
+          description: "Opening Balance (Base)",
+          account_id: accountId,
+          created_at: "",
+        });
+      }
+    }
+
+    const rawEntries = [...(entries ?? []), ...baseOpeningEntries];
+    rawEntries.sort((a, b) => {
+      const cmp = a.entry_date.localeCompare(b.entry_date);
+      if (cmp !== 0) return cmp;
+      return (a.created_at || "").localeCompare(b.created_at || "");
+    });
+
+    journalEntries = [...virtualEntries, ...rawEntries];
   } else {
     // If nothing selected, fetch aggregated trial balance summary up to 'to' date
     const { data: entries } = await (supabase as any)
