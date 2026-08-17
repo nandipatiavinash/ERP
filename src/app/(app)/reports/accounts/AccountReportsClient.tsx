@@ -98,28 +98,8 @@ export function AccountReportsClient({
   }, [groupedAccounts]);
 
   const filteredEntries = useMemo(() => {
-    if (!selectedAccount) return entries;
-
-    const counts: Record<string, { dr: number; cr: number }> = {};
-    entries.forEach((entry) => {
-      const jNo = entry.journal_no || "";
-      if (!counts[jNo]) {
-        counts[jNo] = { dr: 0, cr: 0 };
-      }
-      if (entry.entry_type === "debit") {
-        counts[jNo].dr++;
-      } else {
-        counts[jNo].cr++;
-      }
-    });
-
-    return entries.filter((entry) => {
-      const jNo = entry.journal_no || "";
-      if (!jNo || jNo.startsWith("VIRTUAL") || jNo.startsWith("OPENING")) return true;
-      const c = counts[jNo];
-      return !(c && c.dr > 0 && c.cr > 0);
-    });
-  }, [entries, selectedAccount]);
+    return entries;
+  }, [entries]);
 
   // Calculations for Case A: Specific Account Selected
   const ledgerData = useMemo(() => {

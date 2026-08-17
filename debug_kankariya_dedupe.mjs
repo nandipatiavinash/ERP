@@ -24,30 +24,36 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 async function run() {
   const customer_name = 'KANKARIYA POLYFAB';
   const conditions = [
-    `account_id.eq.f165ee9f-929f-495b-aa58-1baa9fb9c41b`,
+    `account_id.eq.04d7e466-88a4-41a3-8094-05929952d673`,
     `account_name.ilike."${customer_name}"`,
     `account_name.ilike."${customer_name} A/c"`,
   ];
   
-  const { count } = await supabase.from('accounts_journal').select('*', { count: 'exact', head: true }).or(conditions.join(',')).lt('entry_date', '2026-07-01').is('deleted_at', null);
-  console.log('Count:', count);
+  const { data: priorEntries } = await supabase.from('accounts_journal').select('*').or(conditions.join(',')).lte('entry_date', '2026-06-30').is('deleted_at', null).limit(2000);
+  
+  const counts = {};
+  priorEntries.forEach(entry => {
+    const jNo = entry.journal_no || "";
+    if (!counts[jNo]) counts[jNo] = { dr: 0, cr: 0 };
+    if (entry.entry_type === "debit") counts[jNo].dr++;
+    else counts[jNo].cr++;
+  });
 
-  let totalDebit = 0;
-  let totalCredit = 0;
+  const filteredEntries = priorEntries.filter(entry => {
+    const jNo = entry.journal_no || "";
+    if (!jNo || jNo.startsWith("VIRTUAL") || jNo.startsWith("OPENING")) return true;
+    const c = counts[jNo];
+    return !(c && c.dr > 0 && c.cr > 0);
+  });
 
-  for (let i = 0; i < count; i += 1000) {
-    const { data: priorEntries } = await supabase.from('accounts_journal').select('*').or(conditions.join(',')).lt('entry_date', '2026-07-01').is('deleted_at', null).range(i, i + 999);
-    priorEntries?.forEach((entry) => {
-      if (entry.entry_type === 'debit') {
-        totalDebit += Number(entry.amount || 0);
-      } else {
-        totalCredit += Number(entry.amount || 0);
-      }
-    });
-  }
+  let d = 0;
+  let c = 0;
+  filteredEntries.forEach(e => {
+    if(e.entry_type==='debit') d+=Number(e.amount);
+    else c+=Number(e.amount);
+  });
 
-  console.log('Total Debit:', totalDebit);
-  console.log('Total Credit:', totalCredit);
-  console.log('Net:', totalDebit - totalCredit);
+  console.log('Filtered Debits:', d, 'Credits:', c, 'Net:', c-d);
+  console.log('Plus Opening Credit:', 1539199 + c - d);
 }
 run();

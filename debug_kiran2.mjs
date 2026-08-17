@@ -22,32 +22,26 @@ const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 async function run() {
-  const customer_name = 'KANKARIYA POLYFAB';
+  const customer_name = 'KIRAN GNT';
   const conditions = [
-    `account_id.eq.f165ee9f-929f-495b-aa58-1baa9fb9c41b`,
+    `account_id.eq.aaa62721-e24d-4bff-a858-e03a495d9f11`,
     `account_name.ilike."${customer_name}"`,
     `account_name.ilike."${customer_name} A/c"`,
   ];
-  
-  const { count } = await supabase.from('accounts_journal').select('*', { count: 'exact', head: true }).or(conditions.join(',')).lt('entry_date', '2026-07-01').is('deleted_at', null);
-  console.log('Count:', count);
+  const { data: priorEntries } = await supabase.from('accounts_journal').select('*').or(conditions.join(',')).lt('entry_date', '2026-07-01').is('deleted_at', null);
 
   let totalDebit = 0;
   let totalCredit = 0;
-
-  for (let i = 0; i < count; i += 1000) {
-    const { data: priorEntries } = await supabase.from('accounts_journal').select('*').or(conditions.join(',')).lt('entry_date', '2026-07-01').is('deleted_at', null).range(i, i + 999);
-    priorEntries?.forEach((entry) => {
-      if (entry.entry_type === 'debit') {
-        totalDebit += Number(entry.amount || 0);
-      } else {
-        totalCredit += Number(entry.amount || 0);
-      }
-    });
-  }
-
-  console.log('Total Debit:', totalDebit);
-  console.log('Total Credit:', totalCredit);
-  console.log('Net:', totalDebit - totalCredit);
+  priorEntries?.forEach((entry) => {
+    if (entry.entry_type === 'debit') {
+      totalDebit += Number(entry.amount || 0);
+    } else {
+      totalCredit += Number(entry.amount || 0);
+    }
+  });
+  console.log('KIRAN GNT Total Debit:', totalDebit);
+  console.log('KIRAN GNT Total Credit:', totalCredit);
+  console.log('KIRAN GNT Net:', totalCredit - totalDebit, 'Cr');
 }
+
 run();

@@ -24,30 +24,20 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 async function run() {
   const customer_name = 'KANKARIYA POLYFAB';
   const conditions = [
-    `account_id.eq.f165ee9f-929f-495b-aa58-1baa9fb9c41b`,
+    `account_id.eq.04d7e466-88a4-41a3-8094-05929952d673`,
     `account_name.ilike."${customer_name}"`,
     `account_name.ilike."${customer_name} A/c"`,
   ];
   
-  const { count } = await supabase.from('accounts_journal').select('*', { count: 'exact', head: true }).or(conditions.join(',')).lt('entry_date', '2026-07-01').is('deleted_at', null);
-  console.log('Count:', count);
-
-  let totalDebit = 0;
-  let totalCredit = 0;
-
-  for (let i = 0; i < count; i += 1000) {
-    const { data: priorEntries } = await supabase.from('accounts_journal').select('*').or(conditions.join(',')).lt('entry_date', '2026-07-01').is('deleted_at', null).range(i, i + 999);
-    priorEntries?.forEach((entry) => {
-      if (entry.entry_type === 'debit') {
-        totalDebit += Number(entry.amount || 0);
-      } else {
-        totalCredit += Number(entry.amount || 0);
-      }
-    });
-  }
-
-  console.log('Total Debit:', totalDebit);
-  console.log('Total Credit:', totalCredit);
-  console.log('Net:', totalDebit - totalCredit);
+  const { data: priorEntries } = await supabase.from('accounts_journal').select('*').or(conditions.join(',')).lte('entry_date', '2026-06-30').is('deleted_at', null).limit(2000);
+  
+  let d = 0;
+  let c = 0;
+  priorEntries.forEach(e => {
+    if(e.entry_type==='debit') d+=Number(e.amount);
+    else c+=Number(e.amount);
+  });
+  console.log('Debits:', d, 'Credits:', c, 'Net:', c-d);
+  console.log('Plus Opening Credit:', 1539199 + c - d);
 }
 run();
