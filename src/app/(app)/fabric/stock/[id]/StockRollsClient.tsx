@@ -27,6 +27,8 @@ interface Roll {
   roll_number: string;
   production_date: string | null;
   status: string;
+  weight?: number | null;
+  meters?: number | null;
   looms?: { loom_number: string | null } | null;
   loom_production_entries?: {
     gross_weight: number | null;
@@ -115,28 +117,34 @@ function sortRolls(rolls: Roll[], map: Record<string, AllocationInfo>, key: Sort
         valB = b.roll_number ?? "";
         break;
       case "net_weight":
-        valA = Number(lpeA?.net_weight ?? 0);
-        valB = Number(lpeB?.net_weight ?? 0);
+        valA = Number(lpeA?.net_weight ?? a.weight ?? 0);
+        valB = Number(lpeB?.net_weight ?? b.weight ?? 0);
         break;
       case "core_weight":
         valA = Number(lpeA?.core_weight ?? 0);
         valB = Number(lpeB?.core_weight ?? 0);
         break;
       case "gross_weight":
-        valA = Number(lpeA?.gross_weight ?? 0);
-        valB = Number(lpeB?.gross_weight ?? 0);
+        valA = Number(lpeA?.gross_weight ?? a.weight ?? 0);
+        valB = Number(lpeB?.gross_weight ?? b.weight ?? 0);
         break;
       case "net_meters":
-        valA = Number(lpeA?.net_meters ?? 0);
-        valB = Number(lpeB?.net_meters ?? 0);
+        valA = Number(lpeA?.net_meters ?? a.meters ?? 0);
+        valB = Number(lpeB?.net_meters ?? b.meters ?? 0);
         break;
       case "avg_meter_weight":
-        valA = Number(lpeA?.average_meter_weight ?? 0);
-        valB = Number(lpeB?.average_meter_weight ?? 0);
+        {
+          const metersA = Number(lpeA?.net_meters ?? a.meters ?? 0);
+          const weightA = Number(lpeA?.net_weight ?? a.weight ?? 0);
+          valA = Number(lpeA?.average_meter_weight ?? (metersA > 0 ? (weightA / metersA) * 1000 : 0));
+          const metersB = Number(lpeB?.net_meters ?? b.meters ?? 0);
+          const weightB = Number(lpeB?.net_weight ?? b.weight ?? 0);
+          valB = Number(lpeB?.average_meter_weight ?? (metersB > 0 ? (weightB / metersB) * 1000 : 0));
+        }
         break;
       case "loom_number":
-        valA = a.looms?.loom_number ?? "";
-        valB = b.looms?.loom_number ?? "";
+        valA = a.looms?.loom_number ?? (a.roll_number?.startsWith("E-") ? "PURCHASED" : "");
+        valB = b.looms?.loom_number ?? (b.roll_number?.startsWith("E-") ? "PURCHASED" : "");
         break;
       case "production_date":
         valA = a.production_date ?? "";
@@ -198,15 +206,20 @@ function RollsTable({
           {sorted.map((roll) => {
             const lpe = roll.loom_production_entries;
             const allocation = allocationMap[roll.id];
+            const netWeight = lpe?.net_weight ?? roll.weight ?? 0;
+            const netMeters = lpe?.net_meters ?? roll.meters ?? 0;
+            const avgMeterWt = lpe?.average_meter_weight ?? (netMeters > 0 ? (netWeight / netMeters) * 1000 : 0);
+            const loomNo = roll.looms?.loom_number ?? (roll.roll_number?.startsWith("E-") ? "PURCHASED" : "N/A");
+
             return (
               <TableRow key={roll.id} className="hover:bg-muted/30">
                 <TableCell className="font-bold text-emerald-950">{roll.roll_number}</TableCell>
-                <TableCell className="text-right text-muted-foreground">{formatNumber(lpe?.gross_weight, 2)}</TableCell>
-                <TableCell className="text-right text-muted-foreground">{formatNumber(lpe?.core_weight, 2)}</TableCell>
-                <TableCell className="text-right font-medium text-emerald-900">{formatNumber(lpe?.net_weight, 2)}</TableCell>
-                <TableCell className="text-right font-medium text-emerald-900">{formatNumber(Math.floor(lpe?.net_meters ?? 0), 0)}</TableCell>
-                <TableCell className="text-right text-muted-foreground">{formatNumber(Math.floor(lpe?.average_meter_weight ?? 0), 0)}</TableCell>
-                <TableCell className="font-medium">{roll.looms?.loom_number ?? "N/A"}</TableCell>
+                <TableCell className="text-right text-muted-foreground">{formatNumber(lpe?.gross_weight ?? roll.weight, 2)}</TableCell>
+                <TableCell className="text-right text-muted-foreground">{formatNumber(lpe?.core_weight ?? 0, 2)}</TableCell>
+                <TableCell className="text-right font-medium text-emerald-900">{formatNumber(netWeight, 2)}</TableCell>
+                <TableCell className="text-right font-medium text-emerald-900">{formatNumber(Math.floor(netMeters), 0)}</TableCell>
+                <TableCell className="text-right text-muted-foreground">{formatNumber(Math.floor(avgMeterWt), 0)}</TableCell>
+                <TableCell className="font-medium text-xs text-slate-600">{loomNo}</TableCell>
                 <TableCell className="whitespace-nowrap">{formatDate(roll.production_date)}</TableCell>
                 <TableCell className="whitespace-nowrap">{allocation ? formatDate(allocation.dispatchDate) : "—"}</TableCell>
                 <TableCell className="font-medium">{allocation ? allocation.clientName : "—"}</TableCell>

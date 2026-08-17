@@ -20,6 +20,18 @@ export function formatDate(value: string | null | undefined) {
   return new Intl.DateTimeFormat("en-IN", { dateStyle: "medium" }).format(date);
 }
 
+export function formatShortDate(value: string | null | undefined) {
+  if (!value) return "-";
+  const parts = String(value).split("-");
+  if (parts.length >= 3) {
+    const y = parts[0].slice(-2);
+    const m = parts[1];
+    const d = parts[2].slice(0, 2);
+    return `${d}-${m}-${y}`;
+  }
+  return value;
+}
+
 export function csvEscape(value: unknown) {
   const text = String(value ?? "");
   return `"${text.replaceAll('"', '""')}"`;

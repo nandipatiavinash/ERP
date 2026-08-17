@@ -455,11 +455,11 @@ export function ProductPurchaseForm({
               className="w-full h-9 text-xs border border-slate-300 rounded bg-white px-2 py-1 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-bold"
             >
               <option value="">Select Department...</option>
-              <option value="fabric">A. FABRIC</option>
-              <option value="roto-printing">B. ROTO PRINTING</option>
-              <option value="lamination">C. LAMINATION</option>
-              <option value="offset-printing">D. OFFSET PRINTING</option>
-              <option value="finishing">E. FINISHING / BAGS</option>
+              <option value="fabric">FABRIC</option>
+              <option value="roto-printing">ROTO PRINTING</option>
+              <option value="lamination">LAMINATION</option>
+              <option value="offset-printing">OFFSET PRINTING</option>
+              <option value="finishing">FINISHING / BAGS</option>
             </select>
           </div>
 

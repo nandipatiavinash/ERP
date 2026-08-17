@@ -10,7 +10,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Printer } from "lucide-react";
-import { formatNumber, cn, cleanJournalDescription } from "@/lib/utils";
+import { formatNumber, cn, cleanJournalDescription, formatShortDate } from "@/lib/utils";
 
 interface Account {
   id: string;
@@ -125,9 +125,6 @@ export function AccountReportsClient({
   const ledgerData = useMemo(() => {
     if (!selectedAccount) return null;
 
-    const configDebit = Number(selectedAccount.opening_debit ?? 0);
-    const configCredit = Number(selectedAccount.opening_credit ?? 0);
-
     let historicalDebit = 0;
     let historicalCredit = 0;
     const inRangeEntries: JournalEntry[] = [];
@@ -145,8 +142,8 @@ export function AccountReportsClient({
       }
     });
 
-    // Net historical balance at from date
-    const netOpening = (configDebit + historicalDebit) - (configCredit + historicalCredit);
+    // Net historical accumulated balance at start of 'from' date
+    const netOpening = historicalDebit - historicalCredit;
     const openingDr = netOpening > 0 ? netOpening : 0;
     const openingCr = netOpening < 0 ? Math.abs(netOpening) : 0;
 
@@ -451,27 +448,27 @@ export function AccountReportsClient({
           </div>
         );
       })()}
-      {/* Print-only Header */}
+      {/* Print-only Header (Formal Tally Structure) */}
       {selectedAccount && (
-        <div className="hidden print:block text-center mb-6">
-          <h1 className="text-xl font-bold uppercase tracking-wider">RK GLOBAL INDUSTRIES PRIVATE LIMITED</h1>
-          <p className="text-sm font-semibold text-slate-700">Ledger Account - {selectedAccount.customer_name}</p>
-          <p className="text-xs text-slate-500 mt-1">{from} to {to}</p>
+        <div className="hidden print:block text-center border-b-2 border-black pb-3 mb-4">
+          <h1 className="text-lg font-black uppercase tracking-wider text-black">RK GLOBAL INDUSTRIES PRIVATE LIMITED</h1>
+          <p className="text-sm font-bold text-black uppercase mt-0.5">Statement of Account: {selectedAccount.customer_name}</p>
+          <p className="text-xs font-semibold text-black mt-0.5">Period: {formatShortDate(from)} to {formatShortDate(to)}</p>
         </div>
       )}
 
-      <Card className="border border-slate-200 shadow-sm overflow-hidden">
+      <Card className="border border-slate-200 shadow-sm overflow-hidden print:border-none print:shadow-none">
         <CardContent className="p-0">
           {selectedAccount && ledgerData ? (
-            // Case A: Ledger View
-            <Table>
+            // Case A: Formal Tally Ledger View
+            <Table className="print:text-[11px] print:font-mono">
               <TableHeader>
-                <TableRow className="bg-slate-50 border-b border-slate-200">
-                  <TableHead className="font-semibold text-slate-700 w-32">Date</TableHead>
-                  <TableHead className="font-semibold text-slate-700">Description</TableHead>
-                  <TableHead className="font-semibold text-slate-700 text-right w-44">Dr. (Debit)</TableHead>
-                  <TableHead className="font-semibold text-slate-700 text-right w-44">Cr. (Credit)</TableHead>
-                  <TableHead className="font-semibold text-slate-700 text-right w-44">Balance (Dr./Cr.)</TableHead>
+                <TableRow className="bg-slate-50 border-b border-slate-200 print:bg-white print:border-b-2 print:border-black">
+                  <TableHead className="font-bold text-slate-700 print:text-black w-24">Date</TableHead>
+                  <TableHead className="font-bold text-slate-700 print:text-black">Particulars / Description</TableHead>
+                  <TableHead className="font-bold text-slate-700 print:text-black text-right w-36">Debit (Dr.)</TableHead>
+                  <TableHead className="font-bold text-slate-700 print:text-black text-right w-36">Credit (Cr.)</TableHead>
+                  <TableHead className="font-bold text-slate-700 print:text-black text-right w-36">Balance</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -482,16 +479,16 @@ export function AccountReportsClient({
                     ? (runningBal > 0 ? `${formatNumber(runningBal, 0)} Dr` : `${formatNumber(Math.abs(runningBal), 0)} Cr`)
                     : "0";
                   return (
-                    <TableRow className="border-b border-slate-100 bg-slate-50/30">
-                      <TableCell className="py-3 text-slate-555 font-medium text-sm">{from}</TableCell>
-                      <TableCell className="py-3 font-bold text-slate-800 text-sm">OPENING VALUE</TableCell>
-                      <TableCell className="py-3 text-right text-slate-900 font-medium text-sm">
+                    <TableRow className="border-b border-slate-100 bg-slate-50/30 print:bg-white">
+                      <TableCell className="py-2.5 print:py-1 text-slate-600 print:text-black font-semibold text-xs font-mono">{formatShortDate(from)}</TableCell>
+                      <TableCell className="py-2.5 print:py-1 font-bold text-slate-900 print:text-black text-xs uppercase">OPENING VALUE</TableCell>
+                      <TableCell className="py-2.5 print:py-1 text-right text-slate-900 print:text-black font-medium text-xs font-mono">
                         {ledgerData.openingDr > 0 ? formatNumber(ledgerData.openingDr, 0) : "-"}
                       </TableCell>
-                      <TableCell className="py-3 text-right text-slate-900 font-medium text-sm">
+                      <TableCell className="py-2.5 print:py-1 text-right text-slate-900 print:text-black font-medium text-xs font-mono">
                         {ledgerData.openingCr > 0 ? formatNumber(ledgerData.openingCr, 0) : "-"}
                       </TableCell>
-                      <TableCell className="py-3 text-right text-slate-900 font-bold font-mono text-sm">
+                      <TableCell className="py-2.5 print:py-1 text-right text-slate-900 print:text-black font-bold font-mono text-xs">
                         {displayBal}
                       </TableCell>
                     </TableRow>
@@ -504,7 +501,7 @@ export function AccountReportsClient({
                   if (ledgerData.inRangeEntries.length === 0) {
                     return (
                       <TableRow className="border-b border-slate-100 last:border-0">
-                        <TableCell colSpan={5} className="text-center py-8 text-slate-400 text-sm">
+                        <TableCell colSpan={5} className="text-center py-8 text-slate-400 text-xs">
                           No transactions recorded in this date range.
                         </TableCell>
                       </TableRow>
@@ -524,18 +521,18 @@ export function AccountReportsClient({
                       : "0";
 
                     return (
-                      <TableRow key={entry.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/20">
-                        <TableCell className="py-3 text-slate-600 text-sm">{entry.entry_date}</TableCell>
-                        <TableCell className="py-3 text-slate-800 text-sm">
+                      <TableRow key={entry.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/20 print:bg-white">
+                        <TableCell className="py-2 print:py-1 text-slate-600 print:text-black text-xs font-mono whitespace-nowrap">{formatShortDate(entry.entry_date)}</TableCell>
+                        <TableCell className="py-2 print:py-1 text-slate-800 print:text-black text-xs">
                           {cleanJournalDescription(entry.description) || "Journal Entry"}
                         </TableCell>
-                        <TableCell className="py-3 text-right text-slate-900 text-sm">
+                        <TableCell className="py-2 print:py-1 text-right text-slate-900 print:text-black text-xs font-mono">
                           {entry.entry_type === "debit" ? formatNumber(amt, 0) : "-"}
                         </TableCell>
-                        <TableCell className="py-3 text-right text-slate-900 text-sm">
+                        <TableCell className="py-2 print:py-1 text-right text-slate-900 print:text-black text-xs font-mono">
                           {entry.entry_type === "credit" ? formatNumber(amt, 0) : "-"}
                         </TableCell>
-                        <TableCell className="py-3 text-right text-slate-905 font-bold font-mono text-sm">
+                        <TableCell className="py-2 print:py-1 text-right text-slate-900 print:text-black font-bold font-mono text-xs">
                           {displayBal}
                         </TableCell>
                       </TableRow>
@@ -544,29 +541,29 @@ export function AccountReportsClient({
                 })()}
 
                 {/* Total Row */}
-                <TableRow className="border-t border-slate-200 bg-slate-50/50 hover:bg-slate-50/50">
-                  <TableCell className="py-3"></TableCell>
-                  <TableCell className="py-3 font-bold text-slate-900 text-sm text-right">TOTAL</TableCell>
-                  <TableCell className="py-3 text-right text-slate-955 font-bold text-sm border-t border-slate-300">
+                <TableRow className="border-t-2 border-slate-300 print:border-t-2 print:border-b print:border-black bg-slate-50/50 print:bg-white font-bold">
+                  <TableCell className="py-2.5 print:py-1"></TableCell>
+                  <TableCell className="py-2.5 print:py-1 font-bold text-slate-900 print:text-black text-xs text-right uppercase">TOTAL</TableCell>
+                  <TableCell className="py-2.5 print:py-1 text-right text-slate-950 print:text-black font-bold text-xs font-mono">
                     {ledgerData.totalDr > 0 ? formatNumber(ledgerData.totalDr, 0) : "-"}
                   </TableCell>
-                  <TableCell className="py-3 text-right text-slate-955 font-bold text-sm border-t border-slate-300">
+                  <TableCell className="py-2.5 print:py-1 text-right text-slate-950 print:text-black font-bold text-xs font-mono">
                     {ledgerData.totalCr > 0 ? formatNumber(ledgerData.totalCr, 0) : "-"}
                   </TableCell>
-                  <TableCell className="py-3 text-right font-bold text-sm border-t border-slate-300"></TableCell>
+                  <TableCell className="py-2.5 print:py-1 text-right font-bold text-xs font-mono"></TableCell>
                 </TableRow>
 
                 {/* Balance Row */}
-                <TableRow className="bg-slate-100/40 hover:bg-slate-100/40">
-                  <TableCell className="py-3"></TableCell>
-                  <TableCell className="py-3 font-bold text-slate-900 text-sm text-right">BALANCE</TableCell>
-                  <TableCell className="py-3 text-right text-slate-955 font-black text-sm">
+                <TableRow className="bg-slate-100/40 print:bg-white font-black print:border-b-2 print:border-black">
+                  <TableCell className="py-2.5 print:py-1"></TableCell>
+                  <TableCell className="py-2.5 print:py-1 font-bold text-slate-900 print:text-black text-xs text-right uppercase">CLOSING BALANCE</TableCell>
+                  <TableCell className="py-2.5 print:py-1 text-right text-slate-950 print:text-black font-black text-xs font-mono">
                     {ledgerData.balanceDr > 0 ? `${formatNumber(ledgerData.balanceDr, 0)} Dr.` : "-"}
                   </TableCell>
-                  <TableCell className="py-3 text-right text-slate-955 font-black text-sm">
+                  <TableCell className="py-2.5 print:py-1 text-right text-slate-950 print:text-black font-black text-xs font-mono">
                     {ledgerData.balanceCr > 0 ? `${formatNumber(ledgerData.balanceCr, 0)} Cr.` : "-"}
                   </TableCell>
-                  <TableCell className="py-3 text-right font-black text-sm"></TableCell>
+                  <TableCell className="py-2.5 print:py-1 text-right font-black text-xs font-mono"></TableCell>
                 </TableRow>
               </TableBody>
             </Table>
