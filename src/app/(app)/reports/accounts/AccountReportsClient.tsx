@@ -331,7 +331,7 @@ export function AccountReportsClient({
         />
       </div>
 
-      <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between bg-slate-50 p-4 rounded-lg border border-slate-200">
+      <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between bg-slate-50 p-4 rounded-lg border border-slate-200 no-print">
         <div className="flex flex-col gap-1 w-full md:w-auto">
           <Label htmlFor="account-select" className="font-semibold text-sm text-slate-700 flex items-center gap-1.5">
             Select Account / Client:
@@ -434,7 +434,7 @@ export function AccountReportsClient({
         if (!parent && children.length === 0) return null;
 
         return (
-          <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-650 flex flex-col gap-1">
+          <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-650 flex flex-col gap-1 no-print">
             {parent && (
               <span>
                 ℹ️ This is a child account under reference account: <strong>{parent.customer_name}</strong>.
