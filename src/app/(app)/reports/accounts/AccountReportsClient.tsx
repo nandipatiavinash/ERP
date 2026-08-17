@@ -115,7 +115,7 @@ export function AccountReportsClient({
 
     return entries.filter((entry) => {
       const jNo = entry.journal_no || "";
-      if (!jNo) return true;
+      if (!jNo || jNo.startsWith("VIRTUAL") || jNo.startsWith("OPENING")) return true;
       const c = counts[jNo];
       return !(c && c.dr > 0 && c.cr > 0);
     });
@@ -448,6 +448,7 @@ export function AccountReportsClient({
           </div>
         );
       })()}
+
       {/* Print-only Header (Formal Tally Structure) */}
       {selectedAccount && (
         <div className="hidden print:block text-center border-b-2 border-black pb-3 mb-4">
@@ -461,14 +462,14 @@ export function AccountReportsClient({
         <CardContent className="p-0">
           {selectedAccount && ledgerData ? (
             // Case A: Formal Tally Ledger View
-            <Table className="print:text-[11px] print:font-mono">
+            <Table className="w-full print:text-[11px] print:font-mono border-collapse">
               <TableHeader>
                 <TableRow className="bg-slate-50 border-b border-slate-200 print:bg-white print:border-b-2 print:border-black">
-                  <TableHead className="font-bold text-slate-700 print:text-black w-24">Date</TableHead>
-                  <TableHead className="font-bold text-slate-700 print:text-black">Particulars / Description</TableHead>
-                  <TableHead className="font-bold text-slate-700 print:text-black text-right w-36">Debit (Dr.)</TableHead>
-                  <TableHead className="font-bold text-slate-700 print:text-black text-right w-36">Credit (Cr.)</TableHead>
-                  <TableHead className="font-bold text-slate-700 print:text-black text-right w-36">Balance</TableHead>
+                  <TableHead className="font-bold text-slate-700 print:text-black w-24 whitespace-nowrap py-2">Date</TableHead>
+                  <TableHead className="font-bold text-slate-700 print:text-black whitespace-nowrap py-2 min-w-[180px]">Particulars / Description</TableHead>
+                  <TableHead className="font-bold text-slate-700 print:text-black text-right w-36 whitespace-nowrap py-2">Debit (Dr.)</TableHead>
+                  <TableHead className="font-bold text-slate-700 print:text-black text-right w-36 whitespace-nowrap py-2">Credit (Cr.)</TableHead>
+                  <TableHead className="font-bold text-slate-700 print:text-black text-right w-36 whitespace-nowrap py-2">Balance</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -480,15 +481,15 @@ export function AccountReportsClient({
                     : "0";
                   return (
                     <TableRow className="border-b border-slate-100 bg-slate-50/30 print:bg-white">
-                      <TableCell className="py-2.5 print:py-1 text-slate-600 print:text-black font-semibold text-xs font-mono">{formatShortDate(from)}</TableCell>
-                      <TableCell className="py-2.5 print:py-1 font-bold text-slate-900 print:text-black text-xs uppercase">OPENING VALUE</TableCell>
-                      <TableCell className="py-2.5 print:py-1 text-right text-slate-900 print:text-black font-medium text-xs font-mono">
+                      <TableCell className="py-2.5 print:py-1.5 text-slate-600 print:text-black font-semibold text-xs font-mono whitespace-nowrap">{formatShortDate(from)}</TableCell>
+                      <TableCell className="py-2.5 print:py-1.5 font-bold text-slate-900 print:text-black text-xs uppercase whitespace-nowrap">OPENING VALUE</TableCell>
+                      <TableCell className="py-2.5 print:py-1.5 text-right text-slate-900 print:text-black font-medium text-xs font-mono whitespace-nowrap">
                         {ledgerData.openingDr > 0 ? formatNumber(ledgerData.openingDr, 0) : "-"}
                       </TableCell>
-                      <TableCell className="py-2.5 print:py-1 text-right text-slate-900 print:text-black font-medium text-xs font-mono">
+                      <TableCell className="py-2.5 print:py-1.5 text-right text-slate-900 print:text-black font-medium text-xs font-mono whitespace-nowrap">
                         {ledgerData.openingCr > 0 ? formatNumber(ledgerData.openingCr, 0) : "-"}
                       </TableCell>
-                      <TableCell className="py-2.5 print:py-1 text-right text-slate-900 print:text-black font-bold font-mono text-xs">
+                      <TableCell className="py-2.5 print:py-1.5 text-right text-slate-900 print:text-black font-bold font-mono text-xs whitespace-nowrap">
                         {displayBal}
                       </TableCell>
                     </TableRow>
@@ -526,13 +527,13 @@ export function AccountReportsClient({
                         <TableCell className="py-2 print:py-1 text-slate-800 print:text-black text-xs">
                           {cleanJournalDescription(entry.description) || "Journal Entry"}
                         </TableCell>
-                        <TableCell className="py-2 print:py-1 text-right text-slate-900 print:text-black text-xs font-mono">
+                        <TableCell className="py-2 print:py-1 text-right text-slate-900 print:text-black text-xs font-mono whitespace-nowrap">
                           {entry.entry_type === "debit" ? formatNumber(amt, 0) : "-"}
                         </TableCell>
-                        <TableCell className="py-2 print:py-1 text-right text-slate-900 print:text-black text-xs font-mono">
+                        <TableCell className="py-2 print:py-1 text-right text-slate-900 print:text-black text-xs font-mono whitespace-nowrap">
                           {entry.entry_type === "credit" ? formatNumber(amt, 0) : "-"}
                         </TableCell>
-                        <TableCell className="py-2 print:py-1 text-right text-slate-900 print:text-black font-bold font-mono text-xs">
+                        <TableCell className="py-2 print:py-1 text-right text-slate-900 print:text-black font-bold font-mono text-xs whitespace-nowrap">
                           {displayBal}
                         </TableCell>
                       </TableRow>
@@ -542,28 +543,28 @@ export function AccountReportsClient({
 
                 {/* Total Row */}
                 <TableRow className="border-t-2 border-slate-300 print:border-t-2 print:border-b print:border-black bg-slate-50/50 print:bg-white font-bold">
-                  <TableCell className="py-2.5 print:py-1"></TableCell>
-                  <TableCell className="py-2.5 print:py-1 font-bold text-slate-900 print:text-black text-xs text-right uppercase">TOTAL</TableCell>
-                  <TableCell className="py-2.5 print:py-1 text-right text-slate-950 print:text-black font-bold text-xs font-mono">
+                  <TableCell className="py-2.5 print:py-1.5 whitespace-nowrap"></TableCell>
+                  <TableCell className="py-2.5 print:py-1.5 font-bold text-slate-900 print:text-black text-xs text-right uppercase whitespace-nowrap">TOTAL</TableCell>
+                  <TableCell className="py-2.5 print:py-1.5 text-right text-slate-950 print:text-black font-bold text-xs font-mono whitespace-nowrap">
                     {ledgerData.totalDr > 0 ? formatNumber(ledgerData.totalDr, 0) : "-"}
                   </TableCell>
-                  <TableCell className="py-2.5 print:py-1 text-right text-slate-950 print:text-black font-bold text-xs font-mono">
+                  <TableCell className="py-2.5 print:py-1.5 text-right text-slate-950 print:text-black font-bold text-xs font-mono whitespace-nowrap">
                     {ledgerData.totalCr > 0 ? formatNumber(ledgerData.totalCr, 0) : "-"}
                   </TableCell>
-                  <TableCell className="py-2.5 print:py-1 text-right font-bold text-xs font-mono"></TableCell>
+                  <TableCell className="py-2.5 print:py-1.5 text-right font-bold text-xs font-mono whitespace-nowrap"></TableCell>
                 </TableRow>
 
                 {/* Balance Row */}
                 <TableRow className="bg-slate-100/40 print:bg-white font-black print:border-b-2 print:border-black">
-                  <TableCell className="py-2.5 print:py-1"></TableCell>
-                  <TableCell className="py-2.5 print:py-1 font-bold text-slate-900 print:text-black text-xs text-right uppercase">CLOSING BALANCE</TableCell>
-                  <TableCell className="py-2.5 print:py-1 text-right text-slate-950 print:text-black font-black text-xs font-mono">
+                  <TableCell className="py-2.5 print:py-1.5 whitespace-nowrap"></TableCell>
+                  <TableCell className="py-2.5 print:py-1.5 font-bold text-slate-900 print:text-black text-xs text-right uppercase whitespace-nowrap">CLOSING BALANCE</TableCell>
+                  <TableCell className="py-2.5 print:py-1.5 text-right text-slate-950 print:text-black font-black text-xs font-mono whitespace-nowrap">
                     {ledgerData.balanceDr > 0 ? `${formatNumber(ledgerData.balanceDr, 0)} Dr.` : "-"}
                   </TableCell>
-                  <TableCell className="py-2.5 print:py-1 text-right text-slate-950 print:text-black font-black text-xs font-mono">
+                  <TableCell className="py-2.5 print:py-1.5 text-right text-slate-950 print:text-black font-black text-xs font-mono whitespace-nowrap">
                     {ledgerData.balanceCr > 0 ? `${formatNumber(ledgerData.balanceCr, 0)} Cr.` : "-"}
                   </TableCell>
-                  <TableCell className="py-2.5 print:py-1 text-right font-black text-xs font-mono"></TableCell>
+                  <TableCell className="py-2.5 print:py-1.5 text-right font-black text-xs font-mono whitespace-nowrap"></TableCell>
                 </TableRow>
               </TableBody>
             </Table>

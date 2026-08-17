@@ -81,29 +81,29 @@ export default async function AccountReportsPage({ searchParams }: { searchParam
       .order("entry_date", { ascending: true })
       .order("created_at", { ascending: true });
 
-    // Construct virtual entries dated before 'from' (1970-01-01) to represent accumulated prior balance
+    // Construct a single net virtual entry dated before 'from' (1970-01-01) to represent net accumulated prior balance
     const virtualEntries = [];
-    if (totalDebit > 0) {
+    const netPrior = totalDebit - totalCredit;
+    if (netPrior > 0) {
       virtualEntries.push({
         id: "virtual-dr",
-        journal_no: "OPENING",
+        journal_no: "VIRTUAL_OPENING_DR",
         entry_date: "1970-01-01",
         account_name: selectedAccount?.customer_name ?? "",
         entry_type: "debit" as const,
-        amount: totalDebit,
+        amount: netPrior,
         description: "Opening Balance",
         account_id: accountId,
         created_at: "",
       });
-    }
-    if (totalCredit > 0) {
+    } else if (netPrior < 0) {
       virtualEntries.push({
         id: "virtual-cr",
-        journal_no: "OPENING",
+        journal_no: "VIRTUAL_OPENING_CR",
         entry_date: "1970-01-01",
         account_name: selectedAccount?.customer_name ?? "",
         entry_type: "credit" as const,
-        amount: totalCredit,
+        amount: Math.abs(netPrior),
         description: "Opening Balance",
         account_id: accountId,
         created_at: "",
