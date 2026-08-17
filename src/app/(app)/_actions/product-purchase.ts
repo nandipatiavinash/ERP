@@ -390,7 +390,7 @@ export async function saveProductPurchase(formData: FormData) {
 
     } else if (dept === "finishing") {
       let parentRollNo = "";
-      const sourceType = lamination_types[i] || "fabric"; // Reuse unused lamination_type field as sourceType in finishing row
+      const sourceType = lamination_types[i] || "fabric"; // Reuse lamination_type field as sourceType for finishing row
 
       if (sourceRollId) {
         if (sourceType === "fabric") {
@@ -405,7 +405,33 @@ export async function saveProductPurchase(formData: FormData) {
         }
       }
 
-      const baseId = `PLAIN(${fabricName.trim()})`.toUpperCase();
+      let baseId = "";
+      if (sourceType === "fabric") {
+        baseId = `PLAIN(${fabricName.trim()})`;
+      } else if (sourceType === "lamination") {
+        let brandName = "PLAIN";
+        if (["BOX", "F_S", "H_S"].includes(lamType || "")) {
+          if (rotoProductId) {
+            const { data: p } = await adminSupabase.from("roto_products").select("brand").eq("id", rotoProductId).maybeSingle();
+            if (p) brandName = (p as any).brand;
+          }
+          let suffix = "";
+          if (lamType === "BOX") suffix = "B";
+          else if (lamType === "F_S") suffix = "F";
+          else if (lamType === "H_S") suffix = "H";
+          baseId = `${brandName.trim()}(${fabricName.trim()})(${suffix})`;
+        } else {
+          baseId = `${(lamType || "PLAIN").trim()}(${fabricName.trim()})`;
+        }
+      } else if (sourceType === "offset") {
+        let brandName = "OFFSET";
+        if (offsetProductId) {
+          const { data: p } = await adminSupabase.from("offset_products").select("brand").eq("id", offsetProductId).maybeSingle();
+          if (p) brandName = (p as any).brand;
+        }
+        baseId = `${brandName.trim()}(${fabricName.trim()})`;
+      }
+      baseId = baseId.toUpperCase();
 
       let bundleId = "";
       let seq = 1;

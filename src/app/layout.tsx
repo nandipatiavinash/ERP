@@ -3,7 +3,10 @@ import { Inter } from "next/font/google";
 import { SplashRemover } from "@/components/app/splash-remover";
 import "./globals.css";
 
-const inter = Inter({ subsets: ["latin"] });
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
+});
 
 export const metadata: Metadata = {
   title: "RK Global - Fabric ERP",
@@ -26,7 +29,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en">
-      <body className={inter.className}>
+      <body className={`${inter.variable} ${inter.className}`}>
         <SplashRemover />
         {children}
       </body>

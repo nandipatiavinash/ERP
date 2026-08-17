@@ -27,8 +27,8 @@ type PurchaseItemRow = {
   fabricLabel: string;
   laminationType: string;
   offsetType: string;
-  quantity: number;
-  weight: number;
+  quantity: number; // meters or bags
+  weight: number;   // kg (net weight)
   rate: number;
   amount: number;
   sourceRollId: string;
@@ -40,6 +40,7 @@ type PurchaseItemRow = {
   supplierRollId: string;
   grossWeight?: number;
   coreWeight?: number;
+  avgMtrWeight?: number; // g/m
 };
 
 export function ProductPurchaseForm({
@@ -83,35 +84,15 @@ export function ProductPurchaseForm({
   const [grossWeight, setGrossWeight] = useState("");
   const [coreWeight, setCoreWeight] = useState("");
 
-  const handleGrossChange = (val: string) => {
-    setGrossWeight(val);
-    const g = parseFloat(val);
-    const c = parseFloat(coreWeight);
-    if (!isNaN(g) && !isNaN(c)) {
-      const net = String(Math.max(0, Number((g - c).toFixed(1))));
-      setWeight(net);
-    }
-  };
-
-  const handleCoreChange = (val: string) => {
-    setCoreWeight(val);
-    const g = parseFloat(grossWeight);
-    const c = parseFloat(val);
-    if (!isNaN(g) && !isNaN(c)) {
-      const net = String(Math.max(0, Number((g - c).toFixed(1))));
-      setWeight(net);
-    }
-  };
-
-  // Manual total bill value
+  // Total bill value
   const [manualBillValue, setManualBillValue] = useState("");
 
-  // New spec states
+  // Spec states
   const [sourceRollId, setSourceRollId] = useState("");
   const [filmType, setFilmType] = useState("gloss");
   const [isMetallic, setIsMetallic] = useState(false);
   const [colorId, setColorId] = useState("");
-  const [sourceType, setSourceType] = useState("fabric"); // 'fabric' | 'lamination' | 'offset'
+  const [sourceType, setSourceType] = useState("fabric"); // Finishing source: 'fabric' | 'lamination' | 'offset'
 
   const sortedSuppliers = useMemo(() => {
     return [...suppliers].sort((a, b) => a.customer_name.localeCompare(b.customer_name));
@@ -125,22 +106,51 @@ export function ProductPurchaseForm({
     return [...colors].sort((a, b) => (a.color_name || "").localeCompare(b.color_name || ""));
   }, [colors]);
 
-  // Brand catalog: shows all brands for the selected department, sorted alphabetically
-  const activeBrandsCatalog = useMemo(() => {
-    let list: CatalogOption[] = [];
-    if (department === "roto-printing") list = rotoProducts;
-    else if (department === "lamination") list = rotoProducts;
-    else if (department === "offset-printing") list = offsetProducts;
-    else if (department === "finishing") list = finishingProducts.map((p) => ({ ...p, brand: p.name }));
-    else if (department === "fabric") list = fabricTypes.map((f) => ({ ...f, brand: f.fabric_name }));
-    
-    return [...list].sort((a, b) => (a.brand || "").localeCompare(b.brand || ""));
-  }, [department, rotoProducts, offsetProducts, finishingProducts, fabricTypes]);
+  const sortedRotoProducts = useMemo(() => {
+    return [...rotoProducts].sort((a, b) => (a.brand || "").localeCompare(b.brand || ""));
+  }, [rotoProducts]);
+
+  const sortedOffsetProducts = useMemo(() => {
+    return [...offsetProducts].sort((a, b) => (a.brand || "").localeCompare(b.brand || ""));
+  }, [offsetProducts]);
+
+  // Handle weight / gross weight / core weight changes and calculate net weight
+  const handleGrossChange = (val: string) => {
+    setGrossWeight(val);
+    const g = parseFloat(val);
+    const c = parseFloat(coreWeight);
+    if (!isNaN(g) && !isNaN(c)) {
+      const net = String(Math.max(0, Number((g - c).toFixed(2))));
+      setWeight(net);
+    }
+  };
+
+  const handleCoreChange = (val: string) => {
+    setCoreWeight(val);
+    const g = parseFloat(grossWeight);
+    const c = parseFloat(val);
+    if (!isNaN(g) && !isNaN(c)) {
+      const net = String(Math.max(0, Number((g - c).toFixed(2))));
+      setWeight(net);
+    }
+  };
+
+  // Compute live Avg Mtr Weight (g/m)
+  const computedAvgMtrWeight = useMemo(() => {
+    const w = parseFloat(weight);
+    const q = parseFloat(quantity);
+    if (!isNaN(w) && !isNaN(q) && q > 0) {
+      return Number(((w / q) * 1000).toFixed(1)); // grams per meter
+    }
+    return null;
+  }, [weight, quantity]);
 
   const handleDeptChange = (val: string) => {
     setDepartment(val);
     setBrandProductId("");
     setFabricTypeId("");
+    setLaminationType("PLAIN");
+    setOffsetType("FABRIC");
     setQuantity("");
     setWeight("");
     setSupplierRollId("");
@@ -153,76 +163,119 @@ export function ProductPurchaseForm({
     setCoreWeight("");
   };
 
-  const handleSourceRollChange = (rollIdVal: string) => {
-    setSourceRollId(rollIdVal);
-    if (!rollIdVal) return;
-
-    if (department === "lamination") {
-      const roll = availableFabricRolls.find((r) => r.id === rollIdVal);
-      if (roll) {
-        setWeight(String(roll.weight));
-        setQuantity(String(roll.meters));
-        setFabricTypeId(roll.fabric_type_id);
-      }
-    } else if (department === "offset-printing") {
-      const roll = availableLaminationRolls.find((r) => r.id === rollIdVal);
-      if (roll) {
-        setWeight(String(roll.weight_kg));
-        setQuantity(String(roll.meters));
-        setFabricTypeId(roll.fabric_type_id);
-      }
-    } else if (department === "finishing") {
-      if (sourceType === "fabric") {
-        const roll = availableFabricRolls.find((r) => r.id === rollIdVal);
-        if (roll) {
-          setWeight(String(roll.weight));
-          setQuantity(String(roll.meters));
-          setFabricTypeId(roll.fabric_type_id);
-        }
-      } else if (sourceType === "lamination") {
-        const roll = availableLaminationRolls.find((r) => r.id === rollIdVal);
-        if (roll) {
-          setWeight(String(roll.weight_kg));
-          setQuantity(String(roll.meters));
-          setFabricTypeId(roll.fabric_type_id);
-        }
-      } else if (sourceType === "offset") {
-        const roll = availableOffsetRolls.find((r) => r.id === rollIdVal);
-        if (roll) {
-          setWeight(String(roll.weight_kg));
-          setQuantity(""); // Offset rolls don't store meters in a default column, enter manually
-          setFabricTypeId(roll.fabric_type_id);
-        }
-      }
-    }
-  };
-
   const handleAddItem = () => {
     if (!department) return;
     const qtyVal = Number(quantity);
     const weightVal = Number(weight);
 
-    if (isNaN(qtyVal) || qtyVal <= 0) return;
-    if (isNaN(weightVal) || weightVal <= 0) return;
+    if (isNaN(qtyVal) || qtyVal <= 0) {
+      setErrorText("Please enter a valid positive quantity.");
+      return;
+    }
+    if (isNaN(weightVal) || weightVal <= 0) {
+      setErrorText("Please enter a valid positive weight (net weight).");
+      return;
+    }
 
-    const isBrandRequired = ["roto-printing", "offset-printing"].includes(department) || (department === "lamination" && ["BOX", "F_S", "H_S"].includes(laminationType));
-    if (isBrandRequired && !brandProductId) return;
+    setErrorText(null);
 
-    const isFabricRequired = ["fabric", "lamination", "offset-printing", "finishing"].includes(department);
-    if (isFabricRequired && !fabricTypeId) return;
+    // Validate department specific requirements
+    if (department === "fabric" && !fabricTypeId) {
+      setErrorText("Please select a Fabric Spec / Brand.");
+      return;
+    }
 
+    if (department === "roto-printing" && !brandProductId) {
+      setErrorText("Please select a Roto Printing Brand.");
+      return;
+    }
+
+    if (department === "lamination") {
+      if (!fabricTypeId) {
+        setErrorText("Please select a Fabric Spec.");
+        return;
+      }
+      if (["BOX", "F_S", "H_S"].includes(laminationType) && !brandProductId) {
+        setErrorText("Please select a Roto Printing Brand for Box/F_S/H_S Lamination.");
+        return;
+      }
+    }
+
+    if (department === "offset-printing") {
+      if (!fabricTypeId) {
+        setErrorText("Please select a Fabric Spec.");
+        return;
+      }
+      if (!brandProductId) {
+        setErrorText("Please select an Offset Brand.");
+        return;
+      }
+    }
+
+    if (department === "finishing") {
+      if (sourceType === "fabric" && !fabricTypeId) {
+        setErrorText("Please select a Fabric Spec.");
+        return;
+      }
+      if (sourceType === "lamination") {
+        if (!fabricTypeId) {
+          setErrorText("Please select a Fabric Spec.");
+          return;
+        }
+        if (["BOX", "F_S", "H_S"].includes(laminationType) && !brandProductId) {
+          setErrorText("Please select a Roto Printing Brand.");
+          return;
+        }
+      }
+      if (sourceType === "offset") {
+        if (!fabricTypeId) {
+          setErrorText("Please select a Fabric Spec.");
+          return;
+        }
+        if (!brandProductId) {
+          setErrorText("Please select an Offset Brand.");
+          return;
+        }
+      }
+    }
+
+    // Determine labels
     let productLabel = "";
-    if (isBrandRequired) {
-      const match = activeBrandsCatalog.find((x) => x.id === brandProductId);
-      productLabel = match ? (match.brand || "Brand") : "Brand";
-    } else {
-      productLabel = department === "fabric" ? "Gray Fabric" : department === "finishing" ? "Finished Bag" : "Lamination Film";
+    if (department === "fabric") {
+      productLabel = "Gray Fabric Roll";
+    } else if (department === "roto-printing") {
+      const match = rotoProducts.find((x) => x.id === brandProductId);
+      productLabel = match?.brand || "Roto Roll";
+    } else if (department === "lamination") {
+      if (["BOX", "F_S", "H_S"].includes(laminationType)) {
+        const match = rotoProducts.find((x) => x.id === brandProductId);
+        productLabel = `${match?.brand || "Lamination Roll"} (${laminationType.replace("_", "/")})`;
+      } else {
+        productLabel = `Lamination Roll (${laminationType})`;
+      }
+    } else if (department === "offset-printing") {
+      const match = offsetProducts.find((x) => x.id === brandProductId);
+      productLabel = `${match?.brand || "Offset Roll"} (${offsetType})`;
+    } else if (department === "finishing") {
+      if (sourceType === "fabric") {
+        productLabel = "Fabric Finished Bags";
+      } else if (sourceType === "lamination") {
+        if (["BOX", "F_S", "H_S"].includes(laminationType)) {
+          const match = rotoProducts.find((x) => x.id === brandProductId);
+          productLabel = `Lamination Bags - ${match?.brand || "Roto"} (${laminationType.replace("_", "/")})`;
+        } else {
+          productLabel = `Lamination Bags (${laminationType})`;
+        }
+      } else if (sourceType === "offset") {
+        const match = offsetProducts.find((x) => x.id === brandProductId);
+        productLabel = `Offset Bags - ${match?.brand || "Offset"} (${offsetType})`;
+      }
     }
 
     let fabricLabel = "";
     if (fabricTypeId) {
       const match = fabricTypes.find((x) => x.id === fabricTypeId);
-      fabricLabel = match ? (match.fabric_name || "Fabric") : "";
+      fabricLabel = match ? (match.fabric_name || "") : "";
     }
 
     let colorLabel = "";
@@ -231,57 +284,40 @@ export function ProductPurchaseForm({
       colorLabel = c ? c.color_name : "";
     }
 
-    let sourceRollLabel = "";
-    if (sourceRollId) {
-      if (department === "lamination") {
-        const r = availableFabricRolls.find((x) => x.id === sourceRollId);
-        sourceRollLabel = r ? r.roll_number : "";
-      } else if (department === "offset-printing") {
-        const r = availableLaminationRolls.find((x) => x.id === sourceRollId);
-        sourceRollLabel = r ? r.roll_id : "";
-      } else if (department === "finishing") {
-        if (sourceType === "fabric") {
-          const r = availableFabricRolls.find((x) => x.id === sourceRollId);
-          sourceRollLabel = r ? r.roll_number : "";
-        } else if (sourceType === "lamination") {
-          const r = availableLaminationRolls.find((x) => x.id === sourceRollId);
-          sourceRollLabel = r ? r.roll_id : "";
-        } else if (sourceType === "offset") {
-          const r = availableOffsetRolls.find((x) => x.id === sourceRollId);
-          sourceRollLabel = r ? r.roll_id : "";
-        }
-      }
-    }
+    const gWt = grossWeight ? Number(grossWeight) : undefined;
+    const cWt = coreWeight ? Number(coreWeight) : undefined;
+    const avgMtr = computedAvgMtrWeight !== null ? computedAvgMtrWeight : undefined;
 
     const newRow: PurchaseItemRow = {
       key: `item-${Date.now()}-${Math.random()}`,
       department,
-      rotoProductId: ["roto-printing", "lamination"].includes(department) ? brandProductId : "",
-      offsetProductId: department === "offset-printing" ? brandProductId : "",
-      finishingProductId: department === "finishing" ? brandProductId : "",
+      rotoProductId: department === "roto-printing" || (department === "lamination" && ["BOX", "F_S", "H_S"].includes(laminationType)) || (department === "finishing" && sourceType === "lamination" && ["BOX", "F_S", "H_S"].includes(laminationType)) ? brandProductId : "",
+      offsetProductId: department === "offset-printing" || (department === "finishing" && sourceType === "offset") ? brandProductId : "",
+      finishingProductId: "",
       productLabel,
-      fabricTypeId: isFabricRequired ? fabricTypeId : "",
+      fabricTypeId,
       fabricLabel,
-      laminationType: department === "lamination" ? laminationType : department === "finishing" ? sourceType : "",
-      offsetType: department === "offset-printing" ? offsetType : "",
+      laminationType: department === "lamination" ? laminationType : department === "finishing" && sourceType === "lamination" ? laminationType : "",
+      offsetType: department === "offset-printing" ? offsetType : department === "finishing" && sourceType === "offset" ? offsetType : "",
       quantity: qtyVal,
       weight: weightVal,
       rate: 0,
       amount: 0,
       sourceRollId,
-      filmType: department === "roto-printing" ? filmType : "",
-      isMetallic: department === "roto-printing" ? isMetallic : false,
+      filmType: department === "roto-printing" || (department === "lamination" && ["BOX", "F_S", "H_S"].includes(laminationType)) || (department === "finishing" && sourceType === "lamination" && ["BOX", "F_S", "H_S"].includes(laminationType)) ? filmType : "",
+      isMetallic: department === "roto-printing" || (department === "lamination" && ["BOX", "F_S", "H_S"].includes(laminationType)) || (department === "finishing" && sourceType === "lamination" && ["BOX", "F_S", "H_S"].includes(laminationType)) ? isMetallic : false,
       colorId: department === "roto-printing" ? colorId : "",
       colorLabel,
-      sourceRollLabel,
-      supplierRollId: ["lamination", "offset-printing", "roto-printing", "finishing"].includes(department) ? supplierRollId.trim() : "",
-      grossWeight: department === "lamination" && grossWeight ? Number(grossWeight) : undefined,
-      coreWeight: department === "lamination" && coreWeight ? Number(coreWeight) : undefined,
+      sourceRollLabel: "",
+      supplierRollId: supplierRollId.trim(),
+      grossWeight: gWt,
+      coreWeight: cWt,
+      avgMtrWeight: avgMtr,
     };
 
     setItems((prev) => [...prev, newRow]);
 
-    // Reset row controls
+    // Reset row form state
     setBrandProductId("");
     setFabricTypeId("");
     setQuantity("");
@@ -338,12 +374,11 @@ export function ProductPurchaseForm({
 
       const result = await saveProductPurchase(formData);
       if (!result.success) {
-        setErrorText(result.error || "Failed to save purchase.");
+        setErrorText(result.error || "Failed to save product purchase.");
         setIsSaving(false);
         return;
       }
       setSuccessText("Product Purchase recorded successfully!");
-      window.alert("Product Purchase recorded successfully!");
       setItems([]);
       setManualBillValue("");
       formRef.current?.reset();
@@ -353,12 +388,6 @@ export function ProductPurchaseForm({
       setIsSaving(false);
     }
   }
-
-  const showRotoFields = department === "roto-printing";
-  const showOffsetFields = department === "offset-printing";
-  const showLaminationFields = department === "lamination";
-  const showFinishingFields = department === "finishing";
-  const showFabricFields = department === "fabric";
 
   return (
     <form ref={formRef} onSubmit={handleSubmit} className="bg-white p-6 rounded-lg border border-slate-200 shadow-sm space-y-5">
@@ -370,11 +399,11 @@ export function ProductPurchaseForm({
       {errorText && <div className="p-3 text-xs bg-rose-50 border border-rose-200 text-rose-700 rounded-md">{errorText}</div>}
       {successText && <div className="p-3 text-xs bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-md">{successText}</div>}
 
-      {/* Basic header details - Supplier, Bill Number, Bill Value (whole number) */}
+      {/* Basic Header Details: Client Name, Bill Number, Bill Value */}
       <input type="hidden" name="purchase_date" value={selectedDate} />
       <div className="grid grid-cols-3 gap-4">
         <div className="space-y-1.5 col-span-1">
-          <Label htmlFor="supplier_name" className="text-xs font-semibold text-slate-700">Supplier Name (Client)</Label>
+          <Label htmlFor="supplier_name" className="text-xs font-semibold text-slate-700">Client / Supplier Name</Label>
           <select
             id="supplier_name"
             name="supplier_name"
@@ -391,8 +420,8 @@ export function ProductPurchaseForm({
         </div>
 
         <div className="space-y-1.5 col-span-1">
-          <Label htmlFor="bill_number" className="text-xs font-semibold text-slate-700">Bill Number</Label>
-          <Input id="bill_number" name="bill_number" type="text" placeholder="Enter Bill Number" required className="h-9 text-xs font-semibold font-mono" />
+          <Label htmlFor="bill_number" className="text-xs font-semibold text-slate-700">Bill No.</Label>
+          <Input id="bill_number" name="bill_number" type="text" placeholder="Enter Bill No." required className="h-9 text-xs font-semibold font-mono" />
         </div>
 
         <div className="space-y-1.5 col-span-1">
@@ -411,340 +440,501 @@ export function ProductPurchaseForm({
       </div>
 
       {/* Item Creator Block */}
-      <div className="p-4 bg-slate-50/50 rounded-lg border border-slate-100 space-y-4">
-        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Add Product Item</span>
+      <div className="p-4 bg-slate-50/70 rounded-lg border border-slate-200/80 space-y-4">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-bold uppercase tracking-wider text-slate-700">Select Department & Product Specifications</span>
+        </div>
 
         <div className="space-y-4">
-          {/* Department Selection - 1 field */}
+          {/* Department Selection */}
           <div className="space-y-1.5 max-w-xs">
-            <Label className="text-[10px] font-bold text-slate-600">Department</Label>
+            <Label className="text-xs font-bold text-slate-700">Department</Label>
             <select
               value={department}
               onChange={(e) => handleDeptChange(e.target.value)}
-              className="w-full h-8 text-[11px] border border-slate-200 rounded bg-white px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-semibold"
+              className="w-full h-9 text-xs border border-slate-300 rounded bg-white px-2 py-1 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-bold"
             >
-              <option value="">Select Dept...</option>
-              <option value="fabric">Fabric</option>
-              <option value="roto-printing">Roto Printing</option>
-              <option value="lamination">Lamination</option>
-              <option value="offset-printing">Offset Printing</option>
-              <option value="finishing">Finishing / Bags</option>
+              <option value="">Select Department...</option>
+              <option value="fabric">A. FABRIC</option>
+              <option value="roto-printing">B. ROTO PRINTING</option>
+              <option value="lamination">C. LAMINATION</option>
+              <option value="offset-printing">D. OFFSET PRINTING</option>
+              <option value="finishing">E. FINISHING / BAGS</option>
             </select>
           </div>
 
-          {/* Conditional inputs based on department - grouped in clean 3-field rows */}
-          {showFabricFields && (
-            <div className="grid grid-cols-3 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-[10px] font-bold text-slate-600">Brand / Fabric Type</Label>
-                <select
-                  value={fabricTypeId}
-                  onChange={(e) => setFabricTypeId(e.target.value)}
-                  className="w-full h-8 text-[11px] border border-slate-200 rounded bg-white px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-semibold"
-                >
-                  <option value="">Select Brand...</option>
-                  {sortedFabricTypes.map((fab) => (
-                    <option key={fab.id} value={fab.id}>{fab.fabric_name}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-[10px] font-bold text-slate-600">Quantity (Meters)</Label>
-                <Input type="number" min="0" max="999999" placeholder="1000" value={quantity} onChange={(e) => setQuantity(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
-              </div>
-
-              <div className="space-y-1.5 col-span-1">
-                <Label className="text-[10px] font-bold text-slate-600">Weight (KG)</Label>
-                <div className="flex gap-2">
-                  <Input type="number" min="0" max="999999" step="0.1" placeholder="50.0" value={weight} onChange={(e) => setWeight(e.target.value)} className="h-8 text-xs font-semibold w-full font-mono" />
-                  <Button type="button" onClick={handleAddItem} className="h-8 text-[10px] bg-slate-800 hover:bg-slate-700 px-3 text-white font-semibold">
-                    <Plus className="w-3.5 h-3.5 mr-1" /> Add
-                  </Button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {showRotoFields && (
-            <div className="space-y-3">
+          {/* Department A: FABRIC */}
+          {department === "fabric" && (
+            <div className="space-y-3 pt-1 border-t border-slate-200">
               <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1.5">
-                  <Label className="text-[10px] font-bold text-slate-600">Brand / Design</Label>
+                  <Label className="text-[11px] font-bold text-slate-700">Fabric ID / Spec</Label>
                   <select
-                    value={brandProductId}
-                    onChange={(e) => setBrandProductId(e.target.value)}
-                    className="w-full h-8 text-[11px] border border-slate-200 rounded bg-white px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-semibold"
+                    value={fabricTypeId}
+                    onChange={(e) => setFabricTypeId(e.target.value)}
+                    className="w-full h-8 text-[11px] border border-slate-300 rounded bg-white px-2 py-0.5 focus:outline-none font-semibold"
                   >
-                    <option value="">Select Brand...</option>
-                    {activeBrandsCatalog.map((prod) => (
-                      <option key={prod.id} value={prod.id}>
-                        {prod.brand}
-                      </option>
+                    <option value="">Select Fabric Spec...</option>
+                    {sortedFabricTypes.map((fab) => (
+                      <option key={fab.id} value={fab.id}>{fab.fabric_name}</option>
                     ))}
                   </select>
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label className="text-[10px] font-bold text-slate-600">Film Type</Label>
-                  <select value={filmType} onChange={(e) => setFilmType(e.target.value)} className="w-full h-8 text-[11px] border border-slate-200 rounded bg-white px-2 py-0.5 focus:outline-none font-semibold">
+                  <Label className="text-[11px] font-bold text-slate-700">Gross Weight (KG)</Label>
+                  <Input type="number" min="0" step="0.1" placeholder="Enter Gross Wt" value={grossWeight} onChange={(e) => handleGrossChange(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-[11px] font-bold text-slate-700">Core Weight (KG)</Label>
+                  <Input type="number" min="0" step="0.1" placeholder="Enter Core Wt" value={coreWeight} onChange={(e) => handleCoreChange(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-4 gap-3 items-end">
+                <div className="space-y-1.5">
+                  <Label className="text-[11px] font-bold text-slate-700">Net Weight (KG)</Label>
+                  <Input type="number" min="0" step="0.1" placeholder="Enter Net Wt" value={weight} onChange={(e) => setWeight(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-[11px] font-bold text-slate-700">Meters</Label>
+                  <Input type="number" min="0" placeholder="Enter Meters" value={quantity} onChange={(e) => setQuantity(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-[11px] font-bold text-slate-700">Avg Mtr Wt (g/m)</Label>
+                  <div className="h-8 text-xs font-mono font-bold bg-slate-100 border border-slate-200 rounded px-2 flex items-center text-slate-700">
+                    {computedAvgMtrWeight !== null ? `${computedAvgMtrWeight} g/m` : "-"}
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-[11px] font-bold text-slate-700">Supplier Roll ID (Optional)</Label>
+                  <div className="flex gap-2">
+                    <Input type="text" placeholder="Roll ID" value={supplierRollId} onChange={(e) => setSupplierRollId(e.target.value)} className="h-8 text-xs font-mono font-semibold" />
+                    <Button type="button" onClick={handleAddItem} className="h-8 text-[11px] bg-slate-900 hover:bg-slate-800 text-white font-bold px-3">
+                      <Plus className="w-3.5 h-3.5 mr-1" /> Add
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Department B: ROTO PRINTING */}
+          {department === "roto-printing" && (
+            <div className="space-y-3 pt-1 border-t border-slate-200">
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-[11px] font-bold text-slate-700">Film Type</Label>
+                  <select value={filmType} onChange={(e) => setFilmType(e.target.value)} className="w-full h-8 text-[11px] border border-slate-300 rounded bg-white px-2 py-0.5 focus:outline-none font-semibold">
                     <option value="gloss">Gloss</option>
                     <option value="matt">Matt</option>
                   </select>
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label className="text-[10px] font-bold text-slate-600">Color</Label>
-                  <select value={colorId} onChange={(e) => setColorId(e.target.value)} className="w-full h-8 text-[11px] border border-slate-200 rounded bg-white px-2 py-0.5 focus:outline-none font-semibold">
+                  <Label className="text-[11px] font-bold text-slate-700">Roto Printing Brand</Label>
+                  <select
+                    value={brandProductId}
+                    onChange={(e) => setBrandProductId(e.target.value)}
+                    className="w-full h-8 text-[11px] border border-slate-300 rounded bg-white px-2 py-0.5 focus:outline-none font-semibold"
+                  >
+                    <option value="">Select Roto Brand...</option>
+                    {sortedRotoProducts.map((prod) => (
+                      <option key={prod.id} value={prod.id}>{prod.brand}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-[11px] font-bold text-slate-700">Color</Label>
+                  <select value={colorId} onChange={(e) => setColorId(e.target.value)} className="w-full h-8 text-[11px] border border-slate-300 rounded bg-white px-2 py-0.5 focus:outline-none font-semibold">
                     <option value="">Select Color...</option>
                     {sortedColors.map((c) => (
                       <option key={c.id} value={c.id}>{c.color_name}</option>
                     ))}
                   </select>
                 </div>
+              </div>
 
+              <div className="grid grid-cols-4 gap-3 items-end">
                 <div className="space-y-1.5">
-                  <Label className="text-[10px] font-bold text-slate-600">Quantity (Meters)</Label>
-                  <Input type="number" min="0" max="999999" placeholder="Enter Quantity" value={quantity} onChange={(e) => setQuantity(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
+                  <Label className="text-[11px] font-bold text-slate-700">Weight (KGs)</Label>
+                  <Input type="number" min="0" step="0.1" placeholder="Enter KGs" value={weight} onChange={(e) => setWeight(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
                 </div>
 
-                <div className="space-y-1">
-                  <Label className="text-[10px] font-bold text-slate-500">Weight (kg)</Label>
+                <div className="space-y-1.5">
+                  <Label className="text-[11px] font-bold text-slate-700">Meters</Label>
+                  <Input type="number" min="0" placeholder="Enter Meters" value={quantity} onChange={(e) => setQuantity(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
+                </div>
+
+                <div className="flex items-center gap-2 pb-2">
+                  <input type="checkbox" id="is_metallic" checked={isMetallic} onChange={(e) => setIsMetallic(e.target.checked)} className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4" />
+                  <Label htmlFor="is_metallic" className="text-xs font-bold text-slate-700 cursor-pointer">Metallic Film?</Label>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-[11px] font-bold text-slate-700">Supplier Roll ID (Optional)</Label>
                   <div className="flex gap-2">
-                    <Input type="number" min="0" max="999999" step="0.1" placeholder="Enter Weight" value={weight} onChange={(e) => setWeight(e.target.value)} className="h-8 text-xs font-semibold w-full font-mono" />
-                    <Button type="button" onClick={handleAddItem} className="h-8 text-[10px] bg-slate-800 hover:bg-slate-700 px-3 text-white font-semibold">
+                    <Input type="text" placeholder="Roll ID" value={supplierRollId} onChange={(e) => setSupplierRollId(e.target.value)} className="h-8 text-xs font-mono font-semibold" />
+                    <Button type="button" onClick={handleAddItem} className="h-8 text-[11px] bg-slate-900 hover:bg-slate-800 text-white font-bold px-3">
                       <Plus className="w-3.5 h-3.5 mr-1" /> Add
                     </Button>
                   </div>
                 </div>
               </div>
-
-              <div className="flex items-center gap-2 pt-1">
-                <input type="checkbox" id="is_metallic" checked={isMetallic} onChange={(e) => setIsMetallic(e.target.checked)} className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500" />
-                <Label htmlFor="is_metallic" className="text-[10px] font-bold text-slate-600 cursor-pointer">Is Metallic?</Label>
-              </div>
             </div>
           )}
 
-          {showLaminationFields && (
-            <div className="space-y-3">
+          {/* Department C: LAMINATION */}
+          {department === "lamination" && (
+            <div className="space-y-3 pt-1 border-t border-slate-200">
               <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1.5">
-                  <Label className="text-[10px] font-bold text-slate-600">Lamination Type</Label>
-                  <select value={laminationType} onChange={(e) => setLaminationType(e.target.value)} className="w-full h-8 text-[11px] border border-slate-200 rounded bg-white px-2 py-0.5 focus:outline-none font-semibold">
+                  <Label className="text-[11px] font-bold text-slate-700">Fabric Spec ID</Label>
+                  <select
+                    value={fabricTypeId}
+                    onChange={(e) => setFabricTypeId(e.target.value)}
+                    className="w-full h-8 text-[11px] border border-slate-300 rounded bg-white px-2 py-0.5 focus:outline-none font-semibold"
+                  >
+                    <option value="">Select Fabric Spec...</option>
+                    {sortedFabricTypes.map((fab) => (
+                      <option key={fab.id} value={fab.id}>{fab.fabric_name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-[11px] font-bold text-slate-700">Lamination Type</Label>
+                  <select value={laminationType} onChange={(e) => setLaminationType(e.target.value)} className="w-full h-8 text-[11px] border border-slate-300 rounded bg-white px-2 py-0.5 focus:outline-none font-bold">
+                    <option value="BOX">BOX</option>
+                    <option value="F_S">F/S</option>
+                    <option value="H_S">H/S</option>
                     <option value="PLAIN">PLAIN</option>
                     <option value="NW">NW</option>
-                    <option value="LAMINATED">LAMINATED</option>
-                    <option value="BOX">BOX</option>
-                    <option value="F_S">F_S</option>
-                    <option value="H_S">H_S</option>
                   </select>
                 </div>
 
-                <div className="space-y-1.5">
-                  <Label className="text-[10px] font-bold text-slate-600">Fabric Specification</Label>
-                  <select
-                    value={fabricTypeId}
-                    onChange={(e) => setFabricTypeId(e.target.value)}
-                    className="w-full h-8 text-[11px] border border-slate-200 rounded bg-white px-2 py-0.5 focus:outline-none font-semibold"
-                  >
-                    <option value="">Select FabricSpec...</option>
-                    {sortedFabricTypes.map((fab) => (
-                      <option key={fab.id} value={fab.id}>{fab.fabric_name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="space-y-1.5">
-                  {["BOX", "F_S", "H_S"].includes(laminationType) ? (
-                    <>
-                      <Label className="text-[10px] font-bold text-slate-600">Brand / Design (Roto Spec)</Label>
-                      <select
-                        value={brandProductId}
-                        onChange={(e) => setBrandProductId(e.target.value)}
-                        className="w-full h-8 text-[11px] border border-slate-200 rounded bg-white px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-semibold"
-                      >
-                        <option value="">Select Brand...</option>
-                        {activeBrandsCatalog.map((prod) => (
-                          <option key={prod.id} value={prod.id}>{prod.brand}</option>
-                        ))}
-                      </select>
-                    </>
-                  ) : (
-                    <div className="h-full bg-slate-50 border border-dashed border-slate-200 rounded flex items-center justify-center text-[10px] text-slate-400 font-medium p-2">
-                      No brand spec required
-                    </div>
-                  )}
-                </div>
+                {["BOX", "F_S", "H_S"].includes(laminationType) ? (
+                  <div className="space-y-1.5">
+                    <Label className="text-[11px] font-bold text-slate-700">Roto Printing Brand</Label>
+                    <select
+                      value={brandProductId}
+                      onChange={(e) => setBrandProductId(e.target.value)}
+                      className="w-full h-8 text-[11px] border border-slate-300 rounded bg-white px-2 py-0.5 focus:outline-none font-semibold"
+                    >
+                      <option value="">Select Roto Brand...</option>
+                      {sortedRotoProducts.map((prod) => (
+                        <option key={prod.id} value={prod.id}>{prod.brand}</option>
+                      ))}
+                    </select>
+                  </div>
+                ) : (
+                  <div className="space-y-1.5">
+                    <Label className="text-[11px] font-bold text-slate-700">Gross Weight (KG)</Label>
+                    <Input type="number" min="0" step="0.1" placeholder="Enter Gross Wt" value={grossWeight} onChange={(e) => handleGrossChange(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
+                  </div>
+                )}
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
-                <div className="space-y-1.5">
-                  <Label className="text-[10px] font-bold text-slate-600">Gross Weight (Optional)</Label>
-                  <Input type="number" min="0" max="999999" step="0.1" placeholder="Enter Gross Weight" value={grossWeight} onChange={(e) => handleGrossChange(e.target.value)} className="h-8 text-xs font-semibold w-full font-mono" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-[10px] font-bold text-slate-600">Core Weight (Optional)</Label>
-                  <Input type="number" min="0" max="999999" step="0.1" placeholder="Enter Core Weight" value={coreWeight} onChange={(e) => handleCoreChange(e.target.value)} className="h-8 text-xs font-semibold w-full font-mono" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-[10px] font-bold text-slate-600">Quantity (Meters)</Label>
-                  <Input type="number" min="0" max="999999" placeholder="Enter Quantity" value={quantity} onChange={(e) => setQuantity(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
-                </div>
-              </div>
+              {["BOX", "F_S", "H_S"].includes(laminationType) ? (
+                <div className="grid grid-cols-4 gap-3 items-end">
+                  <div className="space-y-1.5">
+                    <Label className="text-[11px] font-bold text-slate-700">Film Type</Label>
+                    <select value={filmType} onChange={(e) => setFilmType(e.target.value)} className="w-full h-8 text-[11px] border border-slate-300 rounded bg-white px-2 py-0.5 focus:outline-none font-semibold">
+                      <option value="gloss">Gloss</option>
+                      <option value="matt">Matt</option>
+                    </select>
+                  </div>
 
-              <div className="grid grid-cols-3 gap-3">
-                <div className="space-y-1.5 col-span-1">
-                  <Label className="text-[10px] font-bold text-slate-600">Total/Net Weight (KG)</Label>
-                  <div className="flex gap-2">
-                    <Input type="number" min="0" max="999999" step="0.1" placeholder="Enter Weight" value={weight} onChange={(e) => setWeight(e.target.value)} className="h-8 text-xs font-semibold w-full font-mono" />
-                    <Button type="button" onClick={handleAddItem} className="h-8 text-[10px] bg-slate-800 hover:bg-slate-700 px-3 text-white font-semibold">
-                      <Plus className="w-3.5 h-3.5 mr-1" /> Add
-                    </Button>
+                  <div className="space-y-1.5">
+                    <Label className="text-[11px] font-bold text-slate-700">KGs (Weight)</Label>
+                    <Input type="number" min="0" step="0.1" placeholder="Enter KGs" value={weight} onChange={(e) => setWeight(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-[11px] font-bold text-slate-700">Meters</Label>
+                    <Input type="number" min="0" placeholder="Enter Meters" value={quantity} onChange={(e) => setQuantity(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
+                  </div>
+
+                  <div className="flex items-center gap-2 pb-2">
+                    <input type="checkbox" id="lam_is_metallic" checked={isMetallic} onChange={(e) => setIsMetallic(e.target.checked)} className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4" />
+                    <Label htmlFor="lam_is_metallic" className="text-xs font-bold text-slate-700 cursor-pointer">Metallic?</Label>
                   </div>
                 </div>
-              </div>
-            </div>
-          )}
+              ) : (
+                <div className="grid grid-cols-4 gap-3 items-end">
+                  <div className="space-y-1.5">
+                    <Label className="text-[11px] font-bold text-slate-700">Core Weight (KG)</Label>
+                    <Input type="number" min="0" step="0.1" placeholder="Enter Core Wt" value={coreWeight} onChange={(e) => handleCoreChange(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
+                  </div>
 
-          {showOffsetFields && (
-            <div className="grid grid-cols-3 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-[10px] font-bold text-slate-600">Offset Type</Label>
-                <select value={offsetType} onChange={(e) => setOffsetType(e.target.value)} className="w-full h-8 text-[11px] border border-slate-200 rounded bg-white px-2 py-0.5 focus:outline-none font-semibold">
-                  <option value="FABRIC">PLAIN</option>
-                  <option value="NW_LAM">NW_LAM</option>
-                  <option value="PLAIN_LAM">PLAIN_LAM</option>
-                  <option value="NW">NW</option>
-                </select>
-              </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-[11px] font-bold text-slate-700">Net Weight (KG)</Label>
+                    <Input type="number" min="0" step="0.1" placeholder="Enter Net Wt" value={weight} onChange={(e) => setWeight(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
+                  </div>
 
-              <div className="space-y-1.5">
-                <Label className="text-[10px] font-bold text-slate-600">Brand / Design</Label>
-                <select
-                  value={brandProductId}
-                  onChange={(e) => setBrandProductId(e.target.value)}
-                  className="w-full h-8 text-[11px] border border-slate-200 rounded bg-white px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-semibold"
-                >
-                  <option value="">Select Brand...</option>
-                  {activeBrandsCatalog.map((prod) => (
-                    <option key={prod.id} value={prod.id}>{prod.brand}</option>
-                  ))}
-                </select>
-              </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-[11px] font-bold text-slate-700">Meters</Label>
+                    <Input type="number" min="0" placeholder="Enter Meters" value={quantity} onChange={(e) => setQuantity(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
+                  </div>
 
-              <div className="space-y-1.5">
-                <Label className="text-[10px] font-bold text-slate-600">Fabric Specification</Label>
-                <select
-                  value={fabricTypeId}
-                  onChange={(e) => setFabricTypeId(e.target.value)}
-                  className="w-full h-8 text-[11px] border border-slate-200 rounded bg-white px-2 py-0.5 focus:outline-none font-semibold"
-                >
-                  <option value="">Select FabricSpec...</option>
-                  {sortedFabricTypes.map((fab) => (
-                    <option key={fab.id} value={fab.id}>{fab.fabric_name}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-[10px] font-bold text-slate-600">Quantity (Meters)</Label>
-                <Input type="number" min="0" max="999999" placeholder="Enter Quantity" value={quantity} onChange={(e) => setQuantity(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
-              </div>
-
-              <div className="space-y-1.5 col-span-1">
-                <Label className="text-[10px] font-bold text-slate-600">Weight (KG)</Label>
-                <div className="flex gap-2">
-                  <Input type="number" min="0" max="999999" step="0.1" placeholder="Enter Weight" value={weight} onChange={(e) => setWeight(e.target.value)} className="h-8 text-xs font-semibold w-full font-mono" />
-                  <Button type="button" onClick={handleAddItem} className="h-8 text-[10px] bg-slate-800 hover:bg-slate-700 px-3 text-white font-semibold">
-                    <Plus className="w-3.5 h-3.5 mr-1" /> Add
-                  </Button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {showFinishingFields && (
-            <div className="grid grid-cols-3 gap-3">
-              <div className="space-y-1.5">
-                <Label className="text-[10px] font-bold text-slate-600">Department / Type</Label>
-                <select
-                  value={sourceType}
-                  onChange={(e) => {
-                    setSourceType(e.target.value);
-                    setSourceRollId("");
-                    setFabricTypeId("");
-                    setQuantity("");
-                    setWeight("");
-                  }}
-                  className="w-full h-8 text-[11px] border border-slate-200 rounded bg-white px-2 py-0.5 focus:outline-none font-semibold"
-                >
-                  <option value="fabric">Fabric</option>
-                  <option value="lamination">Lamination</option>
-                  <option value="offset">Offset</option>
-                </select>
-              </div>
-
-              {sourceType === "fabric" && (
-                <div className="space-y-1.5">
-                  <Label className="text-[10px] font-bold text-slate-600">Fabric Specification</Label>
-                  <select
-                    value={fabricTypeId}
-                    onChange={(e) => setFabricTypeId(e.target.value)}
-                    className="w-full h-8 text-[11px] border border-slate-200 rounded bg-white px-2 py-0.5 focus:outline-none font-semibold"
-                  >
-                    <option value="">Select FabricSpec...</option>
-                    {sortedFabricTypes.map((fab) => (
-                      <option key={fab.id} value={fab.id}>{fab.fabric_name}</option>
-                    ))}
-                  </select>
+                  <div className="space-y-1.5">
+                    <Label className="text-[11px] font-bold text-slate-700">Avg Mtr Wt (g/m)</Label>
+                    <div className="h-8 text-xs font-mono font-bold bg-slate-100 border border-slate-200 rounded px-2 flex items-center text-slate-700">
+                      {computedAvgMtrWeight !== null ? `${computedAvgMtrWeight} g/m` : "-"}
+                    </div>
+                  </div>
                 </div>
               )}
 
-              {sourceType === "lamination" && (
+              <div className="flex justify-end pt-2">
+                <Button type="button" onClick={handleAddItem} className="h-8 text-[11px] bg-slate-900 hover:bg-slate-800 text-white font-bold px-4">
+                  <Plus className="w-3.5 h-3.5 mr-1" /> Add Lamination Roll
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Department D: OFFSET PRINTING */}
+          {department === "offset-printing" && (
+            <div className="space-y-3 pt-1 border-t border-slate-200">
+              <div className="grid grid-cols-3 gap-3">
                 <div className="space-y-1.5">
-                  <Label className="text-[10px] font-bold text-slate-600">Lamination Roll ID</Label>
+                  <Label className="text-[11px] font-bold text-slate-700">Fabric Spec ID</Label>
                   <select
-                    value={sourceRollId}
-                    onChange={(e) => handleSourceRollChange(e.target.value)}
-                    className="w-full h-8 text-[11px] border border-slate-200 rounded bg-white px-2 py-0.5 focus:outline-none font-semibold font-mono"
+                    value={fabricTypeId}
+                    onChange={(e) => setFabricTypeId(e.target.value)}
+                    className="w-full h-8 text-[11px] border border-slate-300 rounded bg-white px-2 py-0.5 focus:outline-none font-semibold"
                   >
-                    <option value="">Select Lamination Roll...</option>
-                    {availableLaminationRolls.map((r) => (
-                      <option key={r.id} value={r.id}>{r.roll_id}</option>
+                    <option value="">Select Fabric Spec...</option>
+                    {sortedFabricTypes.map((fab) => (
+                      <option key={fab.id} value={fab.id}>{fab.fabric_name}</option>
                     ))}
                   </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-[11px] font-bold text-slate-700">Offset Type</Label>
+                  <select value={offsetType} onChange={(e) => setOffsetType(e.target.value)} className="w-full h-8 text-[11px] border border-slate-300 rounded bg-white px-2 py-0.5 focus:outline-none font-bold">
+                    <option value="FABRIC">PLAIN (FABRIC)</option>
+                    <option value="NW_LAM">NW_LAM</option>
+                    <option value="PLAIN_LAM">PLAIN_LAM</option>
+                    <option value="NW">NW</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-[11px] font-bold text-slate-700">Offset Brand ID</Label>
+                  <select
+                    value={brandProductId}
+                    onChange={(e) => setBrandProductId(e.target.value)}
+                    className="w-full h-8 text-[11px] border border-slate-300 rounded bg-white px-2 py-0.5 focus:outline-none font-semibold"
+                  >
+                    <option value="">Select Offset Brand...</option>
+                    {sortedOffsetProducts.map((prod) => (
+                      <option key={prod.id} value={prod.id}>{prod.brand}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3 items-end">
+                <div className="space-y-1.5">
+                  <Label className="text-[11px] font-bold text-slate-700">Meters</Label>
+                  <Input type="number" min="0" placeholder="Enter Meters" value={quantity} onChange={(e) => setQuantity(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-[11px] font-bold text-slate-700">KGs (Weight)</Label>
+                  <Input type="number" min="0" step="0.1" placeholder="Enter Weight" value={weight} onChange={(e) => setWeight(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-[11px] font-bold text-slate-700">Supplier Roll ID (Optional)</Label>
+                  <div className="flex gap-2">
+                    <Input type="text" placeholder="Roll ID" value={supplierRollId} onChange={(e) => setSupplierRollId(e.target.value)} className="h-8 text-xs font-mono font-semibold" />
+                    <Button type="button" onClick={handleAddItem} className="h-8 text-[11px] bg-slate-900 hover:bg-slate-800 text-white font-bold px-3">
+                      <Plus className="w-3.5 h-3.5 mr-1" /> Add
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Department E: FINISHING / BAGS */}
+          {department === "finishing" && (
+            <div className="space-y-3 pt-1 border-t border-slate-200">
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-[11px] font-bold text-slate-700">Category</Label>
+                  <select
+                    value={sourceType}
+                    onChange={(e) => {
+                      setSourceType(e.target.value);
+                      setBrandProductId("");
+                      setFabricTypeId("");
+                      setLaminationType("PLAIN");
+                      setOffsetType("FABRIC");
+                    }}
+                    className="w-full h-8 text-[11px] border border-slate-300 rounded bg-white px-2 py-0.5 focus:outline-none font-bold"
+                  >
+                    <option value="fabric">Fabric Bags</option>
+                    <option value="lamination">Lamination Bags</option>
+                    <option value="offset">Offset Bags</option>
+                  </select>
+                </div>
+
+                {/* Sub-fields for FABRIC BAGS */}
+                {sourceType === "fabric" && (
+                  <div className="space-y-1.5">
+                    <Label className="text-[11px] font-bold text-slate-700">Fabric Spec ID</Label>
+                    <select
+                      value={fabricTypeId}
+                      onChange={(e) => setFabricTypeId(e.target.value)}
+                      className="w-full h-8 text-[11px] border border-slate-300 rounded bg-white px-2 py-0.5 focus:outline-none font-semibold"
+                    >
+                      <option value="">Select Fabric Spec...</option>
+                      {sortedFabricTypes.map((fab) => (
+                        <option key={fab.id} value={fab.id}>{fab.fabric_name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                {/* Sub-fields for LAMINATION BAGS */}
+                {sourceType === "lamination" && (
+                  <>
+                    <div className="space-y-1.5">
+                      <Label className="text-[11px] font-bold text-slate-700">Lamination Type</Label>
+                      <select value={laminationType} onChange={(e) => setLaminationType(e.target.value)} className="w-full h-8 text-[11px] border border-slate-300 rounded bg-white px-2 py-0.5 focus:outline-none font-bold">
+                        <option value="BOX">BOX</option>
+                        <option value="F_S">F/S</option>
+                        <option value="H_S">H/S</option>
+                        <option value="PLAIN">PLAIN</option>
+                        <option value="NW">NW</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label className="text-[11px] font-bold text-slate-700">Fabric Spec ID</Label>
+                      <select
+                        value={fabricTypeId}
+                        onChange={(e) => setFabricTypeId(e.target.value)}
+                        className="w-full h-8 text-[11px] border border-slate-300 rounded bg-white px-2 py-0.5 focus:outline-none font-semibold"
+                      >
+                        <option value="">Select Fabric Spec...</option>
+                        {sortedFabricTypes.map((fab) => (
+                          <option key={fab.id} value={fab.id}>{fab.fabric_name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </>
+                )}
+
+                {/* Sub-fields for OFFSET BAGS */}
+                {sourceType === "offset" && (
+                  <>
+                    <div className="space-y-1.5">
+                      <Label className="text-[11px] font-bold text-slate-700">Offset Type</Label>
+                      <select value={offsetType} onChange={(e) => setOffsetType(e.target.value)} className="w-full h-8 text-[11px] border border-slate-300 rounded bg-white px-2 py-0.5 focus:outline-none font-bold">
+                        <option value="FABRIC">PLAIN (FABRIC)</option>
+                        <option value="NW_LAM">NW_LAM</option>
+                        <option value="PLAIN_LAM">PLAIN_LAM</option>
+                        <option value="NW">NW</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label className="text-[11px] font-bold text-slate-700">Fabric Spec ID</Label>
+                      <select
+                        value={fabricTypeId}
+                        onChange={(e) => setFabricTypeId(e.target.value)}
+                        className="w-full h-8 text-[11px] border border-slate-300 rounded bg-white px-2 py-0.5 focus:outline-none font-semibold"
+                      >
+                        <option value="">Select Fabric Spec...</option>
+                        {sortedFabricTypes.map((fab) => (
+                          <option key={fab.id} value={fab.id}>{fab.fabric_name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Second row for Lamination BOX/F_S/H_S Bags or Offset Bags extra fields */}
+              {sourceType === "lamination" && ["BOX", "F_S", "H_S"].includes(laminationType) && (
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-[11px] font-bold text-slate-700">Film Type</Label>
+                    <select value={filmType} onChange={(e) => setFilmType(e.target.value)} className="w-full h-8 text-[11px] border border-slate-300 rounded bg-white px-2 py-0.5 focus:outline-none font-semibold">
+                      <option value="gloss">Gloss</option>
+                      <option value="matt">Matt</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-[11px] font-bold text-slate-700">Roto Printing Brand</Label>
+                    <select
+                      value={brandProductId}
+                      onChange={(e) => setBrandProductId(e.target.value)}
+                      className="w-full h-8 text-[11px] border border-slate-300 rounded bg-white px-2 py-0.5 focus:outline-none font-semibold"
+                    >
+                      <option value="">Select Roto Brand...</option>
+                      {sortedRotoProducts.map((prod) => (
+                        <option key={prod.id} value={prod.id}>{prod.brand}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-5">
+                    <input type="checkbox" id="fin_lam_metallic" checked={isMetallic} onChange={(e) => setIsMetallic(e.target.checked)} className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4" />
+                    <Label htmlFor="fin_lam_metallic" className="text-xs font-bold text-slate-700 cursor-pointer">Metallic Film?</Label>
+                  </div>
                 </div>
               )}
 
               {sourceType === "offset" && (
-                <div className="space-y-1.5">
-                  <Label className="text-[10px] font-bold text-slate-600">Offset Roll ID</Label>
-                  <select
-                    value={sourceRollId}
-                    onChange={(e) => handleSourceRollChange(e.target.value)}
-                    className="w-full h-8 text-[11px] border border-slate-200 rounded bg-white px-2 py-0.5 focus:outline-none font-semibold font-mono"
-                  >
-                    <option value="">Select Offset Roll...</option>
-                    {availableOffsetRolls.map((r) => (
-                      <option key={r.id} value={r.id}>{r.roll_id}</option>
-                    ))}
-                  </select>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-1.5">
+                    <Label className="text-[11px] font-bold text-slate-700">Offset Brand ID</Label>
+                    <select
+                      value={brandProductId}
+                      onChange={(e) => setBrandProductId(e.target.value)}
+                      className="w-full h-8 text-[11px] border border-slate-300 rounded bg-white px-2 py-0.5 focus:outline-none font-semibold"
+                    >
+                      <option value="">Select Offset Brand...</option>
+                      {sortedOffsetProducts.map((prod) => (
+                        <option key={prod.id} value={prod.id}>{prod.brand}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
               )}
 
-              <div className="space-y-1.5">
-                <Label className="text-[10px] font-bold text-slate-600">Quantity (Bags)</Label>
-                <Input type="number" min="0" max="999999" placeholder="Enter Quantity" value={quantity} onChange={(e) => setQuantity(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
-              </div>
+              <div className="grid grid-cols-3 gap-3 items-end pt-1">
+                <div className="space-y-1.5">
+                  <Label className="text-[11px] font-bold text-slate-700">No of Bags</Label>
+                  <Input type="number" min="0" placeholder="Enter Bags Count" value={quantity} onChange={(e) => setQuantity(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
+                </div>
 
-              <div className="space-y-1.5 col-span-1">
-                <Label className="text-[10px] font-bold text-slate-600">Weight (KG)</Label>
-                <div className="flex gap-2">
-                  <Input type="number" min="0" max="999999" step="0.1" placeholder="Enter Weight" value={weight} onChange={(e) => setWeight(e.target.value)} className="h-8 text-xs font-semibold w-full font-mono" />
-                  <Button type="button" onClick={handleAddItem} className="h-8 text-[10px] bg-slate-800 hover:bg-slate-700 px-3 text-white font-semibold">
-                    <Plus className="w-3.5 h-3.5 mr-1" /> Add
-                  </Button>
+                <div className="space-y-1.5">
+                  <Label className="text-[11px] font-bold text-slate-700">KGs (Weight)</Label>
+                  <Input type="number" min="0" step="0.1" placeholder="Enter Weight" value={weight} onChange={(e) => setWeight(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-[11px] font-bold text-slate-700">Supplier Bundle ID (Optional)</Label>
+                  <div className="flex gap-2">
+                    <Input type="text" placeholder="Bundle ID" value={supplierRollId} onChange={(e) => setSupplierRollId(e.target.value)} className="h-8 text-xs font-mono font-semibold" />
+                    <Button type="button" onClick={handleAddItem} className="h-8 text-[11px] bg-slate-900 hover:bg-slate-800 text-white font-bold px-3">
+                      <Plus className="w-3.5 h-3.5 mr-1" /> Add Bags
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -755,37 +945,33 @@ export function ProductPurchaseForm({
       {/* Confirmed items list */}
       {items.length > 0 && (
         <div className="space-y-3 pt-2">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">Purchase Items List</span>
-          <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700 block">Added Purchase Items ({items.length})</span>
+          <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
             {items.map((item) => (
-              <div key={item.key} className="flex justify-between items-center bg-slate-50 p-2.5 rounded border border-slate-100 text-xs">
+              <div key={item.key} className="flex justify-between items-center bg-slate-50 p-3 rounded-md border border-slate-200 text-xs">
                 <div className="space-y-1">
-                  <div className="flex items-center gap-1.5">
-                    <span className="capitalize px-1.5 py-0.5 bg-emerald-100 rounded text-[9px] font-bold text-emerald-800">
+                  <div className="flex items-center gap-2">
+                    <span className="uppercase px-2 py-0.5 bg-emerald-100 rounded text-[10px] font-black text-emerald-900">
                       {item.department.replace("-printing", "")}
                     </span>
-                    <span className="font-semibold text-slate-700">{item.productLabel}</span>
+                    <span className="font-bold text-slate-800 text-xs">{item.productLabel}</span>
                   </div>
-                  <div className="text-[10px] text-slate-500 font-medium space-y-0.5">
-                    {item.supplierRollId && (
-                      <div className="font-bold text-slate-800 bg-amber-50 border border-amber-200 px-1 py-0.2 rounded inline-block">
-                        ID: {item.supplierRollId}
-                      </div>
-                    )}
-                    {item.fabricLabel && <div>Fabric: {item.fabricLabel}</div>}
-                    {item.sourceRollLabel && <div>Source Roll: {item.sourceRollLabel}</div>}
-                    {item.colorLabel && <div>Color: {item.colorLabel}</div>}
-                    {item.filmType && <div>Film Type: {item.filmType} {item.isMetallic ? "(Metallic)" : ""}</div>}
+                  <div className="text-[11px] text-slate-600 font-medium flex flex-wrap gap-x-3 gap-y-1">
+                    {item.fabricLabel && <div>Fabric: <strong>{item.fabricLabel}</strong></div>}
+                    {item.filmType && <div>Film: <strong>{item.filmType} {item.isMetallic ? "(Metallic)" : ""}</strong></div>}
+                    {item.colorLabel && <div>Color: <strong>{item.colorLabel}</strong></div>}
+                    {item.supplierRollId && <div className="text-amber-800 font-mono">Supplier ID: <strong>{item.supplierRollId}</strong></div>}
+                    {item.grossWeight !== undefined && <div>Gross: <strong>{item.grossWeight}kg</strong></div>}
+                    {item.coreWeight !== undefined && <div>Core: <strong>{item.coreWeight}kg</strong></div>}
+                    {item.avgMtrWeight !== undefined && <div>Avg: <strong>{item.avgMtrWeight} g/m</strong></div>}
                   </div>
-                  <div className="text-[10px] text-slate-500">
-                    {formatNumber(item.quantity, 0)} {item.department === "finishing" ? "bags" : "mtrs"} / {formatNumber(item.weight, 1)} kg
+                  <div className="text-[11px] font-mono font-bold text-slate-700">
+                    {formatNumber(item.quantity, 0)} {item.department === "finishing" ? "bags" : "mtrs"} / {formatNumber(item.weight, 1)} kg (Net)
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <Button type="button" size="icon" variant="ghost" onClick={() => handleRemoveItem(item.key)} className="h-6 w-6 text-rose-500 hover:text-rose-700 hover:bg-rose-50 shadow-none">
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
+                <Button type="button" size="icon" variant="ghost" onClick={() => handleRemoveItem(item.key)} className="h-7 w-7 text-rose-500 hover:text-rose-700 hover:bg-rose-50 shadow-none">
+                  <Trash2 className="h-4 w-4" />
+                </Button>
               </div>
             ))}
           </div>
