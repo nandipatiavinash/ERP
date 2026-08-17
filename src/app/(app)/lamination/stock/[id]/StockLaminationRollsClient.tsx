@@ -144,7 +144,7 @@ export function StockLaminationRollsClient({ rolls, rollAllocationMap, fabricNam
                     return (
                       <TableRow key={roll.id}>
                         <TableCell className="font-mono font-bold text-slate-800">
-                          {roll.s_no}
+                          {roll.roll_id || roll.s_no}
                         </TableCell>
                         <TableCell className="text-right font-mono">{formatNumber(grossWt, 2)}</TableCell>
                         <TableCell className="text-right font-mono">{formatNumber(coreWt, 2)}</TableCell>
