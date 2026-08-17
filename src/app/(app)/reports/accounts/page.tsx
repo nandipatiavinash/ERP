@@ -59,21 +59,38 @@ export default async function AccountReportsPage({ searchParams }: { searchParam
       query = query.eq("account_id", accountId);
     }
 
-    // Opening balance calculation: sum prior journal entries before 'from' date + base opening balance
-    const accountIdsForBal = selectedAccount ? [selectedAccount.id] : [accountId];
-
-    const openingBalancesRes = await Promise.all(
-      accountIdsForBal.map((id) =>
-        (supabase as any).rpc("get_opening_balance", { p_account_id: id, p_from_date: from })
-      )
-    );
-
     let totalDebit = Number(selectedAccount?.opening_debit ?? 0);
     let totalCredit = Number(selectedAccount?.opening_credit ?? 0);
-    openingBalancesRes.forEach((res) => {
-      if (res.data && res.data.length > 0) {
-        totalDebit += Number(res.data[0].total_debit || 0);
-        totalCredit += Number(res.data[0].total_credit || 0);
+
+    let priorQuery = supabase
+      .from("accounts_journal")
+      .select("amount, entry_type")
+      .lt("entry_date", from)
+      .is("deleted_at", null);
+
+    if (selectedAccount) {
+      const conditions: string[] = [];
+      conditions.push(`account_id.eq.${selectedAccount.id}`);
+      conditions.push(`account_name.ilike."${selectedAccount.customer_name}"`);
+      const nameWithAc = selectedAccount.customer_name.toLowerCase().endsWith(" a/c")
+        ? selectedAccount.customer_name
+        : `${selectedAccount.customer_name} A/c`;
+      conditions.push(`account_name.ilike."${nameWithAc}"`);
+      if (selectedAccount.alias) {
+        conditions.push(`account_name.ilike."${selectedAccount.alias}"`);
+        conditions.push(`account_name.ilike."${selectedAccount.alias} A/c"`);
+      }
+      priorQuery = priorQuery.or(conditions.join(","));
+    } else {
+      priorQuery = priorQuery.eq("account_id", accountId);
+    }
+
+    const { data: priorEntries } = await priorQuery;
+    (priorEntries || []).forEach((entry: any) => {
+      if (entry.entry_type === "debit") {
+        totalDebit += Number(entry.amount || 0);
+      } else {
+        totalCredit += Number(entry.amount || 0);
       }
     });
 
