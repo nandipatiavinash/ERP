@@ -122,6 +122,10 @@ export function ProductPurchaseForm({
     if (!isNaN(g) && !isNaN(c)) {
       const net = String(Math.max(0, Number((g - c).toFixed(2))));
       setWeight(net);
+    } else if (!isNaN(g)) {
+      setWeight(val);
+    } else if (val === "") {
+      setWeight("");
     }
   };
 
@@ -132,6 +136,8 @@ export function ProductPurchaseForm({
     if (!isNaN(g) && !isNaN(c)) {
       const net = String(Math.max(0, Number((g - c).toFixed(2))));
       setWeight(net);
+    } else if (!isNaN(g) && (val === "" || isNaN(c))) {
+      setWeight(String(g));
     }
   };
 
@@ -562,13 +568,32 @@ export function ProductPurchaseForm({
 
               <div className="grid grid-cols-4 gap-3 items-end">
                 <div className="space-y-1.5">
-                  <Label className="text-[11px] font-bold text-slate-700">Weight (KGs)</Label>
-                  <Input type="number" min="0" step="0.1" placeholder="Enter KGs" value={weight} onChange={(e) => setWeight(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
+                  <Label className="text-[11px] font-bold text-slate-700">Gross Weight (KG)</Label>
+                  <Input type="number" min="0" step="0.1" placeholder="Enter Gross Wt" value={grossWeight} onChange={(e) => handleGrossChange(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-[11px] font-bold text-slate-700">Core Weight (KG)</Label>
+                  <Input type="number" min="0" step="0.1" placeholder="Enter Core Wt" value={coreWeight} onChange={(e) => handleCoreChange(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-[11px] font-bold text-slate-700">Net Weight (KG)</Label>
+                  <Input type="number" min="0" step="0.1" placeholder="Enter Net Wt" value={weight} onChange={(e) => setWeight(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
                 </div>
 
                 <div className="space-y-1.5">
                   <Label className="text-[11px] font-bold text-slate-700">Meters</Label>
                   <Input type="number" min="0" placeholder="Enter Meters" value={quantity} onChange={(e) => setQuantity(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-3 items-end">
+                <div className="space-y-1.5">
+                  <Label className="text-[11px] font-bold text-slate-700">Avg Mtr Wt (g/m)</Label>
+                  <div className="h-8 text-xs font-mono font-bold bg-slate-100 border border-slate-200 rounded px-2 flex items-center text-slate-700">
+                    {computedAvgMtrWeight !== null ? `${computedAvgMtrWeight} g/m` : "-"}
+                  </div>
                 </div>
 
                 <div className="flex items-center gap-2 pb-2">
@@ -581,7 +606,7 @@ export function ProductPurchaseForm({
                   <div className="flex gap-2">
                     <Input type="text" placeholder="Roll ID" value={supplierRollId} onChange={(e) => setSupplierRollId(e.target.value)} className="h-8 text-xs font-mono font-semibold" />
                     <Button type="button" onClick={handleAddItem} className="h-8 text-[11px] bg-slate-900 hover:bg-slate-800 text-white font-bold px-3">
-                      <Plus className="w-3.5 h-3.5 mr-1" /> Add
+                      <Plus className="w-3.5 h-3.5 mr-1" /> Add Roto Roll
                     </Button>
                   </div>
                 </div>
@@ -634,14 +659,17 @@ export function ProductPurchaseForm({
                   </div>
                 ) : (
                   <div className="space-y-1.5">
-                    <Label className="text-[11px] font-bold text-slate-700">Gross Weight (KG)</Label>
-                    <Input type="number" min="0" step="0.1" placeholder="Enter Gross Wt" value={grossWeight} onChange={(e) => handleGrossChange(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
+                    <Label className="text-[11px] font-bold text-slate-700">Film Type</Label>
+                    <select value={filmType} onChange={(e) => setFilmType(e.target.value)} className="w-full h-8 text-[11px] border border-slate-300 rounded bg-white px-2 py-0.5 focus:outline-none font-semibold">
+                      <option value="gloss">Gloss</option>
+                      <option value="matt">Matt</option>
+                    </select>
                   </div>
                 )}
               </div>
 
-              {["BOX", "F_S", "H_S"].includes(laminationType) ? (
-                <div className="grid grid-cols-4 gap-3 items-end">
+              {["BOX", "F_S", "H_S"].includes(laminationType) && (
+                <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <Label className="text-[11px] font-bold text-slate-700">Film Type</Label>
                     <select value={filmType} onChange={(e) => setFilmType(e.target.value)} className="w-full h-8 text-[11px] border border-slate-300 rounded bg-white px-2 py-0.5 focus:outline-none font-semibold">
@@ -649,52 +677,48 @@ export function ProductPurchaseForm({
                       <option value="matt">Matt</option>
                     </select>
                   </div>
-
-                  <div className="space-y-1.5">
-                    <Label className="text-[11px] font-bold text-slate-700">KGs (Weight)</Label>
-                    <Input type="number" min="0" step="0.1" placeholder="Enter KGs" value={weight} onChange={(e) => setWeight(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label className="text-[11px] font-bold text-slate-700">Meters</Label>
-                    <Input type="number" min="0" placeholder="Enter Meters" value={quantity} onChange={(e) => setQuantity(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
-                  </div>
-
-                  <div className="flex items-center gap-2 pb-2">
+                  <div className="flex items-center gap-2 pt-5">
                     <input type="checkbox" id="lam_is_metallic" checked={isMetallic} onChange={(e) => setIsMetallic(e.target.checked)} className="rounded border-slate-300 text-emerald-600 focus:ring-emerald-500 w-4 h-4" />
                     <Label htmlFor="lam_is_metallic" className="text-xs font-bold text-slate-700 cursor-pointer">Metallic?</Label>
                   </div>
                 </div>
-              ) : (
-                <div className="grid grid-cols-4 gap-3 items-end">
-                  <div className="space-y-1.5">
-                    <Label className="text-[11px] font-bold text-slate-700">Core Weight (KG)</Label>
-                    <Input type="number" min="0" step="0.1" placeholder="Enter Core Wt" value={coreWeight} onChange={(e) => handleCoreChange(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label className="text-[11px] font-bold text-slate-700">Net Weight (KG)</Label>
-                    <Input type="number" min="0" step="0.1" placeholder="Enter Net Wt" value={weight} onChange={(e) => setWeight(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label className="text-[11px] font-bold text-slate-700">Meters</Label>
-                    <Input type="number" min="0" placeholder="Enter Meters" value={quantity} onChange={(e) => setQuantity(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label className="text-[11px] font-bold text-slate-700">Avg Mtr Wt (g/m)</Label>
-                    <div className="h-8 text-xs font-mono font-bold bg-slate-100 border border-slate-200 rounded px-2 flex items-center text-slate-700">
-                      {computedAvgMtrWeight !== null ? `${computedAvgMtrWeight} g/m` : "-"}
-                    </div>
-                  </div>
-                </div>
               )}
 
-              <div className="flex justify-end pt-2">
-                <Button type="button" onClick={handleAddItem} className="h-8 text-[11px] bg-slate-900 hover:bg-slate-800 text-white font-bold px-4">
-                  <Plus className="w-3.5 h-3.5 mr-1" /> Add Lamination Roll
-                </Button>
+              <div className="grid grid-cols-4 gap-3 items-end">
+                <div className="space-y-1.5">
+                  <Label className="text-[11px] font-bold text-slate-700">Gross Weight (KG)</Label>
+                  <Input type="number" min="0" step="0.1" placeholder="Enter Gross Wt" value={grossWeight} onChange={(e) => handleGrossChange(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-[11px] font-bold text-slate-700">Core Weight (KG)</Label>
+                  <Input type="number" min="0" step="0.1" placeholder="Enter Core Wt" value={coreWeight} onChange={(e) => handleCoreChange(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-[11px] font-bold text-slate-700">Net Weight (KG)</Label>
+                  <Input type="number" min="0" step="0.1" placeholder="Enter Net Wt" value={weight} onChange={(e) => setWeight(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-[11px] font-bold text-slate-700">Meters</Label>
+                  <Input type="number" min="0" placeholder="Enter Meters" value={quantity} onChange={(e) => setQuantity(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 items-end">
+                <div className="space-y-1.5">
+                  <Label className="text-[11px] font-bold text-slate-700">Avg Mtr Wt (g/m)</Label>
+                  <div className="h-8 text-xs font-mono font-bold bg-slate-100 border border-slate-200 rounded px-2 flex items-center text-slate-700">
+                    {computedAvgMtrWeight !== null ? `${computedAvgMtrWeight} g/m` : "-"}
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-2">
+                  <Button type="button" onClick={handleAddItem} className="h-8 text-[11px] bg-slate-900 hover:bg-slate-800 text-white font-bold px-4">
+                    <Plus className="w-3.5 h-3.5 mr-1" /> Add Lamination Roll
+                  </Button>
+                </div>
               </div>
             </div>
           )}
@@ -742,15 +766,34 @@ export function ProductPurchaseForm({
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3 items-end">
+              <div className="grid grid-cols-4 gap-3 items-end">
+                <div className="space-y-1.5">
+                  <Label className="text-[11px] font-bold text-slate-700">Gross Weight (KG)</Label>
+                  <Input type="number" min="0" step="0.1" placeholder="Enter Gross Wt" value={grossWeight} onChange={(e) => handleGrossChange(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-[11px] font-bold text-slate-700">Core Weight (KG)</Label>
+                  <Input type="number" min="0" step="0.1" placeholder="Enter Core Wt" value={coreWeight} onChange={(e) => handleCoreChange(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-[11px] font-bold text-slate-700">Net Weight (KG)</Label>
+                  <Input type="number" min="0" step="0.1" placeholder="Enter Net Wt" value={weight} onChange={(e) => setWeight(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
+                </div>
+
                 <div className="space-y-1.5">
                   <Label className="text-[11px] font-bold text-slate-700">Meters</Label>
                   <Input type="number" min="0" placeholder="Enter Meters" value={quantity} onChange={(e) => setQuantity(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
                 </div>
+              </div>
 
+              <div className="grid grid-cols-2 gap-3 items-end">
                 <div className="space-y-1.5">
-                  <Label className="text-[11px] font-bold text-slate-700">KGs (Weight)</Label>
-                  <Input type="number" min="0" step="0.1" placeholder="Enter Weight" value={weight} onChange={(e) => setWeight(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
+                  <Label className="text-[11px] font-bold text-slate-700">Avg Mtr Wt (g/m)</Label>
+                  <div className="h-8 text-xs font-mono font-bold bg-slate-100 border border-slate-200 rounded px-2 flex items-center text-slate-700">
+                    {computedAvgMtrWeight !== null ? `${computedAvgMtrWeight} g/m` : "-"}
+                  </div>
                 </div>
 
                 <div className="space-y-1.5">
@@ -916,18 +959,30 @@ export function ProductPurchaseForm({
                 </div>
               )}
 
-              <div className="grid grid-cols-3 gap-3 items-end pt-1">
+              <div className="grid grid-cols-4 gap-3 items-end pt-1">
+                <div className="space-y-1.5">
+                  <Label className="text-[11px] font-bold text-slate-700">Gross Weight (KG)</Label>
+                  <Input type="number" min="0" step="0.1" placeholder="Enter Gross Wt" value={grossWeight} onChange={(e) => handleGrossChange(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-[11px] font-bold text-slate-700">Core Weight (KG)</Label>
+                  <Input type="number" min="0" step="0.1" placeholder="Enter Core Wt" value={coreWeight} onChange={(e) => handleCoreChange(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label className="text-[11px] font-bold text-slate-700">Net Weight (KG)</Label>
+                  <Input type="number" min="0" step="0.1" placeholder="Enter Net Wt" value={weight} onChange={(e) => setWeight(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
+                </div>
+
                 <div className="space-y-1.5">
                   <Label className="text-[11px] font-bold text-slate-700">No of Bags</Label>
                   <Input type="number" min="0" placeholder="Enter Bags Count" value={quantity} onChange={(e) => setQuantity(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
                 </div>
+              </div>
 
-                <div className="space-y-1.5">
-                  <Label className="text-[11px] font-bold text-slate-700">KGs (Weight)</Label>
-                  <Input type="number" min="0" step="0.1" placeholder="Enter Weight" value={weight} onChange={(e) => setWeight(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
-                </div>
-
-                <div className="space-y-1.5">
+              <div className="flex justify-end pt-2">
+                <div className="space-y-1.5 w-72">
                   <Label className="text-[11px] font-bold text-slate-700">Supplier Bundle ID (Optional)</Label>
                   <div className="flex gap-2">
                     <Input type="text" placeholder="Bundle ID" value={supplierRollId} onChange={(e) => setSupplierRollId(e.target.value)} className="h-8 text-xs font-mono font-semibold" />
