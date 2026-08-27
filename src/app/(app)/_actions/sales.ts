@@ -407,7 +407,7 @@ export async function confirmSalesDelivery(
     const backorderItemsPayload = backorderItems.map((bo) => ({
       sales_order_id: (newOrder as any).id,
       department: bo.department,
-      product_id: bo.product_id,
+      product_id: bo.product_id || bo.fabric_type_id || bo.roto_product_id || bo.offset_product_id || bo.department,
       quantity: bo.quantity,
       selected_roll_ids: [],
       fabric_type_id: bo.fabric_type_id || null,
@@ -422,7 +422,7 @@ export async function confirmSalesDelivery(
     const { error: boInsertError } = await (supabase
       .from("sales_order_items") as any)
       .insert(backorderItemsPayload);
-    if (boInsertError) throw new Error("Failed to create backordered items.");
+    if (boInsertError) throw new Error(`Failed to create backordered items: ${boInsertError.message}`);
   }
 
   if (itemsToKeep.length > 0) {
@@ -1439,7 +1439,7 @@ export async function confirmMultipleSalesDeliveries(
               .insert({
                 sales_order_id: item.sales_order_id,
                 department: item.department,
-                product_id: item.product_id,
+                product_id: item.product_id || item.fabric_type_id || item.roto_product_id || item.offset_product_id || item.department,
                 quantity: remainingQty,
                 price: item.price,
                 selected_roll_ids: [],
@@ -1451,7 +1451,7 @@ export async function confirmMultipleSalesDeliveries(
                 lamination_type: item.lamination_type || null,
                 offset_type: item.offset_type || null,
               });
-            if (boInsertError) throw new Error("Failed to create backordered item.");
+            if (boInsertError) throw new Error(`Failed to create backordered item: ${boInsertError.message}`);
           } else {
             // 0 delivered, keep on parent draft
           }
