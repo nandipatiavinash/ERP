@@ -55,13 +55,13 @@ export default async function WastageReportPage({ searchParams }: { searchParams
       .is("deleted_at", null),
     supabase
       .from("roto_film_rolls")
-      .select("weight_kg, meters, entry_date, status, roto_product_id")
+      .select("weight_kg, meters, entry_date, status, brand_id")
       .gte("entry_date", from)
       .lte("entry_date", to)
       .is("deleted_at", null),
     supabase
       .from("roto_metallic_rolls")
-      .select("weight_kg, meters, entry_date, status, film_roll_id")
+      .select("weight_kg, meters, entry_date, status, source_film_roll_id")
       .gte("entry_date", from)
       .lte("entry_date", to)
       .is("deleted_at", null),
@@ -243,7 +243,7 @@ export default async function WastageReportPage({ searchParams }: { searchParams
   // 6. Roto Product ID Sub-report Mappings
   const subReportItems = rotoProducts.map((p) => {
     // Roto Printed Meters
-    const printedMeters = rotoFilmRolls.filter(r => r.roto_product_id === p.id).reduce((sum, r) => sum + Number(r.meters || 0), 0);
+    const printedMeters = rotoFilmRolls.filter(r => (r.brand_id || r.roto_product_id) === p.id).reduce((sum, r) => sum + Number(r.meters || 0), 0);
 
     // Lamination Meters (Look at lamination rolls linked to metallic rolls or fabric roll names matching roto_film_rolls)
     // For simplicity, find lamination rolls with matching brand roll_id substring
