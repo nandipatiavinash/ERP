@@ -644,7 +644,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
 
   const brandWastage = rProducts.map((p) => {
     const printedMeters = rFilm.filter((rf) => (rf.brand_id || rf.roto_product_id) === p.id).reduce((sum: number, rf: any) => sum + Number(rf.meters || 0), 0);
-    const lamRollsMatched = lRolls.filter((lr) => lr.roll_id?.toUpperCase().includes(p.brand?.toUpperCase()));
+    const lamRollsMatched = lRolls.filter((lr) => (lr.roll_id || "").toUpperCase().includes((p.brand || "").toUpperCase()));
     const laminatedMeters = lamRollsMatched.reduce((sum: number, lr: any) => sum + Number(lr.meters || 0), 0);
 
     const finishProdsMatching = fProducts.filter((fp) => fp.roto_product_id === p.id);
