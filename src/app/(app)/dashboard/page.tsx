@@ -130,7 +130,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       .is("deleted_at", null),
     supabase
       .from("roto_film_rolls")
-      .select("weight_kg, meters, entry_date, roto_product_id")
+      .select("weight_kg, meters, entry_date, brand_id")
       .gte("entry_date", from)
       .lte("entry_date", to)
       .is("deleted_at", null),
@@ -260,7 +260,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       .is("deleted_at", null),
     supabase
       .from("roto_film_rolls")
-      .select("roto_product_id")
+      .select("brand_id")
       .eq("status", "available")
       .is("deleted_at", null),
     supabase
@@ -620,7 +620,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     return (availFabricRolls.data ?? []).some((r: any) => r.fabric_type_id === fabricTypeId);
   };
   const hasRotoStock = (rotoProdId: string) => {
-    return (availRotoFilmRolls.data ?? []).some((r: any) => r.roto_product_id === rotoProdId);
+    return (availRotoFilmRolls.data ?? []).some((r: any) => (r.brand_id || r.roto_product_id) === rotoProdId);
   };
   const hasLaminationStock = (productId: string) => {
     return (availLaminationRolls.data ?? []).some((r: any) => r.product_id === productId);
@@ -643,7 +643,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   };
 
   const brandWastage = rProducts.map((p) => {
-    const printedMeters = rFilm.filter((rf) => rf.roto_product_id === p.id).reduce((sum: number, rf: any) => sum + Number(rf.meters || 0), 0);
+    const printedMeters = rFilm.filter((rf) => (rf.brand_id || rf.roto_product_id) === p.id).reduce((sum: number, rf: any) => sum + Number(rf.meters || 0), 0);
     const lamRollsMatched = lRolls.filter((lr) => lr.roll_id?.toUpperCase().includes(p.brand?.toUpperCase()));
     const laminatedMeters = lamRollsMatched.reduce((sum: number, lr: any) => sum + Number(lr.meters || 0), 0);
 
