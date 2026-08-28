@@ -8,7 +8,7 @@ import { signOut } from "@/app/actions";
 import { BrandLogo } from "@/components/app/brand-logo";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import type { AppUser, RoleName } from "@/lib/database.types";
 import { navGroups, type NavGroup } from "@/lib/navigation";
@@ -268,6 +268,7 @@ export function AppShell({
               </DialogTrigger>
               <DialogContent className="left-0 top-0 h-full w-[min(20rem,88vw)] translate-x-0 translate-y-0 overflow-y-auto rounded-none p-0">
                 <DialogTitle className="sr-only">Navigation</DialogTitle>
+                <DialogDescription className="sr-only">Navigation Menu</DialogDescription>
                 <Brand onClick={() => setMobileNavOpen(false)} />
                 <NavLinks groups={groups} onNavigate={() => setMobileNavOpen(false)} />
               </DialogContent>

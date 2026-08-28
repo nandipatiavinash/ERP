@@ -17,7 +17,7 @@ export default async function ClientOrdersReviewPage() {
       customers(customer_name, alias),
       client_order_items(
         *,
-        fabric:fabric_type_id(fabric_name, gsm, width),
+        fabric:fabric_type_id(fabric_name),
         finishing:finishing_product_id(name),
         roto:roto_product_id(brand),
         offset:offset_product_id(brand)
