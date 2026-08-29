@@ -374,17 +374,42 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   });
 
   // 3. Receivables & Payables FIFO aging
-  const journalRows = (journalEntries.data ?? []) as any[];
-  const receivables = computeFifoAging(journalRows, "receivable", to);
-  const payables = computeFifoAging(journalRows, "payable", to);
-
-  // 4. Client/Reference Account Filtered Receivables & Payables
   const customers = (customersList.data ?? []) as any[];
   const allowedCustomers = customers.filter(
     (c) => !c.is_internal || c.is_internal === "client a/c" || c.is_internal === "reference a/c"
   );
   const allowedCustomerIds = new Set(allowedCustomers.map((c) => c.id));
   const allowedCustomerNames = new Set(allowedCustomers.map((c) => (c.customer_name || "").toLowerCase().trim()));
+
+  const journalRows = [...((journalEntries.data ?? []) as any[])];
+  
+  // Inject opening balances into the journal rows for correct FIFO aging
+  allowedCustomers.forEach((c) => {
+    const obDebit = Number(c.opening_debit ?? 0);
+    const obCredit = Number(c.opening_credit ?? 0);
+    const name = c.customer_name || "Unknown";
+    
+    if (obDebit > 0) {
+      journalRows.push({
+        account_name: name,
+        entry_type: "debit",
+        amount: obDebit,
+        entry_date: "1970-01-01" // dummy old date for opening balance
+      });
+    }
+    if (obCredit > 0) {
+      journalRows.push({
+        account_name: name,
+        entry_type: "credit",
+        amount: obCredit,
+        entry_date: "1970-01-01"
+      });
+    }
+  });
+  const receivables = computeFifoAging(journalRows, "receivable", to);
+  const payables = computeFifoAging(journalRows, "payable", to);
+
+  // 4. Client/Reference Account Filtered Receivables & Payables
 
   const clientBalances: Record<string, number> = {};
   allowedCustomers.forEach((c) => {
