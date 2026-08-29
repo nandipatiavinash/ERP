@@ -95,9 +95,9 @@ interface AdminDashboardViewProps {
   activeOrders: any[];
   closedItemIds: Set<string>;
   stockCheck: {
-    hasFabricStock: (fabricTypeId: string) => boolean;
-    hasRotoStock: (rotoProdId: string) => boolean;
-    hasLaminationStock: (productId: string) => boolean;
+    fabricStockIds: string[];
+    rotoStockIds: string[];
+    laminationStockIds: string[];
   };
   rotoProducts: any[];
   finishingProducts: any[];
@@ -1013,8 +1013,8 @@ export function AdminDashboardView({
                     ) : (
                       <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
                         {lamOrders.map((item: any) => {
-                          const fabInStock = item.fabric_type_id ? stockCheck.hasFabricStock(item.fabric_type_id) : true;
-                          const rotoInStock = item.product_id ? stockCheck.hasRotoStock(item.product_id) : true;
+                          const fabInStock = item.fabric_type_id ? stockCheck.fabricStockIds.includes(item.fabric_type_id) : true;
+                          const rotoInStock = item.product_id ? stockCheck.rotoStockIds.includes(item.product_id) : true;
                           const canProcess = fabInStock && rotoInStock;
 
                           return (
@@ -1068,8 +1068,8 @@ export function AdminDashboardView({
                     ) : (
                       <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
                         {bagOrders.map((item: any) => {
-                          const fabInStock = item.fabricTypeId ? stockCheck.hasFabricStock(item.fabricTypeId) : true;
-                          const rotoInStock = item.rotoProductId ? stockCheck.hasRotoStock(item.rotoProductId) : true;
+                          const fabInStock = item.fabricTypeId ? stockCheck.fabricStockIds.includes(item.fabricTypeId) : true;
+                          const rotoInStock = item.rotoProductId ? stockCheck.rotoStockIds.includes(item.rotoProductId) : true;
                           const canProcess = fabInStock && rotoInStock;
 
                           return (
@@ -1148,8 +1148,8 @@ export function AdminDashboardView({
                     ) : (
                       <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
                         {offsetOrders.map((item: any) => {
-                          const fabInStock = item.fabric_type_id ? stockCheck.hasFabricStock(item.fabric_type_id) : true;
-                          const lamInStock = item.product_id ? stockCheck.hasLaminationStock(item.product_id) : true;
+                          const fabInStock = item.fabric_type_id ? stockCheck.fabricStockIds.includes(item.fabric_type_id) : true;
+                          const lamInStock = item.product_id ? stockCheck.laminationStockIds.includes(item.product_id) : true;
                           const canProcess = fabInStock && lamInStock;
 
                           return (
@@ -1203,8 +1203,8 @@ export function AdminDashboardView({
                     ) : (
                       <div className="space-y-3 max-h-96 overflow-y-auto pr-2">
                         {bagOrders.map((item: any) => {
-                          const fabInStock = item.fabricTypeId ? stockCheck.hasFabricStock(item.fabricTypeId) : true;
-                          const lamInStock = item.product_id ? stockCheck.hasLaminationStock(item.product_id) : true;
+                          const fabInStock = item.fabricTypeId ? stockCheck.fabricStockIds.includes(item.fabricTypeId) : true;
+                          const lamInStock = item.product_id ? stockCheck.laminationStockIds.includes(item.product_id) : true;
                           const canProcess = fabInStock && lamInStock;
 
                           return (

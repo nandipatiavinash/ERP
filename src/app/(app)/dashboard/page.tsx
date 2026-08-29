@@ -320,7 +320,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       ...((elecEntries.data ?? []) as any[]).map((e) => e.entry_date),
       ...((dailyWaste.data ?? []) as any[]).map((e) => e.entry_date),
     ])
-  ).sort((a, b) => b.localeCompare(a)); // Descending chronological
+  ).filter(Boolean).sort((a, b) => (b || "").localeCompare(a || ""));
 
   const dailyEntries = dailyDates.map((date) => {
     const tapeLoads = ((tapeEntries.data ?? []) as any[])
@@ -384,7 +384,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
     (c) => !c.is_internal || c.is_internal === "client a/c" || c.is_internal === "reference a/c"
   );
   const allowedCustomerIds = new Set(allowedCustomers.map((c) => c.id));
-  const allowedCustomerNames = new Set(allowedCustomers.map((c) => c.customer_name.toLowerCase().trim()));
+  const allowedCustomerNames = new Set(allowedCustomers.map((c) => (c.customer_name || "").toLowerCase().trim()));
 
   const clientBalances: Record<string, number> = {};
   allowedCustomers.forEach((c) => {
@@ -396,7 +396,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       let matchedCustId = entry.account_id;
       if (!matchedCustId && entry.account_name) {
         const match = allowedCustomers.find(
-          (c) => c.customer_name.toLowerCase().trim() === entry.account_name.toLowerCase().trim()
+          (c) => (c.customer_name || "").toLowerCase().trim() === (entry.account_name || "").toLowerCase().trim()
         );
         if (match) matchedCustId = match.id;
       }
@@ -422,10 +422,10 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   });
 
   const filteredReceivables = receivables.filter((r) =>
-    allowedCustomerNames.has(r.accountName.toLowerCase().trim())
+    allowedCustomerNames.has((r.accountName || "").toLowerCase().trim())
   );
   const filteredPayables = payables.filter((p) =>
-    allowedCustomerNames.has(p.accountName.toLowerCase().trim())
+    allowedCustomerNames.has((p.accountName || "").toLowerCase().trim())
   );
 
   // 5. Orders Volume Summary
@@ -581,7 +581,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
       fabricName: fabricName,
       entryDate: latest?.entry_date || null
     };
-  }).sort((a, b) => a.loomNumber.localeCompare(b.loomNumber));
+  }).sort((a, b) => (a.loomNumber || "").localeCompare(b.loomNumber || ""));
 
   // 9. Department Sub-Dashboards (Single Day: 'to' date)
   const singleDayTapeEntries = (tapeEntries.data ?? []).filter((e: any) => e.entry_date === to);
@@ -616,15 +616,9 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const activeOrders = (allActiveConfirmedOrders ?? []) as any[];
 
   // Stock availability maps
-  const hasFabricStock = (fabricTypeId: string) => {
-    return (availFabricRolls.data ?? []).some((r: any) => r.fabric_type_id === fabricTypeId);
-  };
-  const hasRotoStock = (rotoProdId: string) => {
-    return (availRotoFilmRolls.data ?? []).some((r: any) => (r.brand_id || r.roto_product_id) === rotoProdId);
-  };
-  const hasLaminationStock = (productId: string) => {
-    return (availLaminationRolls.data ?? []).some((r: any) => r.product_id === productId);
-  };
+  const hasFabricStockArr = Array.from(new Set((availFabricRolls.data ?? []).map((r: any) => r.fabric_type_id).filter(Boolean)));
+  const hasRotoStockArr = Array.from(new Set((availRotoFilmRolls.data ?? []).map((r: any) => r.brand_id || r.roto_product_id).filter(Boolean)));
+  const hasLaminationStockArr = Array.from(new Set((availLaminationRolls.data ?? []).map((r: any) => r.product_id).filter(Boolean)));
 
   // 10. Brand Wastage Summary
   const rProducts = (rotoProducts.data ?? []) as any[];
@@ -644,7 +638,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
 
   const brandWastage = rProducts.map((p) => {
     const printedMeters = rFilm.filter((rf) => (rf.brand_id || rf.roto_product_id) === p.id).reduce((sum: number, rf: any) => sum + Number(rf.meters || 0), 0);
-    const lamRollsMatched = lRolls.filter((lr) => (lr.roll_id || "").toUpperCase().includes((p.brand || "").toUpperCase()));
+    const lamRollsMatched = p.brand ? lRolls.filter((lr) => (lr.roll_id || "").toUpperCase().includes((p.brand || "").toUpperCase())) : [];
     const laminatedMeters = lamRollsMatched.reduce((sum: number, lr: any) => sum + Number(lr.meters || 0), 0);
 
     const finishProdsMatching = fProducts.filter((fp) => fp.roto_product_id === p.id);
@@ -710,9 +704,9 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         activeOrders={activeOrders}
         closedItemIds={closedItemIds}
         stockCheck={{
-          hasFabricStock,
-          hasRotoStock,
-          hasLaminationStock
+          fabricStockIds: hasFabricStockArr as string[],
+          rotoStockIds: hasRotoStockArr as string[],
+          laminationStockIds: hasLaminationStockArr as string[]
         }}
         rotoProducts={rProducts}
         finishingProducts={fProds}
