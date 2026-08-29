@@ -110,6 +110,9 @@ export async function saveProductPurchase(formData: FormData) {
       const nextNo = (count ?? 0) + 1;
       const rollNumber = `E-${nextNo}`;
 
+      const grossWeight = gross_weights[i] !== undefined ? gross_weights[i] : null;
+      const coreWeight = core_weights[i] !== undefined ? core_weights[i] : null;
+
       const { data: stockItem, error: stockErr } = await (adminSupabase
         .from("fabric_rolls") as any)
         .insert({
@@ -118,6 +121,9 @@ export async function saveProductPurchase(formData: FormData) {
           fabric_type_id: fabricTypeId,
           loom_id: null,
           weight: weight,
+          gross_weight: grossWeight,
+          core_weight: coreWeight,
+          net_weight: grossWeight && coreWeight ? Number((grossWeight - coreWeight).toFixed(1)) : null,
           meters: qty,
           production_date: purchase_date,
           status: "available",

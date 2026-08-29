@@ -29,6 +29,9 @@ interface Roll {
   status: string;
   weight?: number | null;
   meters?: number | null;
+  gross_weight?: number | null;
+  core_weight?: number | null;
+  net_weight?: number | null;
   looms?: { loom_number: string | null } | null;
   loom_production_entries?: {
     gross_weight: number | null;
@@ -117,16 +120,16 @@ function sortRolls(rolls: Roll[], map: Record<string, AllocationInfo>, key: Sort
         valB = b.roll_number ?? "";
         break;
       case "net_weight":
-        valA = Number(lpeA?.net_weight ?? a.weight ?? 0);
-        valB = Number(lpeB?.net_weight ?? b.weight ?? 0);
+        valA = Number(lpeA?.net_weight ?? a.net_weight ?? a.weight ?? 0);
+        valB = Number(lpeB?.net_weight ?? b.net_weight ?? b.weight ?? 0);
         break;
       case "core_weight":
-        valA = Number(lpeA?.core_weight ?? 0);
-        valB = Number(lpeB?.core_weight ?? 0);
+        valA = Number(lpeA?.core_weight ?? a.core_weight ?? 0);
+        valB = Number(lpeB?.core_weight ?? b.core_weight ?? 0);
         break;
       case "gross_weight":
-        valA = Number(lpeA?.gross_weight ?? a.weight ?? 0);
-        valB = Number(lpeB?.gross_weight ?? b.weight ?? 0);
+        valA = Number(lpeA?.gross_weight ?? a.gross_weight ?? a.weight ?? 0);
+        valB = Number(lpeB?.gross_weight ?? b.gross_weight ?? b.weight ?? 0);
         break;
       case "net_meters":
         valA = Number(lpeA?.net_meters ?? a.meters ?? 0);
@@ -205,17 +208,17 @@ function RollsTable({
         <TableBody>
           {sorted.map((roll) => {
             const lpe = roll.loom_production_entries;
-            const allocation = allocationMap[roll.id];
-            const netWeight = lpe?.net_weight ?? roll.weight ?? 0;
+            const netWeight = lpe?.net_weight ?? roll.net_weight ?? roll.weight ?? 0;
             const netMeters = lpe?.net_meters ?? roll.meters ?? 0;
             const avgMeterWt = lpe?.average_meter_weight ?? (netMeters > 0 ? (netWeight / netMeters) * 1000 : 0);
             const loomNo = roll.looms?.loom_number ?? (roll.roll_number?.startsWith("E-") ? "PURCHASED" : "N/A");
+            const allocation = allocationMap[roll.id];
 
             return (
               <TableRow key={roll.id} className="hover:bg-muted/30">
                 <TableCell className="font-bold text-emerald-950">{roll.roll_number}</TableCell>
-                <TableCell className="text-right text-muted-foreground">{formatNumber(lpe?.gross_weight ?? roll.weight, 2)}</TableCell>
-                <TableCell className="text-right text-muted-foreground">{formatNumber(lpe?.core_weight ?? 0, 2)}</TableCell>
+                <TableCell className="text-right text-muted-foreground">{formatNumber(lpe?.gross_weight ?? roll.gross_weight ?? roll.weight, 2)}</TableCell>
+                <TableCell className="text-right text-muted-foreground">{formatNumber(lpe?.core_weight ?? roll.core_weight ?? 0, 2)}</TableCell>
                 <TableCell className="text-right font-medium text-emerald-900">{formatNumber(netWeight, 2)}</TableCell>
                 <TableCell className="text-right font-medium text-emerald-900">{formatNumber(Math.floor(netMeters), 0)}</TableCell>
                 <TableCell className="text-right text-muted-foreground">{formatNumber(Math.floor(avgMeterWt), 0)}</TableCell>
