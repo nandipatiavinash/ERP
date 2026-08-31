@@ -38,7 +38,7 @@ export default async function OrderConfirmationPage({
     supabase.from("roto_colors").select("id, color_name, status").is("deleted_at", null).order("color_name"),
     supabase
       .from("sales_orders")
-      .select("*, customers(customer_name, alias), sales_order_items(id, department, quantity, product_id, fabric_type_id, lamination_type, offset_type, film_type, is_metallic, roto_product_id, offset_product_id)")
+      .select("*, customers(customer_name, alias), sales_order_items(id, department, quantity, product_id, fabric_type_id, lamination_type, offset_type, film_type, is_metallic, roto_product_id, offset_product_id, color_id)")
       .or(`order_date.eq.${date},status.eq.draft`)
       .is("deleted_at", null)
       .order("order_date", { ascending: true })
@@ -102,6 +102,7 @@ export default async function OrderConfirmationPage({
   const laminationOptions = ((laminationProds ?? []) as any[]).filter(l => l.status === "active").map((l) => ({ id: l.id, label: l.name }));
   const finishingOptions = ((finishingProds ?? []) as any[]).filter(f => f.status === "active").map((f) => ({ id: f.id, label: f.name }));
   const colorOptions = ((colors ?? []) as any[]).filter(c => c.status === "active").map((c) => ({ id: c.id, label: c.color_name }));
+  const colorOptionsAll = ((colors ?? []) as any[]).map((c) => ({ id: c.id, label: c.color_name }));
   const orderRows = (orders ?? []) as any[];
 
   return (
@@ -141,6 +142,7 @@ export default async function OrderConfirmationPage({
               fabrics={fabricOptionsAll}
               rotoProducts={rotoOptionsAll}
               offsetProducts={offsetOptionsAll}
+              colors={colorOptionsAll}
             />
           )}
         </CardContent>

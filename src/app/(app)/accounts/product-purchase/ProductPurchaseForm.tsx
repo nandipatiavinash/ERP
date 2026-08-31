@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState, useMemo } from "react";
-import { Plus, Trash2, PackagePlus } from "lucide-react";
+import { Plus, Trash2, PackagePlus, CheckCircle2 } from "lucide-react";
 import { saveProductPurchase } from "@/app/(app)/_actions/product-purchase";
 import { ConfirmSubmitButton } from "@/components/app/confirm-submit-button";
 import { Input } from "@/components/ui/input";
@@ -71,6 +71,7 @@ export function ProductPurchaseForm({
   const [isSaving, setIsSaving] = useState(false);
   const [errorText, setErrorText] = useState<string | null>(null);
   const [successText, setSuccessText] = useState<string | null>(null);
+  const [purchasedRollTags, setPurchasedRollTags] = useState<string[]>([]);
 
   // Form states for currently selected row input
   const [department, setDepartment] = useState("");
@@ -385,6 +386,9 @@ export function ProductPurchaseForm({
         return;
       }
       setSuccessText("Product Purchase recorded successfully!");
+      if (result.createdRollNumbers && result.createdRollNumbers.length > 0) {
+        setPurchasedRollTags(result.createdRollNumbers);
+      }
       setItems([]);
       setManualBillValue("");
       formRef.current?.reset();
@@ -404,6 +408,22 @@ export function ProductPurchaseForm({
 
       {errorText && <div className="p-3 text-xs bg-rose-50 border border-rose-200 text-rose-700 rounded-md">{errorText}</div>}
       {successText && <div className="p-3 text-xs bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-md">{successText}</div>}
+
+      {purchasedRollTags.length > 0 && (
+        <div className="p-4 bg-emerald-50/90 border-2 border-emerald-300 rounded-lg shadow-sm space-y-2">
+          <div className="flex items-center gap-2 text-xs font-bold text-emerald-950">
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 flex-shrink-0" />
+            <span>Purchase Recorded Successfully! Please note down these generated Roll Numbers for physical marking:</span>
+          </div>
+          <div className="flex flex-wrap gap-2 pt-1">
+            {purchasedRollTags.map((tag, idx) => (
+              <span key={idx} className="bg-emerald-900 text-white font-mono font-bold text-xs px-3 py-1.5 rounded-md shadow-xs">
+                Item #{idx + 1}: {tag}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Basic Header Details: Client Name, Bill Number, Bill Value */}
       <input type="hidden" name="purchase_date" value={selectedDate} />
@@ -566,20 +586,10 @@ export function ProductPurchaseForm({
                 </div>
               </div>
 
-              <div className="grid grid-cols-4 gap-3 items-end">
+              <div className="grid grid-cols-3 gap-3 items-end">
                 <div className="space-y-1.5">
-                  <Label className="text-[11px] font-bold text-slate-700">Gross Weight (KG)</Label>
-                  <Input type="number" min="0" step="0.1" placeholder="Enter Gross Wt" value={grossWeight} onChange={(e) => handleGrossChange(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label className="text-[11px] font-bold text-slate-700">Core Weight (KG)</Label>
-                  <Input type="number" min="0" step="0.1" placeholder="Enter Core Wt" value={coreWeight} onChange={(e) => handleCoreChange(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label className="text-[11px] font-bold text-slate-700">Net Weight (KG)</Label>
-                  <Input type="number" min="0" step="0.1" placeholder="Enter Net Wt" value={weight} onChange={(e) => setWeight(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
+                  <Label className="text-[11px] font-bold text-slate-700">Weight (KG)</Label>
+                  <Input type="number" min="0" step="0.1" placeholder="Enter Wt" value={weight} onChange={(e) => setWeight(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
                 </div>
 
                 <div className="space-y-1.5">
@@ -684,20 +694,10 @@ export function ProductPurchaseForm({
                 </div>
               )}
 
-              <div className="grid grid-cols-4 gap-3 items-end">
+              <div className="grid grid-cols-2 gap-3 items-end">
                 <div className="space-y-1.5">
-                  <Label className="text-[11px] font-bold text-slate-700">Gross Weight (KG)</Label>
-                  <Input type="number" min="0" step="0.1" placeholder="Enter Gross Wt" value={grossWeight} onChange={(e) => handleGrossChange(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label className="text-[11px] font-bold text-slate-700">Core Weight (KG)</Label>
-                  <Input type="number" min="0" step="0.1" placeholder="Enter Core Wt" value={coreWeight} onChange={(e) => handleCoreChange(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label className="text-[11px] font-bold text-slate-700">Net Weight (KG)</Label>
-                  <Input type="number" min="0" step="0.1" placeholder="Enter Net Wt" value={weight} onChange={(e) => setWeight(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
+                  <Label className="text-[11px] font-bold text-slate-700">Weight (KG)</Label>
+                  <Input type="number" min="0" step="0.1" placeholder="Enter Wt" value={weight} onChange={(e) => setWeight(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
                 </div>
 
                 <div className="space-y-1.5">
@@ -766,20 +766,10 @@ export function ProductPurchaseForm({
                 </div>
               </div>
 
-              <div className="grid grid-cols-4 gap-3 items-end">
+              <div className="grid grid-cols-2 gap-3 items-end">
                 <div className="space-y-1.5">
-                  <Label className="text-[11px] font-bold text-slate-700">Gross Weight (KG)</Label>
-                  <Input type="number" min="0" step="0.1" placeholder="Enter Gross Wt" value={grossWeight} onChange={(e) => handleGrossChange(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label className="text-[11px] font-bold text-slate-700">Core Weight (KG)</Label>
-                  <Input type="number" min="0" step="0.1" placeholder="Enter Core Wt" value={coreWeight} onChange={(e) => handleCoreChange(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label className="text-[11px] font-bold text-slate-700">Net Weight (KG)</Label>
-                  <Input type="number" min="0" step="0.1" placeholder="Enter Net Wt" value={weight} onChange={(e) => setWeight(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
+                  <Label className="text-[11px] font-bold text-slate-700">Weight (KG)</Label>
+                  <Input type="number" min="0" step="0.1" placeholder="Enter Wt" value={weight} onChange={(e) => setWeight(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
                 </div>
 
                 <div className="space-y-1.5">
@@ -959,20 +949,10 @@ export function ProductPurchaseForm({
                 </div>
               )}
 
-              <div className="grid grid-cols-4 gap-3 items-end pt-1">
+              <div className="grid grid-cols-2 gap-3 items-end pt-1">
                 <div className="space-y-1.5">
-                  <Label className="text-[11px] font-bold text-slate-700">Gross Weight (KG)</Label>
-                  <Input type="number" min="0" step="0.1" placeholder="Enter Gross Wt" value={grossWeight} onChange={(e) => handleGrossChange(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label className="text-[11px] font-bold text-slate-700">Core Weight (KG)</Label>
-                  <Input type="number" min="0" step="0.1" placeholder="Enter Core Wt" value={coreWeight} onChange={(e) => handleCoreChange(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
-                </div>
-
-                <div className="space-y-1.5">
-                  <Label className="text-[11px] font-bold text-slate-700">Net Weight (KG)</Label>
-                  <Input type="number" min="0" step="0.1" placeholder="Enter Net Wt" value={weight} onChange={(e) => setWeight(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
+                  <Label className="text-[11px] font-bold text-slate-700">Weight (KG)</Label>
+                  <Input type="number" min="0" step="0.1" placeholder="Enter Wt" value={weight} onChange={(e) => setWeight(e.target.value)} className="h-8 text-xs font-semibold font-mono" />
                 </div>
 
                 <div className="space-y-1.5">

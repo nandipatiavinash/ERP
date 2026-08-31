@@ -467,24 +467,24 @@ export function DeliveryEntryWorkspace({
           // 5. Finishing
           if (item.department === "finishing") {
             const finishType = item.lamination_type ? "LAMINATION" : (item.offset_type !== "none" && item.offset_type ? "OFFSET" : "FABRIC");
-            if (r.finish_type !== finishType) return false;
+            if (r.finish_type && r.finish_type !== finishType) return false;
             
-            const matchesFabric = r.fabric_type_id === item.fabric_type_id;
+            const matchesFabric = !item.fabric_type_id || !r.fabric_type_id || r.fabric_type_id === item.fabric_type_id;
             if (!matchesFabric) return false;
 
             if (finishType === "LAMINATION") {
-              const matchesLamType = r.lam_type === item.lamination_type;
+              const matchesLamType = !item.lamination_type || !r.lam_type || r.lam_type === item.lamination_type;
               if (!matchesLamType) return false;
               if (["BOX", "F_S", "H_S"].includes(item.lamination_type || "")) {
-                const matchesBrand = r.roto_product_id === item.roto_product_id;
+                const matchesBrand = !item.roto_product_id || !r.roto_product_id || r.roto_product_id === item.roto_product_id;
                 const matchesMetallic = !!r.is_metallic === !!item.is_metallic;
-                const matchesFilm = !item.film_type || item.film_type === "none" || r.film_type === item.film_type;
+                const matchesFilm = !item.film_type || item.film_type === "none" || !r.film_type || r.film_type === item.film_type;
                 return matchesBrand && matchesMetallic && matchesFilm;
               }
               return true;
             } else if (finishType === "OFFSET") {
-              const matchesOffsetType = r.offset_type === item.offset_type;
-              const matchesBrand = r.offset_product_id === item.offset_product_id;
+              const matchesOffsetType = !item.offset_type || !r.offset_type || r.offset_type === item.offset_type;
+              const matchesBrand = !item.offset_product_id || !r.offset_product_id || r.offset_product_id === item.offset_product_id;
               return matchesOffsetType && matchesBrand;
             }
             return true;

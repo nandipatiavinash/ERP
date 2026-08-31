@@ -100,11 +100,17 @@ function parseFinishingBundleId(bundleId: string, fabricTypes: any[], rotoProduc
   if (match) {
     const brandName = match[1].trim();
     if (brandName !== "PLAIN" && brandName !== "NW") {
-      const rotoProduct = rotoProducts.find((p) => p.brand.toUpperCase() === brandName);
+      const rotoProduct = rotoProducts.find((p) => {
+        const clean = (p.brand || "").split(" (")[0].trim().toUpperCase();
+        return clean === brandName || p.brand.toUpperCase() === brandName;
+      });
       if (rotoProduct) {
         rotoProductId = rotoProduct.id;
       }
-      const offsetProduct = offsetProducts.find((p) => p.brand.toUpperCase() === brandName);
+      const offsetProduct = offsetProducts.find((p) => {
+        const clean = (p.brand || "").split(" (")[0].trim().toUpperCase();
+        return clean === brandName || p.brand.toUpperCase() === brandName;
+      });
       if (offsetProduct) {
         offsetProductId = offsetProduct.id;
       }

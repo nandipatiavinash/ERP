@@ -225,9 +225,17 @@ export default async function ProductPurchasePage({
                                       {formatNumber(item.quantity, 0)} {item.department === "finishing" ? "bags" : "mtrs"} / {formatNumber(item.weight, 1)} kg
                                     </span>
                                   </div>
-                                  <div className="text-[10px] text-slate-500 font-medium">
-                                    {generatedId && <span>Stock ID: <strong className="text-slate-700 font-semibold">{generatedId}</strong></span>}
-                                    {item.supplier_roll_id && <span> · Supplier ID: <strong className="text-slate-700 font-semibold">{item.supplier_roll_id}</strong></span>}
+                                  <div className="text-[10px] text-slate-500 font-medium flex items-center gap-2 pt-0.5 flex-wrap">
+                                    {generatedId && (
+                                      <span className="bg-emerald-100 text-emerald-900 border border-emerald-300 px-1.5 py-0.5 rounded font-mono font-bold text-[10px]">
+                                        Roll Tag: {generatedId}
+                                      </span>
+                                    )}
+                                    {item.supplier_roll_id && (
+                                      <span className="text-slate-600">
+                                        Supplier ID: <strong className="text-slate-800 font-semibold">{item.supplier_roll_id}</strong>
+                                      </span>
+                                    )}
                                   </div>
                                 </div>
                               );

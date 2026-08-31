@@ -178,6 +178,7 @@ export async function approveClientOrder(clientOrderId: string) {
     is_metallic: !!item.is_metallic,
     lamination_type: item.lamination_type || null,
     offset_type: item.offset_type || null,
+    color_id: item.color_id || null,
   }));
 
   const { error: itemsErr } = await (admin

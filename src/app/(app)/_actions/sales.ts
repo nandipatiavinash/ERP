@@ -108,6 +108,7 @@ export async function createSalesOrder(formData: FormData) {
     is_metallic: !!item.isMetallic,
     lamination_type: item.laminationType || null,
     offset_type: item.offsetType || null,
+    color_id: item.colorId || null,
   }));
 
   if (itemsPayload.length > 0) {
@@ -1309,6 +1310,7 @@ export async function confirmMultipleSalesDeliveries(
       is_metallic,
       lamination_type,
       offset_type,
+      color_id,
       sales_orders(
         id,
         order_number,
@@ -1450,6 +1452,7 @@ export async function confirmMultipleSalesDeliveries(
                 is_metallic: !!item.is_metallic,
                 lamination_type: item.lamination_type || null,
                 offset_type: item.offset_type || null,
+                color_id: item.color_id || null,
               });
             if (boInsertError) throw new Error(`Failed to create backordered item: ${boInsertError.message}`);
           } else {

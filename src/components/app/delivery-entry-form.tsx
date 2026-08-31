@@ -238,21 +238,21 @@ export function DeliveryEntryForm({
     } else if (department === "finishing") {
       resProductId = fabricTypeId;
       const finishType = laminationType ? "LAMINATION" : (offsetType !== "none" && offsetType ? "OFFSET" : "FABRIC");
+      const colName = colorProducts.find((x) => x.id === colorId)?.label;
+      const colStr = colName ? `(${colName})` : "";
 
       if (finishType === "FABRIC") {
-        resProductLabel = `PLAIN(${fabName})`.toUpperCase();
+        resProductLabel = `PLAIN${colStr}(${fabName})`.toUpperCase();
       } else if (finishType === "LAMINATION") {
         const brand = getCleanBrand(rotoProducts.find((x) => x.id === rotoProductId)?.label);
         const filmChar = filmType === "gloss" ? "G" : filmType === "matt" ? "M" : "";
-        const colName = colorProducts.find((x) => x.id === colorId)?.label;
-        const colStr = colName ? `(${colName})` : "";
         const met = (["BOX", "F_S", "H_S"].includes(laminationType) && isMetallic) ? "(MT)" : "";
         
         const rotoRollId = ["BOX", "F_S", "H_S"].includes(laminationType)
           ? `${brand}(${filmChar})${colStr}${met}`
           : laminationType === "NW"
-          ? "NW"
-          : "PLAIN";
+          ? `NW${colStr}`
+          : `PLAIN${colStr}`;
         
         let suffix = "";
         if (laminationType === "BOX") suffix = "B";
@@ -268,7 +268,7 @@ export function DeliveryEntryForm({
         // OFFSET
         const brand = getCleanBrand(offsetProducts.find((x) => x.id === offsetProductId)?.label);
         const subFabName = offsetType === "NW" ? "NW" : fabName;
-        resProductLabel = `${brand}(${subFabName})`.toUpperCase();
+        resProductLabel = `${brand}${colStr}(${subFabName})`.toUpperCase();
       }
     }
 
