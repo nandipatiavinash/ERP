@@ -9,6 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 
+import { isRedirectError, todayInIndia } from "@/lib/utils";
+
 type MaterialOption = { id: string; material_name: string; unit: string; department?: string | null };
 type CustomerOption = { id: string; customer_name: string; alias?: string | null };
 
@@ -24,10 +26,15 @@ type PurchaseItem = {
 export function PurchaseForm({
   materials,
   customers,
+  permissions = [],
+  userRole = "",
 }: {
   materials: MaterialOption[];
   customers: CustomerOption[];
+  permissions?: string[];
+  userRole?: string;
 }) {
+  const canChangeDate = userRole === "admin" || permissions.includes("sales.allow_custom_date");
   const formRef = useRef<HTMLFormElement>(null);
   // Confirmed items list (shown below input row)
   const [items, setItems] = useState<PurchaseItem[]>([]);
@@ -122,7 +129,9 @@ export function PurchaseForm({
           name="purchase_date"
           type="date"
           required
-          defaultValue={new Date().toISOString().slice(0, 10)}
+          defaultValue={todayInIndia()}
+          disabled={!canChangeDate}
+          className="disabled:opacity-60 disabled:cursor-not-allowed"
         />
       </div>
 

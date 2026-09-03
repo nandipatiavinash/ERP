@@ -58,7 +58,7 @@ export const ALL_PAGE_PERMISSIONS: string[] = [
   // Finishing
   "finishing.production", "finishing.consumption", "finishing.stock",
   // Sales
-  "sales.order_confirmation", "sales.delivery_entry",
+  "sales.order_confirmation", "sales.delivery_entry", "sales.allow_custom_date",
   // Accounts
   "accounts.journal", "accounts.purchase", "accounts.product_purchase", "accounts.sales", "accounts.material",
   // Reports

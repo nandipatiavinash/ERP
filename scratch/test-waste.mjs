@@ -2,7 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 
 // Staging environment keys
 const STAGING_URL = "https://ywoygyqtoyxygftqkcbk.supabase.co";
-const STAGING_SERVICE_ROLE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl3b3lneXF0b3l4eWdmdHFrY2JrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4Mzk5ODA1MSwiZXhwIjoyMDk5NTc0MDUxfQ.7sAHj-zANH1FVyZIPeze1uxDITVWS8K8GAKdWfLSO7c";
+const STAGING_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 const supabase = createClient(STAGING_URL, STAGING_SERVICE_ROLE_KEY);
 

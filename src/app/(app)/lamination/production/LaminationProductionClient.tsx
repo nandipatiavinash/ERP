@@ -15,6 +15,8 @@ interface LaminationProductionClientProps {
   rotoProducts: any[];
   laminationRows: any[];
   pendingOrders?: QueueItem[];
+  permissions?: string[];
+  userRole?: string;
 }
 
 export function LaminationProductionClient({
@@ -22,6 +24,8 @@ export function LaminationProductionClient({
   rotoProducts,
   laminationRows,
   pendingOrders = [],
+  permissions = [],
+  userRole = "",
 }: LaminationProductionClientProps) {
   const [prefill, setPrefill] = useState<{ lamType: string; fabricTypeId: string; rotoProductId: string } | null>(null);
 
@@ -46,6 +50,8 @@ export function LaminationProductionClient({
               rotoProducts={rotoProducts}
               rows={laminationRows}
               prefillData={prefill}
+              permissions={permissions}
+              userRole={userRole}
             />
           </CardContent>
         </Card>

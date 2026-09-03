@@ -2,7 +2,7 @@ import { PageHeader } from "@/components/app/page-header";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { requirePermission, getSessionPermissions } from "@/lib/auth";
+import { requirePermission, getSessionPermissions, getSessionUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, formatNumber, todayInIndia } from "@/lib/utils";
 import { DateFilter } from "@/components/app/date-filter";
@@ -16,6 +16,8 @@ export default async function ProductPurchasePage({
 }) {
   await requirePermission("accounts.product_purchase");
   const permissions = await getSessionPermissions();
+  const user = await getSessionUser();
+  const userRole = user?.roles?.name || "";
   const supabase = await createClient();
   const params = await searchParams;
   const date = params.date || todayInIndia();
@@ -172,6 +174,8 @@ export default async function ProductPurchasePage({
             availableLaminationRolls={availableLaminationRolls ?? []}
             availableOffsetRolls={availableOffsetRolls ?? []}
             selectedDate={date}
+            permissions={permissions}
+            userRole={userRole}
           />
         </div>
 

@@ -20,6 +20,8 @@ interface RotoProductionClientProps {
   filmRows: any[];
   metallicRows: any[];
   pendingOrders?: QueueItem[];
+  permissions?: string[];
+  userRole?: string;
 }
 
 export function RotoProductionClient({
@@ -30,6 +32,8 @@ export function RotoProductionClient({
   filmRows,
   metallicRows,
   pendingOrders = [],
+  permissions = [],
+  userRole = "",
 }: RotoProductionClientProps) {
   const [activeTab, setActiveTab] = useState<"film" | "metallic">("film");
   const [prefill, setPrefill] = useState<{ productId: string; filmType: string } | null>(null);
@@ -81,6 +85,8 @@ export function RotoProductionClient({
                   rotoColors={rotoColors}
                   rows={filmRows}
                   prefillData={prefill}
+                  permissions={permissions}
+                  userRole={userRole}
                 />
               </CardContent>
             </Card>
@@ -152,6 +158,8 @@ export function RotoProductionClient({
               <RotoMetallicProductionForm
                 filmRolls={filmRolls}
                 rows={metallicRows}
+                permissions={permissions}
+                userRole={userRole}
               />
             </CardContent>
           </Card>

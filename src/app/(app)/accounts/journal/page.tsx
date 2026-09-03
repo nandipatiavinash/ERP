@@ -5,7 +5,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { PageHeader } from "@/components/app/page-header";
 import { softDeleteJournalEntryGroup } from "@/app/(app)/_actions";
-import { requirePermission, getSessionPermissions } from "@/lib/auth";
+import { requirePermission, getSessionPermissions, getSessionUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { formatDate, formatNumber, todayInIndia, cleanJournalDescription } from "@/lib/utils";
 import { DateFilter } from "@/components/app/date-filter";
@@ -37,6 +37,8 @@ export default async function AccountsJournalPage(props: {
 }) {
   await requirePermission("accounts.journal");
   const permissions = await getSessionPermissions();
+  const user = await getSessionUser();
+  const userRole = user?.roles?.name || "";
   const searchParams = await props.searchParams;
   const editJournalNo = searchParams?.edit ?? "";
   const date = searchParams?.date || todayInIndia();
@@ -149,6 +151,8 @@ export default async function AccountsJournalPage(props: {
             editJournalNo={editJournalNo}
             editJournalDate={editJournalDate}
             accounts={accountsList}
+            permissions={permissions}
+            userRole={userRole}
           />
         </CardContent>
       </Card>

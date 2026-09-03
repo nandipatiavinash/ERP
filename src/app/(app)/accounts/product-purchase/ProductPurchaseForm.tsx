@@ -7,7 +7,7 @@ import { ConfirmSubmitButton } from "@/components/app/confirm-submit-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { formatNumber } from "@/lib/utils";
+import { formatNumber, todayInIndia } from "@/lib/utils";
 
 type SupplierOption = { id: string; customer_name: string; alias?: string | null };
 type CatalogOption = { id: string; fabric_name?: string; name?: string; brand?: string; width?: number; height?: number };
@@ -54,6 +54,8 @@ export function ProductPurchaseForm({
   availableLaminationRolls,
   availableOffsetRolls,
   selectedDate,
+  permissions = [],
+  userRole = "",
 }: {
   suppliers: SupplierOption[];
   fabricTypes: CatalogOption[];
@@ -65,7 +67,11 @@ export function ProductPurchaseForm({
   availableLaminationRolls: LaminationRollOption[];
   availableOffsetRolls: OffsetRollOption[];
   selectedDate: string;
+  permissions?: string[];
+  userRole?: string;
 }) {
+  const canChangeDate = userRole === "admin" || permissions.includes("sales.allow_custom_date");
+  const [purchaseDate, setPurchaseDate] = useState(selectedDate || todayInIndia());
   const formRef = useRef<HTMLFormElement>(null);
   const [items, setItems] = useState<PurchaseItemRow[]>([]);
   const [isSaving, setIsSaving] = useState(false);
@@ -425,9 +431,20 @@ export function ProductPurchaseForm({
         </div>
       )}
 
-      {/* Basic Header Details: Client Name, Bill Number, Bill Value */}
-      <input type="hidden" name="purchase_date" value={selectedDate} />
-      <div className="grid grid-cols-3 gap-4">
+      {/* Basic Header Details: Purchase Date, Client Name, Bill Number, Bill Value */}
+      <div className="grid grid-cols-4 gap-4">
+        <div className="space-y-1.5 col-span-1">
+          <Label htmlFor="purchase_date" className="text-xs font-semibold text-slate-700">Purchase Date</Label>
+          <Input
+            id="purchase_date"
+            name="purchase_date"
+            type="date"
+            value={purchaseDate}
+            onChange={(e) => setPurchaseDate(e.target.value)}
+            disabled={!canChangeDate}
+            className="h-9 text-xs font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
+          />
+        </div>
         <div className="space-y-1.5 col-span-1">
           <Label htmlFor="supplier_name" className="text-xs font-semibold text-slate-700">Client / Supplier Name</Label>
           <select

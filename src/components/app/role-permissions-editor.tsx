@@ -29,6 +29,7 @@ const ACTION_LABELS: Record<string, string> = {
   stock:              "Stock",
   order_confirmation: "Order Confirmation",
   delivery_entry:     "Delivery Entry",
+  allow_custom_date:  "Allow Changing Entry Date",
   journal:            "Journal Entry",
   purchase:           "Purchase Entry",
   sales:              "Sales Entry",

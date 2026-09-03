@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ConfirmSubmitButton } from "@/components/app/confirm-submit-button";
-import { formatNumber } from "@/lib/utils";
+import { formatNumber, todayInIndia } from "@/lib/utils";
 
 type ClientOption = { id: string; customer_name: string; alias?: string | null };
 type MaterialOption = { id: string; material_name: string; department: string; unit: string; current_stock: string | number };
@@ -20,6 +20,8 @@ type MaterialSalesFormProps = {
   rawMaterials: MaterialOption[];
   sales: any[];
   selectedDate: string;
+  permissions?: string[];
+  userRole?: string;
 };
 
 export function MaterialSalesForm({
@@ -27,7 +29,11 @@ export function MaterialSalesForm({
   rawMaterials,
   sales,
   selectedDate,
+  permissions = [],
+  userRole = "",
 }: MaterialSalesFormProps) {
+  const canChangeDate = userRole === "admin" || permissions.includes("sales.allow_custom_date");
+  const [saleDate, setSaleDate] = useState(selectedDate || todayInIndia());
   const formRef = useRef<HTMLFormElement>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [errorText, setErrorText] = useState<string | null>(null);
@@ -74,7 +80,7 @@ export function MaterialSalesForm({
     try {
       const formData = new FormData(event.currentTarget);
       formData.set("inc_gst", String(incGst));
-      formData.set("sale_date", selectedDate);
+      formData.set("sale_date", saleDate);
 
       await saveMaterialSalesEntry(formData);
       
@@ -118,8 +124,21 @@ export function MaterialSalesForm({
         </CardHeader>
         <CardContent>
           <form ref={formRef} onSubmit={handleSubmit} className="space-y-5">
-            {/* Client & Bill Details */}
-            <div className="grid gap-4 sm:grid-cols-3">
+            {/* Client, Sale Date & Bill Details */}
+            <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-4">
+              <div className="space-y-2">
+                <Label htmlFor="sale_date">Sale Date</Label>
+                <Input
+                  id="sale_date"
+                  name="sale_date"
+                  type="date"
+                  value={saleDate}
+                  onChange={(e) => setSaleDate(e.target.value)}
+                  disabled={!canChangeDate}
+                  className="h-10 text-sm disabled:opacity-60 disabled:cursor-not-allowed"
+                />
+              </div>
+
               <div className="space-y-2">
                 <Label htmlFor="customer_id">Client Account</Label>
                 <select

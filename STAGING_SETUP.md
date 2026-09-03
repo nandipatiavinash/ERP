@@ -1,4 +1,4 @@
-﻿# ERP System - Staging Environment & Recent Changes Guide
+# ERP System - Staging Environment & Recent Changes Guide
 
 > **Last Updated:** July 2026
 > Conversation ID: e8838207-da78-4a8b-9e89-737debd7ddb4
@@ -62,8 +62,8 @@ properly inject branch-scoped environment variables.
 | Variable | Value |
 |---|---|
 | `NEXT_PUBLIC_SUPABASE_URL` | `https://ywoygyqtoyxygftqkcbk.supabase.co` |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl3b3lneXF0b3l4eWdmdHFrY2JrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM5OTgwNTEsImV4cCI6MjA5OTU3NDA1MX0.0D1f9GEFk3vn9_y_5fxVbQ4kzOGqiWRPWaKhw4FDhaE` |
-| `SUPABASE_SERVICE_ROLE_KEY` | `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inl3b3lneXF0b3l4eWdmdHFrY2JrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4Mzk5ODA1MSwiZXhwIjoyMDk5NTc0MDUxfQ.7sAHj-zANH1FVyZIPeze1uxDITVWS8K8GAKdWfLSO7c` |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | `<STAGING_SUPABASE_ANON_KEY>` |
+| `SUPABASE_SERVICE_ROLE_KEY` | `<STAGING_SUPABASE_SERVICE_ROLE_KEY>` |
 
 ---
 
@@ -71,7 +71,7 @@ properly inject branch-scoped environment variables.
 
 - **Project ID:** `ywoygyqtoyxygftqkcbk`
 - **Region:** ap-northeast-1 (Tokyo)
-- **Pooler URL:** `postgresql://postgres.ywoygyqtoyxygftqkcbk:reNykdHvUmXDZQ21@aws-0-ap-northeast-1.pooler.supabase.com:5432/postgres`
+- **Pooler URL:** `postgresql://postgres.ywoygyqtoyxygftqkcbk:<DB_PASSWORD>@aws-0-ap-northeast-1.pooler.supabase.com:5432/postgres`
 
 ### Staging Login Credentials
 All production users were cloned to staging with reset passwords:

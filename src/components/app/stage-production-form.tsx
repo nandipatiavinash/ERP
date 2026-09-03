@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { saveStageProduction } from "@/app/(app)/_actions";
 import { ConfirmSubmitButton } from "@/components/app/confirm-submit-button";
-import { isRedirectError } from "@/lib/utils";
+import { isRedirectError, todayInIndia } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -19,6 +19,8 @@ type StageProductionFormProps = {
   rotoColors?: ColorOption[];
   offsetProducts?: ProductOption[];
   row?: Record<string, any>;
+  permissions?: string[];
+  userRole?: string;
 };
 
 export function StageProductionForm({
@@ -28,7 +30,10 @@ export function StageProductionForm({
   rotoColors = [],
   offsetProducts = [],
   row,
+  permissions = [],
+  userRole = "",
 }: StageProductionFormProps) {
+  const canChangeDate = userRole === "admin" || permissions.includes("sales.allow_custom_date");
   const [isSaving, setIsSaving] = useState(false);
   const [errorText, setErrorText] = useState<string | null>(null);
 
@@ -110,8 +115,9 @@ export function StageProductionForm({
           name="entry_date"
           type="date"
           required
-          defaultValue={row?.entry_date ?? new Date().toISOString().slice(0, 10)}
-          disabled={isSaving}
+          defaultValue={row?.entry_date ?? todayInIndia()}
+          disabled={isSaving || !canChangeDate}
+          className="disabled:opacity-60 disabled:cursor-not-allowed"
         />
       </div>
 

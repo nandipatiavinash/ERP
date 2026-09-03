@@ -49,6 +49,7 @@ type OrderItem = {
   offset_type?: string | null;
   film_type?: string | null;
   is_metallic?: boolean;
+  color_id?: string | null;
   roto_product_id?: string | null;
   offset_product_id?: string | null;
 };
@@ -82,6 +83,7 @@ interface DeliveryEntryWorkspaceProps {
   offsetProducts: { id: string; brand: string; width: number; height: number }[];
   laminationProducts?: { id: string; name: string }[];
   finishingProducts?: { id: string; name: string }[];
+  colors?: { id: string; color_name?: string; label?: string }[];
   rolls: Roll[];
   from?: string;
   to?: string;
@@ -111,6 +113,7 @@ export function DeliveryEntryWorkspace({
   offsetProducts,
   laminationProducts = [],
   finishingProducts = [],
+  colors = [],
   rolls,
   from = todayInIndia(),
   to = todayInIndia(),
@@ -191,6 +194,7 @@ export function DeliveryEntryWorkspace({
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [deliveryDate, setDeliveryDate] = useState(todayInIndia());
+  const canChangeDate = permissions.includes("sales.allow_custom_date");
 
   const toggleOrderExpand = (orderId: string) => {
     setExpandedOrderId((prev) => (prev === orderId ? null : orderId));
@@ -204,6 +208,9 @@ export function DeliveryEntryWorkspace({
     };
 
     const fab = fabrics.find((x) => x.id === item.fabric_type_id)?.fabric_name || "FABRIC-TYPE";
+    const colName = colors.find((x) => x.id === item.color_id)?.color_name || (colors.find((x) => x.id === item.color_id) as any)?.label;
+    const colStr = colName ? `(${colName})` : "";
+    const filmChar = item.film_type === "gloss" ? "G" : item.film_type === "matt" ? "M" : "";
 
     if (item.department === "fabric") {
       const f = fabrics.find((x) => x.id === item.product_id);
@@ -213,17 +220,16 @@ export function DeliveryEntryWorkspace({
     if (item.department === "roto-printing") {
       const r = rotoProducts.find((x) => x.id === item.roto_product_id || x.id === item.product_id);
       const brand = getCleanBrand(r?.brand);
-      const filmChar = item.film_type === "gloss" ? "G" : item.film_type === "matt" ? "M" : "?";
       const met = item.is_metallic ? "(MT)" : "";
-      return `${brand}(${filmChar})${met}`.toUpperCase();
+      return `${brand}(${filmChar})${colStr}${met}`.toUpperCase();
     }
 
     if (item.department === "lamination") {
       const brand = ["BOX", "F_S", "H_S"].includes(item.lamination_type || "")
         ? getCleanBrand(rotoProducts.find((x) => x.id === item.roto_product_id)?.brand)
         : item.lamination_type === "NW"
-        ? "NW"
-        : "PLAIN";
+        ? `NW${colStr}`
+        : `PLAIN${colStr}`;
       
       let suffix = "";
       if (item.lamination_type === "PLAIN") suffix = "";
@@ -237,7 +243,7 @@ export function DeliveryEntryWorkspace({
       if (item.lamination_type === "PLAIN" || item.lamination_type === "NW") {
         return `${brand}(${fab})${met}`.toUpperCase();
       } else {
-        return `${brand}(${fab})(${suffix})${met}`.toUpperCase();
+        return `${brand}(${filmChar || ""})${colStr}${met}(${fab})(${suffix})`.toUpperCase();
       }
     }
 
@@ -245,20 +251,20 @@ export function DeliveryEntryWorkspace({
       const o = offsetProducts.find((x) => x.id === item.offset_product_id || x.id === item.product_id);
       const brand = getCleanBrand(o?.brand);
       const subFabName = item.offset_type === "NW" ? "NW" : fab;
-      return `${brand}(${subFabName})`.toUpperCase();
+      return `${brand}${colStr}(${subFabName})`.toUpperCase();
     }
 
     if (item.department === "finishing") {
       const finishType = item.lamination_type ? "LAMINATION" : (item.offset_type !== "none" && item.offset_type ? "OFFSET" : "FABRIC");
       
       if (finishType === "FABRIC") {
-        return `PLAIN(${fab})`.toUpperCase();
+        return `PLAIN${colStr}(${fab})`.toUpperCase();
       } else if (finishType === "LAMINATION") {
         const brand = ["BOX", "F_S", "H_S"].includes(item.lamination_type || "")
           ? getCleanBrand(rotoProducts.find((x) => x.id === item.roto_product_id)?.brand)
           : item.lamination_type === "NW"
-          ? "NW"
-          : "PLAIN";
+          ? `NW${colStr}`
+          : `PLAIN${colStr}`;
         
         let suffix = "";
         if (item.lamination_type === "PLAIN") suffix = "";
@@ -272,12 +278,12 @@ export function DeliveryEntryWorkspace({
         if (item.lamination_type === "PLAIN" || item.lamination_type === "NW") {
           return `${brand}(${fab})${met}`.toUpperCase();
         } else {
-          return `${brand}(${fab})(${suffix})${met}`.toUpperCase();
+          return `${brand}(${filmChar || ""})${colStr}${met}(${fab})(${suffix})`.toUpperCase();
         }
       } else {
         // OFFSET
         const brand = getCleanBrand(offsetProducts.find((x) => x.id === item.offset_product_id)?.brand);
-        return `${brand}(${fab})`.toUpperCase();
+        return `${brand}${colStr}(${fab})`.toUpperCase();
       }
     }
 
@@ -471,6 +477,15 @@ export function DeliveryEntryWorkspace({
             
             const matchesFabric = !item.fabric_type_id || !r.fabric_type_id || r.fabric_type_id === item.fabric_type_id;
             if (!matchesFabric) return false;
+
+            if (item.color_id) {
+              const colName = (colors.find((x) => x.id === item.color_id)?.color_name || (colors.find((x) => x.id === item.color_id) as any)?.label)?.toUpperCase();
+              if (colName && r.roll_number) {
+                if (!r.roll_number.toUpperCase().includes(`(${colName})`)) {
+                  return false;
+                }
+              }
+            }
 
             if (finishType === "LAMINATION") {
               const matchesLamType = !item.lamination_type || !r.lam_type || r.lam_type === item.lamination_type;
@@ -865,7 +880,8 @@ export function DeliveryEntryWorkspace({
                           type="date"
                           value={deliveryDate}
                           onChange={(e) => setDeliveryDate(e.target.value)}
-                          className="h-9 px-3 rounded-md border border-slate-200 bg-background text-sm font-medium focus:outline-none focus:ring-1 focus:ring-primary w-40"
+                          disabled={!canChangeDate}
+                          className="h-9 px-3 rounded-md border border-slate-200 bg-background text-sm font-medium focus:outline-none focus:ring-1 focus:ring-primary w-40 disabled:opacity-60 disabled:cursor-not-allowed"
                         />
                       </div>
                       <Button

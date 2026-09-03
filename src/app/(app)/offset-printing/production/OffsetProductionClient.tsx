@@ -16,6 +16,8 @@ interface OffsetProductionClientProps {
   offsetProducts: any[];
   offsetRows: any[];
   pendingOrders?: QueueItem[];
+  permissions?: string[];
+  userRole?: string;
 }
 
 export function OffsetProductionClient({
@@ -24,6 +26,8 @@ export function OffsetProductionClient({
   offsetProducts,
   offsetRows,
   pendingOrders = [],
+  permissions = [],
+  userRole = "",
 }: OffsetProductionClientProps) {
   const [prefill, setPrefill] = useState<{ offsetType: string; fabricTypeId: string; offsetProductId: string } | null>(null);
 
@@ -49,6 +53,8 @@ export function OffsetProductionClient({
               offsetProducts={offsetProducts}
               rows={offsetRows}
               prefillData={prefill}
+              permissions={permissions}
+              userRole={userRole}
             />
           </CardContent>
         </Card>

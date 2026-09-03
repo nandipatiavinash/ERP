@@ -2,7 +2,7 @@ import { DeliveryEntryForm } from "@/components/app/delivery-entry-form";
 import { PageHeader } from "@/components/app/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
-import { requirePermission, getSessionPermissions } from "@/lib/auth";
+import { requirePermission, getSessionPermissions, getSessionUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { todayInIndia } from "@/lib/utils";
 import { DateFilter } from "@/components/app/date-filter";
@@ -15,6 +15,8 @@ export default async function OrderConfirmationPage({
 }) {
   await requirePermission("sales.order_confirmation");
   const permissions = await getSessionPermissions();
+  const user = await getSessionUser();
+  const userRole = user?.roles?.name || "";
   const supabase = await createClient();
   const params = await searchParams;
   const date = params.date || todayInIndia();
@@ -122,6 +124,8 @@ export default async function OrderConfirmationPage({
             laminationProducts={laminationOptions}
             finishingProducts={finishingOptions}
             colorProducts={colorOptions}
+            permissions={permissions}
+            userRole={userRole}
           />
         </CardContent>
       </Card>

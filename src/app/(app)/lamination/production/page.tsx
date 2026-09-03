@@ -1,10 +1,13 @@
-import { requirePermission } from "@/lib/auth";
+import { requirePermission, getSessionPermissions, getSessionUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/app/page-header";
 import { LaminationProductionClient } from "./LaminationProductionClient";
 
 export default async function LaminationProductionPage() {
   await requirePermission("lamination.production");
+  const permissions = await getSessionPermissions();
+  const user = await getSessionUser();
+  const userRole = user?.roles?.name || "";
   const supabase = await createClient();
   const today = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Kolkata",
@@ -122,6 +125,8 @@ export default async function LaminationProductionPage() {
         rotoProducts={rotoProducts}
         laminationRows={laminationRows}
         pendingOrders={pendingOrders}
+        permissions={permissions}
+        userRole={userRole}
       />
     </div>
   );

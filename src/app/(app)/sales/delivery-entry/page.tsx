@@ -219,7 +219,8 @@ export default async function DeliveryEntryPage({
     rotoProducts,
     offsetProducts,
     laminationProds,
-    finishingProds
+    finishingProds,
+    rotoColors
   ] = await Promise.all([
     ...availablePromises,
     uniqueRollIds.length > 0 ? supabase.from("fabric_rolls").select("id, roll_number, weight, meters, status, fabric_type_id, loom_production_entries(gross_weight, core_weight, average_meter_weight)").in("id", uniqueRollIds).is("deleted_at", null) : Promise.resolve({ data: [] }),
@@ -232,7 +233,8 @@ export default async function DeliveryEntryPage({
     supabase.from("roto_products").select("id, brand, width, height"),
     supabase.from("offset_products").select("id, brand, width, height"),
     supabase.from("lamination_products").select("id, name"),
-    supabase.from("finishing_products").select("id, name")
+    supabase.from("finishing_products").select("id, name"),
+    supabase.from("roto_colors").select("id, color_name").is("deleted_at", null).order("color_name")
   ]);
 
   const mappedFabrics = [
@@ -373,6 +375,7 @@ export default async function DeliveryEntryPage({
         offsetProducts={(offsetProducts.data ?? []) as any[]}
         laminationProducts={(laminationProds.data ?? []) as any[]}
         finishingProducts={(finishingProds.data ?? []) as any[]}
+        colors={(rotoColors.data ?? []) as any[]}
         rolls={rolls}
         from={from}
         to={to}
