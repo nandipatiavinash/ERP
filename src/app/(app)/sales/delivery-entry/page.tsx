@@ -240,31 +240,43 @@ export default async function DeliveryEntryPage({
   const mappedFabrics = [
     ...(availableFabrics.data ?? []),
     ...(selectedFabrics.data ?? [])
-  ].map((r: any) => ({
-    id: r.id,
-    roll_number: r.roll_number,
-    weight: Number(r.weight || 0),
-    meters: Number(r.meters || 0),
-    status: r.status,
-    fabric_type_id: r.fabric_type_id,
-    product_id: r.fabric_type_id,
-    department: "fabric",
-    loom_production_entries: r.loom_production_entries
-  }));
+  ].map((r: any) => {
+    const prod = r.loom_production_entries;
+    const netWeight = prod?.net_weight ?? r.net_weight ?? r.weight ?? 0;
+    const grossWeight = prod?.gross_weight ?? r.gross_weight ?? netWeight;
+    const coreWeight = prod?.core_weight ?? r.core_weight ?? 0;
+    return {
+      id: r.id,
+      roll_number: r.roll_number,
+      weight: Number(r.weight || netWeight || 0),
+      gross_weight: grossWeight,
+      core_weight: coreWeight,
+      net_weight: netWeight,
+      meters: Number(r.meters || 0),
+      status: r.status,
+      fabric_type_id: r.fabric_type_id,
+      product_id: r.fabric_type_id,
+      department: "fabric",
+      loom_production_entries: r.loom_production_entries
+    };
+  });
 
   const mappedLamination = [
     ...(availableLamination.data ?? []),
     ...(selectedLamination.data ?? [])
   ].map((r: any) => {
     const parsed = parseLaminationRollId(r.roll_id, fabrics.data || [], rotoProducts.data || []);
+    const netWeight = r.net_weight ?? r.weight_kg ?? 0;
+    const grossWeight = r.gross_weight ?? netWeight;
+    const coreWeight = r.core_weight ?? 0;
     return {
       id: r.id,
       roll_number: r.roll_id,
       s_no: r.s_no,
-      weight: Number(r.weight_kg || 0),
-      gross_weight: r.gross_weight,
-      core_weight: r.core_weight,
-      net_weight: r.net_weight,
+      weight: Number(netWeight || 0),
+      gross_weight: grossWeight,
+      core_weight: coreWeight,
+      net_weight: netWeight,
       meters: Number(r.meters || 0),
       status: r.status,
       fabric_type_id: r.fabric_type_id || parsed.fabricTypeId,
@@ -282,10 +294,16 @@ export default async function DeliveryEntryPage({
     ...(selectedOffset.data ?? [])
   ].map((r: any) => {
     const parsed = parseOffsetRollId(r.roll_id, fabrics.data || [], offsetProducts.data || []);
+    const netWeight = r.net_weight ?? r.weight_kg ?? 0;
+    const grossWeight = r.gross_weight ?? netWeight;
+    const coreWeight = r.core_weight ?? 0;
     return {
       id: r.id,
       roll_number: r.roll_id,
-      weight: Number(r.weight_kg || 0),
+      weight: Number(netWeight || 0),
+      gross_weight: grossWeight,
+      core_weight: coreWeight,
+      net_weight: netWeight,
       meters: Number(r.meters || 0),
       status: r.status,
       fabric_type_id: r.fabric_type_id || parsed.fabricTypeId,
@@ -301,10 +319,14 @@ export default async function DeliveryEntryPage({
     ...(selectedFinishing.data ?? [])
   ].map((r: any) => {
     const parsed = parseFinishingBundleId(r.bundle_id, fabrics.data || [], rotoProducts.data || [], offsetProducts.data || []);
+    const netWeight = r.weight_kg ?? 0;
     return {
       id: r.id,
       roll_number: r.bundle_id,
-      weight: Number(r.weight_kg || 0),
+      weight: Number(netWeight || 0),
+      gross_weight: netWeight,
+      core_weight: 0,
+      net_weight: netWeight,
       meters: Number(r.num_bags || 0),
       status: r.status,
       fabric_type_id: r.fabric_type_id || parsed.fabricTypeId,

@@ -55,6 +55,8 @@ export function StockRotoRollsClient({ filmRolls, metallicRolls, rollAllocationM
   const initialTab = filmRolls.length > 0 ? "film" : "metallic";
   const [activeTab, setActiveTab] = useState<"film" | "metallic">(initialTab);
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedClient, setSelectedClient] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("s_no");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
 
@@ -67,17 +69,35 @@ export function StockRotoRollsClient({ filmRolls, metallicRolls, rollAllocationM
     }
   };
 
+  const clientNames = useMemo(() => {
+    const names = new Set<string>();
+    Object.values(rollAllocationMap).forEach((alloc) => {
+      if (alloc.clientName && alloc.clientName !== "-") names.add(alloc.clientName);
+    });
+    return Array.from(names).sort();
+  }, [rollAllocationMap]);
+
   const filteredFilms = useMemo(() => {
-    return filmRolls.filter((r) =>
-      r.roll_id.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [filmRolls, searchTerm]);
+    return filmRolls.filter((r) => {
+      const matchesSearch = r.roll_id.toLowerCase().includes(searchTerm.toLowerCase()) || String(r.s_no).includes(searchTerm);
+      const alloc = rollAllocationMap[r.id];
+      const clientName = alloc?.clientName ?? "";
+      const matchesClient = !selectedClient || clientName.toLowerCase() === selectedClient.toLowerCase();
+      const matchesStatus = !statusFilter || r.status === statusFilter;
+      return matchesSearch && matchesClient && matchesStatus;
+    });
+  }, [filmRolls, searchTerm, selectedClient, statusFilter, rollAllocationMap]);
 
   const filteredMetallics = useMemo(() => {
-    return metallicRolls.filter((r) =>
-      r.roll_id.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [metallicRolls, searchTerm]);
+    return metallicRolls.filter((r) => {
+      const matchesSearch = r.roll_id.toLowerCase().includes(searchTerm.toLowerCase()) || String(r.s_no).includes(searchTerm);
+      const alloc = rollAllocationMap[r.id];
+      const clientName = alloc?.clientName ?? "";
+      const matchesClient = !selectedClient || clientName.toLowerCase() === selectedClient.toLowerCase();
+      const matchesStatus = !statusFilter || r.status === statusFilter;
+      return matchesSearch && matchesClient && matchesStatus;
+    });
+  }, [metallicRolls, searchTerm, selectedClient, statusFilter, rollAllocationMap]);
 
   const sortedFilms = useMemo(() => {
     return [...filteredFilms].sort((a, b) => {
@@ -130,16 +150,43 @@ export function StockRotoRollsClient({ filmRolls, metallicRolls, rollAllocationM
 
   return (
     <div className="space-y-4">
-      {/* Search bar and count */}
-      <div className="flex justify-end items-center gap-3 w-full">
-        <Input
-          placeholder="Filter rolls by ID..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="max-w-xs text-xs font-semibold h-9 shadow-none border-slate-200"
-        />
+      {/* Search bar and filters */}
+      <div className="flex flex-col sm:flex-row gap-3 justify-between items-start sm:items-center w-full">
+        <div className="flex flex-wrap items-center gap-3">
+          <Input
+            placeholder="Filter by ID or S.No..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-48 text-xs font-semibold h-9 shadow-none border-slate-200"
+          />
+
+          <select
+            value={selectedClient}
+            onChange={(e) => setSelectedClient(e.target.value)}
+            className="h-9 px-3 text-xs font-semibold rounded-md border border-slate-200 bg-white text-slate-700 focus:outline-none focus:ring-1 focus:ring-slate-400"
+          >
+            <option value="">All Clients</option>
+            {clientNames.map((name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
+          </select>
+
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="h-9 px-3 text-xs font-semibold rounded-md border border-slate-200 bg-white text-slate-700 focus:outline-none focus:ring-1 focus:ring-slate-400"
+          >
+            <option value="">All Statuses</option>
+            <option value="available">Available Only</option>
+            <option value="sold">Sold</option>
+            <option value="consumed">Consumed</option>
+          </select>
+        </div>
+
         <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2.5 py-1.5 rounded whitespace-nowrap">
-          Count: {activeTab === "film" ? filmRolls.length : metallicRolls.length}
+          Count: {activeTab === "film" ? sortedFilms.length : sortedMetallics.length}
         </span>
       </div>
 

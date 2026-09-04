@@ -69,9 +69,15 @@ export const ALL_PAGE_PERMISSIONS: string[] = [
   "dashboard.view",
 ];
 
+export function isRoleAdmin(roleName: string | undefined): boolean {
+  if (!roleName) return false;
+  const r = roleName.trim().toLowerCase();
+  return r === "admin" || r === "administrator" || r === "superadmin" || r === "super admin" || r === "system admin";
+}
+
 export function fallbackPermissions(role: RoleName | undefined) {
-  if (role === "admin") return ALL_PAGE_PERMISSIONS;
-  if (role === "operator") return [
+  if (isRoleAdmin(role)) return ALL_PAGE_PERMISSIONS;
+  if (role?.toLowerCase() === "operator") return [
     "dashboard.view",
     "fabric.production", "fabric.consumption", "fabric.stock",
     "roto_printing.production", "roto_printing.consumption", "roto_printing.stock",
@@ -84,7 +90,7 @@ export function fallbackPermissions(role: RoleName | undefined) {
 }
 
 const getPermissionsForRole = cache(async function getPermissionsForRole(roleId: string, role: RoleName | undefined) {
-  if (role === "admin") return ALL_PAGE_PERMISSIONS;
+  if (isRoleAdmin(role)) return ALL_PAGE_PERMISSIONS;
 
   const supabase = await createClient();
   const { data, error } = await (supabase
@@ -107,7 +113,7 @@ export async function getSessionPermissions(user?: AppUser) {
 
 export async function requirePermission(permission: string) {
   const user = await requireUser();
-  if (user.roles?.name === "admin") return user;
+  if (isRoleAdmin(user.roles?.name)) return user;
   const permissions = await getSessionPermissions(user);
   if (!permissions.includes(permission)) redirect("/403");
   return user;
@@ -115,12 +121,12 @@ export async function requirePermission(permission: string) {
 
 export async function requireAnyPermission(requiredPermissions: string[]) {
   const user = await requireUser();
-  if (user.roles?.name === "admin") return user;
+  if (isRoleAdmin(user.roles?.name)) return user;
   const permissions = await getSessionPermissions(user);
   if (!requiredPermissions.some((p) => permissions.includes(p))) redirect("/403");
   return user;
 }
 
 export function isAdmin(user: AppUser | null) {
-  return user?.roles?.name === "admin";
+  return isRoleAdmin(user?.roles?.name);
 }

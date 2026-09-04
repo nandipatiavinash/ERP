@@ -317,42 +317,97 @@ export function StockRollsClient({
   rollAllocationMap,
   fabricName,
 }: StockRollsClientProps) {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedClient, setSelectedClient] = useState("");
+
+  const clientNames = useMemo(() => {
+    const names = new Set<string>();
+    Object.values(rollAllocationMap).forEach((alloc) => {
+      if (alloc.clientName && alloc.clientName !== "—") names.add(alloc.clientName);
+    });
+    return Array.from(names).sort();
+  }, [rollAllocationMap]);
+
+  const filterRolls = (list: Roll[]) => {
+    return list.filter((r) => {
+      const matchesSearch = !searchTerm || (r.roll_number && r.roll_number.toLowerCase().includes(searchTerm.toLowerCase()));
+      const alloc = rollAllocationMap[r.id];
+      const clientName = alloc?.clientName ?? "";
+      const matchesClient = !selectedClient || clientName.toLowerCase() === selectedClient.toLowerCase();
+      return matchesSearch && matchesClient;
+    });
+  };
+
+  const filteredAvailable = useMemo(() => filterRolls(availableRolls), [availableRolls, searchTerm, selectedClient, rollAllocationMap]);
+  const filteredConsumed = useMemo(() => filterRolls(consumedRolls), [consumedRolls, searchTerm, selectedClient, rollAllocationMap]);
+  const filteredSold = useMemo(() => filterRolls(soldRolls), [soldRolls, searchTerm, selectedClient, rollAllocationMap]);
+
   return (
     <div className="space-y-4">
+      {/* Filter Toolbar */}
+      <div className="flex flex-col sm:flex-row gap-3 justify-between items-start sm:items-center bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
+        <div className="flex flex-wrap items-center gap-3">
+          <input
+            type="text"
+            placeholder="Search roll S.No..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="h-9 w-48 px-3 text-xs font-semibold rounded-md border border-slate-200 focus:outline-none focus:ring-1 focus:ring-slate-400"
+          />
+
+          <select
+            value={selectedClient}
+            onChange={(e) => setSelectedClient(e.target.value)}
+            className="h-9 px-3 text-xs font-semibold rounded-md border border-slate-200 bg-white text-slate-700 focus:outline-none focus:ring-1 focus:ring-slate-400"
+          >
+            <option value="">All Clients</option>
+            {clientNames.map((name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded">
+          Available: {filteredAvailable.length} | Consumed: {filteredConsumed.length} | Sold: {filteredSold.length}
+        </span>
+      </div>
+
       {/* Available Rolls – Collapsible */}
       <CollapsibleRollSection
         title="Available Rolls"
-        count={availableRolls.length}
-        rolls={availableRolls}
+        count={filteredAvailable.length}
+        rolls={filteredAvailable}
         allocationMap={rollAllocationMap}
         fabricName={fabricName}
         defaultOpen={true}
         emptyTitle="No available rolls"
-        emptyDescription={`All rolls for ${fabricName} have been sold or there are none yet.`}
+        emptyDescription={`All rolls for ${fabricName} have been sold, consumed, or none match the filter.`}
       />
 
       {/* Consumed Rolls – Collapsible */}
       <CollapsibleRollSection
         title="Consumed Rolls"
-        count={consumedRolls.length}
-        rolls={consumedRolls}
+        count={filteredConsumed.length}
+        rolls={filteredConsumed}
         allocationMap={rollAllocationMap}
         fabricName={fabricName}
         defaultOpen={false}
         emptyTitle="No consumed rolls"
-        emptyDescription={`No rolls for ${fabricName} have been consumed in production yet.`}
+        emptyDescription={`No rolls for ${fabricName} match the consumed criteria.`}
       />
 
       {/* Sold Rolls – Collapsible */}
       <CollapsibleRollSection
         title="Sold Rolls"
-        count={soldRolls.length}
-        rolls={soldRolls}
+        count={filteredSold.length}
+        rolls={filteredSold}
         allocationMap={rollAllocationMap}
         fabricName={fabricName}
         defaultOpen={false}
         emptyTitle="No sold rolls"
-        emptyDescription={`No rolls for ${fabricName} have been sold yet.`}
+        emptyDescription={`No rolls for ${fabricName} match the sold criteria.`}
       />
     </div>
   );
