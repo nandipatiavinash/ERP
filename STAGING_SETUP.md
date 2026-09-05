@@ -27,7 +27,7 @@ We set up two completely isolated environments during this session:
 | **Vercel Target** | Production | Preview (GitHub-triggered) |
 | **Supabase Project** | `pdgnbjiswfvladuhltcx` | `ywoygyqtoyxygftqkcbk` |
 | **Supabase URL** | `https://pdgnbjiswfvladuhltcx.supabase.co` | `https://ywoygyqtoyxygftqkcbk.supabase.co` |
-| **DB Password** | `iQTtmLtTqAeuXRlu` | `reNykdHvUmXDZQ21` |
+| **DB Password** | `<PROD_DB_PASSWORD>` | `<STAGING_DB_PASSWORD>` |
 
 **RULE: NEVER push directly to `main`. Always commit to `staging` first, test, then merge.**
 
