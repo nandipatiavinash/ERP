@@ -1,10 +1,13 @@
-import { requirePermission } from "@/lib/auth";
+import { requirePermission, getSessionPermissions, getSessionUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/app/page-header";
 import { RotoProductionClient } from "./RotoProductionClient";
 
 export default async function RotoPrintingProductionPage() {
   await requirePermission("roto_printing.production");
+  const permissions = await getSessionPermissions();
+  const user = await getSessionUser();
+  const userRole = user?.roles?.name || "";
   const supabase = await createClient();
   const today = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Kolkata",
@@ -95,6 +98,8 @@ export default async function RotoPrintingProductionPage() {
         filmRows={filmRows}
         metallicRows={metallicRows}
         pendingOrders={pendingOrders}
+        permissions={permissions}
+        userRole={userRole}
       />
     </>
   );

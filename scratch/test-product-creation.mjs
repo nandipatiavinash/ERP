@@ -6,7 +6,7 @@ const userEmail = "nandipatiavinash19@gmail.com";
 
 async function main() {
   console.log("Signing in...");
-  const supabase = createClient(supabaseUrl, "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBkZ25iamlzd2Z2bGFkdWhsdGN4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAyMjAyNTgsImV4cCI6MjA5NTc5NjI1OH0.0wlfvEx-7GypBHNmUgA0uuycKThnMemAHG1y09UjB4A");
+  const supabase = createClient(supabaseUrl, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
   const { data: sessionData, error: signInError } = await supabase.auth.signInWithPassword({
     email: userEmail,
     password: tempPassword

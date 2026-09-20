@@ -10,6 +10,7 @@
     "lint": "next lint",
     "supabase": "supabase",
     "typecheck": "tsc --noEmit",
+    "test": "npx tsx --test tests/**/*.test.ts",
     "test:e2e": "node test_erp_e2e_reusable_suite.mjs"
   },
   "dependencies": {

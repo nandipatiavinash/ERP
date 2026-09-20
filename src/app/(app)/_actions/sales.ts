@@ -108,6 +108,7 @@ export async function createSalesOrder(formData: FormData) {
     is_metallic: !!item.isMetallic,
     lamination_type: item.laminationType || null,
     offset_type: item.offsetType || null,
+    color_id: item.colorId || null,
   }));
 
   if (itemsPayload.length > 0) {
@@ -1283,7 +1284,8 @@ export async function confirmMultipleSalesDeliveries(
   selectedItemIds: string[],
   itemRolls: Record<string, string[]>,
   itemRemainingActions: Record<string, "backorder" | "close"> = {},
-  deliveryDate?: string
+  deliveryDate?: string,
+  vehicleNumber?: string
 ) {
   const user = await requireAnyPermission(["sales.edit", "sales.delivery_entry"]);
   const supabase = await createClient();
@@ -1309,6 +1311,7 @@ export async function confirmMultipleSalesDeliveries(
       is_metallic,
       lamination_type,
       offset_type,
+      color_id,
       sales_orders(
         id,
         order_number,
@@ -1381,21 +1384,19 @@ export async function confirmMultipleSalesDeliveries(
   const dateStr = deliveryDate || todayInIndia();
   const dispatchOrderNumber = await generateNextDispatchNumber(supabase, dateStr);
 
-  const { data: newDispatchOrder, error: createDispatchError } = await (supabase
-    .from("sales_orders") as any)
-    .insert({
-      customer_id: customerId,
-      order_number: dispatchOrderNumber,
-      order_date: dateStr,
-      status: "confirmed",
-      is_draft_billing: false,
-      gst_rate: gstRate,
-      selected_roll_ids: allNewRollIds,
-      created_by: user.id,
-      updated_by: user.id
-    })
-    .select("id")
-    .single();
+  const { data: newDispatchOrder, error: createDispatchError } = await (supabase as any)
+    .rpc("create_sales_order_with_vehicle", {
+      p_customer_id: customerId,
+      p_order_number: dispatchOrderNumber,
+      p_order_date: dateStr,
+      p_status: "confirmed",
+      p_is_draft_billing: false,
+      p_gst_rate: gstRate,
+      p_selected_roll_ids: allNewRollIds,
+      p_vehicle_number: vehicleNumber?.trim() || null,
+      p_created_by: user.id,
+      p_updated_by: user.id
+    });
 
   if (createDispatchError || !newDispatchOrder) {
     throw new Error(`Failed to create dispatch order: ${createDispatchError?.message}`);
@@ -1450,6 +1451,7 @@ export async function confirmMultipleSalesDeliveries(
                 is_metallic: !!item.is_metallic,
                 lamination_type: item.lamination_type || null,
                 offset_type: item.offset_type || null,
+                color_id: item.color_id || null,
               });
             if (boInsertError) throw new Error(`Failed to create backordered item: ${boInsertError.message}`);
           } else {

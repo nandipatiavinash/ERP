@@ -2,7 +2,7 @@ import { DeliveryEntryForm } from "@/components/app/delivery-entry-form";
 import { PageHeader } from "@/components/app/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
-import { requirePermission, getSessionPermissions } from "@/lib/auth";
+import { requirePermission, getSessionPermissions, getSessionUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { todayInIndia } from "@/lib/utils";
 import { DateFilter } from "@/components/app/date-filter";
@@ -15,6 +15,8 @@ export default async function OrderConfirmationPage({
 }) {
   await requirePermission("sales.order_confirmation");
   const permissions = await getSessionPermissions();
+  const user = await getSessionUser();
+  const userRole = user?.roles?.name || "";
   const supabase = await createClient();
   const params = await searchParams;
   const date = params.date || todayInIndia();
@@ -38,7 +40,7 @@ export default async function OrderConfirmationPage({
     supabase.from("roto_colors").select("id, color_name, status").is("deleted_at", null).order("color_name"),
     supabase
       .from("sales_orders")
-      .select("*, customers(customer_name, alias), sales_order_items(id, department, quantity, product_id, fabric_type_id, lamination_type, offset_type, film_type, is_metallic, roto_product_id, offset_product_id)")
+      .select("*, customers(customer_name, alias), sales_order_items(id, department, quantity, product_id, fabric_type_id, lamination_type, offset_type, film_type, is_metallic, roto_product_id, offset_product_id, color_id)")
       .or(`order_date.eq.${date},status.eq.draft`)
       .is("deleted_at", null)
       .order("order_date", { ascending: true })
@@ -102,6 +104,7 @@ export default async function OrderConfirmationPage({
   const laminationOptions = ((laminationProds ?? []) as any[]).filter(l => l.status === "active").map((l) => ({ id: l.id, label: l.name }));
   const finishingOptions = ((finishingProds ?? []) as any[]).filter(f => f.status === "active").map((f) => ({ id: f.id, label: f.name }));
   const colorOptions = ((colors ?? []) as any[]).filter(c => c.status === "active").map((c) => ({ id: c.id, label: c.color_name }));
+  const colorOptionsAll = ((colors ?? []) as any[]).map((c) => ({ id: c.id, label: c.color_name }));
   const orderRows = (orders ?? []) as any[];
 
   return (
@@ -121,6 +124,8 @@ export default async function OrderConfirmationPage({
             laminationProducts={laminationOptions}
             finishingProducts={finishingOptions}
             colorProducts={colorOptions}
+            permissions={permissions}
+            userRole={userRole}
           />
         </CardContent>
       </Card>
@@ -141,6 +146,7 @@ export default async function OrderConfirmationPage({
               fabrics={fabricOptionsAll}
               rotoProducts={rotoOptionsAll}
               offsetProducts={offsetOptionsAll}
+              colors={colorOptionsAll}
             />
           )}
         </CardContent>

@@ -1,4 +1,4 @@
-import { requirePermission } from "@/lib/auth";
+import { requirePermission, getSessionPermissions, getSessionUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/app/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,6 +10,9 @@ import { ConfirmSubmitButton } from "@/components/app/confirm-submit-button";
 
 export default async function FinishingProductionPage() {
   await requirePermission("finishing.production");
+  const permissions = await getSessionPermissions();
+  const user = await getSessionUser();
+  const userRole = user?.roles?.name || "";
   const supabase = await createClient();
   const today = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Kolkata",
@@ -79,6 +82,8 @@ export default async function FinishingProductionPage() {
             laminationRolls={laminationRolls}
             offsetRolls={offsetRolls}
             rows={finishingRows}
+            permissions={permissions}
+            userRole={userRole}
           />
         </CardContent>
       </Card>

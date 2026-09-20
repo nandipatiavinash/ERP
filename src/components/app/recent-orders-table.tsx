@@ -14,6 +14,7 @@ type RecentOrdersTableProps = {
   fabrics: any[];
   rotoProducts: any[];
   offsetProducts: any[];
+  colors?: any[];
 };
 
 export function RecentOrdersTable({
@@ -21,6 +22,7 @@ export function RecentOrdersTable({
   fabrics,
   rotoProducts,
   offsetProducts,
+  colors = [],
 }: RecentOrdersTableProps) {
   const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
 
@@ -31,6 +33,8 @@ export function RecentOrdersTable({
 
   const getItemLabel = (item: any) => {
     const fab = fabrics.find((x) => x.id === item.fabric_type_id)?.label || "FABRIC-TYPE";
+    const colName = colors.find((x) => x.id === item.color_id)?.label;
+    const colStr = colName ? `(${colName})` : "";
 
     if (item.department === "fabric") {
       const f = fabrics.find((x) => x.id === item.product_id);
@@ -42,15 +46,16 @@ export function RecentOrdersTable({
       const brand = getCleanBrand(r?.label);
       const filmChar = item.film_type === "gloss" ? "G" : item.film_type === "matt" ? "M" : "?";
       const met = item.is_metallic ? "(MT)" : "";
-      return `${brand}(${filmChar})${met}`.toUpperCase();
+      return `${brand}(${filmChar})${colStr}${met}`.toUpperCase();
     }
 
     if (item.department === "lamination") {
+      const filmChar = item.film_type === "gloss" ? "G" : item.film_type === "matt" ? "M" : "";
       const brand = ["BOX", "F_S", "H_S"].includes(item.lamination_type || "")
         ? getCleanBrand(rotoProducts.find((x) => x.id === item.roto_product_id)?.label)
         : item.lamination_type === "NW"
-        ? "NW"
-        : "PLAIN";
+        ? `NW${colStr}`
+        : `PLAIN${colStr}`;
       
       let suffix = "";
       if (item.lamination_type === "PLAIN") suffix = "";
@@ -64,7 +69,7 @@ export function RecentOrdersTable({
       if (item.lamination_type === "PLAIN" || item.lamination_type === "NW") {
         return `${brand}(${fab})${met}`.toUpperCase();
       } else {
-        return `${brand}(${fab})(${suffix})${met}`.toUpperCase();
+        return `${brand}(${filmChar || ""})${colStr}${met}(${fab})(${suffix})`.toUpperCase();
       }
     }
 
@@ -79,13 +84,14 @@ export function RecentOrdersTable({
       const finishType = item.lamination_type ? "LAMINATION" : (item.offset_type !== "none" && item.offset_type ? "OFFSET" : "FABRIC");
       
       if (finishType === "FABRIC") {
-        return `PLAIN(${fab})`.toUpperCase();
+        return `PLAIN${colStr}(${fab})`.toUpperCase();
       } else if (finishType === "LAMINATION") {
+        const filmChar = item.film_type === "gloss" ? "G" : item.film_type === "matt" ? "M" : "";
         const brand = ["BOX", "F_S", "H_S"].includes(item.lamination_type || "")
           ? getCleanBrand(rotoProducts.find((x) => x.id === item.roto_product_id)?.label)
           : item.lamination_type === "NW"
-          ? "NW"
-          : "PLAIN";
+          ? `NW${colStr}`
+          : `PLAIN${colStr}`;
         
         let suffix = "";
         if (item.lamination_type === "PLAIN") suffix = "";
@@ -99,12 +105,12 @@ export function RecentOrdersTable({
         if (item.lamination_type === "PLAIN" || item.lamination_type === "NW") {
           return `${brand}(${fab})${met}`.toUpperCase();
         } else {
-          return `${brand}(${fab})(${suffix})${met}`.toUpperCase();
+          return `${brand}(${filmChar})${colStr}${met}(${fab})(${suffix})`.toUpperCase();
         }
       } else {
         // OFFSET
         const brand = getCleanBrand(offsetProducts.find((x) => x.id === item.offset_product_id)?.label);
-        return `${brand}(${fab})`.toUpperCase();
+        return `${brand}${colStr}(${fab})`.toUpperCase();
       }
     }
 

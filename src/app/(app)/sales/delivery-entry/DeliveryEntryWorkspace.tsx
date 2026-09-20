@@ -49,6 +49,7 @@ type OrderItem = {
   offset_type?: string | null;
   film_type?: string | null;
   is_metallic?: boolean;
+  color_id?: string | null;
   roto_product_id?: string | null;
   offset_product_id?: string | null;
 };
@@ -69,6 +70,7 @@ type SalesOrder = {
   order_date: string;
   customer_id: string;
   status: string;
+  vehicle_number?: string | null;
   created_at: string;
   customers?: Customer;
   sales_order_items?: OrderItem[];
@@ -82,6 +84,7 @@ interface DeliveryEntryWorkspaceProps {
   offsetProducts: { id: string; brand: string; width: number; height: number }[];
   laminationProducts?: { id: string; name: string }[];
   finishingProducts?: { id: string; name: string }[];
+  colors?: { id: string; color_name?: string; label?: string }[];
   rolls: Roll[];
   from?: string;
   to?: string;
@@ -111,6 +114,7 @@ export function DeliveryEntryWorkspace({
   offsetProducts,
   laminationProducts = [],
   finishingProducts = [],
+  colors = [],
   rolls,
   from = todayInIndia(),
   to = todayInIndia(),
@@ -191,6 +195,8 @@ export function DeliveryEntryWorkspace({
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [deliveryDate, setDeliveryDate] = useState(todayInIndia());
+  const [vehicleNumber, setVehicleNumber] = useState("");
+  const canChangeDate = permissions.includes("sales.allow_custom_date");
 
   const toggleOrderExpand = (orderId: string) => {
     setExpandedOrderId((prev) => (prev === orderId ? null : orderId));
@@ -204,6 +210,9 @@ export function DeliveryEntryWorkspace({
     };
 
     const fab = fabrics.find((x) => x.id === item.fabric_type_id)?.fabric_name || "FABRIC-TYPE";
+    const colName = colors.find((x) => x.id === item.color_id)?.color_name || (colors.find((x) => x.id === item.color_id) as any)?.label;
+    const colStr = colName ? `(${colName})` : "";
+    const filmChar = item.film_type === "gloss" ? "G" : item.film_type === "matt" ? "M" : "";
 
     if (item.department === "fabric") {
       const f = fabrics.find((x) => x.id === item.product_id);
@@ -213,17 +222,16 @@ export function DeliveryEntryWorkspace({
     if (item.department === "roto-printing") {
       const r = rotoProducts.find((x) => x.id === item.roto_product_id || x.id === item.product_id);
       const brand = getCleanBrand(r?.brand);
-      const filmChar = item.film_type === "gloss" ? "G" : item.film_type === "matt" ? "M" : "?";
       const met = item.is_metallic ? "(MT)" : "";
-      return `${brand}(${filmChar})${met}`.toUpperCase();
+      return `${brand}(${filmChar})${colStr}${met}`.toUpperCase();
     }
 
     if (item.department === "lamination") {
       const brand = ["BOX", "F_S", "H_S"].includes(item.lamination_type || "")
         ? getCleanBrand(rotoProducts.find((x) => x.id === item.roto_product_id)?.brand)
         : item.lamination_type === "NW"
-        ? "NW"
-        : "PLAIN";
+        ? `NW${colStr}`
+        : `PLAIN${colStr}`;
       
       let suffix = "";
       if (item.lamination_type === "PLAIN") suffix = "";
@@ -237,7 +245,7 @@ export function DeliveryEntryWorkspace({
       if (item.lamination_type === "PLAIN" || item.lamination_type === "NW") {
         return `${brand}(${fab})${met}`.toUpperCase();
       } else {
-        return `${brand}(${fab})(${suffix})${met}`.toUpperCase();
+        return `${brand}(${filmChar || ""})${colStr}${met}(${fab})(${suffix})`.toUpperCase();
       }
     }
 
@@ -245,20 +253,20 @@ export function DeliveryEntryWorkspace({
       const o = offsetProducts.find((x) => x.id === item.offset_product_id || x.id === item.product_id);
       const brand = getCleanBrand(o?.brand);
       const subFabName = item.offset_type === "NW" ? "NW" : fab;
-      return `${brand}(${subFabName})`.toUpperCase();
+      return `${brand}${colStr}(${subFabName})`.toUpperCase();
     }
 
     if (item.department === "finishing") {
       const finishType = item.lamination_type ? "LAMINATION" : (item.offset_type !== "none" && item.offset_type ? "OFFSET" : "FABRIC");
       
       if (finishType === "FABRIC") {
-        return `PLAIN(${fab})`.toUpperCase();
+        return `PLAIN${colStr}(${fab})`.toUpperCase();
       } else if (finishType === "LAMINATION") {
         const brand = ["BOX", "F_S", "H_S"].includes(item.lamination_type || "")
           ? getCleanBrand(rotoProducts.find((x) => x.id === item.roto_product_id)?.brand)
           : item.lamination_type === "NW"
-          ? "NW"
-          : "PLAIN";
+          ? `NW${colStr}`
+          : `PLAIN${colStr}`;
         
         let suffix = "";
         if (item.lamination_type === "PLAIN") suffix = "";
@@ -272,12 +280,12 @@ export function DeliveryEntryWorkspace({
         if (item.lamination_type === "PLAIN" || item.lamination_type === "NW") {
           return `${brand}(${fab})${met}`.toUpperCase();
         } else {
-          return `${brand}(${fab})(${suffix})${met}`.toUpperCase();
+          return `${brand}(${filmChar || ""})${colStr}${met}(${fab})(${suffix})`.toUpperCase();
         }
       } else {
         // OFFSET
         const brand = getCleanBrand(offsetProducts.find((x) => x.id === item.offset_product_id)?.brand);
-        return `${brand}(${fab})`.toUpperCase();
+        return `${brand}${colStr}(${fab})`.toUpperCase();
       }
     }
 
@@ -324,6 +332,7 @@ export function DeliveryEntryWorkspace({
     setSuccessMsg(null);
     setExpandedOrderId(null);
     setDeliveryDate(todayInIndia());
+    setVehicleNumber("");
 
     const customerOrders = orders.filter((o) => o.customer_id === customerId && o.status === "draft");
     const items = customerOrders.flatMap((o) => o.sales_order_items ?? []);
@@ -379,7 +388,7 @@ export function DeliveryEntryWorkspace({
 
     startTransition(async () => {
       try {
-        await confirmMultipleSalesDeliveries(selectedItemIds, allocation, itemRemainingActions, deliveryDate);
+        await confirmMultipleSalesDeliveries(selectedItemIds, allocation, itemRemainingActions, deliveryDate, vehicleNumber);
         setSuccessMsg("Deliveries confirmed successfully! You can print the dispatch sheet below.");
         
         // Locate one of the parent orders that was confirmed to enable printing
@@ -467,24 +476,33 @@ export function DeliveryEntryWorkspace({
           // 5. Finishing
           if (item.department === "finishing") {
             const finishType = item.lamination_type ? "LAMINATION" : (item.offset_type !== "none" && item.offset_type ? "OFFSET" : "FABRIC");
-            if (r.finish_type !== finishType) return false;
+            if (r.finish_type && r.finish_type !== finishType) return false;
             
-            const matchesFabric = r.fabric_type_id === item.fabric_type_id;
+            const matchesFabric = !item.fabric_type_id || !r.fabric_type_id || r.fabric_type_id === item.fabric_type_id;
             if (!matchesFabric) return false;
 
+            if (item.color_id) {
+              const colName = (colors.find((x) => x.id === item.color_id)?.color_name || (colors.find((x) => x.id === item.color_id) as any)?.label)?.toUpperCase();
+              if (colName && r.roll_number) {
+                if (!r.roll_number.toUpperCase().includes(`(${colName})`)) {
+                  return false;
+                }
+              }
+            }
+
             if (finishType === "LAMINATION") {
-              const matchesLamType = r.lam_type === item.lamination_type;
+              const matchesLamType = !item.lamination_type || !r.lam_type || r.lam_type === item.lamination_type;
               if (!matchesLamType) return false;
               if (["BOX", "F_S", "H_S"].includes(item.lamination_type || "")) {
-                const matchesBrand = r.roto_product_id === item.roto_product_id;
+                const matchesBrand = !item.roto_product_id || !r.roto_product_id || r.roto_product_id === item.roto_product_id;
                 const matchesMetallic = !!r.is_metallic === !!item.is_metallic;
-                const matchesFilm = !item.film_type || item.film_type === "none" || r.film_type === item.film_type;
+                const matchesFilm = !item.film_type || item.film_type === "none" || !r.film_type || r.film_type === item.film_type;
                 return matchesBrand && matchesMetallic && matchesFilm;
               }
               return true;
             } else if (finishType === "OFFSET") {
-              const matchesOffsetType = r.offset_type === item.offset_type;
-              const matchesBrand = r.offset_product_id === item.offset_product_id;
+              const matchesOffsetType = !item.offset_type || !r.offset_type || r.offset_type === item.offset_type;
+              const matchesBrand = !item.offset_product_id || !r.offset_product_id || r.offset_product_id === item.offset_product_id;
               return matchesOffsetType && matchesBrand;
             }
             return true;
@@ -589,9 +607,10 @@ export function DeliveryEntryWorkspace({
     return {
       ...firstOrder,
       order_number: "DRAFT-" + Array.from(new Set(customerOrders.map((o) => o.order_number))).join("/"),
+      vehicle_number: vehicleNumber || null,
       sales_order_items: selectedItems,
     };
-  }, [selectedCustomerId, orders, selectedItemIds, allocation]);
+  }, [selectedCustomerId, orders, selectedItemIds, allocation, vehicleNumber]);
 
   const stagedPrintGroups = useMemo(() => {
     return stagedPrintOrder ? buildProductGroups(stagedPrintOrder as any, rolls, fabrics) : [];
@@ -865,7 +884,20 @@ export function DeliveryEntryWorkspace({
                           type="date"
                           value={deliveryDate}
                           onChange={(e) => setDeliveryDate(e.target.value)}
-                          className="h-9 px-3 rounded-md border border-slate-200 bg-background text-sm font-medium focus:outline-none focus:ring-1 focus:ring-primary w-40"
+                          disabled={!canChangeDate}
+                          className="h-9 px-3 rounded-md border border-slate-200 bg-background text-sm font-medium focus:outline-none focus:ring-1 focus:ring-primary w-40 disabled:opacity-60 disabled:cursor-not-allowed"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1 no-print">
+                        <Label className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">
+                          Vehicle Number
+                        </Label>
+                        <input
+                          type="text"
+                          placeholder="e.g. UP80 AB 1234"
+                          value={vehicleNumber}
+                          onChange={(e) => setVehicleNumber(e.target.value)}
+                          className="h-9 px-3 rounded-md border border-slate-200 bg-background text-sm font-medium focus:outline-none focus:ring-1 focus:ring-primary w-40 uppercase"
                         />
                       </div>
                       <Button
@@ -1219,6 +1251,7 @@ export function DeliveryEntryWorkspace({
                       <TableRow className="bg-slate-50/50">
                         <TableHead className="text-xs font-bold">Order Number</TableHead>
                         <TableHead className="text-xs font-bold">Firm Name</TableHead>
+                        <TableHead className="text-xs font-bold">Vehicle No</TableHead>
                         <TableHead className="text-xs font-bold">Items Count</TableHead>
                         <TableHead className="text-xs font-bold">Order Date</TableHead>
                         <TableHead className="text-xs font-bold text-center">Actions</TableHead>
@@ -1231,6 +1264,7 @@ export function DeliveryEntryWorkspace({
                           <TableCell className="font-medium">
                             {order.customers?.customer_name}
                           </TableCell>
+                          <TableCell className="font-mono text-xs uppercase">{order.vehicle_number || "-"}</TableCell>
                           <TableCell>{order.sales_order_items?.length ?? 0} items</TableCell>
                           <TableCell>{formatDate(order.order_date)}</TableCell>
                           <TableCell className="text-center">
@@ -1297,6 +1331,17 @@ export function DeliveryEntryWorkspace({
               Review the items and fabric rolls staged for dispatch on <strong className="text-slate-800">{formatDate(deliveryDate)}</strong> (this will consolidate them into a single dispatch note):
             </DialogDescription>
           </DialogHeader>
+
+          <div className="flex flex-col gap-1.5 my-2">
+            <Label className="text-xs font-semibold text-slate-700">Vehicle Number</Label>
+            <input
+              type="text"
+              placeholder="e.g. UP80 AB 1234 (Optional)"
+              value={vehicleNumber}
+              onChange={(e) => setVehicleNumber(e.target.value)}
+              className="h-9 px-3 rounded-md border border-slate-200 bg-background text-sm font-medium uppercase focus:outline-none focus:ring-1 focus:ring-emerald-500"
+            />
+          </div>
 
           <div className="space-y-4 max-h-[350px] overflow-y-auto my-3 pr-1">
             {selectedItemsSummary.map(({ order, items }) => (

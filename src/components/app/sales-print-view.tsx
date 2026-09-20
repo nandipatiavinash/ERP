@@ -11,6 +11,7 @@ interface SalesPrintViewProps {
     order_date: string;
     bill_number?: string;
     bill_value?: number;
+    vehicle_number?: string | null;
     customers?: {
       customer_name: string;
       address?: string;
@@ -173,11 +174,16 @@ export function SalesPrintView({ order, rollsByProduct, departmentsByProduct }: 
         {/* ── Invoice header ── */}
         <div className="mb-6 border-b border-gray-300 pb-4">
           <div className="flex justify-between items-start text-sm">
-            {/* Left column – customer name only */}
+            {/* Left column – customer name & vehicle number */}
             <div>
               {customer && (
                 <p className="text-lg font-bold">
                   {customer.customer_name}
+                </p>
+              )}
+              {order.vehicle_number && (
+                <p className="text-sm font-semibold text-gray-700 mt-1">
+                  Vehicle No: <span className="font-mono uppercase">{order.vehicle_number}</span>
                 </p>
               )}
             </div>

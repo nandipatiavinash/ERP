@@ -69,6 +69,7 @@ export async function saveProductPurchase(formData: FormData) {
 
   // 2. Process and insert each item into history and stock registers
   const createdStockRecords: { table: string; id: string }[] = [];
+  const createdRollNumbers: string[] = [];
   try {
     for (let i = 0; i < departments.length; i++) {
     const dept = departments[i];
@@ -110,6 +111,9 @@ export async function saveProductPurchase(formData: FormData) {
       const nextNo = (count ?? 0) + 1;
       const rollNumber = `E-${nextNo}`;
 
+      const grossWeight = gross_weights[i] !== undefined ? gross_weights[i] : null;
+      const coreWeight = core_weights[i] !== undefined ? core_weights[i] : null;
+
       const { data: stockItem, error: stockErr } = await (adminSupabase
         .from("fabric_rolls") as any)
         .insert({
@@ -118,6 +122,9 @@ export async function saveProductPurchase(formData: FormData) {
           fabric_type_id: fabricTypeId,
           loom_id: null,
           weight: weight,
+          gross_weight: grossWeight,
+          core_weight: coreWeight,
+          net_weight: grossWeight && coreWeight ? Number((grossWeight - coreWeight).toFixed(1)) : null,
           meters: qty,
           production_date: purchase_date,
           status: "available",
@@ -132,6 +139,7 @@ export async function saveProductPurchase(formData: FormData) {
       if (stockErr) throw new Error(`Fabric roll stock insert failed: ${stockErr.message}`);
       createdStockId = stockItem.id;
       createdStockRecords.push({ table: "fabric_rolls", id: stockItem.id });
+      createdRollNumbers.push(rollNumber);
 
     } else if (dept === "roto-printing") {
       let brandName = "ROTO";
@@ -191,6 +199,7 @@ export async function saveProductPurchase(formData: FormData) {
         if (stockErr) throw new Error(`Roto film roll stock insert failed: ${stockErr.message}`);
         createdStockId = stockItem.id;
         createdStockRecords.push({ table: "roto_film_rolls", id: stockItem.id });
+        createdRollNumbers.push(rollId);
       } else {
         // Insert dummy film roll consumed
         const { data: filmRoll, error: filmErr } = await (adminSupabase
@@ -238,6 +247,7 @@ export async function saveProductPurchase(formData: FormData) {
         if (stockErr) throw new Error(`Roto metallic roll stock insert failed: ${stockErr.message}`);
         createdStockId = stockItem.id;
         createdStockRecords.push({ table: "roto_metallic_rolls", id: stockItem.id });
+        createdRollNumbers.push(metallicRollId);
       }
 
     } else if (dept === "lamination") {
@@ -321,6 +331,7 @@ export async function saveProductPurchase(formData: FormData) {
       if (stockErr) throw new Error(`Lamination roll stock insert failed: ${stockErr.message}`);
       createdStockId = stockItem.id;
       createdStockRecords.push({ table: "lamination_rolls", id: stockItem.id });
+      createdRollNumbers.push(rollId);
 
       // Consume source fabric roll
       if (sourceRollId) {
@@ -382,6 +393,7 @@ export async function saveProductPurchase(formData: FormData) {
       if (stockErr) throw new Error(`Offset roll stock insert failed: ${stockErr.message}`);
       createdStockId = stockItem.id;
       createdStockRecords.push({ table: "offset_rolls", id: stockItem.id });
+      createdRollNumbers.push(rollId);
 
       // Consume source lamination roll
       if (sourceRollId) {
@@ -475,6 +487,7 @@ export async function saveProductPurchase(formData: FormData) {
       if (stockErr) throw new Error(`Finishing bundle stock insert failed: ${stockErr.message}`);
       createdStockId = stockItem.id;
       createdStockRecords.push({ table: "finishing_bundles", id: stockItem.id });
+      createdRollNumbers.push(bundleId);
 
       // Consume source roll
       if (sourceRollId) {
@@ -565,7 +578,7 @@ export async function saveProductPurchase(formData: FormData) {
   }
 
     revalidatePath("/accounts/product-purchase");
-    return { success: true };
+    return { success: true, createdRollNumbers };
   } catch (err: any) {
     console.error("Error in saveProductPurchase:", err);
     return { success: false, error: err.message || "An unexpected error occurred." };

@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { isRedirectError } from "@/lib/utils";
+import { isRedirectError, todayInIndia } from "@/lib/utils";
 
 type Customer = { id: string; name: string; alias?: string | null };
 type ProductOption = { id: string; label: string };
@@ -22,6 +22,8 @@ type DeliveryEntryFormProps = {
   laminationProducts: ProductOption[];
   finishingProducts: ProductOption[];
   colorProducts?: ProductOption[];
+  permissions?: string[];
+  userRole?: string;
 };
 
 type ConfirmedRow = {
@@ -58,10 +60,14 @@ export function DeliveryEntryForm({
   laminationProducts,
   finishingProducts,
   colorProducts = [],
+  permissions = [],
+  userRole = "",
 }: DeliveryEntryFormProps) {
   const [confirmedRows, setConfirmedRows] = useState<ConfirmedRow[]>([]);
   const [isPending, setIsPending] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [orderDate, setOrderDate] = useState(todayInIndia());
+  const canChangeDate = userRole === "admin" || permissions.includes("sales.allow_custom_date");
 
   // Memoized sorted arrays
   const sortedCustomers = useMemo(() => {
@@ -238,21 +244,21 @@ export function DeliveryEntryForm({
     } else if (department === "finishing") {
       resProductId = fabricTypeId;
       const finishType = laminationType ? "LAMINATION" : (offsetType !== "none" && offsetType ? "OFFSET" : "FABRIC");
+      const colName = colorProducts.find((x) => x.id === colorId)?.label;
+      const colStr = colName ? `(${colName})` : "";
 
       if (finishType === "FABRIC") {
-        resProductLabel = `PLAIN(${fabName})`.toUpperCase();
+        resProductLabel = `PLAIN${colStr}(${fabName})`.toUpperCase();
       } else if (finishType === "LAMINATION") {
         const brand = getCleanBrand(rotoProducts.find((x) => x.id === rotoProductId)?.label);
         const filmChar = filmType === "gloss" ? "G" : filmType === "matt" ? "M" : "";
-        const colName = colorProducts.find((x) => x.id === colorId)?.label;
-        const colStr = colName ? `(${colName})` : "";
         const met = (["BOX", "F_S", "H_S"].includes(laminationType) && isMetallic) ? "(MT)" : "";
         
         const rotoRollId = ["BOX", "F_S", "H_S"].includes(laminationType)
           ? `${brand}(${filmChar})${colStr}${met}`
           : laminationType === "NW"
-          ? "NW"
-          : "PLAIN";
+          ? `NW${colStr}`
+          : `PLAIN${colStr}`;
         
         let suffix = "";
         if (laminationType === "BOX") suffix = "B";
@@ -268,7 +274,7 @@ export function DeliveryEntryForm({
         // OFFSET
         const brand = getCleanBrand(offsetProducts.find((x) => x.id === offsetProductId)?.label);
         const subFabName = offsetType === "NW" ? "NW" : fabName;
-        resProductLabel = `${brand}(${subFabName})`.toUpperCase();
+        resProductLabel = `${brand}${colStr}(${subFabName})`.toUpperCase();
       }
     }
 
@@ -337,23 +343,38 @@ export function DeliveryEntryForm({
         </div>
       )}
 
-      {/* Firm Name Selection (Only) */}
-      <div className="max-w-md space-y-2">
-        <Label htmlFor="customer_id" className="font-semibold text-slate-700">Firm Name</Label>
-        <select
-          id="customer_id"
-          name="customer_id"
-          required
-          defaultValue=""
-          className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-        >
-          <option value="" disabled>Select Firm</option>
-          {sortedCustomers.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.name} {c.alias ? `(${c.alias})` : ""}
-            </option>
-          ))}
-        </select>
+      {/* Firm Name Selection and Order Date */}
+      <div className="grid gap-4 sm:grid-cols-2 max-w-2xl">
+        <div className="space-y-2">
+          <Label htmlFor="customer_id" className="font-semibold text-slate-700">Firm Name</Label>
+          <select
+            id="customer_id"
+            name="customer_id"
+            required
+            defaultValue=""
+            className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+          >
+            <option value="" disabled>Select Firm</option>
+            {sortedCustomers.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name} {c.alias ? `(${c.alias})` : ""}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="order_date" className="font-semibold text-slate-700">Order Date</Label>
+          <Input
+            id="order_date"
+            name="order_date"
+            type="date"
+            value={orderDate}
+            onChange={(e) => setOrderDate(e.target.value)}
+            disabled={!canChangeDate}
+            className="h-10 text-sm disabled:opacity-60 disabled:cursor-not-allowed"
+          />
+        </div>
       </div>
 
       {/* Dynamic Order Item Fields Staging Grid */}

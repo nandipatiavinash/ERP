@@ -154,15 +154,17 @@ export async function saveRotoFilmProduction(formData: FormData) {
   const filmTypeChar = filmType === "gloss" ? "G" : "M";
   const rollId = `${brandName.trim()}(${filmTypeChar})${colorName ? `(${colorName.trim()})` : ""}`.toUpperCase();
 
-  // Compute sequential serial number for this specific specification using MAX(s_no) + 1
-  const { data: maxRoll } = await (supabase
+  // Compute sequential serial number for this specific specification using latest s_no + 1 (cycling at 500)
+  const { data: lastRoll } = await (supabase
     .from("roto_film_rolls") as any)
     .select("s_no")
     .eq("roll_id", rollId)
-    .order("s_no", { ascending: false })
+    .is("deleted_at", null)
+    .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
-  const seq = (Number((maxRoll as any)?.s_no) || 0) + 1;
+  let seq = (Number((lastRoll as any)?.s_no) || 0) + 1;
+  if (seq > 500) seq = 1;
 
   // Use admin client for write so custom roles are not blocked by RLS.
   const adminSupabase = createAdminClient();
@@ -393,15 +395,17 @@ export async function saveLaminationProduction(formData: FormData) {
   }
   baseId = baseId.toUpperCase();
 
-  const { data: maxRoll } = await (supabase
+  const { data: lastRoll } = await (supabase
     .from("lamination_rolls") as any)
     .select("s_no")
     .eq("roll_id", baseId)
-    .order("s_no", { ascending: false })
+    .is("deleted_at", null)
+    .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
 
-  const seq = (Number((maxRoll as any)?.s_no) || 0) + 1;
+  let seq = (Number((lastRoll as any)?.s_no) || 0) + 1;
+  if (seq > 500) seq = 1;
   const newRollId = baseId;
 
   // Use admin client for write so custom roles are not blocked by RLS.
@@ -508,15 +512,17 @@ export async function saveOffsetProduction(formData: FormData) {
 
   const fabricNameVal = offsetType === "NW" ? "NW" : fabricTypeName;
   const baseId = `${brandName.trim()}(${fabricNameVal.trim()})`.toUpperCase();
-  const { data: maxRoll } = await (supabase
+  const { data: lastRoll } = await (supabase
     .from("offset_rolls") as any)
     .select("s_no")
     .eq("roll_id", baseId)
-    .order("s_no", { ascending: false })
+    .is("deleted_at", null)
+    .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
 
-  const seq = (Number((maxRoll as any)?.s_no) || 0) + 1;
+  let seq = (Number((lastRoll as any)?.s_no) || 0) + 1;
+  if (seq > 500) seq = 1;
   const newRollId = baseId;
 
   // Use admin client for write so custom roles are not blocked by RLS.
@@ -623,16 +629,18 @@ export async function saveFinishingBundle(formData: FormData) {
 
   const bundleId = specId;
 
-  // Compute sequential serial number for this specific specification using MAX(s_no) + 1
-  const { data: maxBundle } = await (supabase
+  // Compute sequential serial number for this specific specification using latest s_no + 1 (cycling at 500)
+  const { data: lastBundle } = await (supabase
     .from("finishing_bundles") as any)
     .select("s_no")
     .eq("bundle_id", bundleId)
-    .order("s_no", { ascending: false })
+    .is("deleted_at", null)
+    .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
 
-  const seq = (Number((maxBundle as any)?.s_no) || 0) + 1;
+  let seq = (Number((lastBundle as any)?.s_no) || 0) + 1;
+  if (seq > 500) seq = 1;
 
   const adminSupabase = createAdminClient();
   const { error: insertError } = await (adminSupabase

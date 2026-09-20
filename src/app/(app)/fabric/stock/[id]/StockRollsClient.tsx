@@ -29,6 +29,9 @@ interface Roll {
   status: string;
   weight?: number | null;
   meters?: number | null;
+  gross_weight?: number | null;
+  core_weight?: number | null;
+  net_weight?: number | null;
   looms?: { loom_number: string | null } | null;
   loom_production_entries?: {
     gross_weight: number | null;
@@ -117,16 +120,16 @@ function sortRolls(rolls: Roll[], map: Record<string, AllocationInfo>, key: Sort
         valB = b.roll_number ?? "";
         break;
       case "net_weight":
-        valA = Number(lpeA?.net_weight ?? a.weight ?? 0);
-        valB = Number(lpeB?.net_weight ?? b.weight ?? 0);
+        valA = Number(lpeA?.net_weight ?? a.net_weight ?? a.weight ?? 0);
+        valB = Number(lpeB?.net_weight ?? b.net_weight ?? b.weight ?? 0);
         break;
       case "core_weight":
-        valA = Number(lpeA?.core_weight ?? 0);
-        valB = Number(lpeB?.core_weight ?? 0);
+        valA = Number(lpeA?.core_weight ?? a.core_weight ?? 0);
+        valB = Number(lpeB?.core_weight ?? b.core_weight ?? 0);
         break;
       case "gross_weight":
-        valA = Number(lpeA?.gross_weight ?? a.weight ?? 0);
-        valB = Number(lpeB?.gross_weight ?? b.weight ?? 0);
+        valA = Number(lpeA?.gross_weight ?? a.gross_weight ?? a.weight ?? 0);
+        valB = Number(lpeB?.gross_weight ?? b.gross_weight ?? b.weight ?? 0);
         break;
       case "net_meters":
         valA = Number(lpeA?.net_meters ?? a.meters ?? 0);
@@ -205,17 +208,17 @@ function RollsTable({
         <TableBody>
           {sorted.map((roll) => {
             const lpe = roll.loom_production_entries;
-            const allocation = allocationMap[roll.id];
-            const netWeight = lpe?.net_weight ?? roll.weight ?? 0;
+            const netWeight = lpe?.net_weight ?? roll.net_weight ?? roll.weight ?? 0;
             const netMeters = lpe?.net_meters ?? roll.meters ?? 0;
             const avgMeterWt = lpe?.average_meter_weight ?? (netMeters > 0 ? (netWeight / netMeters) * 1000 : 0);
             const loomNo = roll.looms?.loom_number ?? (roll.roll_number?.startsWith("E-") ? "PURCHASED" : "N/A");
+            const allocation = allocationMap[roll.id];
 
             return (
               <TableRow key={roll.id} className="hover:bg-muted/30">
                 <TableCell className="font-bold text-emerald-950">{roll.roll_number}</TableCell>
-                <TableCell className="text-right text-muted-foreground">{formatNumber(lpe?.gross_weight ?? roll.weight, 2)}</TableCell>
-                <TableCell className="text-right text-muted-foreground">{formatNumber(lpe?.core_weight ?? 0, 2)}</TableCell>
+                <TableCell className="text-right text-muted-foreground">{formatNumber(lpe?.gross_weight ?? roll.gross_weight ?? roll.weight, 2)}</TableCell>
+                <TableCell className="text-right text-muted-foreground">{formatNumber(lpe?.core_weight ?? roll.core_weight ?? 0, 2)}</TableCell>
                 <TableCell className="text-right font-medium text-emerald-900">{formatNumber(netWeight, 2)}</TableCell>
                 <TableCell className="text-right font-medium text-emerald-900">{formatNumber(Math.floor(netMeters), 0)}</TableCell>
                 <TableCell className="text-right text-muted-foreground">{formatNumber(Math.floor(avgMeterWt), 0)}</TableCell>
@@ -314,42 +317,97 @@ export function StockRollsClient({
   rollAllocationMap,
   fabricName,
 }: StockRollsClientProps) {
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedClient, setSelectedClient] = useState("");
+
+  const clientNames = useMemo(() => {
+    const names = new Set<string>();
+    Object.values(rollAllocationMap).forEach((alloc) => {
+      if (alloc.clientName && alloc.clientName !== "—") names.add(alloc.clientName);
+    });
+    return Array.from(names).sort();
+  }, [rollAllocationMap]);
+
+  const filterRolls = (list: Roll[]) => {
+    return list.filter((r) => {
+      const matchesSearch = !searchTerm || (r.roll_number && r.roll_number.toLowerCase().includes(searchTerm.toLowerCase()));
+      const alloc = rollAllocationMap[r.id];
+      const clientName = alloc?.clientName ?? "";
+      const matchesClient = !selectedClient || clientName.toLowerCase() === selectedClient.toLowerCase();
+      return matchesSearch && matchesClient;
+    });
+  };
+
+  const filteredAvailable = useMemo(() => filterRolls(availableRolls), [availableRolls, searchTerm, selectedClient, rollAllocationMap]);
+  const filteredConsumed = useMemo(() => filterRolls(consumedRolls), [consumedRolls, searchTerm, selectedClient, rollAllocationMap]);
+  const filteredSold = useMemo(() => filterRolls(soldRolls), [soldRolls, searchTerm, selectedClient, rollAllocationMap]);
+
   return (
     <div className="space-y-4">
+      {/* Filter Toolbar */}
+      <div className="flex flex-col sm:flex-row gap-3 justify-between items-start sm:items-center bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
+        <div className="flex flex-wrap items-center gap-3">
+          <input
+            type="text"
+            placeholder="Search roll S.No..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="h-9 w-48 px-3 text-xs font-semibold rounded-md border border-slate-200 focus:outline-none focus:ring-1 focus:ring-slate-400"
+          />
+
+          <select
+            value={selectedClient}
+            onChange={(e) => setSelectedClient(e.target.value)}
+            className="h-9 px-3 text-xs font-semibold rounded-md border border-slate-200 bg-white text-slate-700 focus:outline-none focus:ring-1 focus:ring-slate-400"
+          >
+            <option value="">All Clients</option>
+            {clientNames.map((name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded">
+          Available: {filteredAvailable.length} | Consumed: {filteredConsumed.length} | Sold: {filteredSold.length}
+        </span>
+      </div>
+
       {/* Available Rolls – Collapsible */}
       <CollapsibleRollSection
         title="Available Rolls"
-        count={availableRolls.length}
-        rolls={availableRolls}
+        count={filteredAvailable.length}
+        rolls={filteredAvailable}
         allocationMap={rollAllocationMap}
         fabricName={fabricName}
         defaultOpen={true}
         emptyTitle="No available rolls"
-        emptyDescription={`All rolls for ${fabricName} have been sold or there are none yet.`}
+        emptyDescription={`All rolls for ${fabricName} have been sold, consumed, or none match the filter.`}
       />
 
       {/* Consumed Rolls – Collapsible */}
       <CollapsibleRollSection
         title="Consumed Rolls"
-        count={consumedRolls.length}
-        rolls={consumedRolls}
+        count={filteredConsumed.length}
+        rolls={filteredConsumed}
         allocationMap={rollAllocationMap}
         fabricName={fabricName}
         defaultOpen={false}
         emptyTitle="No consumed rolls"
-        emptyDescription={`No rolls for ${fabricName} have been consumed in production yet.`}
+        emptyDescription={`No rolls for ${fabricName} match the consumed criteria.`}
       />
 
       {/* Sold Rolls – Collapsible */}
       <CollapsibleRollSection
         title="Sold Rolls"
-        count={soldRolls.length}
-        rolls={soldRolls}
+        count={filteredSold.length}
+        rolls={filteredSold}
         allocationMap={rollAllocationMap}
         fabricName={fabricName}
         defaultOpen={false}
         emptyTitle="No sold rolls"
-        emptyDescription={`No rolls for ${fabricName} have been sold yet.`}
+        emptyDescription={`No rolls for ${fabricName} match the sold criteria.`}
       />
     </div>
   );

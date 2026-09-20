@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { isRedirectError } from "@/lib/utils";
+import { isRedirectError, todayInIndia } from "@/lib/utils";
 
 type FabricType = {
   id: string;
@@ -34,6 +34,8 @@ interface LaminationProductionFormProps {
   onSuccess?: (newRollInfo: { rollId: string; weight: number; meters: number }) => void;
   rows?: any[];
   prefillData?: { lamType: string; fabricTypeId: string; rotoProductId: string } | null;
+  permissions?: string[];
+  userRole?: string;
 }
 
 export function LaminationProductionForm({
@@ -42,7 +44,10 @@ export function LaminationProductionForm({
   onSuccess,
   rows,
   prefillData,
+  permissions = [],
+  userRole = "",
 }: LaminationProductionFormProps) {
+  const canChangeDate = userRole === "admin" || permissions.includes("sales.allow_custom_date");
   const [isPending, startTransition] = useTransition();
   const [lamType, setLamType] = useState<string>("");
   const [selectedFabricTypeId, setSelectedFabricTypeId] = useState<string>("");
@@ -59,9 +64,7 @@ export function LaminationProductionForm({
   const [grossWeight, setGrossWeight] = useState<string>("");
   const [coreWeight, setCoreWeight] = useState<string>("");
   const [meters, setMeters] = useState<string>("");
-  const [entryDate, setEntryDate] = useState<string>(
-    new Date().toLocaleDateString("en-CA")
-  );
+  const [entryDate, setEntryDate] = useState<string>(todayInIndia());
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const handleDecimalChange = (value: string, setter: (v: string) => void) => {
@@ -345,6 +348,18 @@ export function LaminationProductionForm({
             value={meters}
             onChange={(e) => handleDecimalChange(e.target.value, setMeters)}
             className="h-10 text-sm border-slate-200"
+          />
+        </div>
+        {/* Entry Date */}
+        <div className="space-y-1">
+          <Label htmlFor="entry_date" className="text-xs font-semibold text-slate-700">Entry Date</Label>
+          <Input
+            id="entry_date"
+            type="date"
+            value={entryDate}
+            onChange={(e) => setEntryDate(e.target.value)}
+            disabled={!canChangeDate}
+            className="h-10 text-sm border-slate-200 disabled:opacity-60 disabled:cursor-not-allowed"
           />
         </div>
       </div>

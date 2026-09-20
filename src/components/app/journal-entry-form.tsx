@@ -32,7 +32,9 @@ export function JournalEntryForm({
   editJournalNo = "",
   editJournalDate = "",
   accounts = [],
-  row // Legacy single row fallback (e.g. prefill from Sales Page)
+  row, // Legacy single row fallback (e.g. prefill from Sales Page)
+  permissions = [],
+  userRole = "",
 }: {
   initialRows?: any[];
   nextJournalNo?: string;
@@ -40,7 +42,10 @@ export function JournalEntryForm({
   editJournalDate?: string;
   accounts?: { name: string }[];
   row?: { account_name?: string; entry_type?: "debit" | "credit" };
+  permissions?: string[];
+  userRole?: string;
 }) {
+  const canChangeDate = userRole === "admin" || permissions.includes("sales.allow_custom_date");
   const isEditing = !!editJournalNo;
   const [journalNo] = useState(isEditing ? editJournalNo : nextJournalNo);
   const [entryDate, setEntryDate] = useState(
@@ -254,8 +259,8 @@ export function JournalEntryForm({
             required
             value={entryDate}
             onChange={(e) => setEntryDate(e.target.value)}
-            disabled={isSaving}
-            className="w-36 h-9 text-xs bg-white border-emerald-200 text-emerald-950 font-semibold px-2.5 py-1 rounded-lg"
+            disabled={isSaving || !canChangeDate}
+            className="w-36 h-9 text-xs bg-white border-emerald-200 text-emerald-950 font-semibold px-2.5 py-1 rounded-lg disabled:opacity-60 disabled:cursor-not-allowed"
           />
         </div>
       </div>

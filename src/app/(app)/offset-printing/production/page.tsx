@@ -1,10 +1,13 @@
-import { requirePermission } from "@/lib/auth";
+import { requirePermission, getSessionPermissions, getSessionUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { PageHeader } from "@/components/app/page-header";
 import { OffsetProductionClient } from "./OffsetProductionClient";
 
 export default async function OffsetPrintingProductionPage() {
   await requirePermission("offset_printing.production");
+  const permissions = await getSessionPermissions();
+  const user = await getSessionUser();
+  const userRole = user?.roles?.name || "";
   const supabase = await createClient();
   const today = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Asia/Kolkata",
@@ -123,6 +126,8 @@ export default async function OffsetPrintingProductionPage() {
         offsetProducts={offsetProducts}
         offsetRows={offsetRows}
         pendingOrders={pendingOrders}
+        permissions={permissions}
+        userRole={userRole}
       />
     </div>
   );

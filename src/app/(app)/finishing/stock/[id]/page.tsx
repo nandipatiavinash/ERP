@@ -82,7 +82,7 @@ export default async function FinishingStockDetailPage({
 
       <StockFinishingBundlesClient
         bundles={(bundlesData ?? []) as any[]}
-        rollAllocationMap={rollAllocationMap}
+        bundleAllocationMap={rollAllocationMap}
         fabricName={specId}
       />
     </div>

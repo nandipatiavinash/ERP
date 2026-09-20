@@ -33,6 +33,8 @@ interface FinishingProductionFormProps {
   offsetRolls: OffsetRoll[];
   onSuccess?: (newBundleInfo: { bundleId: string; numBags: number; weight: number }) => void;
   rows?: any[];
+  permissions?: string[];
+  userRole?: string;
 }
 
 export function FinishingProductionForm({
@@ -40,8 +42,11 @@ export function FinishingProductionForm({
   laminationRolls,
   offsetRolls,
   onSuccess,
-  rows,
+  rows = [],
+  permissions = [],
+  userRole = "",
 }: FinishingProductionFormProps) {
+  const canChangeDate = userRole === "admin" || permissions.includes("sales.allow_custom_date");
   const [isPending, startTransition] = useTransition();
   const [finishType, setFinishType] = useState<string>("");
   const [selectedFabricTypeId, setSelectedFabricTypeId] = useState<string>("");
@@ -242,7 +247,7 @@ export function FinishingProductionForm({
         </div>
         <div className="space-y-1">
           <Label htmlFor="entry_date" className="text-xs font-semibold text-slate-700">Entry Date</Label>
-          <Input id="entry_date" type="date" value={entryDate} onChange={(e) => setEntryDate(e.target.value)} className="h-10 text-sm border-slate-200" />
+          <Input id="entry_date" type="date" value={entryDate} onChange={(e) => setEntryDate(e.target.value)} disabled={!canChangeDate} className="h-10 text-sm border-slate-200 disabled:opacity-60 disabled:cursor-not-allowed" />
         </div>
       </div>
 

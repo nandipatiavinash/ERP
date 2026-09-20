@@ -31,12 +31,14 @@ interface AllocationInfo {
 
 interface StockFinishingBundlesClientProps {
   bundles: FinishingBundle[];
-  rollAllocationMap: Record<string, AllocationInfo>;
+  bundleAllocationMap: Record<string, AllocationInfo>;
   fabricName: string;
 }
 
-export function StockFinishingBundlesClient({ bundles, rollAllocationMap, fabricName }: StockFinishingBundlesClientProps) {
+export function StockFinishingBundlesClient({ bundles, bundleAllocationMap, fabricName }: StockFinishingBundlesClientProps) {
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedClient, setSelectedClient] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
   const [sortKey, setSortKey] = useState<SortKey>("s_no");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
 
@@ -49,11 +51,24 @@ export function StockFinishingBundlesClient({ bundles, rollAllocationMap, fabric
     }
   };
 
+  const clientNames = useMemo(() => {
+    const names = new Set<string>();
+    Object.values(bundleAllocationMap).forEach((alloc) => {
+      if (alloc.clientName && alloc.clientName !== "-") names.add(alloc.clientName);
+    });
+    return Array.from(names).sort();
+  }, [bundleAllocationMap]);
+
   const filteredBundles = useMemo(() => {
-    return bundles.filter((b) =>
-      b.bundle_id.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [bundles, searchTerm]);
+    return bundles.filter((b) => {
+      const matchesSearch = b.bundle_id.toLowerCase().includes(searchTerm.toLowerCase()) || String(b.s_no).includes(searchTerm);
+      const alloc = bundleAllocationMap[b.id];
+      const clientName = alloc?.clientName ?? "";
+      const matchesClient = !selectedClient || clientName.toLowerCase() === selectedClient.toLowerCase();
+      const matchesStatus = !statusFilter || b.status === statusFilter;
+      return matchesSearch && matchesClient && matchesStatus;
+    });
+  }, [bundles, searchTerm, selectedClient, statusFilter, bundleAllocationMap]);
 
   const sortedBundles = useMemo(() => {
     return [...filteredBundles].sort((a, b) => {
@@ -79,15 +94,42 @@ export function StockFinishingBundlesClient({ bundles, rollAllocationMap, fabric
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
-        <Input
-          placeholder="Filter bundles by ID..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="max-w-xs text-xs font-semibold h-9 shadow-none border-slate-200"
-        />
+      <div className="flex flex-col sm:flex-row gap-3 justify-between items-start sm:items-center">
+        <div className="flex flex-wrap items-center gap-3">
+          <Input
+            placeholder="Filter by Bundle ID or S.No..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-48 text-xs font-semibold h-9 shadow-none border-slate-200"
+          />
+
+          <select
+            value={selectedClient}
+            onChange={(e) => setSelectedClient(e.target.value)}
+            className="h-9 px-3 text-xs font-semibold rounded-md border border-slate-200 bg-white text-slate-700 focus:outline-none focus:ring-1 focus:ring-slate-400"
+          >
+            <option value="">All Clients</option>
+            {clientNames.map((name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
+          </select>
+
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="h-9 px-3 text-xs font-semibold rounded-md border border-slate-200 bg-white text-slate-700 focus:outline-none focus:ring-1 focus:ring-slate-400"
+          >
+            <option value="">All Statuses</option>
+            <option value="available">Available Only</option>
+            <option value="sold">Sold</option>
+            <option value="consumed">Consumed</option>
+          </select>
+        </div>
+
         <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded">
-          Total: {bundles.length} bundles
+          Showing: {sortedBundles.length} of {bundles.length} bundles
         </span>
       </div>
 
@@ -131,7 +173,7 @@ export function StockFinishingBundlesClient({ bundles, rollAllocationMap, fabric
                 </TableHeader>
                 <TableBody>
                   {sortedBundles.map((bundle) => {
-                    const allocation = rollAllocationMap[bundle.id];
+                    const allocation = bundleAllocationMap?.[bundle.id];
                     return (
                       <TableRow key={bundle.id}>
                         <TableCell className="font-mono font-bold text-emerald-950">{bundle.bundle_id}</TableCell>

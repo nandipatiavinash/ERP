@@ -1,4 +1,4 @@
-import { requirePermission, getSessionPermissions } from "@/lib/auth";
+import { requirePermission, getSessionPermissions, getSessionUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { todayInIndia } from "@/lib/utils";
 import { PageHeader } from "@/components/app/page-header";
@@ -12,6 +12,8 @@ export default async function MaterialSalesPage({
 }) {
   await requirePermission("accounts.material");
   const permissions = await getSessionPermissions();
+  const user = await getSessionUser();
+  const userRole = user?.roles?.name || "";
   const supabase = await createClient();
   const params = await searchParams;
   const date = params.date || todayInIndia();
@@ -115,6 +117,8 @@ export default async function MaterialSalesPage({
         rawMaterials={rawMaterials}
         sales={sales}
         selectedDate={date}
+        permissions={permissions}
+        userRole={userRole}
       />
     </div>
   );

@@ -258,6 +258,7 @@ export type Database = {
         created_at: string;
         updated_at: string;
         deleted_at: string | null;
+        vehicle_number: string | null;
         is_jobwork: boolean;
       }>;
       roto_products: Table<{

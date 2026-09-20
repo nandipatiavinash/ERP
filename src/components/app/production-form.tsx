@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { showSuccess } from "@/lib/toast";
 import { saveProduction } from "@/app/(app)/_actions";
 import { ConfirmSubmitButton } from "@/components/app/confirm-submit-button";
-import { isRedirectError } from "@/lib/utils";
+import { isRedirectError, todayInIndia } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -20,6 +20,8 @@ export function ProductionForm({
   row,
   onSaved,
   rows,
+  permissions = [],
+  userRole = "",
 }: {
   fabrics: Option[];
   looms: Option[];
@@ -29,7 +31,10 @@ export function ProductionForm({
   row?: Record<string, any>;
   onSaved?: () => void;
   rows?: any[];
+  permissions?: string[];
+  userRole?: string;
 }) {
+  const canChangeDate = userRole === "admin" || isAdmin || permissions.includes("sales.allow_custom_date");
   const defaultFabric = row?.fabric_type_id ?? "";
   const defaultLoom = row?.loom_id ?? "";
   const [fabricId, setFabricId] = useState(defaultFabric);
@@ -145,6 +150,17 @@ export function ProductionForm({
   return (
     <form onSubmit={handleSubmit} className="grid gap-4 md:grid-cols-3">
       {row?.id ? <input type="hidden" name="id" value={row.id} /> : null}
+      <div className="space-y-2">
+        <Label>Entry Date</Label>
+        <Input
+          name="entry_date"
+          type="date"
+          required
+          defaultValue={row?.entry_date ?? todayInIndia()}
+          disabled={isSaving || !canChangeDate}
+          className="h-10 text-sm disabled:opacity-60 disabled:cursor-not-allowed"
+        />
+      </div>
       <div className="space-y-2">
         <Label>Fabric ID</Label>
         <select name="fabric_type_id" value={fabricId} onChange={(event) => setFabricId(event.target.value)} required disabled={isSaving} className="h-10 w-full rounded-md border bg-background px-3 text-sm">

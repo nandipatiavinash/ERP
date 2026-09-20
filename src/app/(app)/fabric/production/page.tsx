@@ -66,6 +66,8 @@ export default async function FabricProductionPage() {
             nextSerials={nextSerials}
             isAdmin={admin}
             rows={productionRows}
+            permissions={permissions}
+            userRole={user.roles?.name || ""}
           />
         </CardContent>
       </Card>
