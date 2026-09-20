@@ -126,9 +126,10 @@ export async function confirmMultipleSalesDeliveries(
   selectedItemIds: string[],
   itemRolls: Record<string, string[]>,
   itemRemainingActions: Record<string, "backorder" | "close">,
-  deliveryDate?: string
+  deliveryDate?: string,
+  vehicleNumber?: string
 ) {
-  return sales.confirmMultipleSalesDeliveries(selectedItemIds, itemRolls, itemRemainingActions, deliveryDate);
+  return sales.confirmMultipleSalesDeliveries(selectedItemIds, itemRolls, itemRemainingActions, deliveryDate, vehicleNumber);
 }
 export async function saveSalesOrderBillingDirect(formData: FormData) {
   return sales.saveSalesOrderBillingDirect(formData);

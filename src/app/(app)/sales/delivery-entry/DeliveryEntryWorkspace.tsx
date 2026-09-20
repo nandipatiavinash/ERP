@@ -70,6 +70,7 @@ type SalesOrder = {
   order_date: string;
   customer_id: string;
   status: string;
+  vehicle_number?: string | null;
   created_at: string;
   customers?: Customer;
   sales_order_items?: OrderItem[];
@@ -194,6 +195,7 @@ export function DeliveryEntryWorkspace({
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [deliveryDate, setDeliveryDate] = useState(todayInIndia());
+  const [vehicleNumber, setVehicleNumber] = useState("");
   const canChangeDate = permissions.includes("sales.allow_custom_date");
 
   const toggleOrderExpand = (orderId: string) => {
@@ -330,6 +332,7 @@ export function DeliveryEntryWorkspace({
     setSuccessMsg(null);
     setExpandedOrderId(null);
     setDeliveryDate(todayInIndia());
+    setVehicleNumber("");
 
     const customerOrders = orders.filter((o) => o.customer_id === customerId && o.status === "draft");
     const items = customerOrders.flatMap((o) => o.sales_order_items ?? []);
@@ -385,7 +388,7 @@ export function DeliveryEntryWorkspace({
 
     startTransition(async () => {
       try {
-        await confirmMultipleSalesDeliveries(selectedItemIds, allocation, itemRemainingActions, deliveryDate);
+        await confirmMultipleSalesDeliveries(selectedItemIds, allocation, itemRemainingActions, deliveryDate, vehicleNumber);
         setSuccessMsg("Deliveries confirmed successfully! You can print the dispatch sheet below.");
         
         // Locate one of the parent orders that was confirmed to enable printing
@@ -604,9 +607,10 @@ export function DeliveryEntryWorkspace({
     return {
       ...firstOrder,
       order_number: "DRAFT-" + Array.from(new Set(customerOrders.map((o) => o.order_number))).join("/"),
+      vehicle_number: vehicleNumber || null,
       sales_order_items: selectedItems,
     };
-  }, [selectedCustomerId, orders, selectedItemIds, allocation]);
+  }, [selectedCustomerId, orders, selectedItemIds, allocation, vehicleNumber]);
 
   const stagedPrintGroups = useMemo(() => {
     return stagedPrintOrder ? buildProductGroups(stagedPrintOrder as any, rolls, fabrics) : [];
@@ -882,6 +886,18 @@ export function DeliveryEntryWorkspace({
                           onChange={(e) => setDeliveryDate(e.target.value)}
                           disabled={!canChangeDate}
                           className="h-9 px-3 rounded-md border border-slate-200 bg-background text-sm font-medium focus:outline-none focus:ring-1 focus:ring-primary w-40 disabled:opacity-60 disabled:cursor-not-allowed"
+                        />
+                      </div>
+                      <div className="flex flex-col gap-1 no-print">
+                        <Label className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">
+                          Vehicle Number
+                        </Label>
+                        <input
+                          type="text"
+                          placeholder="e.g. UP80 AB 1234"
+                          value={vehicleNumber}
+                          onChange={(e) => setVehicleNumber(e.target.value)}
+                          className="h-9 px-3 rounded-md border border-slate-200 bg-background text-sm font-medium focus:outline-none focus:ring-1 focus:ring-primary w-40 uppercase"
                         />
                       </div>
                       <Button
@@ -1235,6 +1251,7 @@ export function DeliveryEntryWorkspace({
                       <TableRow className="bg-slate-50/50">
                         <TableHead className="text-xs font-bold">Order Number</TableHead>
                         <TableHead className="text-xs font-bold">Firm Name</TableHead>
+                        <TableHead className="text-xs font-bold">Vehicle No</TableHead>
                         <TableHead className="text-xs font-bold">Items Count</TableHead>
                         <TableHead className="text-xs font-bold">Order Date</TableHead>
                         <TableHead className="text-xs font-bold text-center">Actions</TableHead>
@@ -1247,6 +1264,7 @@ export function DeliveryEntryWorkspace({
                           <TableCell className="font-medium">
                             {order.customers?.customer_name}
                           </TableCell>
+                          <TableCell className="font-mono text-xs uppercase">{order.vehicle_number || "-"}</TableCell>
                           <TableCell>{order.sales_order_items?.length ?? 0} items</TableCell>
                           <TableCell>{formatDate(order.order_date)}</TableCell>
                           <TableCell className="text-center">
@@ -1313,6 +1331,17 @@ export function DeliveryEntryWorkspace({
               Review the items and fabric rolls staged for dispatch on <strong className="text-slate-800">{formatDate(deliveryDate)}</strong> (this will consolidate them into a single dispatch note):
             </DialogDescription>
           </DialogHeader>
+
+          <div className="flex flex-col gap-1.5 my-2">
+            <Label className="text-xs font-semibold text-slate-700">Vehicle Number</Label>
+            <input
+              type="text"
+              placeholder="e.g. UP80 AB 1234 (Optional)"
+              value={vehicleNumber}
+              onChange={(e) => setVehicleNumber(e.target.value)}
+              className="h-9 px-3 rounded-md border border-slate-200 bg-background text-sm font-medium uppercase focus:outline-none focus:ring-1 focus:ring-emerald-500"
+            />
+          </div>
 
           <div className="space-y-4 max-h-[350px] overflow-y-auto my-3 pr-1">
             {selectedItemsSummary.map(({ order, items }) => (
