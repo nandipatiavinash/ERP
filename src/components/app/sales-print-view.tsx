@@ -42,13 +42,15 @@ export function SalesPrintView({ order, rollsByProduct, departmentsByProduct }: 
       .sort();
   }, [rollsByProduct]);
 
-  // Sort rolls within each product group alphabetically
+  // Sort rolls within each product group in ascending order of S.No / Roll Number
   const sortedRollsByProduct = useMemo(() => {
     const sorted: Record<string, typeof rollsByProduct[string]> = {};
     for (const key of productKeys) {
-      sorted[key] = [...rollsByProduct[key]].sort((a, b) =>
-        a.roll_number.localeCompare(b.roll_number, undefined, { numeric: true, sensitivity: "base" })
-      );
+      sorted[key] = [...rollsByProduct[key]].sort((a, b) => {
+        const valA = a.s_no ?? a.roll_number ?? "";
+        const valB = b.s_no ?? b.roll_number ?? "";
+        return String(valA).localeCompare(String(valB), undefined, { numeric: true, sensitivity: "base" });
+      });
     }
     return sorted;
   }, [productKeys, rollsByProduct]);
@@ -249,7 +251,7 @@ export function SalesPrintView({ order, rollsByProduct, departmentsByProduct }: 
                           const rollAvg = roll.net_meters > 0 ? (roll.net_weight * 1000) / roll.net_meters : 0;
                           return (
                             <tr
-                              key={roll.roll_number}
+                              key={`${roll.roll_number}-${roll.s_no ?? idx}-${idx}`}
                               className={idx % 2 === 0 ? "bg-white" : "bg-gray-50/60"}
                             >
                               <td className="border border-gray-200 px-3 py-1.5 text-left text-gray-600 font-mono">
