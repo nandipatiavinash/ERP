@@ -43,6 +43,7 @@ type SalesOrder = {
   order_date: string;
   customer_id: string;
   status: string;
+  vehicle_number?: string | null;
   bill_number?: string;
   bill_value?: number;
   customers?: {
@@ -193,18 +194,33 @@ function buildProductGroups(
 ): ProductGroup[] {
   return (order.sales_order_items ?? []).map((item) => {
     const rollsData = (item.selected_roll_ids ?? []).map((rollId) => {
-      const roll = getRollDetails(rollId, rolls);
+      const roll: any = getRollDetails(rollId, rolls);
       if (!roll) return null;
-      const prod = roll.loom_production_entries;
+      const rawProd = roll.loom_production_entries;
+      const prod = Array.isArray(rawProd) ? rawProd[0] : rawProd;
+
+      const netWeight = Number(prod?.net_weight ?? roll.net_weight ?? roll.weight ?? 0);
+      const netMeters = Number(prod?.net_meters ?? roll.meters ?? 0);
+      const coreWeight = Number(prod?.core_weight ?? roll.core_weight ?? 0);
+      const grossWeight = Number(prod?.gross_weight ?? roll.gross_weight ?? (netWeight > 0 ? netWeight + coreWeight : netWeight));
+      const avgMeterWeight = Number(prod?.average_meter_weight ?? (netMeters > 0 ? (netWeight / netMeters) * 1000 : 0));
+
       return {
         roll_number: roll.roll_number,
-        gross_weight: prod?.gross_weight ?? roll.weight ?? 0,
-        core_weight: prod?.core_weight ?? 0,
-        net_weight: prod?.net_weight ?? (roll.weight ?? 0),
-        net_meters: prod?.net_meters ?? (roll.meters ?? 0),
-        average_meter_weight: prod?.average_meter_weight ?? 0,
+        s_no: roll.s_no ?? roll.roll_number,
+        gross_weight: grossWeight,
+        core_weight: coreWeight,
+        net_weight: netWeight,
+        net_meters: netMeters,
+        average_meter_weight: avgMeterWeight,
       };
     }).filter(Boolean) as any[];
+
+    rollsData.sort((a, b) => {
+      const valA = a.s_no ?? a.roll_number ?? "";
+      const valB = b.s_no ?? b.roll_number ?? "";
+      return String(valA).localeCompare(String(valB), undefined, { numeric: true, sensitivity: "base" });
+    });
 
     const totalNetWeight = rollsData.reduce((s, r) => s + r.net_weight, 0);
     const totalMeters = rollsData.reduce((s, r) => s + r.net_meters, 0);
@@ -527,6 +543,11 @@ export function SalesEntryClient({
                                       <span className="font-semibold text-sm text-slate-900">
                                         Order #{order.order_number}
                                       </span>
+                                      {order.vehicle_number && (
+                                        <span className="ml-2 inline-flex items-center rounded-md bg-amber-50 px-2 py-0.5 text-xs font-mono font-medium text-amber-800 border border-amber-200">
+                                          Vehicle: {order.vehicle_number}
+                                        </span>
+                                      )}
                                       <span className="ml-3 text-xs text-muted-foreground font-mono">
                                         {formatDate(order.order_date)}
                                       </span>
@@ -675,6 +696,7 @@ export function SalesEntryClient({
                   <TableRow className="bg-emerald-50/40">
                     <TableHead className="text-xs font-semibold">Date</TableHead>
                     <TableHead className="text-xs font-semibold">Customer</TableHead>
+                    <TableHead className="text-xs font-semibold">Vehicle No</TableHead>
                     <TableHead className="text-xs font-semibold">Bill Number</TableHead>
                     <TableHead className="text-xs font-semibold text-right">Bill Value (₹)</TableHead>
                     <TableHead className="text-xs font-semibold text-right">Products</TableHead>
@@ -688,6 +710,7 @@ export function SalesEntryClient({
                       <TableRow key={order.id} className="hover:bg-white/60">
                         <TableCell className="text-sm">{formatDate(order.order_date)}</TableCell>
                         <TableCell className="text-sm font-medium">{order.customers?.customer_name ?? "—"}</TableCell>
+                        <TableCell className="text-sm font-mono uppercase">{order.vehicle_number || "—"}</TableCell>
                         <TableCell className="text-sm font-mono">{order.bill_number}</TableCell>
                         <TableCell className="text-sm text-right font-mono font-medium">
                           ₹{formatNumber(order.bill_value ?? 0, 2)}

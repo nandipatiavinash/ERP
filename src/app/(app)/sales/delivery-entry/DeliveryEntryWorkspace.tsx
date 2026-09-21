@@ -536,23 +536,33 @@ export function DeliveryEntryWorkspace({
   const buildProductGroups = (order: SalesOrder, rolls: Roll[], fabrics: any[]): ProductGroup[] => {
     return (order.sales_order_items ?? []).map((item) => {
       const rollsData = (item.selected_roll_ids ?? []).map((rollId) => {
-        const roll = rolls.find((r) => r.id === rollId);
+        const roll: any = rolls.find((r) => r.id === rollId);
         if (!roll) return null;
-        const prod = roll.loom_production_entries;
-        const netWeight = prod?.net_weight ?? roll.net_weight ?? roll.weight ?? 0;
-        const netMeters = prod?.net_meters ?? roll.meters ?? 0;
-        const avgMeterWeight = prod?.average_meter_weight ?? (netMeters > 0 ? (netWeight / netMeters) * 1000 : 0);
+        const rawProd = roll.loom_production_entries;
+        const prod = Array.isArray(rawProd) ? rawProd[0] : rawProd;
+
+        const netWeight = Number(prod?.net_weight ?? roll.net_weight ?? roll.weight ?? 0);
+        const netMeters = Number(prod?.net_meters ?? roll.meters ?? 0);
+        const coreWeight = Number(prod?.core_weight ?? roll.core_weight ?? 0);
+        const grossWeight = Number(prod?.gross_weight ?? roll.gross_weight ?? (netWeight > 0 ? netWeight + coreWeight : netWeight));
+        const avgMeterWeight = Number(prod?.average_meter_weight ?? (netMeters > 0 ? (netWeight / netMeters) * 1000 : 0));
 
         return {
           roll_number: roll.roll_number,
-          s_no: roll.s_no,
-          gross_weight: prod?.gross_weight ?? roll.gross_weight ?? netWeight,
-          core_weight: prod?.core_weight ?? roll.core_weight ?? 0,
+          s_no: roll.s_no ?? roll.roll_number,
+          gross_weight: grossWeight,
+          core_weight: coreWeight,
           net_weight: netWeight,
           net_meters: netMeters,
           average_meter_weight: avgMeterWeight,
         };
       }).filter(Boolean) as any[];
+
+      rollsData.sort((a, b) => {
+        const valA = a.s_no ?? a.roll_number ?? "";
+        const valB = b.s_no ?? b.roll_number ?? "";
+        return String(valA).localeCompare(String(valB), undefined, { numeric: true, sensitivity: "base" });
+      });
 
       const totalNetWeight = rollsData.reduce((s, r) => s + r.net_weight, 0);
       const totalMeters = rollsData.reduce((s, r) => s + r.net_meters, 0);
