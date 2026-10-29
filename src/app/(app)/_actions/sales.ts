@@ -12,6 +12,16 @@ import {
   revalidateAllReports
 } from "./helpers";
 
+// Journal numbers are not unique: older entries (and two postings made at the same
+// moment) can share one, so undoing a posting by journal_no also deletes whatever
+// unrelated entry carries the same number. Undo by the ids of the lines this call
+// inserted, or by lines whose text names this exact order.
+async function deleteJournalLinesById(supabase: any, ids: string[]) {
+  if (ids.length === 0) return;
+  const { error } = await (supabase.from("accounts_journal") as any).delete().in("id", ids);
+  if (error) console.error("Failed to undo journal entries:", error.message);
+}
+
 export async function saveSale(formData: FormData) {
   const id = String(formData.get("id") ?? "");
   const user = await requireAnyPermission(id ? ["sales.edit"] : ["sales.create", "sales.order_confirmation"]);
@@ -672,8 +682,9 @@ export async function finalizeSalesOrderBilling(formData: FormData) {
     },
   ];
 
-  const { error: journalError } = await (supabase.from("accounts_journal") as any).insert(journalInserts);
+  const { data: insertedJournal, error: journalError } = await (supabase.from("accounts_journal") as any).insert(journalInserts).select("id");
   if (journalError) throw new Error(journalError.message);
+  const insertedJournalIds = ((insertedJournal ?? []) as any[]).map((r) => r.id as string);
 
   const { error: updateError } = await (supabase
     .from("sales_orders") as any)
@@ -686,8 +697,8 @@ export async function finalizeSalesOrderBilling(formData: FormData) {
     .eq("id", orderId);
 
   if (updateError) {
-    // Rollback journal entry
-    await (supabase.from("accounts_journal") as any).delete().eq("journal_no", journalNo);
+    // Rollback journal entry (only the lines inserted just above)
+    await deleteJournalLinesById(supabase, insertedJournalIds);
     throw new Error(updateError.message);
   }
 
@@ -756,18 +767,35 @@ export async function deleteSalesOrderCompletely(orderId: string) {
     }
   }
 
-  const { data: journalRows } = await (supabase
+  // Lines of THIS order only: tagged with its id, or "Bill x for Dispatch <number>" with
+  // the number anchored at the end / before " (". The old "%<order_number>%" match also
+  // hit other orders (06-22-01 matches DP-06-22-01 and 06-22-010), and deleting by their
+  // journal_no then took unrelated entries that share a number.
+  const { data: journalRows, error: journalFindErr } = await (supabase
     .from("accounts_journal") as any)
-    .select("journal_no")
-    .or(`description.ilike."%SO:${orderId}%",description.ilike."%${orderData.order_number}%"`)
+    .select("id, description")
+    .or(
+      `description.ilike."%SO:${orderId}%",` +
+      `description.ilike."%Bill % for Dispatch ${orderData.order_number}",` +
+      `description.ilike."%Bill % for Dispatch ${orderData.order_number} (%"`
+    )
     .is("deleted_at", null);
+  if (journalFindErr) {
+    throw new Error("Failed to find related journal entries: " + journalFindErr.message);
+  }
 
-  const journalNos = [...new Set((journalRows || []).map((r: any) => r.journal_no))];
-  if (journalNos.length > 0) {
+  const journalIds = ((journalRows || []) as any[])
+    .filter((r) => {
+      const d = String(r.description ?? "");
+      const tagged = /\(SO:[0-9a-f-]{8,}\)/i.test(d);
+      return !tagged || d.includes(`SO:${orderId}`); // a line tagged with another order is not ours
+    })
+    .map((r) => r.id as string);
+  if (journalIds.length > 0) {
     const { error: journalDelErr } = await (supabase
       .from("accounts_journal") as any)
       .delete()
-      .in("journal_no", journalNos);
+      .in("id", journalIds);
     if (journalDelErr) {
       throw new Error("Failed to delete related journal entries: " + journalDelErr.message);
     }
@@ -1190,10 +1218,11 @@ export async function saveMaterialSalesEntry(formData: FormData) {
     },
   ];
 
-  const { error: journalErr } = await (supabase.from("accounts_journal") as any).insert(journalInserts);
+  const { data: insertedJournal, error: journalErr } = await (supabase.from("accounts_journal") as any).insert(journalInserts).select("id");
   if (journalErr) {
     throw new Error(`Failed to create journal entries: ${journalErr.message}`);
   }
+  const insertedJournalIds = ((insertedJournal ?? []) as any[]).map((r) => r.id as string);
 
   const { error: saleErr } = await (supabase.from("material_sales") as any).insert({
     sale_date,
@@ -1212,7 +1241,7 @@ export async function saveMaterialSalesEntry(formData: FormData) {
   });
 
   if (saleErr) {
-    await (supabase.from("accounts_journal") as any).delete().eq("journal_no", journalNo);
+    await deleteJournalLinesById(supabase, insertedJournalIds);
     throw new Error(`Failed to save material sale: ${saleErr.message}`);
   }
 
@@ -1224,11 +1253,32 @@ export async function saveMaterialSalesEntry(formData: FormData) {
 export async function deleteMaterialSalesEntry(formData: FormData) {
   const user = await requireAnyPermission(["sales.edit", "accounts.material"]);
   const id = String(formData.get("id") ?? "");
-  const journalNo = String(formData.get("journal_no") ?? "");
 
   if (!id) throw new Error("Material sale ID is required.");
 
   const supabase = await createClient();
+
+  // The journal number comes from the sale row, never from the browser form, and only the
+  // sale's own "Bill <no> (" lines are removed: other entries can share the same number.
+  const { data: sale, error: saleFetchErr } = await (supabase
+    .from("material_sales") as any)
+    .select("id, bill_number, journal_no")
+    .eq("id", id)
+    .maybeSingle();
+  if (saleFetchErr) throw new Error(`Failed to load material sale: ${saleFetchErr.message}`);
+  if (!sale) throw new Error("Material sale not found.");
+
+  let journalIds: string[] = [];
+  if (sale.journal_no && sale.bill_number) {
+    const { data: lines, error: linesErr } = await (supabase
+      .from("accounts_journal") as any)
+      .select("id")
+      .eq("journal_no", sale.journal_no)
+      .ilike("description", `Bill ${sale.bill_number} (%`)
+      .is("deleted_at", null);
+    if (linesErr) throw new Error(`Failed to find the sale's journal entries: ${linesErr.message}`);
+    journalIds = ((lines ?? []) as any[]).map((r) => r.id as string);
+  }
 
   const { error: saleErr } = await (supabase
     .from("material_sales") as any)
@@ -1237,15 +1287,7 @@ export async function deleteMaterialSalesEntry(formData: FormData) {
 
   if (saleErr) throw new Error(`Failed to delete material sale: ${saleErr.message}`);
 
-  if (journalNo) {
-    const { error: journalErr } = await (supabase
-      .from("accounts_journal") as any)
-      .delete()
-      .eq("journal_no", journalNo);
-    if (journalErr) {
-      console.error(`Failed to delete journal entries for material sale: ${journalErr.message}`);
-    }
-  }
+  await deleteJournalLinesById(supabase, journalIds);
 
   revalidatePath("/accounts/material");
   revalidatePath("/accounts/journal");
@@ -1644,8 +1686,9 @@ export async function saveSalesOrderBillingDirect(formData: FormData) {
     },
   ];
 
-  const { error: journalError } = await (supabase.from("accounts_journal") as any).insert(journalInserts);
+  const { data: insertedJournal, error: journalError } = await (supabase.from("accounts_journal") as any).insert(journalInserts).select("id");
   if (journalError) throw new Error(journalError.message);
+  const insertedJournalIds = ((insertedJournal ?? []) as any[]).map((r) => r.id as string);
 
   try {
     for (let idx = 0; idx < orders.length; idx++) {
@@ -1666,8 +1709,8 @@ export async function saveSalesOrderBillingDirect(formData: FormData) {
       }
     }
   } catch (err: any) {
-    // Rollback journal entries
-    await (supabase.from("accounts_journal") as any).delete().eq("journal_no", journalNo);
+    // Rollback only the lines inserted above, never everything sharing the journal number
+    await deleteJournalLinesById(supabase, insertedJournalIds);
     throw err;
   }
 

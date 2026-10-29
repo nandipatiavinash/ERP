@@ -668,29 +668,30 @@ export async function deleteProductPurchase(formData: FormData) {
     try {
       let journalRowsRes = await (adminSupabase
         .from("accounts_journal") as any)
-        .select("journal_no")
+        .select("id")
         .ilike("description", `%PP:${purchaseId}%`)
         .is("deleted_at", null);
 
-      let journalNos = [...new Set((journalRowsRes.data || []).map((r: any) => r.journal_no))];
+      // By line id, not journal_no: the number can be shared with unrelated entries.
+      let journalIds = ((journalRowsRes.data || []) as any[]).map((r) => r.id as string);
 
       // Fallback for older entries (e.g. Asian Colour Systems) that lack the PP:UUID tag in their description
-      if (journalNos.length === 0 && purchase.bill_number) {
+      if (journalIds.length === 0 && purchase.bill_number) {
         const descExact = `Product Purchase: ${purchase.bill_number}`;
         const descPrefix = `Product Purchase: ${purchase.bill_number} (%`;
         journalRowsRes = await (adminSupabase
           .from("accounts_journal") as any)
-          .select("journal_no")
+          .select("id")
           .or(`description.eq."${descExact}",description.like."${descPrefix}"`)
           .is("deleted_at", null);
-        journalNos = [...new Set((journalRowsRes.data || []).map((r: any) => r.journal_no))];
+        journalIds = ((journalRowsRes.data || []) as any[]).map((r) => r.id as string);
       }
 
-      if (journalNos.length > 0) {
+      if (journalIds.length > 0) {
         await (adminSupabase
           .from("accounts_journal") as any)
           .delete()
-          .in("journal_no", journalNos);
+          .in("id", journalIds);
       }
     } catch (journalErr) {
       console.error("Failed to delete associated journal entries:", journalErr);

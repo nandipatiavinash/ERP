@@ -142,16 +142,17 @@ export async function deleteRawMaterialPurchase(purchaseId: string) {
   // Delete auto-generated journal entries using the unique RM:UUID tag (safe, no bill-number collisions)
   const { data: journalRows } = await (supabase
     .from("accounts_journal") as any)
-    .select("journal_no")
+    .select("id")
     .ilike("description", `%RM:${purchaseId}%`)
     .is("deleted_at", null);
 
-  const journalNos = [...new Set((journalRows || []).map((r: any) => r.journal_no))];
-  if (journalNos.length > 0) {
+  // By line id, not journal_no: the number can be shared with unrelated entries.
+  const journalIds = ((journalRows || []) as any[]).map((r) => r.id as string);
+  if (journalIds.length > 0) {
     await (supabase
       .from("accounts_journal") as any)
       .delete()
-      .in("journal_no", journalNos);
+      .in("id", journalIds);
   }
 
   revalidatePath("/", "layout");
